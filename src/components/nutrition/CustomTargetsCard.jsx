@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const FIELDS = [
   { key: "calorie_target", label: "Calories" },
@@ -18,6 +19,7 @@ const FIELDS = [
 
 export default function CustomTargetsCard() {
   const { strategy, profile, updateStrategy } = useRecomp();
+  const { toast } = useToast();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -81,6 +83,10 @@ export default function CustomTargetsCard() {
     setSaving(true);
     try {
       await updateStrategy(strategy.id, { ...targets(), manual_override: true }, "Manual target change");
+      toast({
+        title: "Targets saved",
+        description: "Your custom targets are live and logged to your decision history."
+      });
     } finally {
       setSaving(false);
     }
