@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import ProgressRing from "@/components/common/ProgressRing";
 import MacroBar from "@/components/common/MacroBar";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
+import QuickLogCard from "@/components/today/QuickLogCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Check, Shield, Flame, TrendingUp, Activity, ChevronRight, Bot } from "lucide-react";
@@ -55,6 +56,8 @@ export default function Today() {
           </div>
         </CardContent>
       </Card>
+
+      <QuickLogCard />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
