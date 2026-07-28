@@ -7,6 +7,21 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
+import { Navigate } from 'react-router-dom';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { RecompGate, RequireOnboarding } from '@/lib/RecompContext';
+import AppLayout from '@/components/AppLayout';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
+import Onboarding from '@/pages/Onboarding';
+import Today from '@/pages/Today';
+import Nutrition from '@/pages/Nutrition';
+import Training from '@/pages/Training';
+import Progress from '@/pages/Progress';
+import More from '@/pages/More';
+import Profile from '@/pages/Profile';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -34,7 +49,25 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+        <Route element={<RecompGate />}>
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route element={<RequireOnboarding />}>
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Today />} />
+              <Route path="/nutrition" element={<Nutrition />} />
+              <Route path="/training" element={<Training />} />
+              <Route path="/progress" element={<Progress />} />
+              <Route path="/more" element={<More />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+          </Route>
+        </Route>
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
