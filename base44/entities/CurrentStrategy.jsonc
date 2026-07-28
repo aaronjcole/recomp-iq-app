@@ -42,6 +42,11 @@
     },
     "behavior_focus": {
       "type": "string"
+    },
+    "manual_override": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, the weekly check-in keeps its adaptive recommendation advisory and does not overwrite these targets."
     }
   },
   "required": [

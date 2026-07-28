@@ -263,7 +263,15 @@ export function RecompProvider({ children }) {
     if (!profile || !strategy) return null;
     const prefs = preferences ?? { tone: "direct" };
     const { trend: t, adjustment } = runWeeklyCheckIn({ logs, profile, preferences: prefs, strategy });
-    const aiSummary = buildSummary(t, adjustment);
+    const manual = !!strategy.manual_override;
+    const baseSummary = buildSummary(t, adjustment);
+    const summary = manual
+      ? `${baseSummary} Manual mode is on, so these targets are advisory${
+          adjustment.nextStrategy?.calorie_target
+            ? ` (we'd suggest ~${adjustment.nextStrategy.calorie_target} kcal)`
+            : ""
+        } — apply them on the Nutrition page if you'd like.`
+      : baseSummary;
     const checkIn = await base44.entities.WeeklyCheckIn.create({
       start_date: daysAgoStr(7),
       end_date: todayStr(),
@@ -278,18 +286,18 @@ export function RecompProvider({ children }) {
       energy_average: t.energy_average,
       sleep_average: t.sleep_average,
       recommendation_decision: adjustment.decision,
-      ai_summary: aiSummary,
+      ai_summary: summary,
       targets_for_next_week: adjustment.nextStrategy
     });
     const changed =
       adjustment.nextStrategy.calorie_target !== strategy.calorie_target ||
       adjustment.nextStrategy.step_target !== strategy.step_target ||
       adjustment.nextStrategy.behavior_focus !== strategy.behavior_focus;
-    if (changed) {
+    if (changed && !manual) {
       await updateStrategy(strategy.id, adjustment.nextStrategy, adjustment.reason);
     }
     setCheckIns((prev) => [checkIn, ...prev]);
-    return { trend: t, adjustment, checkIn };
+    return { trend: t, adjustment, checkIn, manual, advisory: manual ? adjustment.nextStrategy : null };
   }, [profile, strategy, preferences, logs, updateStrategy]);
 
   const value = {

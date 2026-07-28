@@ -11,6 +11,7 @@ import MacroDonut from "@/components/common/MacroDonut";
 import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
+import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
 import { Plus, Check } from "lucide-react";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
@@ -75,6 +76,8 @@ export default function Nutrition() {
           <MacroDonut protein={consumed.protein} carbs={consumed.carbs} fat={consumed.fat} />
         </CardContent>
       </Card>
+
+      <CustomTargetsCard />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
