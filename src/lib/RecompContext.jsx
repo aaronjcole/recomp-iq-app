@@ -60,6 +60,8 @@ export function RecompProvider({ children }) {
   const [recipes, setRecipes] = useState([]);
   const [decisionLedger, setDecisionLedger] = useState([]);
   const [mealTemplates, setMealTemplates] = useState([]);
+  const [habits, setHabits] = useState([]);
+  const [habitEntries, setHabitEntries] = useState([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -75,7 +77,9 @@ export function RecompProvider({ children }) {
         base44.entities.FoodItem.list("-created_date", 200),
         base44.entities.Recipe.list("-created_date", 100),
         base44.entities.DecisionLedger.list("-date", 100),
-        base44.entities.MealTemplate.list("-created_date", 200)
+        base44.entities.MealTemplate.list("-created_date", 200),
+        base44.entities.Habit.list("-sort_order", 200),
+        base44.entities.HabitEntry.list("-date", 500)
       ]);
       const v = (i, fallback = []) => (results[i].status === "fulfilled" ? results[i].value : fallback);
       setProfile(v(0)[0] ?? null);
@@ -89,6 +93,21 @@ export function RecompProvider({ children }) {
       setRecipes(v(8) ?? []);
       setDecisionLedger(v(9) ?? []);
       setMealTemplates(v(10) ?? []);
+      const habitList = v(11);
+      const habitEntryList = v(12);
+      setHabitEntries(habitEntryList);
+      if (habitList.length > 0) {
+        setHabits(habitList);
+      } else if (results[11].status === "fulfilled") {
+        const seeded = await Promise.all([
+          base44.entities.Habit.create({ name: "Water", kind: "count", target_value: 100, unit: "oz", sort_order: 0 }),
+          base44.entities.Habit.create({ name: "Read", kind: "check", sort_order: 1 }),
+          base44.entities.Habit.create({ name: "Meditate", kind: "check", sort_order: 2 })
+        ]);
+        setHabits(seeded.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
+      } else {
+        setHabits([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -164,6 +183,39 @@ export function RecompProvider({ children }) {
     },
     [logs]
   );
+
+  const upsertHabitEntry = useCallback(
+    async (habitId, date, fields) => {
+      const existing = habitEntries.find((e) => e.habit_id === habitId && e.date === date);
+      if (existing) {
+        const updated = await base44.entities.HabitEntry.update(existing.id, fields);
+        setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? updated : e)));
+        return updated;
+      }
+      const created = await base44.entities.HabitEntry.create({ habit_id: habitId, date, ...fields });
+      setHabitEntries((prev) => [created, ...prev]);
+      return created;
+    },
+    [habitEntries]
+  );
+
+  const addHabit = useCallback(async (data) => {
+    const created = await base44.entities.Habit.create(data);
+    setHabits((prev) => [...prev, created]);
+    return created;
+  }, []);
+
+  const updateHabit = useCallback(async (id, data) => {
+    const updated = await base44.entities.Habit.update(id, data);
+    setHabits((prev) => prev.map((h) => (h.id === id ? updated : h)));
+    return updated;
+  }, []);
+
+  const archiveHabit = useCallback(async (id) => {
+    const updated = await base44.entities.Habit.update(id, { archived: true });
+    setHabits((prev) => prev.map((h) => (h.id === id ? updated : h)));
+    return updated;
+  }, []);
 
   const addSession = useCallback(async (data) => {
     const created = await base44.entities.ExerciseSession.create(data);
@@ -253,6 +305,8 @@ export function RecompProvider({ children }) {
     recipes,
     decisionLedger,
     mealTemplates,
+    habits,
+    habitEntries,
     trend,
     signal,
     recompLevel,
@@ -267,6 +321,10 @@ export function RecompProvider({ children }) {
     updatePreferences,
     updateStrategy,
     upsertDailyLog,
+    upsertHabitEntry,
+    addHabit,
+    updateHabit,
+    archiveHabit,
     addSession,
     addFood,
     addStrengthLog,
