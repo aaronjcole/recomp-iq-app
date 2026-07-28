@@ -154,6 +154,47 @@ export async function seedDemoData({ profile, strategy }) {
     supporting_metrics: { weight_change_lbs: 0.1, calorie_adherence: 0.83 }
   });
 
+  // --- Sample recipes (for grocery list demo) -------------------------------
+  const recipeSamples = [
+    {
+      title: "Chicken Rice Bowl",
+      servings: 2,
+      ingredients: [
+        { name: "Chicken breast", quantity: 1, unit: "lb" },
+        { name: "White rice", quantity: 2, unit: "cup" },
+        { name: "Broccoli", quantity: 2, unit: "cup" },
+        { name: "Soy sauce", quantity: 2, unit: "tbsp" }
+      ],
+      instructions: ["Cook rice.", "Grill chicken.", "Steam broccoli.", "Combine and season."],
+      tags: ["demo"]
+    },
+    {
+      title: "Greek Yogurt Parfait",
+      servings: 1,
+      ingredients: [
+        { name: "Greek yogurt", quantity: 1, unit: "cup" },
+        { name: "Granola", quantity: 0.5, unit: "cup" },
+        { name: "Blueberries", quantity: 0.5, unit: "cup" },
+        { name: "Honey", quantity: 1, unit: "tbsp" }
+      ],
+      instructions: ["Layer yogurt, granola, berries.", "Drizzle honey."],
+      tags: ["demo"]
+    },
+    {
+      title: "Protein Oatmeal",
+      servings: 1,
+      ingredients: [
+        { name: "Rolled oats", quantity: 1, unit: "cup" },
+        { name: "Whey protein", quantity: 1, unit: "scoop" },
+        { name: "Banana", quantity: 1, unit: "each" },
+        { name: "Almond milk", quantity: 1, unit: "cup" }
+      ],
+      instructions: ["Cook oats with milk.", "Stir in protein.", "Top with banana."],
+      tags: ["demo"]
+    }
+  ];
+  await base44.entities.Recipe.bulkCreate(recipeSamples);
+
   // Remember the IDs of records without a notes field so clearDemoData can remove them.
   localStorage.setItem(
     DEMO_KEY,
@@ -170,7 +211,8 @@ export async function clearDemoData() {
   await Promise.all([
     base44.entities.DailyLog.deleteMany({ notes: "demo" }),
     base44.entities.StrengthLog.deleteMany({ notes: "demo" }),
-    base44.entities.ExerciseSession.deleteMany({ notes: "demo" })
+    base44.entities.ExerciseSession.deleteMany({ notes: "demo" }),
+    base44.entities.Recipe.deleteMany({ tags: "demo" })
   ]);
   let ids = {};
   try {

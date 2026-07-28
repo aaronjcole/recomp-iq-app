@@ -201,6 +201,12 @@ export function RecompProvider({ children }) {
     [todayLog, upsertDailyLog]
   );
 
+  const addRecipe = useCallback(async (data) => {
+    const created = await base44.entities.Recipe.create(data);
+    setRecipes((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
   const runCheckIn = useCallback(async () => {
     if (!profile || !strategy) return null;
     const prefs = preferences ?? { tone: "direct" };
@@ -266,6 +272,7 @@ export function RecompProvider({ children }) {
     addStrengthLog,
     saveMealTemplate,
     logMealTemplate,
+    addRecipe,
     runCheckIn
   };
 

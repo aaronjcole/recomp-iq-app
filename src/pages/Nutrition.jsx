@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import MacroBar from "@/components/common/MacroBar";
 import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
+import GroceryListCard from "@/components/nutrition/GroceryListCard";
+import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import { Plus, Check } from "lucide-react";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
@@ -117,6 +119,9 @@ export default function Nutrition() {
       </Card>
 
       <MealTemplatesCard />
+
+      <GroceryListCard />
+      <AddRecipeCard />
     </div>
   );
 }
