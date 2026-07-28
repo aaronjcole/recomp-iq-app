@@ -5,6 +5,7 @@ import ProgressRing from "@/components/common/ProgressRing";
 import MacroBar from "@/components/common/MacroBar";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import QuickLogCard from "@/components/today/QuickLogCard";
+import DailyHabitsCard from "@/components/today/DailyHabitsCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,6 +60,8 @@ export default function Today() {
       </Card>
 
       <QuickLogCard />
+
+      <DailyHabitsCard />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
