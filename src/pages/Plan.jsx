@@ -4,6 +4,7 @@ import { calculateInitialStrategy, generateScenarioProjection } from "@/lib/fitn
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import DecisionLedgerTimeline from "@/components/common/DecisionLedgerTimeline";
 
 const SCENARIOS = [
   { mode: "current_plan", title: "Current plan" },
@@ -12,19 +13,8 @@ const SCENARIOS = [
   { mode: "combined", title: "Combined" }
 ];
 
-const FIELD_LABELS = {
-  calorie_target: "Calories",
-  protein_target_g: "Protein",
-  fat_target_g: "Fat",
-  carb_target_g: "Carbs",
-  step_target: "Steps",
-  lifting_days_target: "Lift days",
-  cardio_days_target: "Cardio days",
-  behavior_focus: "Focus"
-};
-
 export default function Plan() {
-  const { profile, strategy, logs, decisionLedger } = useRecomp();
+  const { profile, strategy, logs } = useRecomp();
   const [weeks, setWeeks] = useState(12);
 
   const tdee = useMemo(() => (profile ? calculateInitialStrategy(profile).tdee_estimate : null), [profile]);
@@ -80,29 +70,7 @@ export default function Plan() {
       ))}
 
       <div className="font-medium pt-2">Plan history</div>
-      {decisionLedger.length === 0 ? (
-        <Card className="bg-panel border-line">
-          <CardContent className="p-5 text-sm text-muted-foreground">
-            No plan changes yet — run a weekly check-in from More.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {decisionLedger.map((entry) => (
-            <Card key={entry.id} className="bg-panel border-line">
-              <CardContent className="p-4 space-y-2">
-                <span className="text-xs text-muted-foreground">{entry.date}</span>
-                <p className="text-sm">{entry.reason}</p>
-                <div className="space-y-1">
-                  {diffLines(entry).map((line, idx) => (
-                    <div key={idx} className="text-xs text-muted-foreground">{line}</div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <DecisionLedgerTimeline />
     </div>
   );
 }
@@ -114,22 +82,4 @@ function Stat({ label, value, highlight }) {
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
-}
-
-function formatVal(v) {
-  if (v === null || v === undefined) return "—";
-  return typeof v === "number" ? v.toLocaleString() : String(v);
-}
-
-function diffLines(entry) {
-  const prev = entry.previous_targets || {};
-  const next = entry.new_targets || {};
-  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]));
-  const lines = [];
-  for (const key of keys) {
-    if (prev[key] === next[key]) continue;
-    const label = FIELD_LABELS[key] || key.replace(/_/g, " ");
-    lines.push(`${label} ${formatVal(prev[key])} → ${formatVal(next[key])}`);
-  }
-  return lines.length ? lines : ["Plan updated."];
 }
