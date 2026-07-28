@@ -10,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
   Camera, Mail, CheckCircle, Moon, Sun, LogOut, User, Database, Trash2,
-  ChevronRight, Loader2
+  ChevronRight, Loader2, Star, ShieldCheck, FileText
 } from "lucide-react";
+import { PLAY_STORE_URL } from "@/lib/storeLinks";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -141,7 +142,10 @@ export default function More() {
     reload: () => reload(),
     logout: () => base44.auth.logout(window.location.origin),
     demo: onLoadClick,
-    clearDemo: handleClear
+    clearDemo: handleClear,
+    rate: () => window.open(PLAY_STORE_URL, "_blank", "noopener,noreferrer"),
+    privacy: () => navigate("/privacy"),
+    terms: () => navigate("/terms")
   };
 
   const SECTIONS = [
@@ -187,9 +191,17 @@ export default function More() {
       items: [
         { icon: User, label: "Profile & plan", to: "/profile" },
         { icon: theme === "dark" ? Moon : Sun, label: "Dark mode", control: "theme" },
+        { icon: Star, label: "Rate on Play Store", action: "rate" },
         { icon: RefreshCw, label: "Refresh data", action: "reload" },
         { icon: Database, label: "Demo data", action: "demo", subtitle: seeding ? "Seeding…" : "Preview charts" },
         { icon: LogOut, label: "Log out", action: "logout" }
+      ]
+    },
+    {
+      title: "Legal",
+      items: [
+        { icon: ShieldCheck, label: "Privacy Policy", action: "privacy" },
+        { icon: FileText, label: "Terms of Service", action: "terms" }
       ]
     }
   ];

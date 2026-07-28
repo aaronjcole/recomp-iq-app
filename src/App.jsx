@@ -25,17 +25,19 @@ import More from '@/pages/More';
 import Plan from '@/pages/Plan';
 import Coach from '@/pages/Coach';
 import Profile from '@/pages/Profile';
+import Hero from '@/pages/Hero';
+import Privacy from '@/pages/Privacy';
+import Terms from '@/pages/Terms';
+import AppSplash from '@/components/AppSplash';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import OfflineBanner from '@/components/OfflineBanner';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <AppSplash />;
   }
 
   // Handle authentication errors
@@ -52,6 +54,9 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
+      <Route path="/" element={<Hero />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -61,7 +66,7 @@ const AuthenticatedApp = () => {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route element={<RequireOnboarding />}>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Today />} />
+              <Route path="/today" element={<Today />} />
               <Route path="/nutrition" element={<Nutrition />} />
               <Route path="/training" element={<Training />} />
               <Route path="/progress" element={<Progress />} />
@@ -84,11 +89,14 @@ function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <ScrollToTop />
-          <AndroidBackHandler />
-          <AuthenticatedApp />
-        </Router>
+        <ErrorBoundary>
+          <Router>
+            <ScrollToTop />
+            <AndroidBackHandler />
+            <OfflineBanner />
+            <AuthenticatedApp />
+          </Router>
+        </ErrorBoundary>
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>

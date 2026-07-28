@@ -5,7 +5,7 @@ import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-re
 import { useTheme } from "@/lib/useTheme";
 
 const tabs = [
-  { to: "/", icon: LayoutDashboard, label: "Today", end: true },
+  { to: "/today", icon: LayoutDashboard, label: "Today", end: true },
   { to: "/nutrition", icon: Utensils, label: "Fuel", end: false },
   { to: "/training", icon: Dumbbell, label: "Train", end: false },
   { to: "/progress", icon: TrendingUp, label: "Progress", end: false },

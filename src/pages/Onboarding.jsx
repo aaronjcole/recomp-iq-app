@@ -167,7 +167,7 @@ export default function Onboarding() {
       }
       await completeOnboarding(profileData, prefData);
       localStorage.removeItem(STORAGE_KEY);
-      navigate("/", { replace: true });
+      navigate("/today", { replace: true });
     } finally {
       setSaving(false);
     }

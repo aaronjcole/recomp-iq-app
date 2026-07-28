@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const ROOT_TABS = ["/", "/nutrition", "/training", "/progress", "/more"];
+const ROOT_TABS = ["/today", "/nutrition", "/training", "/progress", "/more"];
 
 export default function AndroidBackHandler() {
   const navigate = useNavigate();
