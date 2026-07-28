@@ -12,7 +12,7 @@ const tabs = [
   { to: "/more", icon: Menu, label: "More", end: false }
 ];
 
-const TAB_PATHS = ["/", "/nutrition", "/training", "/progress", "/more"];
+const TAB_PATHS = ["/today", "/nutrition", "/training", "/progress", "/more"];
 
 export default function AppLayout() {
   useTheme();
@@ -25,7 +25,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-bg text-foreground flex flex-col">
-      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
+      <main className={`mx-auto w-full max-w-md flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] ${isTab ? "pb-28" : "pb-6"}`}>
         {TAB_PATHS.filter((p) => cache.current[p]).map((p) => (
           <div key={p} className={p === location.pathname ? "" : "hidden"}>
             {cache.current[p]}
@@ -45,25 +45,27 @@ export default function AppLayout() {
           )}
         </AnimatePresence>
       </main>
-      <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
-        <div className="flex">
-          {tabs.map(({ to, icon: Icon, label, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight transition-colors ${
-                  isActive ? "text-teal" : "text-muted-foreground"
-                }`
-              }
-            >
-              <Icon className="w-[18px] h-[18px]" />
-              {label}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
+      {isTab && (
+        <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex">
+            {tabs.map(({ to, icon: Icon, label, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight transition-colors ${
+                    isActive ? "text-teal" : "text-muted-foreground"
+                  }`
+                }
+              >
+                <Icon className="w-[18px] h-[18px]" />
+                {label}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

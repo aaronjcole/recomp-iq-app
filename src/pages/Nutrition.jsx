@@ -13,12 +13,13 @@ import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
 import { Plus, Check } from "lucide-react";
+import PullToRefresh from "@/components/common/PullToRefresh";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
 const num = (v) => (v === "" ? null : Number(v));
 
 export default function Nutrition() {
-  const { strategy, todayLog, foods, upsertDailyLog, addFood } = useRecomp();
+  const { strategy, todayLog, foods, upsertDailyLog, addFood, reload } = useRecomp();
   const [form, setForm] = useState(empty);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -58,6 +59,7 @@ export default function Nutrition() {
   const canSave = form.name && form.calories;
 
   return (
+    <PullToRefresh onRefresh={reload}>
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Nutrition</h1>
 
@@ -134,6 +136,7 @@ export default function Nutrition() {
       <GroceryListCard />
       <AddRecipeCard />
     </div>
+    </PullToRefresh>
   );
 }
 

@@ -15,11 +15,12 @@ import {
 import { Plus } from "lucide-react";
 import StrengthProgressionCard from "@/components/training/StrengthProgressionCard";
 import SessionHistory from "@/components/training/SessionHistory";
+import PullToRefresh from "@/components/common/PullToRefresh";
 
 const num = (v) => (v === "" ? null : Number(v));
 
 export default function Training() {
-  const { sessions, addSession, upsertDailyLog, addStrengthLog } = useRecomp();
+  const { sessions, addSession, upsertDailyLog, addStrengthLog, reload } = useRecomp();
   const [form, setForm] = useState({ date: todayStr(), type: "strength", title: "", duration_minutes: "", perceived_exertion: "", muscle_groups: "", notes: "" });
   const [lift, setLift] = useState({ lift_name: "", weight: "", reps: "", sets: "" });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -54,6 +55,7 @@ export default function Training() {
   };
 
   return (
+    <PullToRefresh onRefresh={reload}>
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Training</h1>
 
@@ -116,6 +118,7 @@ export default function Training() {
 
       <SessionHistory />
     </div>
+    </PullToRefresh>
   );
 }
 

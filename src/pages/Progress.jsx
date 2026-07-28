@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
+import PullToRefresh from "@/components/common/PullToRefresh";
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
 
@@ -18,7 +19,7 @@ function daysAgoStr(n) {
 }
 
 export default function Progress() {
-  const { profile, strategy, logs, trend } = useRecomp();
+  const { profile, strategy, logs, trend, reload } = useRecomp();
   const [range, setRange] = useState("35d");
 
   const chartData = useMemo(() => {
@@ -58,6 +59,7 @@ export default function Progress() {
   if (!profile || !strategy) return null;
 
   return (
+    <PullToRefresh onRefresh={reload}>
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Progress</h1>
 
@@ -135,6 +137,7 @@ export default function Progress() {
 
       <ProgressPhotos />
     </div>
+    </PullToRefresh>
   );
 }
 
