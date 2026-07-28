@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Moon, Sun, LogOut, User, RefreshCw, ChevronRight, Shield, Database, Trash2, Loader2 } from "lucide-react";
+import { Moon, Sun, LogOut, User, RefreshCw, ChevronRight, Shield, Database, Trash2, Loader2, Bot } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -106,6 +106,11 @@ export default function More() {
           <button onClick={() => navigate("/profile")} className="flex w-full items-center gap-3 p-3">
             <User className="w-4 h-4 text-teal" />
             <span className="flex-1 text-left text-sm font-medium">Profile & plan</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button onClick={() => navigate("/coach")} className="flex w-full items-center gap-3 p-3 border-t border-lineSoft">
+            <Bot className="w-4 h-4 text-teal" />
+            <span className="flex-1 text-left text-sm font-medium">AI coach</span>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </button>
           <div className="flex items-center gap-3 p-3 border-t border-lineSoft">

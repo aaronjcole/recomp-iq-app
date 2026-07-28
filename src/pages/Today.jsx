@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
+import { Link } from "react-router-dom";
 import ProgressRing from "@/components/common/ProgressRing";
 import MacroBar from "@/components/common/MacroBar";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Check, Shield, Flame, TrendingUp, Activity, ChevronRight } from "lucide-react";
+import { Plus, Check, Shield, Flame, TrendingUp, Activity, ChevronRight, Bot } from "lucide-react";
 
 function greeting() {
   const h = new Date().getHours();
@@ -136,6 +137,19 @@ export default function Today() {
           </CardContent>
         </Card>
       )}
+
+      <Link to="/coach">
+        <Card className="bg-teal/10 border-teal/30">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Bot className="w-5 h-5 text-teal" />
+            <div className="flex-1">
+              <div className="text-sm font-medium">Ask your AI coach</div>
+              <div className="text-xs text-muted-foreground">Specific guidance from your data</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
 
       <QuickLogSheet open={logOpen} onOpenChange={setLogOpen} />
     </div>
