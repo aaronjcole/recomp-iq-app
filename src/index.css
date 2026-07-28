@@ -123,4 +123,39 @@
   body {
     @apply bg-background text-foreground font-body antialiased;
   }
+
+  /* Mobile webview: prevent overscroll bounce and hide scrollbars while staying scrollable */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  html {
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  body {
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  /* Mobile webview: disable text selection / long-press callouts on UI chrome */
+  button,
+  a,
+  nav,
+  [role="tab"],
+  [role="button"],
+  svg,
+  img,
+  label,
+  [data-no-select] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 }

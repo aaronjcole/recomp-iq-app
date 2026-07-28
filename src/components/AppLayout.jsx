@@ -1,4 +1,5 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { NavLink, useLocation, useOutlet } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 
@@ -12,10 +13,22 @@ const tabs = [
 
 export default function AppLayout() {
   useTheme();
+  const location = useLocation();
+  const outlet = useOutlet();
   return (
     <div className="min-h-screen bg-bg text-foreground flex flex-col">
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-28 pt-6">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {outlet}
+          </motion.div>
+        </AnimatePresence>
       </main>
       <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
         <div className="flex">

@@ -12,13 +12,28 @@ import {
   SelectItem
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { LogOut } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { LogOut, Trash2 } from "lucide-react";
+import ChildTopBar from "@/components/ChildTopBar";
 
 const GOAL_ORDER = ["fat_loss", "aggressive_fat_loss", "fat_loss_biased_recomp", "body_recomposition", "strength_retention_cut", "maintenance", "lean_bulk", "muscle_gain", "aggressive_gain"];
 
 export default function Profile() {
   const { profile, preferences, strategy, updateProfile, updatePreferences, updateStrategy } = useRecomp();
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!profile) return null;
 
@@ -37,9 +52,22 @@ export default function Profile() {
     if (preferences) await updatePreferences(preferences.id, { tone: newTone });
   };
 
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const me = await base44.auth.me();
+      if (me?.id) await base44.entities.User.delete(me.id);
+      base44.auth.logout(window.location.origin);
+    } catch (e) {
+      toast({ title: "Could not delete account", description: String(e?.message || e) });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Profile & plan</h1>
+      <ChildTopBar title="Profile & plan" />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-2 text-sm">
@@ -102,6 +130,32 @@ export default function Profile() {
       <Button variant="outline" className="w-full border-line text-muted-foreground" onClick={() => base44.auth.logout(window.location.origin)}>
         <LogOut className="w-4 h-4 mr-2" /> Log out
       </Button>
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" disabled={deleting} className="w-full border-destructive/30 text-destructive hover:bg-destructive/10">
+            <Trash2 className="w-4 h-4 mr-2" /> Delete account
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes your RecompIQ account and data. This action can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={deleteAccount}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

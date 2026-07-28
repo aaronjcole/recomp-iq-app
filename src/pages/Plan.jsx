@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DecisionLedgerTimeline from "@/components/common/DecisionLedgerTimeline";
+import ChildTopBar from "@/components/ChildTopBar";
 
 const SCENARIOS = [
   { mode: "current_plan", title: "Current plan" },
@@ -33,7 +34,7 @@ export default function Plan() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Plan</h1>
+      <ChildTopBar title="Plan" />
 
       <div className="flex items-center justify-between">
         <div className="font-medium">Scenario projections</div>

@@ -3,13 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
     <title>RecompIQ — adaptive recomposition</title>
     <script>
       (function () {
         try {
-          var t = localStorage.getItem("recomp-theme") || "dark";
+          var t = localStorage.getItem("recomp-theme");
+          if (t !== "dark" && t !== "light") {
+            t =
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          }
           if (t === "dark") document.documentElement.classList.add("dark");
         } catch (e) {
           document.documentElement.classList.add("dark");
