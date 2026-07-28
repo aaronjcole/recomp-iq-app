@@ -7,6 +7,7 @@ import QuickLogSheet from "@/components/today/QuickLogSheet";
 import QuickLogCard from "@/components/today/QuickLogCard";
 import HabitsCard from "@/components/today/HabitsCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
+import PullToRefresh from "@/components/common/PullToRefresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Check, ChevronRight, Bot } from "lucide-react";
@@ -19,7 +20,7 @@ function greeting() {
 }
 
 export default function Today() {
-  const { strategy, trend, quests, todayLog, sessions } = useRecomp();
+  const { strategy, trend, quests, todayLog, sessions, reload } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
 
   if (!strategy) return null;
@@ -35,6 +36,7 @@ export default function Today() {
   const workoutsThisWeek = sessions.filter((s) => s.date >= weekStart()).length;
 
   return (
+    <PullToRefresh onRefresh={reload}>
     <div className="space-y-5">
       <div>
         <p className="text-sm text-muted-foreground">{greeting()}</p>
@@ -128,6 +130,7 @@ export default function Today() {
 
       <QuickLogSheet open={logOpen} onOpenChange={setLogOpen} />
     </div>
+    </PullToRefresh>
   );
 }
 

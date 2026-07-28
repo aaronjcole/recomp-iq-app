@@ -17,7 +17,7 @@ export default function AppLayout() {
   const outlet = useOutlet();
   return (
     <div className="min-h-screen bg-bg text-foreground flex flex-col">
-      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-28 pt-6">
+      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

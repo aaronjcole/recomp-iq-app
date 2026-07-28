@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Target } from "lucide-react";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
@@ -72,7 +72,11 @@ export default function Onboarding() {
   const navigate = useNavigate();
 
   const saved = useMemo(() => loadState(), []);
-  const [step, setStep] = useState(saved?.step ?? 0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const step = Math.min(
+    STEPS - 1,
+    Math.max(0, Number(searchParams.get("step") ?? saved?.step ?? 0) || 0)
+  );
   const [p, setP] = useState(saved?.p ?? DEFAULTS.p);
   const [pref, setPrefRaw] = useState(saved?.pref ?? DEFAULTS.pref);
   const [units, setUnits] = useState(saved?.units ?? DEFAULTS.units);
@@ -119,7 +123,7 @@ export default function Onboarding() {
 
   const goTo = (n) => {
     setErrorStep(null);
-    setStep(n);
+    setSearchParams({ step: String(n) });
   };
   const next = () => {
     if (!stepValid) {

@@ -173,13 +173,28 @@ export function RecompProvider({ children }) {
     async (date, fields) => {
       const existing = logs.find((l) => l.date === date);
       if (existing) {
-        const updated = await base44.entities.DailyLog.update(existing.id, fields);
-        setLogs((prev) => prev.map((l) => (l.id === existing.id ? updated : l)));
-        return updated;
+        const optimistic = { ...existing, ...fields };
+        setLogs((prev) => prev.map((l) => (l.id === existing.id ? optimistic : l)));
+        try {
+          const updated = await base44.entities.DailyLog.update(existing.id, fields);
+          setLogs((prev) => prev.map((l) => (l.id === existing.id ? updated : l)));
+          return updated;
+        } catch (e) {
+          setLogs((prev) => prev.map((l) => (l.id === existing.id ? existing : l)));
+          throw e;
+        }
       }
-      const created = await base44.entities.DailyLog.create({ date, ...fields });
-      setLogs((prev) => [...prev, created]);
-      return created;
+      const tempId = `temp-${date}`;
+      const optimistic = { id: tempId, date, ...fields };
+      setLogs((prev) => [...prev, optimistic]);
+      try {
+        const created = await base44.entities.DailyLog.create({ date, ...fields });
+        setLogs((prev) => prev.map((l) => (l.id === tempId ? created : l)));
+        return created;
+      } catch (e) {
+        setLogs((prev) => prev.filter((l) => l.id !== tempId));
+        throw e;
+      }
     },
     [logs]
   );
@@ -188,13 +203,28 @@ export function RecompProvider({ children }) {
     async (habitId, date, fields) => {
       const existing = habitEntries.find((e) => e.habit_id === habitId && e.date === date);
       if (existing) {
-        const updated = await base44.entities.HabitEntry.update(existing.id, fields);
-        setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? updated : e)));
-        return updated;
+        const optimistic = { ...existing, ...fields };
+        setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? optimistic : e)));
+        try {
+          const updated = await base44.entities.HabitEntry.update(existing.id, fields);
+          setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? updated : e)));
+          return updated;
+        } catch (e) {
+          setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? existing : e)));
+          throw e;
+        }
       }
-      const created = await base44.entities.HabitEntry.create({ habit_id: habitId, date, ...fields });
-      setHabitEntries((prev) => [created, ...prev]);
-      return created;
+      const tempId = `temp-${habitId}-${date}`;
+      const optimistic = { id: tempId, habit_id: habitId, date, ...fields };
+      setHabitEntries((prev) => [optimistic, ...prev]);
+      try {
+        const created = await base44.entities.HabitEntry.create({ habit_id: habitId, date, ...fields });
+        setHabitEntries((prev) => prev.map((e) => (e.id === tempId ? created : e)));
+        return created;
+      } catch (e) {
+        setHabitEntries((prev) => prev.filter((e) => e.id !== tempId));
+        throw e;
+      }
     },
     [habitEntries]
   );

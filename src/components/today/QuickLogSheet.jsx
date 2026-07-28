@@ -5,14 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
+import RatingDrawer from "@/components/today/RatingDrawer";
 import { useToast } from "@/components/ui/use-toast";
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
@@ -85,9 +79,9 @@ export default function QuickLogSheet({ open, onOpenChange }) {
           <Field label="Carbs (g)" value={form.carbs_g} onChange={(v) => set("carbs_g", v)} type="number" />
           <Field label="Fat (g)" value={form.fat_g} onChange={(v) => set("fat_g", v)} type="number" />
           <Field label="Sleep (h)" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" />
-          <RatingField label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
-          <RatingField label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
-          <RatingField label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
+          <RatingDrawer label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
+          <RatingDrawer label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
+          <RatingDrawer label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
           <div className="col-span-2 flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
             <Label htmlFor="wc">Workout completed</Label>
             <Switch id="wc" checked={form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
@@ -112,26 +106,6 @@ function Field({ label, value, onChange, type = "text" }) {
     <div className="space-y-1.5">
       <Label>{label}</Label>
       <Input type={type} inputMode={type === "number" ? "decimal" : undefined} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
-function RatingField({ label, value, onChange }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <Select value={value ? String(value) : ""} onValueChange={(v) => onChange(Number(v))}>
-        <SelectTrigger>
-          <SelectValue placeholder="—" />
-        </SelectTrigger>
-        <SelectContent>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <SelectItem key={n} value={String(n)}>
-              {n}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
     </div>
   );
 }
