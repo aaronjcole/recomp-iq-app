@@ -59,6 +59,7 @@ export function RecompProvider({ children }) {
   const [foods, setFoods] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [decisionLedger, setDecisionLedger] = useState([]);
+  const [mealTemplates, setMealTemplates] = useState([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -73,7 +74,8 @@ export function RecompProvider({ children }) {
         base44.entities.WeeklyCheckIn.list("-created_date", 100),
         base44.entities.FoodItem.list("-created_date", 200),
         base44.entities.Recipe.list("-created_date", 100),
-        base44.entities.DecisionLedger.list("-date", 100)
+        base44.entities.DecisionLedger.list("-date", 100),
+        base44.entities.MealTemplate.list("-created_date", 200)
       ]);
       const v = (i, fallback = []) => (results[i].status === "fulfilled" ? results[i].value : fallback);
       setProfile(v(0)[0] ?? null);
@@ -86,6 +88,7 @@ export function RecompProvider({ children }) {
       setFoods(v(7) ?? []);
       setRecipes(v(8) ?? []);
       setDecisionLedger(v(9) ?? []);
+      setMealTemplates(v(10) ?? []);
     } finally {
       setLoading(false);
     }
@@ -180,6 +183,24 @@ export function RecompProvider({ children }) {
     return created;
   }, []);
 
+  const saveMealTemplate = useCallback(async (data) => {
+    const created = await base44.entities.MealTemplate.create(data);
+    setMealTemplates((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const logMealTemplate = useCallback(
+    async (template) => {
+      await upsertDailyLog(todayStr(), {
+        calories: (todayLog?.calories ?? 0) + (template.total_calories ?? 0),
+        protein_g: (todayLog?.protein_g ?? 0) + (template.total_protein_g ?? 0),
+        carbs_g: (todayLog?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
+        fat_g: (todayLog?.fat_g ?? 0) + (template.total_fat_g ?? 0)
+      });
+    },
+    [todayLog, upsertDailyLog]
+  );
+
   const runCheckIn = useCallback(async () => {
     if (!profile || !strategy) return null;
     const prefs = preferences ?? { tone: "direct" };
@@ -225,6 +246,7 @@ export function RecompProvider({ children }) {
     foods,
     recipes,
     decisionLedger,
+    mealTemplates,
     trend,
     signal,
     recompLevel,
@@ -242,6 +264,8 @@ export function RecompProvider({ children }) {
     addSession,
     addFood,
     addStrengthLog,
+    saveMealTemplate,
+    logMealTemplate,
     runCheckIn
   };
 

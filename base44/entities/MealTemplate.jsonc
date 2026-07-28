@@ -1,0 +1,106 @@
+{
+  "name": "MealTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "serving_description": {
+            "type": "string"
+          },
+          "calories": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "calories",
+          "protein_g",
+          "carbs_g",
+          "fat_g"
+        ]
+      }
+    },
+    "total_calories": {
+      "type": "number"
+    },
+    "total_protein_g": {
+      "type": "number"
+    },
+    "total_carbs_g": {
+      "type": "number"
+    },
+    "total_fat_g": {
+      "type": "number"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "name",
+    "items",
+    "total_calories",
+    "total_protein_g",
+    "total_carbs_g",
+    "total_fat_g"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
