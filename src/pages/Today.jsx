@@ -41,6 +41,8 @@ export default function Today() {
         <h1 className="text-2xl font-bold">Today</h1>
       </div>
 
+      <RecompSignalHero />
+
       <Card className="bg-panel border-line">
         <CardContent className="p-5 flex items-center gap-5">
           <ProgressRing
@@ -72,8 +74,6 @@ export default function Today() {
           <MacroBar label="Lifts this week" value={workoutsThisWeek} target={strategy.lifting_days_target} colorClass="bg-orange" />
         </CardContent>
       </Card>
-
-      <RecompSignalHero />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
