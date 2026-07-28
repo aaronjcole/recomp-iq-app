@@ -13,6 +13,7 @@ import {
   SelectItem
 } from "@/components/ui/select";
 import { Plus, Dumbbell } from "lucide-react";
+import StrengthProgressionCard from "@/components/training/StrengthProgressionCard";
 
 const num = (v) => (v === "" ? null : Number(v));
 
@@ -54,6 +55,8 @@ export default function Training() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Training</h1>
+
+      <StrengthProgressionCard />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
