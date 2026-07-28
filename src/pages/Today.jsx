@@ -5,9 +5,10 @@ import ProgressRing from "@/components/common/ProgressRing";
 import MacroBar from "@/components/common/MacroBar";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import QuickLogCard from "@/components/today/QuickLogCard";
+import RecompSignalHero from "@/components/today/RecompSignalHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Check, Shield, Flame, TrendingUp, Activity, ChevronRight, Bot } from "lucide-react";
+import { Plus, Check, ChevronRight, Bot } from "lucide-react";
 
 function greeting() {
   const h = new Date().getHours();
@@ -17,7 +18,7 @@ function greeting() {
 }
 
 export default function Today() {
-  const { profile, strategy, trend, signal, recompLevel, quests, boss, recompSignal, todayLog, sessions } = useRecomp();
+  const { strategy, trend, quests, todayLog, sessions } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
 
   if (!strategy) return null;
@@ -69,47 +70,7 @@ export default function Today() {
         </CardContent>
       </Card>
 
-      {signal && (
-        <Card className="bg-panel border-line">
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-muted-foreground">Signal strength</div>
-                <div className="text-lg font-bold">{signal.label}</div>
-              </div>
-              <div className="text-3xl font-bold text-teal">{signal.score}</div>
-            </div>
-            <p className="text-sm text-muted-foreground">{signal.copy}</p>
-            {recompLevel && (
-              <div className="flex items-center gap-2 rounded-lg bg-panel2 p-3">
-                <TrendingUp className="w-4 h-4 text-teal" />
-                <div className="text-sm">
-                  <span className="font-medium">{recompLevel.level} · {recompLevel.title}</span>
-                  <div className="text-xs text-muted-foreground">{recompLevel.next}</div>
-                </div>
-              </div>
-            )}
-            {boss && (
-              <div className="rounded-lg bg-panel2 p-3 space-y-1">
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-orange" />
-                  <span className="font-medium text-sm">{boss.title}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{boss.countermove}</p>
-              </div>
-            )}
-            {recompSignal && (
-              <div className="flex items-start gap-2 rounded-lg bg-panel2 p-3">
-                <Activity className="w-4 h-4 text-blue mt-0.5" />
-                <div className="text-sm">
-                  <span className="font-medium">{recompSignal.label}</span>
-                  <div className="text-xs text-muted-foreground">{recompSignal.copy}</div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <RecompSignalHero />
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
