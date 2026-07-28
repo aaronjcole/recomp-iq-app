@@ -4,8 +4,8 @@ import { useTheme } from "@/lib/useTheme";
 
 const tabs = [
   { to: "/", icon: LayoutDashboard, label: "Today", end: true },
-  { to: "/nutrition", icon: Utensils, label: "Nutrition", end: false },
-  { to: "/training", icon: Dumbbell, label: "Training", end: false },
+  { to: "/nutrition", icon: Utensils, label: "Fuel", end: false },
+  { to: "/training", icon: Dumbbell, label: "Train", end: false },
   { to: "/progress", icon: TrendingUp, label: "Progress", end: false },
   { to: "/plan", icon: Map, label: "Plan", end: false },
   { to: "/more", icon: Menu, label: "More", end: false }
@@ -18,7 +18,7 @@ export default function AppLayout() {
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-28 pt-6">
         <Outlet />
       </main>
-      <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50">
+      <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
         <div className="flex">
           {tabs.map(({ to, icon: Icon, label, end }) => (
             <NavLink
@@ -26,12 +26,12 @@ export default function AppLayout() {
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+                `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight transition-colors ${
                   isActive ? "text-teal" : "text-muted-foreground"
                 }`
               }
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-[18px] h-[18px]" />
               {label}
             </NavLink>
           ))}
