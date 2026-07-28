@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import MacroBar from "@/components/common/MacroBar";
+import MacroDonut from "@/components/common/MacroDonut";
 import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
@@ -65,6 +66,13 @@ export default function Nutrition() {
           <MacroBar label="Protein" value={consumed.protein} target={strategy.protein_target_g} unit="g" colorClass="bg-teal" />
           <MacroBar label="Carbs" value={consumed.carbs} target={strategy.carb_target_g} unit="g" colorClass="bg-blue" />
           <MacroBar label="Fat" value={consumed.fat} target={strategy.fat_target_g} unit="g" colorClass="bg-gold" />
+        </CardContent>
+      </Card>
+
+      <Card className="bg-panel border-line">
+        <CardContent className="p-5 space-y-3">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Macro breakdown</div>
+          <MacroDonut protein={consumed.protein} carbs={consumed.carbs} fat={consumed.fat} />
         </CardContent>
       </Card>
 
