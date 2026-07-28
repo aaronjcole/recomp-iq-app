@@ -58,6 +58,7 @@ export function RecompProvider({ children }) {
   const [checkIns, setCheckIns] = useState([]);
   const [foods, setFoods] = useState([]);
   const [recipes, setRecipes] = useState([]);
+  const [decisionLedger, setDecisionLedger] = useState([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -71,7 +72,8 @@ export function RecompProvider({ children }) {
         base44.entities.StrengthLog.list("-date", 500),
         base44.entities.WeeklyCheckIn.list("-created_date", 100),
         base44.entities.FoodItem.list("-created_date", 200),
-        base44.entities.Recipe.list("-created_date", 100)
+        base44.entities.Recipe.list("-created_date", 100),
+        base44.entities.DecisionLedger.list("-date", 100)
       ]);
       const v = (i, fallback = []) => (results[i].status === "fulfilled" ? results[i].value : fallback);
       setProfile(v(0)[0] ?? null);
@@ -83,6 +85,7 @@ export function RecompProvider({ children }) {
       setCheckIns(v(6) ?? []);
       setFoods(v(7) ?? []);
       setRecipes(v(8) ?? []);
+      setDecisionLedger(v(9) ?? []);
     } finally {
       setLoading(false);
     }
@@ -221,6 +224,7 @@ export function RecompProvider({ children }) {
     checkIns,
     foods,
     recipes,
+    decisionLedger,
     trend,
     signal,
     recompLevel,

@@ -21,6 +21,7 @@ import Nutrition from '@/pages/Nutrition';
 import Training from '@/pages/Training';
 import Progress from '@/pages/Progress';
 import More from '@/pages/More';
+import Plan from '@/pages/Plan';
 import Profile from '@/pages/Profile';
 
 const AuthenticatedApp = () => {
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
               <Route path="/nutrition" element={<Nutrition />} />
               <Route path="/training" element={<Training />} />
               <Route path="/progress" element={<Progress />} />
+              <Route path="/plan" element={<Plan />} />
               <Route path="/more" element={<More />} />
               <Route path="/profile" element={<Profile />} />
             </Route>

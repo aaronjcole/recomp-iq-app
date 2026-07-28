@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
+import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Map, Menu } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 
 const tabs = [
@@ -7,6 +7,7 @@ const tabs = [
   { to: "/nutrition", icon: Utensils, label: "Nutrition", end: false },
   { to: "/training", icon: Dumbbell, label: "Training", end: false },
   { to: "/progress", icon: TrendingUp, label: "Progress", end: false },
+  { to: "/plan", icon: Map, label: "Plan", end: false },
   { to: "/more", icon: Menu, label: "More", end: false }
 ];
 
@@ -25,7 +26,7 @@ export default function AppLayout() {
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-1 py-3 text-[11px] font-medium transition-colors ${
+                `flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
                   isActive ? "text-teal" : "text-muted-foreground"
                 }`
               }
