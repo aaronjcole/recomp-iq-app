@@ -1,0 +1,38 @@
+{
+  "name": "StrengthLog",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "lift_name": {
+      "type": "string"
+    },
+    "weight": {
+      "type": "number",
+      "description": "Weight in pounds"
+    },
+    "reps": {
+      "type": "number"
+    },
+    "sets": {
+      "type": "number"
+    },
+    "estimated_1rm": {
+      "type": "number",
+      "description": "Estimated one-rep max"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "date",
+    "lift_name",
+    "weight",
+    "reps",
+    "sets",
+    "estimated_1rm"
+  ]
+}

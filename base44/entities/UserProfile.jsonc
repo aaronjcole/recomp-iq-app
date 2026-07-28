@@ -1,0 +1,85 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "age": {
+      "type": "number"
+    },
+    "sex": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female",
+        "unspecified"
+      ]
+    },
+    "height_in": {
+      "type": "number",
+      "description": "Height in inches"
+    },
+    "current_weight_lbs": {
+      "type": "number",
+      "description": "Current weight in pounds"
+    },
+    "goal_weight_lbs": {
+      "type": "number",
+      "description": "Target weight in pounds"
+    },
+    "goal": {
+      "type": "string",
+      "enum": [
+        "fat_loss_biased_recomp",
+        "body_recomposition",
+        "fat_loss",
+        "aggressive_fat_loss",
+        "muscle_gain",
+        "lean_bulk",
+        "aggressive_gain",
+        "maintenance",
+        "strength_retention_cut"
+      ]
+    },
+    "training_days_per_week": {
+      "type": "number"
+    },
+    "cardio_days_per_week": {
+      "type": "number"
+    },
+    "job_activity": {
+      "type": "string",
+      "enum": [
+        "sedentary",
+        "lightly_active",
+        "moderately_active",
+        "very_active",
+        "extremely_active"
+      ]
+    },
+    "average_steps": {
+      "type": "number"
+    },
+    "experience_level": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ]
+    },
+    "primary_concern": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "age",
+    "sex",
+    "height_in",
+    "current_weight_lbs",
+    "goal",
+    "training_days_per_week",
+    "cardio_days_per_week",
+    "job_activity",
+    "average_steps",
+    "experience_level"
+  ]
+}

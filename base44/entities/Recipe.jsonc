@@ -1,0 +1,83 @@
+{
+  "name": "Recipe",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "servings": {
+      "type": "number"
+    },
+    "ingredients": {
+      "type": "array",
+      "description": "List of ingredients with quantity, unit, and optional nutrition estimates.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "grams_estimate": {
+            "type": "number"
+          },
+          "calories": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "quantity",
+          "unit"
+        ]
+      }
+    },
+    "instructions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "calories_per_serving": {
+      "type": "number"
+    },
+    "protein_g_per_serving": {
+      "type": "number"
+    },
+    "fiber_g_per_serving": {
+      "type": "number"
+    },
+    "prep_minutes": {
+      "type": "number"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "title",
+    "servings",
+    "ingredients",
+    "tags"
+  ]
+}

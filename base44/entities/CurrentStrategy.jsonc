@@ -1,0 +1,57 @@
+{
+  "name": "CurrentStrategy",
+  "type": "object",
+  "properties": {
+    "calorie_target": {
+      "type": "number"
+    },
+    "protein_target_g": {
+      "type": "number"
+    },
+    "fat_target_g": {
+      "type": "number"
+    },
+    "carb_target_g": {
+      "type": "number"
+    },
+    "step_target": {
+      "type": "number"
+    },
+    "lifting_days_target": {
+      "type": "number"
+    },
+    "cardio_days_target": {
+      "type": "number"
+    },
+    "goal_type": {
+      "type": "string",
+      "enum": [
+        "fat_loss_biased_recomp",
+        "body_recomposition",
+        "fat_loss",
+        "aggressive_fat_loss",
+        "muscle_gain",
+        "lean_bulk",
+        "aggressive_gain",
+        "maintenance",
+        "strength_retention_cut"
+      ]
+    },
+    "weekly_adjustment_rule": {
+      "type": "string"
+    },
+    "behavior_focus": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "calorie_target",
+    "protein_target_g",
+    "fat_target_g",
+    "carb_target_g",
+    "step_target",
+    "lifting_days_target",
+    "cardio_days_target",
+    "goal_type"
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "name": "WeeklyCheckIn",
+  "type": "object",
+  "properties": {
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "avg_weight_current": {
+      "type": "number"
+    },
+    "avg_weight_previous": {
+      "type": "number"
+    },
+    "weight_change": {
+      "type": "number"
+    },
+    "calorie_adherence": {
+      "type": "number"
+    },
+    "protein_adherence": {
+      "type": "number"
+    },
+    "step_adherence": {
+      "type": "number"
+    },
+    "workout_adherence": {
+      "type": "number"
+    },
+    "hunger_average": {
+      "type": "number"
+    },
+    "energy_average": {
+      "type": "number"
+    },
+    "sleep_average": {
+      "type": "number"
+    },
+    "recommendation_decision": {
+      "type": "string",
+      "enum": [
+        "keep_plan",
+        "reduce_calories",
+        "increase_calories",
+        "increase_steps",
+        "focus_on_adherence",
+        "reduce_training_fatigue",
+        "seek_professional_guidance",
+        "keep_collecting_data",
+        "keep_plan_possible_recomp",
+        "keep_plan_possible_recomp_or_water",
+        "keep_plan_and_monitor"
+      ]
+    },
+    "ai_summary": {
+      "type": "string"
+    },
+    "targets_for_next_week": {
+      "type": "object",
+      "description": "Snapshot of the strategy recommended for next week."
+    }
+  },
+  "required": [
+    "start_date",
+    "end_date",
+    "recommendation_decision",
+    "ai_summary"
+  ]
+}

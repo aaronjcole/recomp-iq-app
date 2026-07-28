@@ -1,0 +1,63 @@
+{
+  "name": "DailyLog",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Log date (YYYY-MM-DD). One record per day per user."
+    },
+    "weight_lbs": {
+      "type": "number"
+    },
+    "calories": {
+      "type": "number"
+    },
+    "protein_g": {
+      "type": "number"
+    },
+    "carbs_g": {
+      "type": "number"
+    },
+    "fat_g": {
+      "type": "number"
+    },
+    "steps": {
+      "type": "number"
+    },
+    "workout_completed": {
+      "type": "boolean"
+    },
+    "workout_type": {
+      "type": "string"
+    },
+    "waist_in": {
+      "type": "number"
+    },
+    "hunger_rating": {
+      "type": "number",
+      "description": "1-5"
+    },
+    "energy_rating": {
+      "type": "number",
+      "description": "1-5"
+    },
+    "sleep_hours": {
+      "type": "number"
+    },
+    "sleep_quality": {
+      "type": "number",
+      "description": "1-5"
+    },
+    "soreness_rating": {
+      "type": "number",
+      "description": "1-5"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "date"
+  ]
+}

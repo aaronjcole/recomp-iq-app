@@ -1,0 +1,46 @@
+{
+  "name": "UserPreferences",
+  "type": "object",
+  "properties": {
+    "tone": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "encouraging",
+        "analytical",
+        "tough_love",
+        "concise"
+      ]
+    },
+    "diet_style": {
+      "type": "string"
+    },
+    "preferred_training": {
+      "type": "string"
+    },
+    "disliked_strategies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "known_barriers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notification_preferences": {
+      "type": "object"
+    },
+    "safety_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "tone"
+  ]
+}

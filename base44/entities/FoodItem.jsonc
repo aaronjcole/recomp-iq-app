@@ -1,0 +1,70 @@
+{
+  "name": "FoodItem",
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "usda_fdc",
+        "branded",
+        "restaurant",
+        "recipe"
+      ]
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "brand_name": {
+      "type": "string"
+    },
+    "serving_description": {
+      "type": "string"
+    },
+    "serving_grams": {
+      "type": "number"
+    },
+    "calories": {
+      "type": "number"
+    },
+    "protein_g": {
+      "type": "number"
+    },
+    "carbs_g": {
+      "type": "number"
+    },
+    "fat_g": {
+      "type": "number"
+    },
+    "fiber_g": {
+      "type": "number"
+    },
+    "added_sugar_g": {
+      "type": "number"
+    },
+    "saturated_fat_g": {
+      "type": "number"
+    },
+    "sodium_mg": {
+      "type": "number"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "source",
+    "name",
+    "serving_description",
+    "calories",
+    "protein_g",
+    "carbs_g",
+    "fat_g"
+  ]
+}

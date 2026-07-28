@@ -1,0 +1,29 @@
+{
+  "name": "DecisionLedger",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "previous_targets": {
+      "type": "object",
+      "description": "Partial CurrentStrategy snapshot before the change."
+    },
+    "new_targets": {
+      "type": "object",
+      "description": "Partial CurrentStrategy snapshot after the change."
+    },
+    "reason": {
+      "type": "string"
+    },
+    "supporting_metrics": {
+      "type": "object",
+      "description": "Arbitrary metrics that justify the decision."
+    }
+  },
+  "required": [
+    "date",
+    "reason"
+  ]
+}

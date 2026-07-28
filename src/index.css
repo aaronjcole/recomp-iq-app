@@ -4,89 +4,123 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    /* RecompIQ light palette */
+    --background: #f6f3ec;
+    --foreground: #17211e;
+    --card: #fffdf8;
+    --card-foreground: #17211e;
+    --popover: #fffdf8;
+    --popover-foreground: #17211e;
+    --primary: #12836f;
+    --primary-foreground: #f7fffc;
+    --secondary: #f0ebe2;
+    --secondary-foreground: #17211e;
+    --muted: #f0ebe2;
+    --muted-foreground: #61706a;
+    --accent: #e7f2ee;
+    --accent-foreground: #17211e;
+    --destructive: #c84f4b;
+    --destructive-foreground: #f7fffc;
+    --border: #c8d2cc;
+    --input: #c8d2cc;
+    --ring: #12836f;
+    --chart-1: #12836f;
+    --chart-2: #3d78c2;
+    --chart-3: #3d9657;
+    --chart-4: #a77723;
+    --chart-5: #bf6f2f;
     --radius: 0.5rem;
-    --font-heading: ui-sans-serif, system-ui, sans-serif;
-    --font-body: ui-sans-serif, system-ui, sans-serif;
-    --font-display: ui-sans-serif, system-ui, sans-serif;
+    --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: #fffdf8;
+    --sidebar-foreground: #17211e;
+    --sidebar-primary: #12836f;
+    --sidebar-primary-foreground: #f7fffc;
+    --sidebar-accent: #e7f2ee;
+    --sidebar-accent-foreground: #17211e;
+    --sidebar-border: #c8d2cc;
+    --sidebar-ring: #12836f;
+
+    /* RecompIQ-specific tokens */
+    --bg: #f6f3ec;
+    --panel: #fffdf8;
+    --panel2: #f0ebe2;
+    --panel3: #e7f2ee;
+    --line: #c8d2cc;
+    --lineSoft: #dce3df;
+    --teal: #12836f;
+    --blue: #3d78c2;
+    --green: #3d9657;
+    --gold: #a77723;
+    --yellow: #b88a1f;
+    --orange: #bf6f2f;
+    --red: #c84f4b;
+    --buttonText: #f7fffc;
+    --questCompleteBg: #f4ead2;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* RecompIQ dark palette */
+    --background: #07110f;
+    --foreground: #f3efe7;
+    --card: #111816;
+    --card-foreground: #f3efe7;
+    --popover: #111816;
+    --popover-foreground: #f3efe7;
+    --primary: #2fc4a7;
+    --primary-foreground: #03110e;
+    --secondary: #1a2421;
+    --secondary-foreground: #f3efe7;
+    --muted: #1a2421;
+    --muted-foreground: #9fa9a3;
+    --accent: #202d28;
+    --accent-foreground: #f3efe7;
+    --destructive: #ef6a66;
+    --destructive-foreground: #03110e;
+    --border: #344a43;
+    --input: #344a43;
+    --ring: #2fc4a7;
+    --chart-1: #2fc4a7;
+    --chart-2: #5d9cec;
+    --chart-3: #78d18b;
+    --chart-4: #d8ad57;
+    --chart-5: #e88f45;
+    --sidebar-background: #111816;
+    --sidebar-foreground: #f3efe7;
+    --sidebar-primary: #2fc4a7;
+    --sidebar-primary-foreground: #03110e;
+    --sidebar-accent: #202d28;
+    --sidebar-accent-foreground: #f3efe7;
+    --sidebar-border: #344a43;
+    --sidebar-ring: #2fc4a7;
+
+    --bg: #07110f;
+    --panel: #111816;
+    --panel2: #1a2421;
+    --panel3: #202d28;
+    --line: #344a43;
+    --lineSoft: #263632;
+    --teal: #2fc4a7;
+    --blue: #5d9cec;
+    --green: #78d18b;
+    --gold: #d8ad57;
+    --yellow: #e8c15a;
+    --orange: #e88f45;
+    --red: #ef6a66;
+    --buttonText: #03110e;
+    --questCompleteBg: #202a22;
   }
 }
 
-
-
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+    outline-color: var(--ring);
   }
 
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body antialiased;
   }
 }
