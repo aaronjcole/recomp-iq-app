@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useRecomp } from "@/lib/RecompContext";
+import { strengthTrend } from "@/lib/fitness";
 import ConfidenceRing from "@/components/common/ConfidenceRing";
 import SignalStat from "@/components/common/SignalStat";
 
@@ -16,23 +17,13 @@ const signed = (n, unit) => `${n > 0 ? "+" : ""}${n} ${unit}`;
 export default function RecompSignalHero() {
   const { signal, recompSignal, boss, trend, strengthLogs } = useRecomp();
 
+  const strength = useMemo(() => strengthTrend(strengthLogs), [strengthLogs]);
   const strengthCell = useMemo(() => {
-    if (!strengthLogs?.length) return null;
-    const sorted = [...strengthLogs].sort((a, b) => a.date.localeCompare(b.date));
-    const latest = sorted[sorted.length - 1];
-    if (!latest?.estimated_1rm) return null;
-    const cutoff = new Date(latest.date).getTime() - 14 * 86400000;
-    let prior = null;
-    for (let i = sorted.length - 2; i >= 0; i--) {
-      if (new Date(sorted[i].date).getTime() <= cutoff) {
-        prior = sorted[i];
-        break;
-      }
-    }
-    if (!prior?.estimated_1rm) return null;
-    const diff = Number((latest.estimated_1rm - prior.estimated_1rm).toFixed(1));
-    return { label: "STRENGTH", value: signed(diff, "e1RM"), status: diff > 0 ? "good" : diff < 0 ? "watch" : "neutral" };
-  }, [strengthLogs]);
+    if (!strength) return null;
+    const status = strength.direction === "up" ? "good" : strength.direction === "down" ? "watch" : "neutral";
+    const value = `${strength.change_percent > 0 ? "+" : ""}${strength.change_percent}`;
+    return { label: "STRENGTH", value, unit: "% e1RM", status };
+  }, [strength]);
 
   if (!signal || !trend) return null;
 
@@ -97,7 +88,7 @@ export default function RecompSignalHero() {
       {cells.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {cells.map((c) => (
-            <SignalStat key={c.label} label={c.label} value={c.value} status={c.status} />
+            <SignalStat key={c.label} label={c.label} value={c.value} unit={c.unit} status={c.status} />
           ))}
         </div>
       )}
