@@ -12,8 +12,9 @@ import {
   SelectContent,
   SelectItem
 } from "@/components/ui/select";
-import { Plus, Dumbbell } from "lucide-react";
+import { Plus } from "lucide-react";
 import StrengthProgressionCard from "@/components/training/StrengthProgressionCard";
+import SessionHistory from "@/components/training/SessionHistory";
 
 const num = (v) => (v === "" ? null : Number(v));
 
@@ -113,22 +114,7 @@ export default function Training() {
         </CardContent>
       </Card>
 
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-2">
-          <div className="font-medium">Recent sessions</div>
-          {sessions.length === 0 && <p className="text-sm text-muted-foreground">No sessions logged yet.</p>}
-          {sessions.slice(0, 10).map((s) => (
-            <div key={s.id} className="flex items-center gap-3 py-2 border-b border-lineSoft last:border-0">
-              <Dumbbell className="w-4 h-4 text-teal" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{s.title}</div>
-                <div className="text-xs text-muted-foreground capitalize">{s.date} · {s.type}{s.duration_minutes ? ` · ${s.duration_minutes}m` : ""}</div>
-              </div>
-              {s.perceived_exertion && <span className="text-xs text-muted-foreground">RPE {s.perceived_exertion}</span>}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      <SessionHistory />
     </div>
   );
 }
