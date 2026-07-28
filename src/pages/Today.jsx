@@ -67,10 +67,18 @@ export default function Today() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="font-medium text-sm">Today's metrics</div>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-teal" onClick={() => setLogOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Log
+            </Button>
+          </div>
           <MacroBar label="Protein" value={consumed.protein} target={strategy.protein_target_g} unit="g" colorClass="bg-teal" />
           <MacroBar label="Carbs" value={consumed.carbs} target={strategy.carb_target_g} unit="g" colorClass="bg-blue" />
           <MacroBar label="Fat" value={consumed.fat} target={strategy.fat_target_g} unit="g" colorClass="bg-gold" />
-          <MacroBar label="Steps" value={consumed.steps} target={strategy.step_target} colorClass="bg-green" />
+          <button type="button" onClick={() => setLogOpen(true)} className="w-full text-left">
+            <MacroBar label="Steps" value={consumed.steps} target={strategy.step_target} colorClass="bg-green" />
+          </button>
           <MacroBar label="Lifts this week" value={workoutsThisWeek} target={strategy.lifting_days_target} colorClass="bg-orange" />
         </CardContent>
       </Card>

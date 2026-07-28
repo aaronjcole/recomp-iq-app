@@ -36,6 +36,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         workout_completed: todayLog?.workout_completed ?? false,
         hunger_rating: todayLog?.hunger_rating ?? "",
         energy_rating: todayLog?.energy_rating ?? "",
+        soreness_rating: todayLog?.soreness_rating ?? "",
         sleep_hours: todayLog?.sleep_hours ?? "",
         notes: todayLog?.notes ?? ""
       });
@@ -58,6 +59,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         workout_completed: !!form.workout_completed,
         hunger_rating: num(form.hunger_rating),
         energy_rating: num(form.energy_rating),
+        soreness_rating: num(form.soreness_rating),
         sleep_hours: num(form.sleep_hours),
         notes: form.notes || undefined
       });
@@ -85,6 +87,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
           <Field label="Sleep (h)" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" />
           <RatingField label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
           <RatingField label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
+          <RatingField label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
           <div className="col-span-2 flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
             <Label htmlFor="wc">Workout completed</Label>
             <Switch id="wc" checked={form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
