@@ -73,7 +73,7 @@ export default function Hero({ preview }) {
             </a>
           </div>
           <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
-            <ArrowRight className="w-3.5 h-3.5" /> Free to start · No card required
+            <ArrowRight className="w-3.5 h-3.5" /> Low monthly price · Cancel anytime
           </p>
         </div>
         <div className="flex justify-center md:justify-end">
