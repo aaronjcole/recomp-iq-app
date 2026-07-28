@@ -6,15 +6,55 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Moon, Sun, LogOut, User, RefreshCw, ChevronRight, Shield } from "lucide-react";
+import { Moon, Sun, LogOut, User, RefreshCw, ChevronRight, Shield, Database, Trash2, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from "@/components/ui/alert-dialog";
+import { seedDemoData, clearDemoData } from "@/lib/demoData";
 
 export default function More() {
-  const { runCheckIn, checkIns, reload } = useRecomp();
+  const { runCheckIn, checkIns, reload, logs, profile, strategy } = useRecomp();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
+  const [seeding, setSeeding] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const lastCheckIn = checkIns[0];
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      await seedDemoData({ profile, strategy });
+      await reload();
+    } finally {
+      setSeeding(false);
+      setConfirmOpen(false);
+    }
+  };
+
+  const handleClear = async () => {
+    setClearing(true);
+    try {
+      await clearDemoData();
+      await reload();
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const onLoadClick = () => {
+    if (logs.length > 0) setConfirmOpen(true);
+    else handleSeed();
+  };
 
   const runCheck = async () => {
     setRunning(true);
@@ -77,6 +117,56 @@ export default function More() {
             <RefreshCw className="w-4 h-4 text-muted-foreground" />
             <span className="flex-1 text-left text-sm font-medium">Refresh data</span>
           </button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-panel border-line">
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-teal" />
+            <div className="font-medium">Demo data</div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Preview populated charts with ~35 days of realistic logs, lifts, and sessions.
+          </p>
+          <div className="flex gap-2">
+            <Button className="flex-1 bg-teal text-buttonText hover:opacity-90" disabled={seeding} onClick={onLoadClick}>
+              {seeding ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Seeding…
+                </>
+              ) : (
+                <>
+                  <Database className="w-4 h-4 mr-1" /> Load demo data
+                </>
+              )}
+            </Button>
+            <Button variant="outline" className="flex-1 border-line" disabled={clearing} onClick={handleClear}>
+              {clearing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Clearing…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-1" /> Clear
+                </>
+              )}
+            </Button>
+          </div>
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Load demo data?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You already have logged data. Loading demo data will replace existing demo records and add ~35 days of demo history. Continue?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSeed}>Load demo data</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 
