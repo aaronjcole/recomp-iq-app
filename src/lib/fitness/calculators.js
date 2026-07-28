@@ -36,7 +36,8 @@ export function calculateBMR(input) {
   const base = 10 * kg + 6.25 * cm - 5 * input.age;
   if (input.sex === "male") return Math.round(base + 5);
   if (input.sex === "female") return Math.round(base - 161);
-  throw new Error("Sex is required for a single Mifflin-St Jeor BMR estimate.");
+  // "unspecified": average the male (+5) and female (-161) Mifflin-St Jeor constants
+  return Math.round(base + (5 - 161) / 2);
 }
 
 export function calculateTDEE(bmr, activity) {
