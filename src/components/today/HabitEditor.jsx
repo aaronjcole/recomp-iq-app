@@ -101,7 +101,7 @@ export default function HabitEditor({ open, onOpenChange }) {
                     key={k}
                     type="button"
                     onClick={() => set("icon", sel ? "" : k)}
-                    className={`h-8 w-8 rounded-full flex items-center justify-center border transition-colors ${
+                    className={`h-8 w-8 rounded-full flex items-center justify-center border transition-colors relative after:absolute after:content-[''] after:-inset-2 ${
                       sel ? "bg-teal border-teal text-buttonText" : "border-line"
                     }`}
                     aria-label={k}
@@ -128,7 +128,7 @@ export default function HabitEditor({ open, onOpenChange }) {
                 <span className="flex-1 text-sm truncate">{h.name}{h.archived ? " (archived)" : ""}</span>
                 <Button variant="ghost" size="sm" onClick={() => load(h)}>Edit</Button>
                 {!h.archived && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => archiveHabit(h.id)} aria-label="Archive habit">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 relative after:absolute after:content-[''] after:-inset-2" onClick={() => archiveHabit(h.id)} aria-label="Archive habit">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 )}

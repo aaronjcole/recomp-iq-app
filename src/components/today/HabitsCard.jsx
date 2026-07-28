@@ -74,7 +74,7 @@ export default function HabitsCard() {
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Habits</div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditorOpen(true)} aria-label="Edit habits">
+          <Button variant="ghost" size="icon" className="h-7 w-7 relative after:absolute after:content-[''] after:-inset-2" onClick={() => setEditorOpen(true)} aria-label="Edit habits">
             <Pencil className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -103,7 +103,7 @@ export default function HabitsCard() {
                     </div>
                     <button
                       onClick={() => toggle(h)}
-                      className={`h-7 w-7 rounded-full flex items-center justify-center border transition-colors ${
+                      className={`h-7 w-7 rounded-full flex items-center justify-center border transition-colors relative after:absolute after:content-[''] after:-inset-2 ${
                         done ? "bg-teal border-teal" : "border-line"
                       }`}
                       aria-label={done ? "Mark incomplete" : "Mark complete"}
@@ -130,7 +130,7 @@ export default function HabitsCard() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7 rounded-full border-line"
+                      className="h-7 w-7 rounded-full border-line relative after:absolute after:content-[''] after:-inset-2"
                       onClick={() => step(h, -stepSize)}
                       aria-label="Decrease"
                     >
@@ -140,7 +140,7 @@ export default function HabitsCard() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7 rounded-full border-line"
+                      className="h-7 w-7 rounded-full border-line relative after:absolute after:content-[''] after:-inset-2"
                       onClick={() => step(h, stepSize)}
                       aria-label="Increase"
                     >
