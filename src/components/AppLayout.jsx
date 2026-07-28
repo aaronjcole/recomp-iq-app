@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Map, Menu } from "lucide-react";
+import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 
 const tabs = [
@@ -7,7 +7,6 @@ const tabs = [
   { to: "/nutrition", icon: Utensils, label: "Fuel", end: false },
   { to: "/training", icon: Dumbbell, label: "Train", end: false },
   { to: "/progress", icon: TrendingUp, label: "Progress", end: false },
-  { to: "/plan", icon: Map, label: "Plan", end: false },
   { to: "/more", icon: Menu, label: "More", end: false }
 ];
 
