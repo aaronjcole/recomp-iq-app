@@ -1,15 +1,24 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
 import { calculateInitialStrategy, generateWeightProjection, calculateMovingAverage } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
 
+function daysAgoStr(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
 export default function Progress() {
   const { profile, strategy, logs, trend } = useRecomp();
+  const [range, setRange] = useState("35d");
 
   const chartData = useMemo(() => {
     const weights = logs
@@ -22,6 +31,12 @@ export default function Progress() {
     );
     return weights.map((w) => ({ ...w, ma: ma.find((m) => m.date === w.date)?.value ?? null }));
   }, [logs]);
+
+  const rangeDays = range === "all" ? null : range === "90d" ? 90 : 35;
+  const visibleData = useMemo(
+    () => (rangeDays === null ? chartData : chartData.filter((w) => w.date >= daysAgoStr(rangeDays))),
+    [chartData, rangeDays]
+  );
 
   const tdee = useMemo(() => (profile ? calculateInitialStrategy(profile).tdee_estimate : null), [profile]);
   const projection = useMemo(
@@ -47,13 +62,28 @@ export default function Progress() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5">
-          <div className="font-medium mb-3">Weight trend</div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-medium">Weight trend</div>
+            <div className="flex gap-1">
+              {["35d", "90d", "All"].map((r) => (
+                <Button
+                  key={r}
+                  size="sm"
+                  variant={range === r ? "default" : "outline"}
+                  className={range === r ? "bg-teal text-buttonText hover:opacity-90 h-7 px-2.5 text-xs" : "border-line h-7 px-2.5 text-xs"}
+                  onClick={() => setRange(r)}
+                >
+                  {r}
+                </Button>
+              ))}
+            </div>
+          </div>
           {chartData.length === 0 ? (
             <p className="text-sm text-muted-foreground">Log weigh-ins to see your trend.</p>
           ) : (
             <div className="h-56 -ml-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
+                <LineChart data={visibleData} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="var(--lineSoft)" vertical={false} />
                   <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), "M/d")} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
                   <YAxis domain={["auto", "auto"]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} width={36} />
