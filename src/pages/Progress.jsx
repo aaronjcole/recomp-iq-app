@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
+import ProgressPhotos from "@/components/progress/ProgressPhotos";
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
 
@@ -131,6 +132,8 @@ export default function Progress() {
           </CardContent>
         </Card>
       )}
+
+      <ProgressPhotos />
     </div>
   );
 }
