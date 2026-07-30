@@ -23,6 +23,7 @@ import Training from '@/pages/Training';
 import Progress from '@/pages/Progress';
 import More from '@/pages/More';
 import Plan from '@/pages/Plan';
+import DecisionHistory from '@/pages/DecisionHistory';
 import Coach from '@/pages/Coach';
 import Profile from '@/pages/Profile';
 import Hero from '@/pages/Hero';
@@ -72,6 +73,7 @@ const AuthenticatedApp = () => {
               <Route path="/training" element={<Training />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/plan" element={<Plan />} />
+              <Route path="/decisions" element={<DecisionHistory />} />
               <Route path="/coach" element={<Coach />} />
               <Route path="/more" element={<More />} />
               <Route path="/profile" element={<Profile />} />

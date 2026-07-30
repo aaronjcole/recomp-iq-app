@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
   Camera, Mail, CheckCircle, Moon, Sun, LogOut, User, Database, Trash2,
-  ChevronRight, Loader2, Star, ShieldCheck, FileText
+  ChevronRight, Loader2, Star, ShieldCheck, FileText, History
 } from "lucide-react";
 import { PLAY_STORE_URL } from "@/lib/storeLinks";
 import {
@@ -179,6 +179,7 @@ export default function More() {
       title: "Progress & data",
       items: [
         { icon: Camera, label: "Progress photos", to: "/progress", subtitle: "On this device only" },
+        { icon: History, label: "Decision history", to: "/decisions", subtitle: "Plan change log" },
         { icon: Mail, label: "Weekly email & export", to: "/profile" }
       ]
     },
