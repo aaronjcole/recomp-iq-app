@@ -56,8 +56,8 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={<Hero />} />
-      <Route path="/hero" element={<Hero preview />} />
+      <Route path="/" element={<ComingSoon />} />
+      <Route path="/hero" element={<Hero />} />
       <Route path="/coming-soon" element={<ComingSoon />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
