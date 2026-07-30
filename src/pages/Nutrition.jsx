@@ -12,7 +12,9 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, ScanLine } from "lucide-react";
+import BarcodeScanner from "@/components/nutrition/BarcodeScanner";
+import { toast } from "@/components/ui/use-toast";
 import PullToRefresh from "@/components/common/PullToRefresh";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
@@ -21,7 +23,22 @@ const num = (v) => (v === "" ? null : Number(v));
 export default function Nutrition() {
   const { strategy, todayLog, foods, upsertDailyLog, addFood, reload } = useRecomp();
   const [form, setForm] = useState(empty);
+  const [showScanner, setShowScanner] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleScannedFood = async (food, addToToday) => {
+    await addFood(food);
+    if (addToToday) {
+      await upsertDailyLog(todayStr(), {
+        calories: (todayLog?.calories ?? 0) + (food.calories ?? 0),
+        protein_g: (todayLog?.protein_g ?? 0) + (food.protein_g ?? 0),
+        carbs_g: (todayLog?.carbs_g ?? 0) + (food.carbs_g ?? 0),
+        fat_g: (todayLog?.fat_g ?? 0) + (food.fat_g ?? 0)
+      });
+    }
+    toast({ title: `${food.name} ${addToToday ? "added to today" : "saved to library"}` });
+    setShowScanner(false);
+  };
 
   if (!strategy) return null;
 
@@ -83,7 +100,12 @@ export default function Nutrition() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
-          <div className="font-medium">Quick add food</div>
+          <div className="flex items-center justify-between">
+            <div className="font-medium">Quick add food</div>
+            <Button variant="outline" size="sm" onClick={() => setShowScanner(true)}>
+              <ScanLine className="w-4 h-4 mr-1" /> Scan barcode
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1.5">
               <Label>Food name</Label>
@@ -135,6 +157,13 @@ export default function Nutrition() {
 
       <GroceryListCard />
       <AddRecipeCard />
+
+      {showScanner && (
+        <BarcodeScanner
+          onClose={() => setShowScanner(false)}
+          onResult={handleScannedFood}
+        />
+      )}
     </div>
     </PullToRefresh>
   );
