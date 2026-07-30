@@ -12,8 +12,9 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
-import { Plus, Check, ScanLine } from "lucide-react";
+import { Plus, Check, ScanLine, Camera } from "lucide-react";
 import BarcodeScanner from "@/components/nutrition/BarcodeScanner";
+import FoodPhotoScan from "@/components/nutrition/FoodPhotoScan";
 import { toast } from "@/components/ui/use-toast";
 import PullToRefresh from "@/components/common/PullToRefresh";
 
@@ -24,6 +25,7 @@ export default function Nutrition() {
   const { strategy, todayLog, foods, upsertDailyLog, addFood, reload } = useRecomp();
   const [form, setForm] = useState(empty);
   const [showScanner, setShowScanner] = useState(false);
+  const [showPhotoScan, setShowPhotoScan] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleScannedFood = async (food, addToToday) => {
@@ -100,11 +102,16 @@ export default function Nutrition() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="font-medium">Quick add food</div>
-            <Button variant="outline" size="sm" onClick={() => setShowScanner(true)}>
-              <ScanLine className="w-4 h-4 mr-1" /> Scan barcode
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowPhotoScan(true)}>
+                <Camera className="w-4 h-4 mr-1" /> Snap food
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowScanner(true)}>
+                <ScanLine className="w-4 h-4 mr-1" /> Barcode
+              </Button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1.5">
@@ -161,6 +168,13 @@ export default function Nutrition() {
       {showScanner && (
         <BarcodeScanner
           onClose={() => setShowScanner(false)}
+          onResult={handleScannedFood}
+        />
+      )}
+
+      {showPhotoScan && (
+        <FoodPhotoScan
+          onClose={() => setShowPhotoScan(false)}
           onResult={handleScannedFood}
         />
       )}
