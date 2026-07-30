@@ -80,7 +80,7 @@ Return ONLY the JSON object matching the schema.`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col select-none">
+    <div className="fixed inset-0 z-[60] bg-black flex flex-col select-none">
       <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <div className="flex items-center gap-2 font-medium">
           <Camera className="w-5 h-5" />
