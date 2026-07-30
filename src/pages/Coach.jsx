@@ -10,14 +10,45 @@ import { Send, Loader2, Bot, User, RotateCcw, ArrowLeft } from "lucide-react";
 
 const pct = (v) => (v === null || v === undefined ? "n/a" : Math.round(v * 100) + "%");
 
-function buildContext({ profile, strategy, trend, recompSignal, preferences, lastCheckIn }) {
+const QUICK_ACTIONS = [
+  "I ate more than I planned today — how can I still hit my goal?",
+  "I'm short on protein with calories left — what should I eat?",
+  "Should I train today given my recent sessions?",
+  "I had a rough day — help me reset for tomorrow."
+];
+
+function buildContext({ profile, strategy, trend, recompSignal, preferences, lastCheckIn, todayLog, recentSessions }) {
+  const consumed = {
+    calories: Math.round(todayLog?.calories ?? 0),
+    protein: Math.round(todayLog?.protein_g ?? 0),
+    carbs: Math.round(todayLog?.carbs_g ?? 0),
+    fat: Math.round(todayLog?.fat_g ?? 0)
+  };
+  const remaining = {
+    calories: Math.round((strategy.calorie_target ?? 0) - consumed.calories),
+    protein: Math.round((strategy.protein_target_g ?? 0) - consumed.protein)
+  };
+  const sessions = (recentSessions || [])
+    .slice(0, 5)
+    .map((s) => `${s.date} ${s.type} "${s.title}"${s.duration_minutes ? ` ${s.duration_minutes}min` : ""}${s.perceived_exertion ? ` RPE${s.perceived_exertion}` : ""}`)
+    .join("; ");
+
   return `You are RecompIQ, an adaptive body-recomposition coach.
+
+TODAY'S STATUS:
+- Consumed so far: ${consumed.calories} kcal, ${consumed.protein}g protein, ${consumed.carbs}g carbs, ${consumed.fat}g fat
+- Targets: ${strategy.calorie_target} kcal, ${strategy.protein_target_g}g protein, ${strategy.carb_target_g}g carbs, ${strategy.fat_target_g}g fat
+- Remaining today: ~${remaining.calories} kcal, ~${remaining.protein}g protein
+- Steps today: ${todayLog?.steps ?? "n/a"} / target ${strategy.step_target}
+- Workout done today: ${todayLog?.workout_completed ? "yes" : "no"}
+
+RECENT TRAINING (most recent first):
+${sessions || "none logged"}
 
 USER CONTEXT:
 - Goal: ${GOAL_LABELS[profile.goal]?.label ?? profile.goal}
 - Current weight: ${profile.current_weight_lbs} lb; goal weight: ${profile.goal_weight_lbs ?? "n/a"} lb
-- Experience: ${profile.experience_level}; training ${profile.training_days_per_week} lift days/wk
-- Targets: ${strategy.calorie_target} kcal, ${strategy.protein_target_g}g protein, ${strategy.step_target} steps
+- Experience: ${profile.experience_level}; training ${profile.training_days_per_week} lift days/wk, ${profile.cardio_days_per_week} cardio days/wk
 - 7-day avg weight: ${trend?.avg_weight_current_7_day ?? "n/a"} lb
 - Weekly weight change: ${trend?.weight_change_lbs ?? "n/a"} lb
 - Adherence: calories ${pct(trend?.calorie_adherence)}, protein ${pct(trend?.protein_adherence)}, steps ${pct(trend?.step_adherence)}, workouts ${pct(trend?.workout_adherence)}
@@ -25,14 +56,21 @@ USER CONTEXT:
 - Last check-in recommendation: ${lastCheckIn?.recommendation_decision?.replace(/_/g, " ") ?? "none"}
 - Coaching tone: ${preferences?.tone ?? "direct"}
 
+COACHING PHILOSOPHY (critical):
+- Holistic: treat nutrition, training, sleep, stress, and mindset as connected. Weigh recovery and sleep before adding training load.
+- Adherence-based, non-shaming psychology: one rough day doesn't undo progress. Never moralize food (no "good/bad", "cheat", "guilt"). Normalize off days; frame resets as a normal part of the process, not failure. Reinforce consistency over perfection.
+- Flexible resets: when the user overeats or misses a target, offer a kind, practical reset — adjust the rest of the day, move a little more, or start fresh tomorrow. Never suggest extreme restriction or punishment to "make up" for it.
+- NASM-aligned training: apply current NASM OPT principles — progressive overload, balanced movement (push/pull/quad-dominant/hinge-dominant), proper warm-up and cool-down, recovery between sessions, and volume scaled to their experience level and goal. Don't prescribe unsafe volumes.
+
 RULES (critical):
-- Only use numbers that appear in the USER CONTEXT above. Never invent weights, calories, macros, or dates.
-- Never give medical or clinical advice; if asked, advise seeking a qualified professional.
-- Keep replies short, specific, and actionable, in the user's selected tone.`;
+- Only use numbers that appear in the context above. Never invent weights, calories, macros, or dates.
+- When the user describes what they ate or asks how to still hit their goal, respond with concrete, ranked options drawn from: (a) redistribute remaining macros across the rest of the day, (b) move more (steps or an extra session) if recovery allows, or (c) accept the day and reset tomorrow. Choose and rank them based on the actual remaining numbers and recent training load.
+- Keep replies short, specific, actionable, and in the user's selected tone.
+- Never give medical or clinical advice; advise seeking a qualified professional when relevant.`;
 }
 
 export default function Coach() {
-  const { profile, strategy, trend, recompSignal, preferences, checkIns } = useRecomp();
+  const { profile, strategy, trend, recompSignal, preferences, checkIns, todayLog, sessions } = useRecomp();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -54,7 +92,7 @@ export default function Coach() {
     setLoading(true);
     setError(false);
     const transcript = history.map((m) => `${m.role === "user" ? "User" : "Coach"}: ${m.content}`).join("\n");
-    const prompt = `${buildContext({ profile, strategy, trend, recompSignal, preferences, lastCheckIn })}\n\nConversation so far:\n${transcript}\n\nCoach:`;
+    const prompt = `${buildContext({ profile, strategy, trend, recompSignal, preferences, lastCheckIn, todayLog, recentSessions: sessions })}\n\nConversation so far:\n${transcript}\n\nCoach:`;
     try {
       const res = await base44.integrations.Core.InvokeLLM({ prompt });
       const reply = typeof res === "string" ? res : res?.output ?? JSON.stringify(res);
@@ -79,7 +117,7 @@ export default function Coach() {
         {messages.length === 0 && (
           <Card className="bg-panel border-line">
             <CardContent className="p-4 text-sm text-muted-foreground">
-              Ask about your plan, progress, or next steps — e.g. “Should I drop calories?” or “Why isn’t the scale moving?”
+              Tell me what you ate or how your day went — I’ll suggest how to still hit your goal: redistribute macros, move more, or reset and start fresh. Or tap a quick action below.
             </CardContent>
           </Card>
         )}
@@ -113,7 +151,20 @@ export default function Coach() {
       </div>
 
       <div className="pt-2 border-t border-line">
-        <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2 pt-3">
+        <div className="flex gap-2 overflow-x-auto pb-2 pt-3 -mx-1 px-1 no-scrollbar">
+          {QUICK_ACTIONS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => send(q)}
+              disabled={loading}
+              className="shrink-0 text-xs whitespace-nowrap rounded-full border border-line bg-panel px-3 py-1.5 min-h-[36px] text-muted-foreground hover:text-foreground hover:bg-panel2 disabled:opacity-50"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2">
           <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask your coach…" className="flex-1" />
           <Button type="submit" className="bg-teal text-buttonText hover:opacity-90" disabled={loading || !input.trim()}>
             <Send className="w-4 h-4" />
