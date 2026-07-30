@@ -53,6 +53,7 @@ export default function AppLayout() {
                 key={to}
                 to={to}
                 end={end}
+                replace
                 className={({ isActive }) =>
                   `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight transition-colors ${
                     isActive ? "text-teal" : "text-muted-foreground"

@@ -9,13 +9,13 @@ export default function AndroidBackHandler() {
 
   useEffect(() => {
     window.handleAndroidBack = () => {
+      if (ROOT_TABS.includes(location.pathname)) {
+        return false;
+      }
       const idx = window.history.state?.idx ?? 0;
       if (idx > 0) {
         navigate(-1);
         return true;
-      }
-      if (ROOT_TABS.includes(location.pathname)) {
-        return false;
       }
       navigate("/");
       return true;
