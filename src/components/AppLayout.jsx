@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { NavLink, useLocation, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
@@ -22,6 +22,29 @@ export default function AppLayout() {
 
   const isTab = TAB_PATHS.includes(location.pathname);
   if (isTab) cache.current[location.pathname] = outlet;
+
+  // Preserve scroll position per root tab (keep-alive)
+  const scrollPositions = useRef({});
+  const activePath = useRef(location.pathname);
+  activePath.current = location.pathname;
+
+  useEffect(() => {
+    const onScroll = () => {
+      const p = activePath.current;
+      if (TAB_PATHS.includes(p)) scrollPositions.current[p] = window.scrollY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (isTab) {
+      const saved = scrollPositions.current[location.pathname] ?? 0;
+      requestAnimationFrame(() =>
+        window.scrollTo({ top: saved, left: 0, behavior: "instant" })
+      );
+    }
+  }, [location.pathname, isTab]);
 
   return (
     <div className="min-h-screen bg-bg text-foreground flex flex-col">
