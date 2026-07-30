@@ -253,6 +253,16 @@ export function RecompProvider({ children }) {
     return created;
   }, []);
 
+  const deleteSession = useCallback(async (id) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await base44.entities.ExerciseSession.delete(id);
+    } catch (e) {
+      await loadAll();
+      throw e;
+    }
+  }, [loadAll]);
+
   const addFood = useCallback(async (data) => {
     const created = await base44.entities.FoodItem.create(data);
     setFoods((prev) => [created, ...prev]);
@@ -364,6 +374,7 @@ export function RecompProvider({ children }) {
     updateHabit,
     archiveHabit,
     addSession,
+    deleteSession,
     addFood,
     addStrengthLog,
     saveMealTemplate,
