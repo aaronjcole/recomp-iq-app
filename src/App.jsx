@@ -27,6 +27,7 @@ import DecisionHistory from '@/pages/DecisionHistory';
 import Coach from '@/pages/Coach';
 import Profile from '@/pages/Profile';
 import Hero from '@/pages/Hero';
+import ComingSoon from '@/pages/ComingSoon';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import AppSplash from '@/components/AppSplash';
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Hero />} />
       <Route path="/hero" element={<Hero preview />} />
+      <Route path="/coming-soon" element={<ComingSoon />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/login" element={<Login />} />
