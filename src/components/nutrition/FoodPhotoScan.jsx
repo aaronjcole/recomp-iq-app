@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { X, Camera, Loader2, Plus, Bookmark, RefreshCw, Sparkles } from "lucide-react";
@@ -26,6 +26,13 @@ export default function FoodPhotoScan({ onClose, onResult }) {
   const [status, setStatus] = useState("capture"); // capture | preview | analyzing | found | error
   const [food, setFood] = useState(null);
   const [err, setErr] = useState("");
+
+  // Revoke any preview object URL when it changes or on unmount, to prevent leaks.
+  useEffect(() => {
+    return () => {
+      if (photo?.url) URL.revokeObjectURL(photo.url);
+    };
+  }, [photo?.url]);
 
   const pick = (e) => {
     const file = e.target.files?.[0];

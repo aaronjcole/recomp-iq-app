@@ -40,6 +40,7 @@ export default function Nutrition() {
     }
     toast({ title: `${food.name} ${addToToday ? "added to today" : "saved to library"}` });
     setShowScanner(false);
+    setShowPhotoScan(false);
   };
 
   if (!strategy) return null;
