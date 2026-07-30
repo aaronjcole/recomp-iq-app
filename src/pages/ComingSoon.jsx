@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import DeviceMockup from "@/components/hero/DeviceMockup";
 import {
   Brain, Activity, LineChart, RefreshCw, ShieldCheck, Target,
-  Smartphone, Play, Check, Loader2, ArrowRight, Mail
+  Check, Loader2, ArrowRight, Mail
 } from "lucide-react";
 
 const FEATURES = [
@@ -14,20 +14,7 @@ const FEATURES = [
   { icon: RefreshCw, title: "Always in sync", body: "Log from the gym or the kitchen; everything saves instantly and syncs across devices." }
 ];
 
-function StoreBadge({ icon: Icon, label, sub }) {
-  return (
-    <div className="relative inline-flex items-center gap-3 rounded-2xl bg-foreground/90 text-background/70 px-5 h-14 select-none">
-      <Icon className="w-6 h-6" />
-      <span className="leading-tight text-left">
-        <span className="block text-[10px] uppercase tracking-wide opacity-70">{sub}</span>
-        <span className="block text-lg font-semibold -mt-0.5 text-background">{label}</span>
-      </span>
-      <span className="absolute -top-2 -right-2 rounded-full bg-gold text-background text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">
-        Soon
-      </span>
-    </div>
-  );
-}
+
 
 export default function ComingSoon() {
   const [email, setEmail] = useState("");
@@ -59,7 +46,7 @@ export default function ComingSoon() {
             </div>
             <span className="font-semibold text-lg">RecompIQ</span>
           </Link>
-          <Link to="/login" className="text-sm font-medium text-teal hover:underline">Sign in</Link>
+
         </div>
       </header>
 
@@ -113,8 +100,22 @@ export default function ComingSoon() {
           )}
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <StoreBadge icon={Play} label="Google Play" sub="Coming to" />
-            <StoreBadge icon={Smartphone} label="App Store" sub="Coming to" />
+            <div className="relative">
+              <img
+                src="https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png"
+                alt="Get it on Google Play — coming soon"
+                className="h-[52px] w-auto select-none"
+              />
+              <span className="absolute -top-1.5 -right-1.5 rounded-full bg-gold text-background text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">Soon</span>
+            </div>
+            <div className="relative">
+              <img
+                src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us"
+                alt="Download on the App Store — coming soon"
+                className="h-[52px] w-auto select-none"
+              />
+              <span className="absolute -top-1.5 -right-1.5 rounded-full bg-gold text-background text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">Soon</span>
+            </div>
           </div>
           <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
             <ArrowRight className="w-3.5 h-3.5" /> Low monthly price · Cancel anytime
