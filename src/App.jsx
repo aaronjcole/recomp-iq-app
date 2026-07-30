@@ -28,6 +28,7 @@ import Coach from '@/pages/Coach';
 import Profile from '@/pages/Profile';
 import Hero from '@/pages/Hero';
 import ComingSoon from '@/pages/ComingSoon';
+import PublicHome from '@/components/PublicHome';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import AppSplash from '@/components/AppSplash';
@@ -56,7 +57,7 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={<ComingSoon />} />
+      <Route path="/" element={<PublicHome />} />
       <Route path="/hero" element={<Hero />} />
       <Route path="/coming-soon" element={<ComingSoon />} />
       <Route path="/privacy" element={<Privacy />} />
