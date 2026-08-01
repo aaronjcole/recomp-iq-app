@@ -52,11 +52,17 @@ For frontend-only development, create or update `.env.local` in the project root
 ```bash
 VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
+# Optional: body-photo AI analysis is disabled unless explicitly enabled.
+VITE_ENABLE_BODY_COMPOSITION_SCAN=false
 ```
 
 `VITE_BASE44_APP_ID` identifies the Base44 app.
 
 `VITE_BASE44_APP_BASE_URL` tells the Base44 Vite plugin where to send local `/api` requests. Point it at your deployed Base44 app URL when you want the local frontend to use the hosted backend.
+
+`VITE_ENABLE_BODY_COMPOSITION_SCAN` is a release gate for the sensitive body-photo analysis
+feature. It is disabled by default and should only be set to `true` in an environment where private
+file retention, deletion, and AI-processing behavior have been accepted.
 
 When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
 

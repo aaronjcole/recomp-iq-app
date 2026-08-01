@@ -14,6 +14,8 @@ below pass in Base44 and the repository owner enables the listed GitHub controls
   documented public `UploadFile` path. JPEG, PNG, and WebP uploads are capped at 10 MB in the UI.
 - The privacy and deletion copy now distinguishes hosted records, on-device progress photos, and
   provider-managed AI analysis files.
+- The body-composition photo feature is disabled by default behind an explicit build-time flag,
+  and the app exposes a monitored support/privacy address.
 - Fitness calculations are bounded to entity-schema limits and have explicit regression coverage
   for extreme profiles, missing or duplicate data, stale weigh-ins, all supported goals, and recent
   projection windows.
@@ -45,9 +47,6 @@ below pass in Base44 and the repository owner enables the listed GitHub controls
 6. **Public waitlist abuse controls:** the function's in-memory limiter is per instance and forwarded
    IP headers are not a trustworthy distributed control. Configure a Base44 gateway/shared limiter
    or CAPTCHA and enforce normalized-email idempotency outside process memory.
-7. **Support contact:** the Privacy Policy refers users to the More tab, but no support contact is
-   configured. Add an actively monitored privacy/support address before release.
-
 ## GitHub owner actions
 
 The August 1 API check found that `main` was unprotected and GitHub secret scanning, push
@@ -77,7 +76,6 @@ soon as the dependency line provides a safe migration:
 - [Release checklist](release-checklist.md)
 - [Product roadmap](product-roadmap.md)
 - [Weekly Check-In v2 specification](features/weekly-check-in-v2.md)
-- [Base44 audit prompts](base44-audit-prompts.md)
 - Base44's SDK reference documents `UploadFile` as public and `UploadPrivateFile` plus
   `CreateFileSignedUrl` as the private alternative:
   <https://docs.base44.com/developers/references/sdk/docs/type-aliases/integrations>

@@ -1,4 +1,5 @@
 import LegalShell from "@/components/LegalShell";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 function H2({ children }) {
   return <h2 className="text-xl font-semibold pt-2">{children}</h2>;
@@ -58,7 +59,13 @@ export default function Privacy() {
       <p>We may update this policy; material changes will be surfaced in the app.</p>
 
       <H2>9. Contact</H2>
-      <p>Questions about privacy? Reach out from the app's More tab.</p>
+      <p>
+        Questions about privacy or support? Email{" "}
+        <a className="text-teal underline underline-offset-2" href={SUPPORT_MAILTO}>
+          {SUPPORT_EMAIL}
+        </a>
+        .
+      </p>
 
       <H2>Health disclaimer</H2>
       <p className="text-muted-foreground">

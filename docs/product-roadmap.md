@@ -78,6 +78,19 @@ Status: discovery
 - Apple Health, Health Connect, Fitbit, or wearable import feasibility.
 - Privacy, consent, duplicate-data, and revocation design before implementation.
 
+## Premium add-ons
+
+Status: discovery
+
+- Treat body-composition photo analysis as an optional premium capability rather than part of the
+  free core experience.
+- Require an authenticated server-side entitlement and usage allowance before enabling analysis;
+  never rely on the current build-time feature flag as a payment control.
+- Price against actual inference and private-storage costs, with a clear monthly scan allowance.
+- Keep the feature disabled until private-file retention, deletion, consent, and estimate-quality
+  standards are acceptable.
+- Avoid medical claims and keep photo-based estimates clearly labeled as approximate.
+
 ## Delivery approach
 
 Each feature should move through the same sequence:

@@ -109,7 +109,11 @@ test("tracked source does not include environment files or high-confidence secre
 
   for (const path of tracked) {
     if (!textExtensions.has(extname(path))) continue;
-    const contents = readFileSync(join(repoRoot, path), "utf8");
+    const absolutePath = join(repoRoot, path);
+    // `git ls-files` still reports a tracked file after it has been removed
+    // from the worktree but before its deletion is staged.
+    if (!existsSync(absolutePath)) continue;
+    const contents = readFileSync(absolutePath, "utf8");
     if (secretPatterns.some((pattern) => pattern.test(contents))) findings.push(path);
   }
 
