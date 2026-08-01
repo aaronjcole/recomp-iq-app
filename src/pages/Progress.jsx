@@ -97,7 +97,7 @@ export default function Progress() {
                 <Scale className="h-5 w-5" aria-hidden="true" />
               </div>
               <div className="font-medium">
-                {visibleData.length === 0 ? "Log your first weigh-in" : "One more weigh-in reveals your trend"}
+                {visibleData.length === 0 ? "Log a weigh-in" : "One more weigh-in reveals your trend"}
               </div>
               <p className="mt-1 max-w-xs text-sm text-muted-foreground">
                 {visibleData.length === 0

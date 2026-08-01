@@ -78,6 +78,8 @@ test("mobile release flows prioritize primary actions and usable touch targets",
 
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
   assert.match(progressSource, /visibleData\.length < 2/);
+  assert.match(progressSource, /Log a weigh-in/);
+  assert.doesNotMatch(progressSource, /Log your first weigh-in/);
   assert.match(progressSource, /\{projection\.confidence\} confidence<\/Badge>/);
 
   const trainingSource = readFileSync(
