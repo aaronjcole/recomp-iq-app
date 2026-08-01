@@ -4,7 +4,20 @@ import { Minus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const InputOTP = React.forwardRef(({ className, containerClassName, ...props }, ref) => (
+/**
+ * @typedef {Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "maxLength" | "children"> & {
+ *   value?: string,
+ *   onChange?: (newValue: string) => unknown,
+ *   maxLength: number,
+ *   containerClassName?: string,
+ *   children: React.ReactNode,
+ * }} InputOTPProps
+ */
+
+const InputOTP = React.forwardRef(/**
+ * @param {InputOTPProps} props
+ * @param {React.ForwardedRef<HTMLInputElement>} ref
+ */ ({ className, containerClassName, ...props }, ref) => (
   <OTPInput
     ref={ref}
     containerClassName={cn("flex items-center gap-2 has-[:disabled]:opacity-50", containerClassName)}
@@ -13,12 +26,20 @@ const InputOTP = React.forwardRef(({ className, containerClassName, ...props }, 
 ))
 InputOTP.displayName = "InputOTP"
 
-const InputOTPGroup = React.forwardRef(({ className, ...props }, ref) => (
+const InputOTPGroup = React.forwardRef(/**
+ * @param {React.HTMLAttributes<HTMLDivElement>} props
+ * @param {React.ForwardedRef<HTMLDivElement>} ref
+ */ ({ className, ...props }, ref) => (
   <div ref={ref} className={cn("flex items-center", className)} {...props} />
 ))
 InputOTPGroup.displayName = "InputOTPGroup"
 
-const InputOTPSlot = React.forwardRef(({ index, className, ...props }, ref) => {
+/** @typedef {React.HTMLAttributes<HTMLDivElement> & {index: number}} InputOTPSlotProps */
+
+const InputOTPSlot = React.forwardRef(/**
+ * @param {InputOTPSlotProps} props
+ * @param {React.ForwardedRef<HTMLDivElement>} ref
+ */ ({ index, className, ...props }, ref) => {
   const inputOTPContext = React.useContext(OTPInputContext)
   const { char, hasFakeCaret, isActive } = inputOTPContext.slots[index]
 
@@ -43,7 +64,10 @@ const InputOTPSlot = React.forwardRef(({ index, className, ...props }, ref) => {
 })
 InputOTPSlot.displayName = "InputOTPSlot"
 
-const InputOTPSeparator = React.forwardRef(({ ...props }, ref) => (
+const InputOTPSeparator = React.forwardRef(/**
+ * @param {React.HTMLAttributes<HTMLDivElement>} props
+ * @param {React.ForwardedRef<HTMLDivElement>} ref
+ */ ({ ...props }, ref) => (
   <div ref={ref} role="separator" {...props}>
     <Minus />
   </div>

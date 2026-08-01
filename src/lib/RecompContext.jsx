@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
@@ -47,8 +47,51 @@ function buildSummary(trend, adj) {
   ].join(" ");
 }
 
+function newestByKey(items, keyFor) {
+  const selected = new Map();
+  for (const item of items) {
+    const key = keyFor(item);
+    if (!key) continue;
+    const current = selected.get(key);
+    const itemStamp = item.updated_date ?? item.created_date ?? "";
+    const currentStamp = current?.updated_date ?? current?.created_date ?? "";
+    if (!current) {
+      selected.set(key, item);
+    } else if (itemStamp >= currentStamp) {
+      selected.set(key, mergeDefined(current, item));
+    } else {
+      selected.set(key, mergeDefined(item, current));
+    }
+  }
+  return [...selected.values()];
+}
+
+function mergeDefined(previous, next) {
+  const merged = { ...(previous ?? {}) };
+  for (const [key, value] of Object.entries(next ?? {})) {
+    if (value !== undefined) merged[key] = value;
+  }
+  return merged;
+}
+
+function enqueueByKey(queueRef, key, work) {
+  const previous = queueRef.current.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(work);
+  queueRef.current.set(key, next);
+  next.then(
+    () => {
+      if (queueRef.current.get(key) === next) queueRef.current.delete(key);
+    },
+    () => {
+      if (queueRef.current.get(key) === next) queueRef.current.delete(key);
+    }
+  );
+  return next;
+}
+
 export function RecompProvider({ children }) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [profile, setProfile] = useState(null);
   const [preferences, setPreferences] = useState(null);
   const [strategy, setStrategy] = useState(null);
@@ -63,14 +106,74 @@ export function RecompProvider({ children }) {
   const [habits, setHabits] = useState([]);
   const [habitEntries, setHabitEntries] = useState([]);
 
+  const profileRef = useRef(profile);
+  const preferencesRef = useRef(preferences);
+  const strategyRef = useRef(strategy);
+  const logsRef = useRef(logs);
+  const sessionsRef = useRef(sessions);
+  const habitEntriesRef = useRef(habitEntries);
+  const dailyQueues = useRef(new Map());
+  const habitQueues = useRef(new Map());
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+  useEffect(() => {
+    preferencesRef.current = preferences;
+  }, [preferences]);
+  useEffect(() => {
+    strategyRef.current = strategy;
+  }, [strategy]);
+  useEffect(() => {
+    logsRef.current = logs;
+  }, [logs]);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+  useEffect(() => {
+    habitEntriesRef.current = habitEntries;
+  }, [habitEntries]);
+
+  const setLogsCurrent = useCallback((nextOrUpdater) => {
+    setLogs((previous) => {
+      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      logsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const setSessionsCurrent = useCallback((nextOrUpdater) => {
+    setSessions((previous) => {
+      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      sessionsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const setStrengthLogsCurrent = useCallback((nextOrUpdater) => {
+    setStrengthLogs((previous) => {
+      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      return next;
+    });
+  }, []);
+
+  const setHabitEntriesCurrent = useCallback((nextOrUpdater) => {
+    setHabitEntries((previous) => {
+      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      habitEntriesRef.current = next;
+      return next;
+    });
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const results = await Promise.allSettled([
+      const results = await Promise.all([
         base44.entities.UserProfile.list("-created_date", 1),
         base44.entities.UserPreferences.list("-created_date", 1),
         base44.entities.CurrentStrategy.list("-created_date", 1),
-        base44.entities.DailyLog.list("date", 500),
+        base44.entities.DailyLog.list("-date", 500),
         base44.entities.ExerciseSession.list("-date", 200),
         base44.entities.StrengthLog.list("-date", 500),
         base44.entities.WeeklyCheckIn.list("-created_date", 100),
@@ -81,37 +184,43 @@ export function RecompProvider({ children }) {
         base44.entities.Habit.list("-sort_order", 200),
         base44.entities.HabitEntry.list("-date", 500)
       ]);
-      const v = (i, fallback = []) => (results[i].status === "fulfilled" ? results[i].value : fallback);
-      setProfile(v(0)[0] ?? null);
-      setPreferences(v(1)[0] ?? null);
-      setStrategy(v(2)[0] ?? null);
-      setLogs(v(3) ?? []);
-      setSessions(v(4) ?? []);
-      setStrengthLogs(v(5) ?? []);
-      setCheckIns(v(6) ?? []);
-      setFoods(v(7) ?? []);
-      setRecipes(v(8) ?? []);
-      setDecisionLedger(v(9) ?? []);
-      setMealTemplates(v(10) ?? []);
-      const habitList = v(11);
-      const habitEntryList = v(12);
-      setHabitEntries(habitEntryList);
+      const loadedProfile = results[0][0] ?? null;
+      const loadedPreferences = results[1][0] ?? null;
+      const loadedStrategy = results[2][0] ?? null;
+      const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
+      const loadedHabitEntries = newestByKey(results[12], (item) => `${item.habit_id}:${item.date}`);
+      profileRef.current = loadedProfile;
+      preferencesRef.current = loadedPreferences;
+      strategyRef.current = loadedStrategy;
+      setProfile(loadedProfile);
+      setPreferences(loadedPreferences);
+      setStrategy(loadedStrategy);
+      setLogsCurrent(loadedLogs);
+      setSessionsCurrent(results[4]);
+      setStrengthLogsCurrent(results[5]);
+      setCheckIns(results[6]);
+      setFoods(results[7]);
+      setRecipes(results[8]);
+      setDecisionLedger(results[9]);
+      setMealTemplates(results[10]);
+      const habitList = results[11];
+      setHabitEntriesCurrent(loadedHabitEntries);
       if (habitList.length > 0) {
         setHabits(habitList);
-      } else if (results[11].status === "fulfilled") {
+      } else {
         const seeded = await Promise.all([
           base44.entities.Habit.create({ name: "Water", kind: "count", target_value: 100, unit: "oz", sort_order: 0 }),
           base44.entities.Habit.create({ name: "Read", kind: "check", sort_order: 1 }),
           base44.entities.Habit.create({ name: "Meditate", kind: "check", sort_order: 2 })
         ]);
         setHabits(seeded.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
-      } else {
-        setHabits([]);
       }
+    } catch (error) {
+      setLoadError(error instanceof Error ? error : new Error("Unable to load your data."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
   useEffect(() => {
     loadAll();
@@ -124,26 +233,50 @@ export function RecompProvider({ children }) {
   const boss = useMemo(() => (trend ? getBossBattle(trend) : null), [trend]);
   const recompSignal = useMemo(() => (trend ? explainRecompSignal(trend) : null), [trend]);
   const todayLog = useMemo(() => logs.find((l) => l.date === todayStr()) ?? null, [logs]);
-  const onboarded = !!profile;
+  const onboarded = !!profile && !!preferences && !!strategy;
 
   const completeOnboarding = useCallback(async (profileData, prefData) => {
-    const createdProfile = await base44.entities.UserProfile.create(profileData);
-    const createdPrefs = await base44.entities.UserPreferences.create(prefData);
-    const strat = recalculateTargets(profileData);
-    const createdStrategy = await base44.entities.CurrentStrategy.create({ ...strat, goal_type: profileData.goal });
-    setProfile(createdProfile);
-    setPreferences(createdPrefs);
-    setStrategy(createdStrategy);
+    // Each stage is an upsert so retrying after an outage repairs a partial
+    // onboarding instead of creating duplicates or trapping the account.
+    const existingProfile = profileRef.current;
+    const profileResponse = existingProfile?.id
+      ? await base44.entities.UserProfile.update(existingProfile.id, profileData)
+      : await base44.entities.UserProfile.create(profileData);
+    const savedProfile = mergeDefined(existingProfile, profileResponse);
+    profileRef.current = savedProfile;
+    setProfile(savedProfile);
+
+    const existingPreferences = preferencesRef.current;
+    const preferencesResponse = existingPreferences?.id
+      ? await base44.entities.UserPreferences.update(existingPreferences.id, prefData)
+      : await base44.entities.UserPreferences.create(prefData);
+    const savedPreferences = mergeDefined(existingPreferences, preferencesResponse);
+    preferencesRef.current = savedPreferences;
+    setPreferences(savedPreferences);
+
+    const calculated = recalculateTargets(profileData, prefData);
+    const strategyData = { ...calculated, goal_type: profileData.goal };
+    const existingStrategy = strategyRef.current;
+    const strategyResponse = existingStrategy?.id
+      ? await base44.entities.CurrentStrategy.update(existingStrategy.id, strategyData)
+      : await base44.entities.CurrentStrategy.create(strategyData);
+    const savedStrategy = mergeDefined(existingStrategy, strategyResponse);
+    strategyRef.current = savedStrategy;
+    setStrategy(savedStrategy);
+
+    return { profile: savedProfile, preferences: savedPreferences, strategy: savedStrategy };
   }, []);
 
   const updateProfile = useCallback(async (id, data) => {
     const updated = await base44.entities.UserProfile.update(id, data);
+    profileRef.current = updated;
     setProfile(updated);
     return updated;
   }, []);
 
   const updatePreferences = useCallback(async (id, data) => {
     const updated = await base44.entities.UserPreferences.update(id, data);
+    preferencesRef.current = updated;
     setPreferences(updated);
     return updated;
   }, []);
@@ -160,9 +293,20 @@ export function RecompProvider({ children }) {
           }
         : {};
       const updated = await base44.entities.CurrentStrategy.update(id, data);
+      strategyRef.current = updated;
       setStrategy(updated);
       if (reason) {
-        await base44.entities.DecisionLedger.create({ date: todayStr(), previous_targets: prev, new_targets: data, reason });
+        try {
+          const ledgerEntry = await base44.entities.DecisionLedger.create({
+            date: todayStr(),
+            previous_targets: prev,
+            new_targets: data,
+            reason
+          });
+          setDecisionLedger((current) => [ledgerEntry, ...current]);
+        } catch (error) {
+          console.warn("Targets updated, but the decision history entry could not be saved.", error);
+        }
       }
       return updated;
     },
@@ -170,63 +314,79 @@ export function RecompProvider({ children }) {
   );
 
   const upsertDailyLog = useCallback(
-    async (date, fields) => {
-      const existing = logs.find((l) => l.date === date);
-      if (existing) {
-        const optimistic = { ...existing, ...fields };
-        setLogs((prev) => prev.map((l) => (l.id === existing.id ? optimistic : l)));
-        try {
-          const updated = await base44.entities.DailyLog.update(existing.id, fields);
-          setLogs((prev) => prev.map((l) => (l.id === existing.id ? updated : l)));
-          return updated;
-        } catch (e) {
-          setLogs((prev) => prev.map((l) => (l.id === existing.id ? existing : l)));
-          throw e;
+    (date, fieldsOrUpdater) =>
+      enqueueByKey(dailyQueues, date, async () => {
+        const local = logsRef.current.find((item) => item.date === date) ?? null;
+        const remote = await base44.entities.DailyLog.filter({ date }, "-created_date", 10);
+        const existing = newestByKey(
+          [...remote, ...(local ? [local] : [])],
+          (item) => item.date
+        )[0] ?? null;
+        const fields =
+          typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(existing) : fieldsOrUpdater;
+        const response = existing
+          ? await base44.entities.DailyLog.update(existing.id, fields)
+          : await base44.entities.DailyLog.create({ date, ...fields });
+        const saved = mergeDefined(existing, response);
+        setLogsCurrent((previous) =>
+          [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
+            b.date.localeCompare(a.date)
+          )
+        );
+
+        if (fields.weight_lbs != null && profileRef.current?.id) {
+          const hasNewerWeight = logsRef.current.some(
+            (item) => item.date > date && item.weight_lbs != null
+          );
+          if (!hasNewerWeight) {
+            try {
+              const updatedProfile = await base44.entities.UserProfile.update(profileRef.current.id, {
+                current_weight_lbs: fields.weight_lbs
+              });
+              profileRef.current = updatedProfile;
+              setProfile(updatedProfile);
+            } catch (error) {
+              console.warn("Daily weight saved, but profile weight could not be synchronized.", error);
+            }
+          }
         }
-      }
-      const tempId = `temp-${date}`;
-      const optimistic = { id: tempId, date, ...fields };
-      setLogs((prev) => [...prev, optimistic]);
-      try {
-        const created = await base44.entities.DailyLog.create({ date, ...fields });
-        setLogs((prev) => prev.map((l) => (l.id === tempId ? created : l)));
-        return created;
-      } catch (e) {
-        setLogs((prev) => prev.filter((l) => l.id !== tempId));
-        throw e;
-      }
-    },
-    [logs]
+        return saved;
+      }),
+    [setLogsCurrent]
   );
 
   const upsertHabitEntry = useCallback(
-    async (habitId, date, fields) => {
-      const existing = habitEntries.find((e) => e.habit_id === habitId && e.date === date);
-      if (existing) {
-        const optimistic = { ...existing, ...fields };
-        setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? optimistic : e)));
-        try {
-          const updated = await base44.entities.HabitEntry.update(existing.id, fields);
-          setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? updated : e)));
-          return updated;
-        } catch (e) {
-          setHabitEntries((prev) => prev.map((e) => (e.id === existing.id ? existing : e)));
-          throw e;
-        }
-      }
-      const tempId = `temp-${habitId}-${date}`;
-      const optimistic = { id: tempId, habit_id: habitId, date, ...fields };
-      setHabitEntries((prev) => [optimistic, ...prev]);
-      try {
-        const created = await base44.entities.HabitEntry.create({ habit_id: habitId, date, ...fields });
-        setHabitEntries((prev) => prev.map((e) => (e.id === tempId ? created : e)));
-        return created;
-      } catch (e) {
-        setHabitEntries((prev) => prev.filter((e) => e.id !== tempId));
-        throw e;
-      }
+    (habitId, date, fieldsOrUpdater) => {
+      const key = `${habitId}:${date}`;
+      return enqueueByKey(habitQueues, key, async () => {
+        const local =
+          habitEntriesRef.current.find((item) => item.habit_id === habitId && item.date === date) ?? null;
+        const remote = await base44.entities.HabitEntry.filter(
+          { habit_id: habitId, date },
+          "-created_date",
+          10
+        );
+        const existing = newestByKey(
+          [...remote, ...(local ? [local] : [])],
+          (item) => `${item.habit_id}:${item.date}`
+        )[0] ?? null;
+        const fields =
+          typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(existing) : fieldsOrUpdater;
+        const response = existing
+          ? await base44.entities.HabitEntry.update(existing.id, fields)
+          : await base44.entities.HabitEntry.create({ habit_id: habitId, date, ...fields });
+        const saved = mergeDefined(existing, response);
+        setHabitEntriesCurrent((previous) => [
+          saved,
+          ...previous.filter(
+            (item) =>
+              item.id !== saved.id && !(item.habit_id === habitId && item.date === date)
+          )
+        ]);
+        return saved;
+      });
     },
-    [habitEntries]
+    [setHabitEntriesCurrent]
   );
 
   const addHabit = useCallback(async (data) => {
@@ -249,19 +409,77 @@ export function RecompProvider({ children }) {
 
   const addSession = useCallback(async (data) => {
     const created = await base44.entities.ExerciseSession.create(data);
-    setSessions((prev) => [created, ...prev]);
+    setSessionsCurrent((prev) => [created, ...prev]);
     return created;
-  }, []);
+  }, [setSessionsCurrent]);
+
+  const saveTrainingSession = useCallback(
+    async ({ session, strengthEntries = [], markDaily = false }) => {
+      let createdSession;
+      const createdStrengthEntries = [];
+      try {
+        createdSession = await base44.entities.ExerciseSession.create(session);
+        for (const entry of strengthEntries) {
+          const created = await base44.entities.StrengthLog.create({
+            ...entry,
+            session_id: createdSession.id
+          });
+          createdStrengthEntries.push(created);
+        }
+        if (markDaily) {
+          await upsertDailyLog(session.date, {
+            workout_completed: true,
+            workout_type: session.type
+          });
+        }
+        setSessionsCurrent((previous) => [createdSession, ...previous]);
+        if (createdStrengthEntries.length > 0) {
+          setStrengthLogsCurrent((previous) => [...createdStrengthEntries, ...previous]);
+        }
+        return { session: createdSession, strengthLogs: createdStrengthEntries };
+      } catch (error) {
+        await Promise.allSettled([
+          ...createdStrengthEntries.map((entry) => base44.entities.StrengthLog.delete(entry.id)),
+          createdSession?.id
+            ? base44.entities.ExerciseSession.delete(createdSession.id)
+            : Promise.resolve()
+        ]);
+        throw error;
+      }
+    },
+    [setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]
+  );
 
   const deleteSession = useCallback(async (id) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+    const session = sessionsRef.current.find((item) => item.id === id);
     try {
+      const linked = await base44.entities.StrengthLog.filter({ session_id: id }, "-date", 500);
+      // Remove child records first so a partial failure leaves the parent session
+      // available for a safe retry instead of creating inaccessible orphans.
+      await Promise.all(linked.map((entry) => base44.entities.StrengthLog.delete(entry.id)));
       await base44.entities.ExerciseSession.delete(id);
+      setSessionsCurrent((previous) => previous.filter((item) => item.id !== id));
+      const linkedIds = new Set(linked.map((entry) => entry.id));
+      setStrengthLogsCurrent((previous) => previous.filter((entry) => !linkedIds.has(entry.id)));
+
+      if (session?.date && logsRef.current.some((item) => item.date === session.date)) {
+        const remaining = sessionsRef.current.filter(
+          (item) => item.id !== id && item.date === session.date
+        );
+        try {
+          await upsertDailyLog(session.date, {
+            workout_completed: remaining.length > 0,
+            workout_type: remaining[0]?.type
+          });
+        } catch (error) {
+          console.warn("Session deleted, but its daily workout marker could not be synchronized.", error);
+        }
+      }
     } catch (e) {
       await loadAll();
       throw e;
     }
-  }, [loadAll]);
+  }, [loadAll, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const addFood = useCallback(async (data) => {
     const created = await base44.entities.FoodItem.create(data);
@@ -271,9 +489,9 @@ export function RecompProvider({ children }) {
 
   const addStrengthLog = useCallback(async (data) => {
     const created = await base44.entities.StrengthLog.create(data);
-    setStrengthLogs((prev) => [created, ...prev]);
+    setStrengthLogsCurrent((prev) => [created, ...prev]);
     return created;
-  }, []);
+  }, [setStrengthLogsCurrent]);
 
   const saveMealTemplate = useCallback(async (data) => {
     const created = await base44.entities.MealTemplate.create(data);
@@ -283,14 +501,14 @@ export function RecompProvider({ children }) {
 
   const logMealTemplate = useCallback(
     async (template) => {
-      await upsertDailyLog(todayStr(), {
-        calories: (todayLog?.calories ?? 0) + (template.total_calories ?? 0),
-        protein_g: (todayLog?.protein_g ?? 0) + (template.total_protein_g ?? 0),
-        carbs_g: (todayLog?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
-        fat_g: (todayLog?.fat_g ?? 0) + (template.total_fat_g ?? 0)
-      });
+      await upsertDailyLog(todayStr(), (current) => ({
+        calories: (current?.calories ?? 0) + (template.total_calories ?? 0),
+        protein_g: (current?.protein_g ?? 0) + (template.total_protein_g ?? 0),
+        carbs_g: (current?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
+        fat_g: (current?.fat_g ?? 0) + (template.total_fat_g ?? 0)
+      }));
     },
-    [todayLog, upsertDailyLog]
+    [upsertDailyLog]
   );
 
   const addRecipe = useCallback(async (data) => {
@@ -342,6 +560,7 @@ export function RecompProvider({ children }) {
 
   const value = {
     loading,
+    loadError,
     profile,
     preferences,
     strategy,
@@ -374,6 +593,7 @@ export function RecompProvider({ children }) {
     updateHabit,
     archiveHabit,
     addSession,
+    saveTrainingSession,
     deleteSession,
     addFood,
     addStrengthLog,
@@ -395,7 +615,7 @@ export function RecompGate() {
 }
 
 export function RequireOnboarding() {
-  const { loading, profile } = useRecomp();
+  const { loading, loadError, onboarded, reload } = useRecomp();
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-bg">
@@ -403,6 +623,25 @@ export function RequireOnboarding() {
       </div>
     );
   }
-  if (!profile) return <Navigate to="/onboarding" replace />;
+  if (loadError) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-bg px-6">
+        <div className="max-w-sm text-center space-y-3">
+          <h1 className="text-lg font-semibold">We couldn't load your data</h1>
+          <p className="text-sm text-muted-foreground">
+            Your account has not been changed. Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={reload}
+            className="rounded-lg bg-teal px-4 py-2 text-sm font-medium text-buttonText"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (!onboarded) return <Navigate to="/onboarding" replace />;
   return <Outlet />;
 }

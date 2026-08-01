@@ -3,7 +3,9 @@
   "type": "object",
   "properties": {
     "age": {
-      "type": "number"
+      "type": "number",
+      "minimum": 18,
+      "maximum": 120
     },
     "sex": {
       "type": "string",
@@ -15,14 +17,20 @@
     },
     "height_in": {
       "type": "number",
+      "minimum": 36,
+      "maximum": 108,
       "description": "Height in inches"
     },
     "current_weight_lbs": {
       "type": "number",
+      "minimum": 40,
+      "maximum": 1200,
       "description": "Current weight in pounds"
     },
     "goal_weight_lbs": {
       "type": "number",
+      "minimum": 40,
+      "maximum": 1200,
       "description": "Target weight in pounds"
     },
     "goal": {
@@ -40,10 +48,14 @@
       ]
     },
     "training_days_per_week": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 7
     },
     "cardio_days_per_week": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 7
     },
     "job_activity": {
       "type": "string",
@@ -56,7 +68,9 @@
       ]
     },
     "average_steps": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 200000
     },
     "experience_level": {
       "type": "string",
@@ -67,7 +81,8 @@
       ]
     },
     "primary_concern": {
-      "type": "string"
+      "type": "string",
+      "maxLength": 1000
     }
   },
   "required": [

@@ -34,7 +34,7 @@ function PlayBadge() {
 export default function Hero({ preview }) {
   const { isAuthenticated, authChecked, authError } = useAuth();
 
-  if (!authChecked) return <AppSplash />;
+  if (!authChecked && !authError) return <AppSplash />;
   if (!preview && isAuthenticated && !authError) return <Navigate to="/today" replace />;
 
   return (

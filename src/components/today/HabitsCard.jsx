@@ -59,14 +59,14 @@ export default function HabitsCard() {
   }, [habitEntries]);
 
   const toggle = (habit) => {
-    const entry = habitEntries.find((e) => e.habit_id === habit.id && e.date === today);
-    upsertHabitEntry(habit.id, today, { done: !(entry?.done) });
+    upsertHabitEntry(habit.id, today, (current) => ({ done: !current?.done }));
   };
 
   const step = (habit, delta) => {
-    const entry = habitEntries.find((e) => e.habit_id === habit.id && e.date === today);
-    const next = Math.max(0, (entry?.value ?? 0) + delta);
-    upsertHabitEntry(habit.id, today, { value: next, done: next >= (habit.target_value || 1) });
+    upsertHabitEntry(habit.id, today, (current) => {
+      const next = Math.max(0, (current?.value ?? 0) + delta);
+      return { value: next, done: next >= (habit.target_value || 1) };
+    });
   };
 
   return (

@@ -17,16 +17,24 @@
             "type": "string"
           },
           "calories": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
           },
           "protein_g": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
           },
           "carbs_g": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3000
           },
           "fat_g": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
           }
         },
         "required": [
@@ -39,16 +47,24 @@
       }
     },
     "total_calories": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100000
     },
     "total_protein_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000
     },
     "total_carbs_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 15000
     },
     "total_fat_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000
     },
     "tags": {
       "type": "array",

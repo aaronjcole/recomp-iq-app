@@ -59,6 +59,7 @@ export function strengthTrend(strengthLogs) {
   const direction = changePercent > 1 ? "up" : changePercent < -1 ? "down" : "flat";
   const spanDays = (maxDate - minDate) / DAY_MS;
 
+  /** @type {"low" | "medium" | "high"} */
   let confidence;
   if (liftsUsed >= 3 && spanDays >= 21) confidence = "high";
   else if (liftsUsed < 2 || spanDays < 14) confidence = "low";

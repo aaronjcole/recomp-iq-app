@@ -25,31 +25,49 @@
       "type": "string"
     },
     "serving_grams": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100000
     },
     "calories": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20000
     },
     "protein_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "carbs_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3000
     },
     "fat_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "fiber_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "added_sugar_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "saturated_fat_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "sodium_mg": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000
     },
     "tags": {
       "type": "array",

@@ -33,7 +33,11 @@ export default function Today() {
     steps: todayLog?.steps ?? 0
   };
   const remaining = Math.max(0, strategy.calorie_target - consumed.calories);
-  const workoutsThisWeek = sessions.filter((s) => s.date >= weekStart()).length;
+  const liftingDaysThisWeek = new Set(
+    sessions
+      .filter((s) => s.date >= weekStart() && (s.type === "strength" || s.type === "mixed"))
+      .map((s) => s.date)
+  ).size;
 
   return (
     <PullToRefresh onRefresh={reload}>
@@ -81,7 +85,7 @@ export default function Today() {
           <button type="button" onClick={() => setLogOpen(true)} className="w-full text-left">
             <MacroBar label="Steps" value={consumed.steps} target={strategy.step_target} colorClass="bg-green" />
           </button>
-          <MacroBar label="Lifts this week" value={workoutsThisWeek} target={strategy.lifting_days_target} colorClass="bg-orange" />
+          <MacroBar label="Lifts this week" value={liftingDaysThisWeek} target={strategy.lifting_days_target} colorClass="bg-orange" />
         </CardContent>
       </Card>
 

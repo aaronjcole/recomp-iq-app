@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -77,6 +77,8 @@ export const AuthProvider = ({ children }) => {
         }
         setIsLoadingPublicSettings(false);
         setIsLoadingAuth(false);
+        setIsAuthenticated(false);
+        setAuthChecked(true);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -86,6 +88,8 @@ export const AuthProvider = ({ children }) => {
       });
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
+      setIsAuthenticated(false);
+      setAuthChecked(true);
     }
   };
 

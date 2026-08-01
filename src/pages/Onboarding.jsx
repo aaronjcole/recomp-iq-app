@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Target } from "lucide-react";
@@ -67,8 +67,23 @@ function loadState() {
   }
 }
 
+function inRange(value, min, max) {
+  if (value === "" || value === null || value === undefined) return false;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max;
+}
+
 export default function Onboarding() {
-  const { completeOnboarding, upsertDailyLog } = useRecomp();
+  const {
+    completeOnboarding,
+    upsertDailyLog,
+    loading,
+    loadError,
+    profile,
+    preferences,
+    onboarded,
+    reload
+  } = useRecomp();
   const navigate = useNavigate();
 
   const saved = useMemo(() => loadState(), []);
@@ -82,6 +97,41 @@ export default function Onboarding() {
   const [units, setUnits] = useState(saved?.units ?? DEFAULTS.units);
   const [saving, setSaving] = useState(false);
   const [errorStep, setErrorStep] = useState(null);
+  const [saveError, setSaveError] = useState("");
+  const restoredPartialSetup = useRef(false);
+
+  useEffect(() => {
+    if (loading || saved || restoredPartialSetup.current) return;
+    restoredPartialSetup.current = true;
+
+    if (profile) {
+      setP((current) => ({
+        ...current,
+        ...profile,
+        age: String(profile.age ?? current.age),
+        height_in: String(profile.height_in ?? current.height_in),
+        current_weight_lbs: String(profile.current_weight_lbs ?? current.current_weight_lbs),
+        goal_weight_lbs: String(profile.goal_weight_lbs ?? current.goal_weight_lbs),
+        average_steps: String(profile.average_steps ?? current.average_steps),
+        training_days_per_week: String(
+          profile.training_days_per_week ?? current.training_days_per_week
+        ),
+        cardio_days_per_week: String(
+          profile.cardio_days_per_week ?? current.cardio_days_per_week
+        )
+      }));
+    }
+    if (preferences) {
+      setPrefRaw((current) => ({
+        ...current,
+        ...preferences,
+        notification_preferences: {
+          ...current.notification_preferences,
+          ...(preferences.notification_preferences ?? {})
+        }
+      }));
+    }
+  }, [loading, preferences, profile, saved]);
 
   useEffect(() => {
     try {
@@ -91,14 +141,27 @@ export default function Onboarding() {
     }
   }, [p, pref, units, step]);
 
+  useEffect(() => {
+    if (!loading && onboarded && !saving) navigate("/today", { replace: true });
+  }, [loading, navigate, onboarded, saving]);
+
   const set = (k, v) => setP((s) => ({ ...s, [k]: v }));
   const setPref = (k, v) => setPrefRaw((s) => ({ ...s, [k]: v }));
 
   const validations = [
     true,
     !!p.goal,
-    !!p.age && !!p.sex && !!p.height_in && !!p.current_weight_lbs,
-    !!p.job_activity && !!p.average_steps && !!p.training_days_per_week && !!p.experience_level,
+    inRange(p.age, 18, 120) &&
+      !!p.sex &&
+      inRange(p.height_in, 36, 108) &&
+      inRange(p.current_weight_lbs, 40, 1200) &&
+      (!p.goal_weight_lbs || inRange(p.goal_weight_lbs, 40, 1200)) &&
+      (!p.waist_in || inRange(p.waist_in, 10, 150)),
+    !!p.job_activity &&
+      inRange(p.average_steps, 0, 200000) &&
+      inRange(p.training_days_per_week, 0, 7) &&
+      inRange(p.cardio_days_per_week, 0, 7) &&
+      !!p.experience_level,
     !!pref.diet_style,
     !!pref.tone,
     true
@@ -106,7 +169,12 @@ export default function Onboarding() {
   const stepValid = validations[step];
 
   const profilePreview = useMemo(() => {
-    if (!p.goal || !p.age || !p.height_in || !p.current_weight_lbs) return null;
+    if (
+      !p.goal ||
+      !inRange(p.age, 18, 120) ||
+      !inRange(p.height_in, 36, 108) ||
+      !inRange(p.current_weight_lbs, 40, 1200)
+    ) return null;
     return calculateInitialStrategy({
       sex: p.sex,
       age: Number(p.age),
@@ -118,8 +186,8 @@ export default function Onboarding() {
       average_steps: Number(p.average_steps),
       training_days_per_week: Number(p.training_days_per_week),
       cardio_days_per_week: Number(p.cardio_days_per_week)
-    });
-  }, [p]);
+    }, pref);
+  }, [p, pref]);
 
   const goTo = (n) => {
     setErrorStep(null);
@@ -136,6 +204,7 @@ export default function Onboarding() {
 
   const finish = async () => {
     setSaving(true);
+    setSaveError("");
     try {
       const profileData = {
         age: Number(p.age),
@@ -160,18 +229,47 @@ export default function Onboarding() {
         known_barriers: pref.known_barriers,
         notification_preferences: pref.notification_preferences
       };
-      // Seed baseline waist before onboarding completes so the Recomp Signal
-      // has a starting point (done first to avoid a gate-triggered unmount race).
-      if (p.waist_in) {
-        await upsertDailyLog(todayStr(), { waist_in: Number(p.waist_in) });
-      }
       await completeOnboarding(profileData, prefData);
+      if (p.waist_in) {
+        try {
+          await upsertDailyLog(todayStr(), { waist_in: Number(p.waist_in) });
+        } catch (error) {
+          console.warn("Plan created, but the baseline waist measurement was not saved.", error);
+        }
+      }
       localStorage.removeItem(STORAGE_KEY);
       navigate("/today", { replace: true });
+    } catch (error) {
+      console.error("Unable to complete onboarding", error);
+      setSaveError("We couldn't finish building your plan. Your answers are saved; try again to resume safely.");
     } finally {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-bg">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-panel2 border-t-teal" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md flex items-center">
+        <div className="space-y-3 text-center">
+          <h1 className="text-xl font-semibold">We couldn't check your account</h1>
+          <p className="text-sm text-muted-foreground">
+            Your existing setup is safe. Retry before starting onboarding again.
+          </p>
+          <Button onClick={reload} className="bg-teal text-buttonText hover:opacity-90">
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md">
@@ -209,6 +307,11 @@ export default function Onboarding() {
 
       {errorStep === step && !stepValid && (
         <p className="text-xs text-red mt-3">{STEP_MESSAGES[step]}</p>
+      )}
+      {saveError && (
+        <p role="alert" className="text-sm text-red mt-3">
+          {saveError}
+        </p>
       )}
 
       <div className="flex gap-3 mt-8">

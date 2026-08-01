@@ -10,7 +10,9 @@
       "format": "date"
     },
     "value": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000
     },
     "done": {
       "type": "boolean"

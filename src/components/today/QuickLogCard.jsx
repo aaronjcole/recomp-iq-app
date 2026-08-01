@@ -53,6 +53,8 @@ export default function QuickLogCard() {
             <Input
               type="number"
               inputMode="decimal"
+              min={40}
+              max={1200}
               value={weight ?? ""}
               onChange={(e) => setWeight(e.target.value)}
               onBlur={saveWeight}

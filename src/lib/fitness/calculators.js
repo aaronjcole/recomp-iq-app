@@ -44,8 +44,12 @@ export function calculateTDEE(bmr, activity) {
   return Math.round(bmr * activityMultipliers[activity]);
 }
 
-export function calculateCalorieTarget(tdee, goal) {
-  const target = Math.round((tdee * calorieGoalFactors[goal]) / 10) * 10;
+export function calculateCalorieTarget(tdee, goal, options = {}) {
+  const rawFactor = calorieGoalFactors[goal];
+  const factor = options.safetyConstrained
+    ? Math.max(0.925, Math.min(1.05, rawFactor))
+    : rawFactor;
+  const target = Math.round((tdee * factor) / 10) * 10;
   if (goal === "maintenance") return target;
   if (goal === "muscle_gain" || goal === "lean_bulk" || goal === "aggressive_gain") return target;
   return Math.max(target, 1500);
@@ -79,14 +83,17 @@ export function calculateStepTarget(input) {
   const baseline = input.average_steps || 4000;
   if (input.job_activity === "sedentary" || input.stepsAreHard) {
     return Math.min(
-      Math.max(Math.round((baseline + 1800) / 100) * 100, 5500),
-      baseline > 7000 ? baseline + 1000 : 7000
+      200000,
+      Math.min(
+        Math.max(Math.round((baseline + 1800) / 100) * 100, 5500),
+        baseline > 7000 ? baseline + 1000 : 7000
+      )
     );
   }
-  return Math.min(Math.round((baseline + 2000) / 100) * 100, 10000);
+  return Math.min(200000, Math.round((baseline + 2000) / 100) * 100, 10000);
 }
 
-export function calculateInitialStrategy(profile) {
+export function calculateInitialStrategy(profile, preferences = {}) {
   const bmr = calculateBMR({
     sex: profile.sex,
     weight_lbs: profile.current_weight_lbs,
@@ -94,7 +101,8 @@ export function calculateInitialStrategy(profile) {
     age: profile.age
   });
   const tdee = calculateTDEE(bmr, profile.job_activity);
-  const calories = calculateCalorieTarget(tdee, profile.goal);
+  const safetyConstrained = (preferences?.safety_flags ?? []).length > 0;
+  const calories = calculateCalorieTarget(tdee, profile.goal, { safetyConstrained });
   const macros = calculateMacroTargets({
     calories,
     current_weight_lbs: profile.current_weight_lbs,
@@ -116,6 +124,9 @@ export function calculateInitialStrategy(profile) {
     confidence: "medium",
     notes: [
       "Your first target is an estimate. RecompIQ updates based on 7-day trends, waist, steps, training, recovery, and adherence.",
+      ...(safetyConstrained
+        ? ["Safety flags keep the starting calorie target within a conservative range; consult a qualified professional before pursuing an aggressive change."]
+        : []),
       ...macros.notes
     ]
   };

@@ -1,3 +1,6 @@
+/**
+ * @param {{value: number, max: number, size?: number, stroke?: number, color?: string, track?: string, label?: React.ReactNode, sublabel?: React.ReactNode}} props
+ */
 export default function ProgressRing({ value, max, size = 120, stroke = 10, color = "var(--teal)", track = "var(--panel2)", label, sublabel }) {
   const ratio = max > 0 ? Math.min(1, value / max) : 0;
   const r = (size - stroke) / 2;

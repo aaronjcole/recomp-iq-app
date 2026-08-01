@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RecompIQ">
+  <rect width="512" height="512" fill="#12836f"/>
+  <circle cx="256" cy="256" r="104" fill="none" stroke="#f7fffc" stroke-width="30"/>
+  <circle cx="256" cy="256" r="48" fill="none" stroke="#f7fffc" stroke-width="30"/>
+  <path d="M256 106v150h150" fill="none" stroke="#f7fffc" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m355 206 51 50-51 50" fill="none" stroke="#f7fffc" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

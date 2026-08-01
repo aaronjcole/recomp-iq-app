@@ -75,7 +75,7 @@ export default function Coach() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [failedMessage, setFailedMessage] = useState("");
   const scrollRef = useRef(null);
   const lastCheckIn = checkIns[0];
 
@@ -83,22 +83,28 @@ export default function Coach() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const send = async (text) => {
+  const send = async (text, appendUserMessage = true) => {
     if (!text.trim() || loading || !profile || !strategy) return;
     const userMsg = { role: "user", content: text };
-    const history = [...messages, userMsg];
-    setMessages(history);
-    setInput("");
+    const history = appendUserMessage ? [...messages, userMsg] : messages;
+    if (appendUserMessage) {
+      setMessages(history);
+      setInput("");
+    }
     setLoading(true);
-    setError(false);
+    setFailedMessage("");
     const transcript = history.map((m) => `${m.role === "user" ? "User" : "Coach"}: ${m.content}`).join("\n");
     const prompt = `${buildContext({ profile, strategy, trend, recompSignal, preferences, lastCheckIn, todayLog, recentSessions: sessions })}\n\nConversation so far:\n${transcript}\n\nCoach:`;
     try {
       const res = await base44.integrations.Core.InvokeLLM({ prompt });
-      const reply = typeof res === "string" ? res : res?.output ?? JSON.stringify(res);
+      const reply = typeof res === "string"
+        ? res
+        : res && typeof res === "object" && "output" in res
+          ? String(res.output)
+          : JSON.stringify(res) ?? "";
       setMessages((m) => [...m, { role: "coach", content: reply }]);
     } catch (e) {
-      setError(true);
+      setFailedMessage(text);
     } finally {
       setLoading(false);
     }
@@ -107,7 +113,7 @@ export default function Coach() {
   return (
     <div className="flex flex-col h-[calc(100dvh-8.5rem)]">
       <div className="flex items-center gap-2 pb-3">
-        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
+        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold leading-none">Coach</h1>
@@ -141,9 +147,9 @@ export default function Coach() {
             </div>
           </div>
         )}
-        {error && (
+        {failedMessage && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="border-line" onClick={() => send(messages[messages.length - 1]?.content || "")}>
+            <Button variant="outline" size="sm" className="border-line" onClick={() => send(failedMessage, false)}>
               <RotateCcw className="w-4 h-4 mr-1" /> Retry
             </Button>
           </div>
@@ -165,8 +171,8 @@ export default function Coach() {
           ))}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex gap-2">
-          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask your coach…" className="flex-1" />
-          <Button type="submit" className="bg-teal text-buttonText hover:opacity-90" disabled={loading || !input.trim()}>
+          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask your coach…" className="flex-1" aria-label="Message your coach" />
+          <Button type="submit" className="bg-teal text-buttonText hover:opacity-90" disabled={loading || !input.trim()} aria-label="Send message">
             <Send className="w-4 h-4" />
           </Button>
         </form>

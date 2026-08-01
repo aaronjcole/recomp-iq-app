@@ -8,17 +8,39 @@ import { X, ScanLine, RefreshCw, Loader2, Plus, Bookmark } from "lucide-react";
 export default function BarcodeScanner({ onClose, onResult }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const mountedRef = useRef(false);
+  const cameraStartIdRef = useRef(0);
+  const scanHandledRef = useRef(false);
   const [status, setStatus] = useState("camera"); // camera | looking-up | found | not-found | error
   const [barcode, setBarcode] = useState("");
   const [manual, setManual] = useState("");
   const [food, setFood] = useState(null);
   const [err, setErr] = useState("");
 
+  const stopCamera = () => {
+    try {
+      controlsRef.current?.stop();
+    } catch {
+      // The camera may already have stopped after a successful scan.
+    }
+    controlsRef.current = null;
+  };
+
+  const handleClose = () => {
+    cameraStartIdRef.current += 1;
+    scanHandledRef.current = true;
+    stopCamera();
+    onClose();
+  };
+
   const lookup = async (code) => {
     setStatus("looking-up");
     setBarcode(code);
     try {
       const res = await base44.functions.invoke("barcodeLookup", { barcode: code });
+      if (!mountedRef.current) return;
       const data = res.data;
       if (data.error) {
         setErr(data.error);
@@ -32,41 +54,92 @@ export default function BarcodeScanner({ onClose, onResult }) {
       setFood(data.food);
       setStatus("found");
     } catch (e) {
+      if (!mountedRef.current) return;
       setErr(e.message || "Lookup failed");
       setStatus("error");
     }
   };
 
   const startCamera = async () => {
+    const startId = ++cameraStartIdRef.current;
+    scanHandledRef.current = false;
+    stopCamera();
     setStatus("camera");
     setFood(null);
     setErr("");
     try {
       const reader = new BrowserMultiFormatReader();
-      controlsRef.current = await reader.decodeFromConstraints(
+      const controls = await reader.decodeFromConstraints(
         { video: { facingMode: "environment" } },
         videoRef.current,
-        (result) => {
-          if (result) {
-            controlsRef.current?.stop();
-            lookup(result.getText());
-          }
+        (result, _error, scanControls) => {
+          if (!result || !mountedRef.current || scanHandledRef.current) return;
+          scanHandledRef.current = true;
+          scanControls?.stop();
+          stopCamera();
+          lookup(result.getText());
         }
       );
+      if (!mountedRef.current || startId !== cameraStartIdRef.current || scanHandledRef.current) {
+        controls.stop();
+        return;
+      }
+      controlsRef.current = controls;
     } catch (e) {
+      if (!mountedRef.current || startId !== cameraStartIdRef.current) return;
       setErr(e.message || "Camera unavailable");
       setStatus("error");
     }
   };
 
   useEffect(() => {
-    startCamera();
-    return () => {
-      try {
-        controlsRef.current?.stop();
-      } catch {
-        // ignore
+    mountedRef.current = true;
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClose();
+        return;
       }
+      if (event.key !== "Tab") return;
+
+      const focusable = /** @type {HTMLElement[]} */ (Array.from(
+        dialogRef.current?.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter((element) => element instanceof HTMLElement));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    startCamera();
+
+    return () => {
+      mountedRef.current = false;
+      cameraStartIdRef.current += 1;
+      scanHandledRef.current = true;
+      stopCamera();
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -74,20 +147,35 @@ export default function BarcodeScanner({ onClose, onResult }) {
   const handleManual = (e) => {
     e.preventDefault();
     if (!manual.trim()) return;
-    controlsRef.current?.stop();
+    cameraStartIdRef.current += 1;
+    scanHandledRef.current = true;
+    stopCamera();
     lookup(manual.trim());
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col select-none">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="barcode-scanner-title"
+      aria-describedby="barcode-scanner-description"
+      aria-busy={status === "looking-up"}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 bg-black flex flex-col select-none"
+    >
+      <p id="barcode-scanner-description" className="sr-only">
+        Scan a food barcode with your camera or enter the barcode manually.
+      </p>
       {/* Top bar */}
       <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <div className="flex items-center gap-2 font-medium">
+        <div id="barcode-scanner-title" className="flex items-center gap-2 font-medium">
           <ScanLine className="w-5 h-5" />
           Scan food barcode
         </div>
         <button
-          onClick={onClose}
+          ref={closeButtonRef}
+          onClick={handleClose}
           className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Close scanner"
         >
@@ -102,6 +190,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
           className={`w-full h-full object-cover ${status === "camera" ? "" : "hidden"}`}
           muted
           playsInline
+          aria-hidden="true"
         />
 
         {status === "camera" && (
@@ -111,7 +200,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
         )}
 
         {status === "looking-up" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
+          <div role="status" aria-live="polite" className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
             <Loader2 className="w-8 h-8 animate-spin" />
             <p className="text-sm">Looking up {barcode}…</p>
           </div>
@@ -157,6 +246,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
                   variant="ghost"
                   className="h-11 min-h-[44px] px-4"
                   onClick={startCamera}
+                  aria-label="Scan another barcode"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </Button>
@@ -188,6 +278,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
             onChange={(e) => setManual(e.target.value)}
             inputMode="numeric"
             placeholder="Enter barcode manually"
+            aria-label="Barcode number"
             className="h-11 min-h-[44px] bg-bg"
           />
           <Button type="submit" variant="outline" className="h-11 min-h-[44px] shrink-0">
@@ -199,7 +290,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
   );
 }
 
-function Macro({ label, value, unit }) {
+function Macro({ label, value, unit = "" }) {
   return (
     <div className="rounded-lg bg-panel2 py-2">
       <div className="font-mono text-sm font-semibold tabular-nums">

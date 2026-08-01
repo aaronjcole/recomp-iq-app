@@ -6,15 +6,16 @@ function H2({ children }) {
 
 export default function Privacy() {
   return (
-    <LegalShell title="Privacy Policy" updated="July 2026">
+    <LegalShell title="Privacy Policy" updated="August 2026">
       <H2>1. What we collect</H2>
       <p>
         When you create an account and complete onboarding, you provide profile details: age, sex,
         height, current and goal weight, goal, training and cardio days, job activity, average steps,
         and experience level. As you use the app, we store your daily logs (weight, calories, macros,
         steps, sleep, mood, waist), habits, exercise sessions, strength logs, weekly check-ins, and
-        decision history. Progress photos are stored locally on your device and are not uploaded to
-        our servers.
+        decision history. Photos added to your progress timeline are stored locally on your device
+        and are not uploaded. If you choose a food-photo or body-composition scan, that photo is
+        uploaded to our hosting and AI inference providers for analysis.
       </p>
 
       <H2>2. How we use it</H2>
@@ -26,9 +27,10 @@ export default function Privacy() {
 
       <H2>3. Storage &amp; retention</H2>
       <p>
-        Your data is stored in our hosted database and encrypted in transit. We retain your data for
-        as long as your account is active. You can delete your account and associated data at any time
-        from your Profile, which removes your records.
+        Your account records are stored in our hosted database and encrypted in transit. We retain
+        them while your account is active. Deleting your account from Profile removes those records
+        and the current browser's on-device progress photos. Files submitted for optional AI analysis
+        are handled under our hosting and AI providers' retention procedures.
       </p>
 
       <H2>4. Sharing</H2>
@@ -40,8 +42,8 @@ export default function Privacy() {
 
       <H2>5. Your rights &amp; choices</H2>
       <p>
-        You can review and update your profile and preferences at any time, export your logged data,
-        and delete your account. You may also disable notifications from your device settings.
+        You can review and update your profile and preferences at any time and delete your account.
+        You may also disable notifications from your device settings.
       </p>
 
       <H2>6. Children</H2>

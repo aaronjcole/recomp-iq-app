@@ -9,7 +9,9 @@
       "type": "string"
     },
     "servings": {
-      "type": "number"
+      "type": "number",
+      "minimum": 1,
+      "maximum": 1000
     },
     "ingredients": {
       "type": "array",
@@ -21,25 +23,37 @@
             "type": "string"
           },
           "quantity": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
           },
           "unit": {
             "type": "string"
           },
           "grams_estimate": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
           },
           "calories": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
           },
           "protein_g": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
           },
           "carbs_g": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 15000
           },
           "fat_g": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
           }
         },
         "required": [
