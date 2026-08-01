@@ -43,6 +43,23 @@ onboarding or the Today page. It does not mutate or delete account data.
 Playwright retains screenshots, videos, or traces only for failures/retries. Treat those artifacts
 as confidential because a deployed test could capture test-user data.
 
+## AI response moderation
+
+The production Base44 administrator reviews `AiContentReport` records. Before public launch, name
+a primary owner and a backup who can access that entity and the support inbox at
+`recompappsupport@gmail.com`.
+
+- Review new `received` reports every business day and before each production release.
+- Prioritize `unsafe_health_advice` and `harmful_or_offensive`; escalate credible imminent-harm
+  concerns immediately under the app's safety-response procedure.
+- Move records through `received` → `reviewing` → `resolved` or `dismissed` so the queue is auditable.
+- Use the stored AI reply snapshot, category, and optional reporter explanation for review. Do not
+  ask users to send passwords, verification codes, photos, or additional health records by email.
+- Record product or prompt remediation in the relevant issue or release notes without copying
+  health-related report content into GitHub.
+- Reports remain account-scoped and are deleted by the account-deletion cascade, subject to the
+  exceptions disclosed in the Privacy Policy.
+
 ## Manual Base44 smoke test
 
 - [ ] GitHub branch changes appear in the Base44 Builder preview.
@@ -59,8 +76,10 @@ as confidential because a deployed test could capture test-user data.
 - [ ] The deployed response prevents arbitrary websites from framing the app; only required Base44 editor origins are allowed.
 - [ ] With two normal accounts, neither account can list, fetch, update, or delete the other's records.
 - [ ] Offline messaging is accurate and queued work is not claimed to be saved when it is not.
+- [ ] A signed-in user can report an AI Coach response; the report appears in `AiContentReport` and
+      an administrator can move it through the moderation lifecycle.
 - [ ] Account deletion removes the disposable user's hosted records and current-device photos.
-- [ ] Privacy and Terms pages load while signed out.
+- [ ] Privacy, Terms, Support, and account-deletion pages load while signed out.
 - [ ] Keyboard navigation, focus restoration, and Escape work in dialogs.
 - [ ] Core flows render correctly on current iOS Safari and Android Chrome.
 
@@ -76,5 +95,6 @@ as confidential because a deployed test could capture test-user data.
 - [ ] CodeQL is green; secret scanning, push protection, Dependabot alerts, and `main` branch protection are enabled.
 - [ ] No secrets are present in the current tree or Git history.
 - [ ] Remaining audit findings are documented with reachability and mitigation.
+- [ ] Primary and backup AI-report moderation owners are named and have tested production access.
 - [ ] A rollback commit or previously known-good deployment is identified.
 - [ ] The pull request is taken out of draft only after the deployed smoke test passes.

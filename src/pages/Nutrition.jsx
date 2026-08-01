@@ -17,6 +17,7 @@ import BarcodeScanner from "@/components/nutrition/BarcodeScanner";
 import FoodPhotoScan from "@/components/nutrition/FoodPhotoScan";
 import { toast } from "@/components/ui/use-toast";
 import PullToRefresh from "@/components/common/PullToRefresh";
+import { featureFlags } from "@/lib/featureFlags";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
 const num = (v) => (v === "" ? null : Number(v));
@@ -106,9 +107,11 @@ export default function Nutrition() {
           <div className="flex items-center justify-between gap-2">
             <div className="font-medium">Quick add food</div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowPhotoScan(true)}>
-                <Camera className="w-4 h-4 mr-1" /> Snap food
-              </Button>
+              {featureFlags.foodPhotoScan && (
+                <Button variant="outline" size="sm" onClick={() => setShowPhotoScan(true)}>
+                  <Camera className="w-4 h-4 mr-1" /> Snap food
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setShowScanner(true)}>
                 <ScanLine className="w-4 h-4 mr-1" /> Barcode
               </Button>
@@ -173,7 +176,7 @@ export default function Nutrition() {
         />
       )}
 
-      {showPhotoScan && (
+      {featureFlags.foodPhotoScan && showPhotoScan && (
         <FoodPhotoScan
           onClose={() => setShowPhotoScan(false)}
           onResult={handleScannedFood}

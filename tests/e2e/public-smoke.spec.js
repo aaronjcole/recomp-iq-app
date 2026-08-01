@@ -19,7 +19,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
       name: "Train and eat for the body you're actually building.",
     }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+  await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toHaveAttribute(
     "href",
     "/login",
   );
@@ -28,7 +28,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   assertNoPageErrors();
 });
 
-test("privacy and terms pages are reachable without an account", async ({ page }) => {
+test("privacy, terms, support, and deletion pages are reachable without an account", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/privacy");
@@ -38,6 +38,17 @@ test("privacy and terms pages are reachable without an account", async ({ page }
   await page.goto("/terms");
   await expect(page.getByRole("heading", { level: 1, name: "Terms of Service" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Health disclaimer" })).toBeVisible();
+
+  await page.goto("/support");
+  await expect(page.getByRole("heading", { level: 1, name: "RecompIQ Support" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Email recompappsupport@gmail.com/ })).toBeVisible();
+
+  await page.goto("/delete-account");
+  await expect(page.getByRole("heading", { level: 1, name: "Delete your RecompIQ account" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Request deletion by email" })).toHaveAttribute(
+    "href",
+    /^mailto:recompappsupport@gmail\.com/
+  );
   assertNoPageErrors();
 });
 

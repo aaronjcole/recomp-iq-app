@@ -54,6 +54,8 @@ VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
 # Optional: body-photo AI analysis is disabled unless explicitly enabled.
 VITE_ENABLE_BODY_COMPOSITION_SCAN=false
+# Optional: food-photo AI analysis is also disabled unless explicitly enabled.
+VITE_ENABLE_FOOD_PHOTO_SCAN=false
 ```
 
 `VITE_BASE44_APP_ID` identifies the Base44 app.
@@ -63,6 +65,9 @@ VITE_ENABLE_BODY_COMPOSITION_SCAN=false
 `VITE_ENABLE_BODY_COMPOSITION_SCAN` is a release gate for the sensitive body-photo analysis
 feature. It is disabled by default and should only be set to `true` in an environment where private
 file retention, deletion, and AI-processing behavior have been accepted.
+
+`VITE_ENABLE_FOOD_PHOTO_SCAN` independently gates food-photo analysis. Keep it disabled until the
+same private-upload, deletion, provider-retention, consent, and Play Data Safety review is complete.
 
 When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
 

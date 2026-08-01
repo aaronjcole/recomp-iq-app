@@ -18,7 +18,9 @@ export default function Terms() {
 
       <H2>4. Health disclaimer</H2>
       <p className="text-muted-foreground">
-        RecompIQ offers general fitness and nutrition guidance, not medical advice or diagnosis. Always
+        RecompIQ offers general fitness and nutrition guidance, not medical advice or diagnosis.
+        RecompIQ is not a medical device and does not diagnose, treat, cure, or prevent any medical
+        condition. Always
         consult a qualified healthcare professional before starting or changing any diet, supplement, or
         exercise program. Stop and seek medical attention if you experience pain, dizziness, or discomfort.
       </p>

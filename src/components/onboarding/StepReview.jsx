@@ -123,14 +123,7 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
             value: pref.safety_flags.length
               ? pref.safety_flags.map(safetyLabel).join(", ")
               : "None"
-          },
-          {
-            label: "Weigh-in reminder",
-            value: pref.notification_preferences.weigh_in_reminder
-              ? pref.notification_preferences.weigh_in_time
-              : "Off"
-          },
-          { label: "Check-in day", value: pref.notification_preferences.weekly_checkin_day }
+          }
         ]}
       />
       {profilePreview && (

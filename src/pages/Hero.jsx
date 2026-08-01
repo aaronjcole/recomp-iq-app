@@ -2,34 +2,16 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import AppSplash from "@/components/AppSplash";
 import DeviceMockup from "@/components/hero/DeviceMockup";
-import { PLAY_STORE_URL, APP_INTENT_URL } from "@/lib/storeLinks";
 import {
-  Brain, Activity, LineChart, RefreshCw, ShieldCheck, ArrowRight, Play, Smartphone, Target
+  Brain, Activity, LineChart, RefreshCw, ShieldCheck, ArrowRight, Target, UserPlus, LogIn
 } from "lucide-react";
 
 const FEATURES = [
   { icon: Brain, title: "Adaptive engine", body: "Weekly check-ins recalculate your calories, macros, and steps from real adherence and trend data — not a static spreadsheet." },
   { icon: Activity, title: "Recomp signal", body: "A confidence-scored read on whether you're building muscle, losing fat, or stalling — with plain-English countermove guidance." },
   { icon: LineChart, title: "Progress you can see", body: "Weight trend, strength 1RM sparklines, waist tracking, and progress photos on one instrument-panel dashboard." },
-  { icon: RefreshCw, title: "Always in sync", body: "Log from the gym or the kitchen; everything saves instantly and syncs across your devices when you reconnect." }
+  { icon: RefreshCw, title: "Your data, wherever you train", body: "When you're online, signed-in data stays available across your devices." }
 ];
-
-function PlayBadge() {
-  return (
-    <a
-      href={PLAY_STORE_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-3 rounded-2xl bg-foreground text-background px-5 h-14 shadow-lg hover:opacity-90 transition-opacity select-none"
-    >
-      <Play className="w-6 h-6 fill-current" />
-      <span className="leading-tight text-left">
-        <span className="block text-[10px] uppercase tracking-wide opacity-80">Get it on</span>
-        <span className="block text-lg font-semibold -mt-0.5">Google Play</span>
-      </span>
-    </a>
-  );
-}
 
 export default function Hero({ preview }) {
   const { isAuthenticated, authChecked, authError } = useAuth();
@@ -63,17 +45,21 @@ export default function Hero({ preview }) {
             RecompIQ turns your daily logs into a living plan — recalculating calories, macros, and training every week based on how you're actually progressing.
           </p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3">
-            <PlayBadge />
-            <a
-              href={APP_INTENT_URL}
-              className="inline-flex items-center gap-2 rounded-2xl border border-line bg-panel px-5 h-14 text-sm font-medium hover:bg-accent transition-colors"
+            <Link
+              to="/register"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal text-buttonText px-5 h-14 text-sm font-medium shadow-lg hover:opacity-90 transition-opacity"
             >
-              <Smartphone className="w-5 h-5 text-teal" />
-              Open in the app
-            </a>
+              <UserPlus className="w-5 h-5" /> Create your account
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line bg-panel px-5 h-14 text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <LogIn className="w-5 h-5 text-teal" /> Sign in
+            </Link>
           </div>
           <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
-            <ArrowRight className="w-3.5 h-3.5" /> Low monthly price · Cancel anytime
+            <ArrowRight className="w-3.5 h-3.5" /> For adults 18+ · Educational guidance, not medical advice
           </p>
         </div>
         <div className="flex justify-center md:justify-end">
@@ -98,9 +84,11 @@ export default function Hero({ preview }) {
       <section className="max-w-5xl mx-auto px-5 pb-16">
         <div className="rounded-3xl bg-teal text-buttonText p-8 sm:p-12 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold">Your recomposition, instrumented.</h2>
-          <p className="mt-2 opacity-90 max-w-xl mx-auto">Download RecompIQ on Google Play and let the adaptive engine build your first week.</p>
+          <p className="mt-2 opacity-90 max-w-xl mx-auto">Create an account and let the adaptive engine build your first week.</p>
           <div className="mt-6 flex justify-center">
-            <PlayBadge />
+            <Link to="/register" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-buttonText text-[#07211b] px-5 py-3 text-sm font-semibold hover:opacity-90">
+              <UserPlus className="w-4 h-4" /> Get started
+            </Link>
           </div>
         </div>
       </section>
@@ -116,7 +104,7 @@ export default function Hero({ preview }) {
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground">Terms</Link>
-            <span>Not a medical device</span>
+            <span>RecompIQ is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.</span>
           </div>
         </div>
       </footer>

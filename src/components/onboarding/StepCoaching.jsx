@@ -1,14 +1,10 @@
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { SelectField, StepHeader } from "./Fields";
 import { COACH_TONES } from "@/lib/fitness";
-import { SAFETY_FLAGS, WEEKDAYS, toneLabel } from "./constants";
+import { SAFETY_FLAGS, toneLabel } from "./constants";
 import { Check, AlertTriangle } from "lucide-react";
 
 export default function StepCoaching({ pref, setPref }) {
-  const np = pref.notification_preferences;
-  const setNp = (k, v) => setPref("notification_preferences", { ...np, [k]: v });
   const toggleSafety = (id) =>
     setPref(
       "safety_flags",
@@ -66,36 +62,6 @@ export default function StepCoaching({ pref, setPref }) {
             </span>
           </div>
         )}
-      </div>
-
-      <div className="space-y-3">
-        <Label>Reminders</Label>
-        <div className="flex items-center justify-between rounded-lg bg-panel border border-line p-3">
-          <span className="text-sm">Weigh-in reminder</span>
-          <Switch checked={np.weigh_in_reminder} onCheckedChange={(v) => setNp("weigh_in_reminder", v)} />
-        </div>
-        {np.weigh_in_reminder && (
-          <div className="space-y-1.5">
-            <Label htmlFor="wit">Reminder time</Label>
-            <Input
-              id="wit"
-              type="time"
-              value={np.weigh_in_time}
-              onChange={(e) => setNp("weigh_in_time", e.target.value)}
-            />
-          </div>
-        )}
-        <SelectField
-          id="wcd"
-          label="Weekly check-in day"
-          value={np.weekly_checkin_day}
-          onChange={(v) => setNp("weekly_checkin_day", v)}
-          options={WEEKDAYS.map((d) => ({ value: d, label: d }))}
-        />
-        <div className="flex items-center justify-between rounded-lg bg-panel border border-line p-3">
-          <span className="text-sm">Check-in reminder</span>
-          <Switch checked={np.checkin_reminder} onCheckedChange={(v) => setNp("checkin_reminder", v)} />
-        </div>
       </div>
     </div>
   );

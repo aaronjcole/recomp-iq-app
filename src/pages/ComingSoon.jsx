@@ -11,7 +11,7 @@ const FEATURES = [
   { icon: Brain, title: "Adaptive engine", body: "Weekly check-ins recalculate your calories, macros, and steps from real adherence and trend data." },
   { icon: Activity, title: "Recomp signal", body: "A confidence-scored read on whether you're building muscle, losing fat, or stalling." },
   { icon: LineChart, title: "Progress you can see", body: "Weight trend, strength 1RM sparklines, waist tracking, and progress photos on one dashboard." },
-  { icon: RefreshCw, title: "Always in sync", body: "Log from the gym or the kitchen; everything saves instantly and syncs across devices." }
+  { icon: RefreshCw, title: "Your data, wherever you train", body: "When you're online, signed-in data stays available across your devices." }
 ];
 
 
@@ -56,7 +56,7 @@ export default function ComingSoon() {
             <ShieldCheck className="w-3.5 h-3.5" /> Coming soon
           </span>
           <h1 className="mt-4 text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
-            Coming soon to Google Play &amp; the App Store.
+            Join RecompIQ early access.
           </h1>
           <p className="mt-4 text-muted-foreground text-lg max-w-md">
             RecompIQ turns your daily logs into a living plan — recalculating calories, macros, and training every week based on how you're actually progressing. Be first in line when we launch.
@@ -99,26 +99,8 @@ export default function ComingSoon() {
             <p className="mt-2 text-sm text-red">{msg}</p>
           )}
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <img
-                src="https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png"
-                alt="Get it on Google Play — coming soon"
-                className="h-[52px] w-auto select-none"
-              />
-              <span className="absolute -top-1.5 -right-1.5 rounded-full bg-gold text-background text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">Soon</span>
-            </div>
-            <div className="relative">
-              <img
-                src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us"
-                alt="Download on the App Store — coming soon"
-                className="h-[52px] w-auto select-none"
-              />
-              <span className="absolute -top-1.5 -right-1.5 rounded-full bg-gold text-background text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">Soon</span>
-            </div>
-          </div>
           <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
-            <ArrowRight className="w-3.5 h-3.5" /> Low monthly price · Cancel anytime
+            <ArrowRight className="w-3.5 h-3.5" /> For adults 18+ · Educational guidance, not medical advice
           </p>
         </div>
         <div className="flex justify-center md:justify-end">
@@ -151,7 +133,7 @@ export default function ComingSoon() {
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground">Terms</Link>
-            <span>Not a medical device</span>
+            <span>RecompIQ is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.</span>
           </div>
         </div>
       </footer>
