@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
-import { Plus, ScanLine, Camera } from "lucide-react";
+import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal } from "lucide-react";
 import BarcodeScanner from "@/components/nutrition/BarcodeScanner";
 import FoodPhotoScan from "@/components/nutrition/FoodPhotoScan";
 import { toast } from "@/components/ui/use-toast";
@@ -27,7 +28,21 @@ export default function Nutrition() {
   const [form, setForm] = useState(empty);
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
+  const [searchParams] = useSearchParams();
+  const detailsRef = useRef(null);
+  const requestedPanel = searchParams.get("panel");
+  const [targetsExpanded, setTargetsExpanded] = useState(
+    () => requestedPanel === "targets"
+  );
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!strategy || requestedPanel !== "targets") return undefined;
+    const timer = window.setTimeout(() => {
+      detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [requestedPanel, strategy]);
 
   const handleScannedFood = async (food, addToToday) => {
     await addFood(food);
@@ -95,24 +110,15 @@ export default function Nutrition() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Macro breakdown</div>
-          <MacroDonut protein={consumed.protein} carbs={consumed.carbs} fat={consumed.fat} />
-        </CardContent>
-      </Card>
-
-      <CustomTargetsCard />
-
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="font-medium">Quick add food</div>
             <div className="flex items-center gap-2">
               {featureFlags.foodPhotoScan && (
-                <Button variant="outline" size="sm" onClick={() => setShowPhotoScan(true)}>
+                <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
                   <Camera className="w-4 h-4 mr-1" /> Snap food
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => setShowScanner(true)}>
+              <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowScanner(true)}>
                 <ScanLine className="w-4 h-4 mr-1" /> Barcode
               </Button>
             </div>
@@ -120,15 +126,15 @@ export default function Nutrition() {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1.5">
               <Label>Food name</Label>
-              <Input value={form.name} onChange={(e) => set("name", e.target.value)} />
+              <Input className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Serving</Label>
-              <Input value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
+              <Input className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
             </div>
             <div className="space-y-1.5">
               <Label>Grams</Label>
-              <Input type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
+              <Input className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
             </div>
             <Field label="Calories" v={form.calories} on={(v) => set("calories", v)} />
             <Field label="Protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
@@ -137,8 +143,8 @@ export default function Nutrition() {
             <Field label="Fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
           </div>
           <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="flex-1" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
-            <Button className="flex-1 bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
+            <Button variant="outline" className="min-h-11 flex-1" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
+            <Button className="min-h-11 flex-1 bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
               <Plus className="w-4 h-4 mr-1" /> Add to today
             </Button>
           </div>
@@ -161,6 +167,54 @@ export default function Nutrition() {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      <Card ref={detailsRef} className="scroll-mt-4 bg-panel border-line">
+        <CardContent className="px-5 py-1">
+          <details className="group border-b border-lineSoft">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-3 text-left">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
+                  <ChartPie className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="block font-medium">Macro breakdown</span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    See today&apos;s calorie split
+                  </span>
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="pb-5 pt-2">
+              <MacroDonut protein={consumed.protein} carbs={consumed.carbs} fat={consumed.fat} />
+            </div>
+          </details>
+
+          <details
+            className="group"
+            open={targetsExpanded}
+            onToggle={(event) => setTargetsExpanded(event.currentTarget.open)}
+          >
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-3 text-left">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="block font-medium">Targets &amp; adaptive mode</span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Review or override your plan
+                  </span>
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="pb-5 pt-2">
+              <CustomTargetsCard embedded />
+            </div>
+          </details>
         </CardContent>
       </Card>
 
@@ -191,7 +245,7 @@ function Field({ label, v, on }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input type="number" inputMode="decimal" value={v} onChange={(e) => on(e.target.value)} />
+      <Input className="h-11" type="number" inputMode="decimal" value={v} onChange={(e) => on(e.target.value)} />
     </div>
   );
 }

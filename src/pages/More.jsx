@@ -124,7 +124,7 @@ export default function More() {
             : "Run the adaptive engine"
         },
         { icon: Target, label: "Plan & projections", to: "/plan" },
-        { icon: SlidersHorizontal, label: "Custom targets", to: "/nutrition" }
+        { icon: SlidersHorizontal, label: "Custom targets", to: "/nutrition?panel=targets" }
       ]
     },
     {

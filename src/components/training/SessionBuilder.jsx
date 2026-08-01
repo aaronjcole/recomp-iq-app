@@ -138,12 +138,12 @@ export default function SessionBuilder() {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input className="h-11" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Type</Label>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TYPE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -153,7 +153,7 @@ export default function SessionBuilder() {
           </div>
           <div className="col-span-2 space-y-1.5">
             <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Push day, 5k run…" />
+            <Input className="h-11" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Push day, 5k run…" />
           </div>
           <NumField label="Duration (min)" v={duration} on={setDuration} min={0} max={1440} />
           <NumField label="RPE (1-10)" v={rpe} on={setRpe} min={1} max={10} />
@@ -171,9 +171,14 @@ export default function SessionBuilder() {
           {muscleGroups.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {muscleGroups.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 rounded-full bg-panel3 text-foreground px-2 py-1 text-xs">
+                <span key={m} className="inline-flex min-h-11 items-center gap-1 rounded-full bg-panel3 py-1 pl-3 pr-1 text-xs text-foreground">
                   {m}
-                  <button onClick={() => setMuscleGroups((g) => g.filter((x) => x !== m))} className="text-muted-foreground hover:text-foreground">
+                  <button
+                    type="button"
+                    onClick={() => setMuscleGroups((g) => g.filter((x) => x !== m))}
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-panel2 hover:text-foreground"
+                    aria-label={`Remove ${m}`}
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -185,10 +190,11 @@ export default function SessionBuilder() {
             onChange={(e) => setMuscleInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addMuscle(); } }}
             placeholder="Type and press enter"
+            className="h-11"
           />
           <div className="flex flex-wrap gap-1">
             {MUSCLE_SUGGESTIONS.filter((s) => !muscleGroups.some((m) => m.toLowerCase() === s.toLowerCase())).map((s) => (
-              <button key={s} type="button" onClick={() => addMuscle(s)} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground min-h-[28px]">
+              <button key={s} type="button" onClick={() => addMuscle(s)} className="min-h-11 rounded-full border border-line px-3 py-1 text-xs text-muted-foreground hover:border-teal/50 hover:text-foreground">
                 + {s}
               </button>
             ))}
@@ -199,7 +205,7 @@ export default function SessionBuilder() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Lifts</Label>
-              <button onClick={addLift} className="text-xs text-teal font-medium inline-flex items-center gap-1 min-h-[28px]">
+              <button type="button" onClick={addLift} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-teal/30 bg-teal/10 px-3 text-xs font-medium text-teal hover:bg-teal/15">
                 <Plus className="w-3.5 h-3.5" /> Add lift
               </button>
             </div>
@@ -211,8 +217,8 @@ export default function SessionBuilder() {
               return (
                 <div key={l.id} className="rounded-lg border border-lineSoft bg-panel2 p-2.5 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Input value={l.name} onChange={(e) => updateLift(l.id, "name", e.target.value)} placeholder="Bench press" className="h-8 text-sm" />
-                    <button onClick={() => removeLift(l.id)} className="text-muted-foreground hover:text-red shrink-0 p-1 min-w-[36px] min-h-[36px] flex items-center justify-center">
+                    <Input value={l.name} onChange={(e) => updateLift(l.id, "name", e.target.value)} placeholder="Bench press" className="h-11 text-sm" />
+                    <button type="button" onClick={() => removeLift(l.id)} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1 text-muted-foreground hover:bg-panel3 hover:text-red" aria-label="Remove lift">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -222,7 +228,7 @@ export default function SessionBuilder() {
                     <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
                     <div className="space-y-1">
                       <Label className="text-[10px]">1RM</Label>
-                      <div className="font-mono text-xs tabular-nums text-muted-foreground h-8 flex items-center">
+                      <div className="flex h-11 items-center font-mono text-xs tabular-nums text-muted-foreground">
                         {e1rm != null ? `${e1rm}` : "—"}
                       </div>
                     </div>
@@ -233,7 +239,7 @@ export default function SessionBuilder() {
           </div>
         )}
 
-        <Button className="w-full bg-teal text-buttonText hover:opacity-90" onClick={save} disabled={!canSave || saving}>
+        <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90 disabled:bg-panel2 disabled:text-muted-foreground disabled:opacity-100" onClick={save} disabled={!canSave || saving}>
           {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
           {saving ? "Saving…" : "Save session"}
         </Button>
@@ -249,7 +255,7 @@ function NumField({ label, v, on, compact = false, min, max }) {
   return (
     <div className="space-y-1">
       <Label className={compact ? "text-[10px]" : ""}>{label}</Label>
-      <Input type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-8 text-sm" : ""} />
+      <Input type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-11 text-sm" : "h-11"} />
     </div>
   );
 }

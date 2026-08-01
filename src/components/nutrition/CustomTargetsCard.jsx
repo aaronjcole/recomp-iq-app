@@ -17,7 +17,7 @@ const FIELDS = [
   { key: "step_target", label: "Steps", max: 200000 }
 ];
 
-export default function CustomTargetsCard() {
+export default function CustomTargetsCard({ embedded = false }) {
   const { strategy, profile, updateStrategy } = useRecomp();
   const { toast } = useToast();
   const [form, setForm] = useState(null);
@@ -98,64 +98,75 @@ export default function CustomTargetsCard() {
 
   const locked = !strategy.manual_override;
 
-  return (
-    <Card className="bg-panel border-line">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Custom targets</div>
-            <div className="text-sm font-medium">Use my own targets</div>
-          </div>
-          <Switch checked={!!strategy.manual_override} onCheckedChange={toggleOverride} aria-label="Toggle custom targets" />
+  const content = (
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Custom targets</div>
+          <div className="text-sm font-medium">Use my own targets</div>
+        </div>
+        <Switch checked={!!strategy.manual_override} onCheckedChange={toggleOverride} aria-label="Toggle custom targets" />
+      </div>
+
+      <div className={locked ? "space-y-3 opacity-50 pointer-events-none" : "space-y-3"}>
+        <div className="grid grid-cols-2 gap-3">
+          {FIELDS.map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</Label>
+              <Input
+                className="h-11"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={f.max}
+                value={form[f.key]}
+                onChange={(e) => set(f.key, e.target.value)}
+              />
+            </div>
+          ))}
         </div>
 
-        <div className={locked ? "space-y-3 opacity-50 pointer-events-none" : "space-y-3"}>
-          <div className="grid grid-cols-2 gap-3">
-            {FIELDS.map((f) => (
-              <div key={f.key} className="space-y-1.5">
-                <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</Label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={f.max}
-                  value={form[f.key]}
-                  onChange={(e) => set(f.key, e.target.value)}
-                />
+        {warnings.length > 0 && (
+          <div className="space-y-1">
+            {warnings.map((w, i) => (
+              <div key={i} className="flex gap-2 text-xs text-gold bg-questComplete rounded-md p-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{w}</span>
               </div>
             ))}
           </div>
+        )}
 
-          {warnings.length > 0 && (
-            <div className="space-y-1">
-              {warnings.map((w, i) => (
-                <div key={i} className="flex gap-2 text-xs text-gold bg-questComplete rounded-md p-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{w}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Button
-            onClick={save}
-            disabled={locked || saving || !validTargets}
-            className="w-full bg-teal text-buttonText hover:opacity-90"
-          >
-            {saving ? "Saving…" : "Save targets"}
-          </Button>
-          {!validTargets && !locked && (
-            <p role="alert" className="text-xs text-red">
-              Enter non-negative targets within the supported range.
-            </p>
-          )}
-        </div>
-
-        {!strategy.manual_override && (
-          <p className="text-xs text-muted-foreground">
-            Adaptive mode is on — your weekly check-in tunes these automatically based on your trends.
+        <Button
+          onClick={save}
+          disabled={locked || saving || !validTargets}
+          className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90"
+        >
+          {saving ? "Saving…" : "Save targets"}
+        </Button>
+        {!validTargets && !locked && (
+          <p role="alert" className="text-xs text-red">
+            Enter non-negative targets within the supported range.
           </p>
         )}
+      </div>
+
+      {!strategy.manual_override && (
+        <p className="text-xs text-muted-foreground">
+          Adaptive mode is on — your weekly check-in tunes these automatically based on your trends.
+        </p>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4 pt-1">{content}</div>;
+  }
+
+  return (
+    <Card className="bg-panel border-line">
+      <CardContent className="p-5 space-y-4">
+        {content}
       </CardContent>
     </Card>
   );

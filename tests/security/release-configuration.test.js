@@ -60,6 +60,36 @@ test("launch configuration disables undeclared telemetry and unfinished store cl
   assert.doesNotMatch(moreSource, /Weekly email & export|Demo data/);
 });
 
+test("mobile release flows prioritize primary actions and usable touch targets", () => {
+  const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
+  assert.ok(
+    nutritionSource.indexOf("Quick add food") < nutritionSource.indexOf("Macro breakdown"),
+    "food logging should appear before secondary nutrition analysis"
+  );
+  assert.match(nutritionSource, /<details className="group border-b border-lineSoft">/);
+  assert.match(nutritionSource, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
+
+  const moreSource = readFileSync(resolve(repoRoot, "src/pages/More.jsx"), "utf8");
+  assert.match(moreSource, /\/nutrition\?panel=targets/);
+
+  const coachSource = readFileSync(resolve(repoRoot, "src/pages/Coach.jsx"), "utf8");
+  assert.match(coachSource, /Start with what happened today/);
+  assert.match(coachSource, /grid grid-cols-2 gap-2/);
+
+  const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
+  assert.match(progressSource, /visibleData\.length < 2/);
+  assert.match(progressSource, /Log a weigh-in/);
+  assert.doesNotMatch(progressSource, /Log your first weigh-in/);
+  assert.match(progressSource, /\{projection\.confidence\} confidence<\/Badge>/);
+
+  const trainingSource = readFileSync(
+    resolve(repoRoot, "src/components/training/SessionBuilder.jsx"),
+    "utf8"
+  );
+  assert.doesNotMatch(trainingSource, /min-h-\[28px\]/);
+  assert.match(trainingSource, /min-h-11/);
+});
+
 test("public legal and support routes are not blocked by app authentication errors", () => {
   const appSource = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
   for (const route of ["/privacy", "/terms", "/support", "/delete-account"]) {

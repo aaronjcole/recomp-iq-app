@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
+import { Scale } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import BodyCompositionScan from "@/components/progress/BodyCompositionScan";
 import PullToRefresh from "@/components/common/PullToRefresh";
@@ -81,7 +82,8 @@ export default function Progress() {
                   key={value}
                   size="sm"
                   variant={range === value ? "default" : "outline"}
-                  className={range === value ? "bg-teal text-buttonText hover:opacity-90 h-7 px-2.5 text-xs" : "border-line h-7 px-2.5 text-xs"}
+                  aria-pressed={range === value}
+                  className={range === value ? "bg-teal text-buttonText hover:opacity-90 h-11 px-3 text-xs" : "border-line h-11 px-3 text-xs"}
                   onClick={() => setRange(value)}
                 >
                   {label}
@@ -89,8 +91,20 @@ export default function Progress() {
               ))}
             </div>
           </div>
-          {chartData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Log weigh-ins to see your trend.</p>
+          {visibleData.length < 2 ? (
+            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border border-dashed border-lineSoft bg-panel2/40 px-6 text-center">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-teal/15 text-teal">
+                <Scale className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="font-medium">
+                {visibleData.length === 0 ? "Log a weigh-in" : "One more weigh-in reveals your trend"}
+              </div>
+              <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                {visibleData.length === 0
+                  ? "Add a weight from Today to start the chart."
+                  : "A second point in this range is needed before a trend line is meaningful."}
+              </p>
+            </div>
           ) : (
             <div className="h-56 -ml-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -131,7 +145,7 @@ export default function Progress() {
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="font-medium">12-week projection</div>
-              <Badge variant="outline" className="capitalize">{projection.confidence}</Badge>
+              <Badge variant="outline" className="capitalize">{projection.confidence} confidence</Badge>
             </div>
             <div className="grid grid-cols-3 text-center">
               <Stat label="Low" value={projection.projected_low_end_weight} />
@@ -163,7 +177,9 @@ function Row({ label, value }) {
 function Stat({ label, value, highlight = false }) {
   return (
     <div>
-      <div className={`text-lg font-bold ${highlight ? "text-teal" : ""}`}>{value}</div>
+      <div className={`text-lg font-bold ${highlight ? "text-teal" : ""}`}>
+        {value}<span className="ml-1 text-[10px] font-normal text-muted-foreground">lb</span>
+      </div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
