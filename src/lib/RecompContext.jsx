@@ -324,9 +324,13 @@ export function RecompProvider({ children }) {
         )[0] ?? null;
         const fields =
           typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(existing) : fieldsOrUpdater;
-        const response = existing
-          ? await base44.entities.DailyLog.update(existing.id, fields)
-          : await base44.entities.DailyLog.create({ date, ...fields });
+        const result = await base44.functions.invoke("upsertTrackingRecord", {
+          kind: "daily_log",
+          date,
+          fields
+        });
+        const response = result?.data?.record;
+        if (!response?.id) throw new Error("The daily log update returned no record");
         const saved = mergeDefined(existing, response);
         setLogsCurrent((previous) =>
           [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
@@ -372,9 +376,14 @@ export function RecompProvider({ children }) {
         )[0] ?? null;
         const fields =
           typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(existing) : fieldsOrUpdater;
-        const response = existing
-          ? await base44.entities.HabitEntry.update(existing.id, fields)
-          : await base44.entities.HabitEntry.create({ habit_id: habitId, date, ...fields });
+        const result = await base44.functions.invoke("upsertTrackingRecord", {
+          kind: "habit_entry",
+          habit_id: habitId,
+          date,
+          fields
+        });
+        const response = result?.data?.record;
+        if (!response?.id) throw new Error("The habit update returned no record");
         const saved = mergeDefined(existing, response);
         setHabitEntriesCurrent((previous) => [
           saved,
