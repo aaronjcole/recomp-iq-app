@@ -28,13 +28,36 @@ import {
   normalizeCoachReply,
   REPORT_CATEGORIES
 } from "@/lib/coachContract";
-import { AlertTriangle, ArrowLeft, Bot, Flag, Loader2, RotateCcw, Send, User } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  ChevronRight,
+  Flag,
+  Loader2,
+  RotateCcw,
+  Send,
+  Sparkles,
+  User
+} from "lucide-react";
 
 const QUICK_ACTIONS = [
-  "I ate more than I planned today — how can I still hit my goal?",
-  "I'm short on protein with calories left — what should I eat?",
-  "Should I train today given my recent sessions?",
-  "I had a rough day — help me reset for tomorrow."
+  {
+    label: "Recover from an off-plan meal",
+    prompt: "I ate more than I planned today — how can I still hit my goal?"
+  },
+  {
+    label: "Hit my protein target",
+    prompt: "I'm short on protein with calories left — what should I eat?"
+  },
+  {
+    label: "Choose today's training",
+    prompt: "Should I train today given my recent sessions?"
+  },
+  {
+    label: "Reset for tomorrow",
+    prompt: "I had a rough day — help me reset for tomorrow."
+  }
 ];
 
 export default function Coach() {
@@ -123,12 +146,37 @@ export default function Coach() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pb-4" aria-live="polite">
         {messages.length === 0 && (
-          <Card className="bg-panel border-line">
-            <CardContent className="p-4 text-sm text-muted-foreground">
-              Tell me what you ate or how your day went. RecompIQ will use your saved plan and recent
-              data to offer short educational guidance. It does not diagnose or treat medical conditions.
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <Card className="bg-panel border-line">
+              <CardContent className="p-4 flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="space-y-1">
+                  <div className="font-semibold">Start with what happened today</div>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Choose a starting point or ask your own question. Your recent plan and logs stay in context.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-2 gap-2" aria-label="Suggested coach questions">
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => send(action.prompt)}
+                  disabled={loading}
+                  aria-label={action.prompt}
+                  className="group flex min-h-[76px] items-start justify-between gap-2 rounded-xl border border-line bg-panel p-3 text-left text-sm font-medium transition-colors hover:border-teal/60 hover:bg-panel2 disabled:opacity-50"
+                >
+                  <span>{action.label}</span>
+                  <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-teal" aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {messages.map((message) => (
           <CoachMessage
@@ -159,19 +207,22 @@ export default function Coach() {
       </div>
 
       <div className="pt-2 border-t border-line">
-        <div className="flex gap-2 overflow-x-auto pb-2 pt-3 -mx-1 px-1 no-scrollbar">
-          {QUICK_ACTIONS.map((question) => (
-            <button
-              key={question}
-              type="button"
-              onClick={() => send(question)}
-              disabled={loading}
-              className="shrink-0 text-xs whitespace-nowrap rounded-full border border-line bg-panel px-3 py-2 min-h-11 text-muted-foreground hover:text-foreground hover:bg-panel2 disabled:opacity-50"
-            >
-              {question}
-            </button>
-          ))}
-        </div>
+        {messages.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 pt-3 -mx-1 px-1 no-scrollbar">
+            {QUICK_ACTIONS.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={() => send(action.prompt)}
+                disabled={loading}
+                aria-label={action.prompt}
+                className="shrink-0 text-xs whitespace-nowrap rounded-full border border-line bg-panel px-3 py-2 min-h-11 text-muted-foreground hover:text-foreground hover:bg-panel2 disabled:opacity-50"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
         <form onSubmit={(event) => { event.preventDefault(); send(input); }} className="flex gap-2">
           <Input value={input} onChange={(event) => setInput(event.target.value)} maxLength={1000} placeholder="Ask your coach…" className="flex-1 min-h-11" aria-label="Message your coach" />
           <Button type="submit" className="min-h-11 min-w-11 bg-teal text-buttonText hover:opacity-90" disabled={loading || !input.trim()} aria-label="Send message">
