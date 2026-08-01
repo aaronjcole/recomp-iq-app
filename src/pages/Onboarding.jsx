@@ -37,13 +37,7 @@ const DEFAULTS = {
     preferred_training: "",
     disliked_strategies: [],
     known_barriers: [],
-    safety_flags: [],
-    notification_preferences: {
-      weigh_in_reminder: true,
-      weigh_in_time: "07:00",
-      weekly_checkin_day: "Monday",
-      checkin_reminder: true
-    }
+    safety_flags: []
   },
   units: "imperial"
 };
@@ -124,11 +118,7 @@ export default function Onboarding() {
     if (preferences) {
       setPrefRaw((current) => ({
         ...current,
-        ...preferences,
-        notification_preferences: {
-          ...current.notification_preferences,
-          ...(preferences.notification_preferences ?? {})
-        }
+        ...preferences
       }));
     }
   }, [loading, preferences, profile, saved]);
@@ -226,8 +216,7 @@ export default function Onboarding() {
         diet_style: pref.diet_style,
         preferred_training: pref.preferred_training,
         disliked_strategies: pref.disliked_strategies,
-        known_barriers: pref.known_barriers,
-        notification_preferences: pref.notification_preferences
+        known_barriers: pref.known_barriers
       };
       await completeOnboarding(profileData, prefData);
       if (p.waist_in) {

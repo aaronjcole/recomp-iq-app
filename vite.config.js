@@ -11,7 +11,9 @@ export default defineConfig({
       legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',
       hmrNotifier: true,
       navigationNotifier: true,
-      analyticsTracker: true,
+      // Keep authenticated page-view telemetry off until its collection,
+      // retention, and Play Data Safety disclosures are explicitly approved.
+      analyticsTracker: false,
       visualEditAgent: true
     }),
     react(),

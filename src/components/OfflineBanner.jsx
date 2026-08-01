@@ -20,7 +20,7 @@ export default function OfflineBanner() {
   return (
     <div role="status" aria-live="polite" className="fixed top-0 inset-x-0 z-[60] bg-gold text-buttonText px-4 py-2 flex items-center gap-2 text-xs font-medium shadow-md">
       <WifiOff className="w-4 h-4 shrink-0" />
-      <span>You're offline — new changes may not save until you reconnect.</span>
+      <span>You're offline — changes are not saved. Reconnect before logging new data.</span>
     </div>
   );
 }

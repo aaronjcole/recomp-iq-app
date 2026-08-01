@@ -56,16 +56,6 @@ export const KNOWN_BARRIERS = [
   "Budget"
 ];
 
-export const WEEKDAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday"
-];
-
 export const EXPERIENCE_LABELS = {
   beginner: "Beginner",
   intermediate: "Intermediate",

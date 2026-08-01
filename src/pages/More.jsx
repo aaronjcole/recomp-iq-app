@@ -9,23 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
-  Camera, Mail, CheckCircle, Moon, Sun, LogOut, User, Database, Trash2,
-  ChevronRight, Loader2, Star, ShieldCheck, FileText, History, LifeBuoy
+  Camera, CheckCircle, Moon, Sun, LogOut, User,
+  ChevronRight, Loader2, ShieldCheck, FileText, History, LifeBuoy, Trash2
 } from "lucide-react";
-import { PLAY_STORE_URL } from "@/lib/storeLinks";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction
-} from "@/components/ui/alert-dialog";
-import { seedDemoData, clearDemoData } from "@/lib/demoData";
 import CheckInSheet from "@/components/more/CheckInSheet";
-import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
+import { SUPPORT_EMAIL } from "@/lib/support";
 
 const APP_VERSION = "0.1.0";
 
@@ -74,7 +62,7 @@ function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) 
 }
 
 export default function More() {
-  const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, logs, mealTemplates } = useRecomp();
+  const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, mealTemplates } = useRecomp();
   const { user } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
@@ -82,9 +70,6 @@ export default function More() {
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [checkinResult, setCheckinResult] = useState(null);
   const [running, setRunning] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-  const [clearing, setClearing] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const lastCheckIn = checkIns[0];
   const checkinDue = !lastCheckIn || daysSince(lastCheckIn.end_date) >= 6;
@@ -112,40 +97,12 @@ export default function More() {
     }
   };
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      await seedDemoData({ profile, strategy });
-      await reload();
-    } finally {
-      setSeeding(false);
-      setConfirmOpen(false);
-    }
-  };
-
-  const handleClear = async () => {
-    setClearing(true);
-    try {
-      await clearDemoData();
-      await reload();
-    } finally {
-      setClearing(false);
-    }
-  };
-
-  const onLoadClick = () => {
-    if (logs.length > 0) setConfirmOpen(true);
-    else handleSeed();
-  };
-
   const handlers = {
     checkin: runCheck,
     reload: () => reload(),
     logout: () => base44.auth.logout(window.location.origin),
-    demo: onLoadClick,
-    clearDemo: handleClear,
-    rate: () => window.open(PLAY_STORE_URL, "_blank", "noopener,noreferrer"),
-    support: () => window.location.assign(SUPPORT_MAILTO),
+    support: () => navigate("/support"),
+    deleteAccount: () => navigate("/delete-account"),
     privacy: () => navigate("/privacy"),
     terms: () => navigate("/terms")
   };
@@ -181,8 +138,7 @@ export default function More() {
       title: "Progress & data",
       items: [
         { icon: Camera, label: "Progress photos", to: "/progress", subtitle: "On this device only" },
-        { icon: History, label: "Decision history", to: "/decisions", subtitle: "Plan change log" },
-        { icon: Mail, label: "Weekly email & export", to: "/profile" }
+        { icon: History, label: "Decision history", to: "/decisions", subtitle: "Plan change log" }
       ]
     },
     {
@@ -194,9 +150,7 @@ export default function More() {
       items: [
         { icon: User, label: "Profile & plan", to: "/profile" },
         { icon: theme === "dark" ? Moon : Sun, label: "Dark mode", control: "theme" },
-        { icon: Star, label: "Rate on Play Store", action: "rate" },
         { icon: RefreshCw, label: "Refresh data", action: "reload" },
-        { icon: Database, label: "Demo data", action: "demo", subtitle: seeding ? "Seeding…" : "Preview charts" },
         { icon: LogOut, label: "Log out", action: "logout" }
       ]
     },
@@ -204,6 +158,7 @@ export default function More() {
       title: "Legal",
       items: [
         { icon: LifeBuoy, label: "Support", action: "support", subtitle: SUPPORT_EMAIL },
+        { icon: Trash2, label: "Account deletion", action: "deleteAccount" },
         { icon: ShieldCheck, label: "Privacy Policy", action: "privacy" },
         { icon: FileText, label: "Terms of Service", action: "terms" }
       ]
@@ -269,48 +224,6 @@ export default function More() {
           </CardContent>
         </Card>
       ))}
-
-      {/* Demo data utility — preserved */}
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Database className="w-4 h-4 text-teal" />
-            <div className="font-medium text-sm">Demo data</div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={onLoadClick}
-              disabled={seeding}
-              className="flex-1 inline-flex items-center justify-center gap-2 h-9 rounded-md bg-teal text-buttonText text-sm font-medium hover:opacity-90 disabled:opacity-50"
-            >
-              {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-              {seeding ? "Seeding…" : "Load"}
-            </button>
-            <button
-              onClick={handleClear}
-              disabled={clearing}
-              className="flex-1 inline-flex items-center justify-center gap-2 h-9 rounded-md border border-line text-foreground text-sm font-medium hover:bg-accent disabled:opacity-50"
-            >
-              {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              {clearing ? "Clearing…" : "Clear"}
-            </button>
-          </div>
-          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Load demo data?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  You already have logged data. Loading demo data will add ~35 days of demo history. Continue?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSeed}>Load demo data</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
 
       <p className="text-center text-xs text-muted-foreground pt-1">RecompIQ v{APP_VERSION}</p>
 

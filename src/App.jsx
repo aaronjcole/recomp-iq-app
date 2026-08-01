@@ -1,10 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 import { Navigate } from 'react-router-dom';
@@ -34,6 +33,8 @@ const ComingSoon = lazy(() => import('@/pages/ComingSoon'));
 const PublicHome = lazy(() => import('@/components/PublicHome'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
 const Terms = lazy(() => import('@/pages/Terms'));
+const Support = lazy(() => import('@/pages/Support'));
+const DeleteAccount = lazy(() => import('@/pages/DeleteAccount'));
 const RecompGate = lazy(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
 );
@@ -42,29 +43,15 @@ const RequireOnboarding = lazy(() =>
 );
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
-
-  useEffect(() => {
-    if (!isLoadingPublicSettings && !isLoadingAuth && authError?.type === 'auth_required') {
-      navigateToLogin();
-    }
-  }, [authError, isLoadingAuth, isLoadingPublicSettings, navigateToLogin]);
+  const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
     return <AppSplash />;
   }
 
-  // Handle authentication errors
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      return <AppSplash />;
-    }
-  }
-
-  // Render the main app
+  // Public routes must remain available even when Base44 reports that app
+  // authentication is required. ProtectedRoute owns auth errors for app data.
   return (
     <Routes>
       <Route path="/" element={<PublicHome />} />
@@ -72,6 +59,8 @@ const AuthenticatedApp = () => {
       <Route path="/coming-soon" element={<ComingSoon />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/support" element={<Support />} />
+      <Route path="/delete-account" element={<DeleteAccount />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
