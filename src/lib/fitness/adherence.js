@@ -9,16 +9,45 @@ function averageAcrossExpectedDays(scores, expectedDays) {
   return scores.reduce((sum, value) => sum + value, 0) / denominator;
 }
 
+function dateKey(value) {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const timestamp = Date.UTC(Number(year), Number(month) - 1, Number(day));
+  const parsed = new Date(timestamp);
+  if (
+    parsed.getUTCFullYear() !== Number(year) ||
+    parsed.getUTCMonth() !== Number(month) - 1 ||
+    parsed.getUTCDate() !== Number(day)
+  ) {
+    return null;
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function recordTimestamp(log, index) {
+  const timestamp = Date.parse(log?.updated_date || log?.created_date || "");
+  return Number.isFinite(timestamp) ? timestamp : index;
+}
+
 function dedupeByDate(logs) {
+  const ordered = (Array.isArray(logs) ? logs : [])
+    .map((log, index) => ({ log, index, key: dateKey(log?.date) }))
+    .filter((item) => item.key)
+    .sort(
+      (a, b) =>
+        a.key.localeCompare(b.key) ||
+        recordTimestamp(a.log, a.index) - recordTimestamp(b.log, b.index)
+    );
   const byDate = new Map();
-  for (const log of Array.isArray(logs) ? logs : []) {
-    if (!log?.date) continue;
-    const previous = byDate.get(log.date) || {};
+  for (const { log, key } of ordered) {
+    const previous = byDate.get(key) || {};
     const merged = { ...previous };
     for (const [key, value] of Object.entries(log)) {
       if (value !== undefined) merged[key] = value;
     }
-    byDate.set(log.date, merged);
+    byDate.set(key, { ...merged, date: key });
   }
   return [...byDate.values()];
 }

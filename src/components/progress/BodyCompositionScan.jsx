@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { base44 } from "@/api/base44Client";
 import { GOAL_LABELS } from "@/lib/fitness";
+import { createPrivateAnalysisUrl, validateAnalysisImage } from "@/lib/analysisImages";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,13 @@ export default function BodyCompositionScan() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    try {
+      validateAnalysisImage(file);
+    } catch (validationError) {
+      setError(validationError.message);
+      return;
+    }
+    setError(null);
     const url = URL.createObjectURL(file);
     setPhotos((prev) => {
       if (prev[key]?.url) URL.revokeObjectURL(prev[key].url);
@@ -76,8 +84,11 @@ export default function BodyCompositionScan() {
     try {
       const uploaded = await Promise.all(
         POSES.map(async (p) => {
-          const { file_url } = await base44.integrations.Core.UploadFile({ file: photos[p.key].file });
-          return file_url;
+          const { signedUrl } = await createPrivateAnalysisUrl(
+            base44.integrations.Core,
+            photos[p.key].file
+          );
+          return signedUrl;
         })
       );
 
@@ -139,7 +150,9 @@ Return ONLY the JSON object matching the schema. Use only numbers from the profi
           <span className="font-medium">Body composition scan</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Upload front, side, and back photos for an AI body-fat estimate and personalized tips. Photos are uploaded for analysis — not stored in your on-device photo timeline.
+          Upload front, side, and back photos for an AI body-fat estimate and personalized tips.
+          Photos use private storage and temporary five-minute links for analysis; provider retention
+          may still apply as described in the Privacy Policy.
         </p>
 
         <div className="grid grid-cols-3 gap-2">

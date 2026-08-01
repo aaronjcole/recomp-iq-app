@@ -5,7 +5,7 @@ const GAIN_GOALS = new Set(["muscle_gain", "lean_bulk", "aggressive_gain"]);
 const RECOMP_GOALS = new Set(["body_recomposition", "fat_loss_biased_recomp"]);
 
 function changeCalories(strategy, delta) {
-  return Math.max(1500, Math.round((strategy.calorie_target + delta) / 10) * 10);
+  return Math.max(1500, Math.min(20000, Math.round((strategy.calorie_target + delta) / 10) * 10));
 }
 
 function useFatLossPlateauLever(profile, strategy) {
@@ -48,6 +48,9 @@ export function decideWeeklyAdjustment(input) {
   } else if (trend.days_logged < 14) {
     decision = "keep_collecting_data";
     reason = "Fewer than 14 recent calendar days of data is too early to judge the plan.";
+  } else if (!adherenceValues.length) {
+    decision = "keep_collecting_data";
+    reason = "Adherence data is missing, so RecompIQ cannot tell whether the current targets were followed.";
   } else if (avgAdherence !== null && avgAdherence < 0.8) {
     decision = "focus_on_adherence";
     reason = "Consistency is below 80%, so changing targets would add noise before solving the main blocker.";
@@ -92,6 +95,10 @@ export function decideWeeklyAdjustment(input) {
       decision = "increase_calories";
       reason = "Weight is dropping faster than a recomposition goal calls for, so the plan should protect recovery and performance.";
       nextStrategy.calorie_target = changeCalories(strategy, 150);
+    } else if (rate !== null && rate > 0.0025) {
+      decision = "reduce_calories";
+      reason = "Weight is rising beyond the selected recomposition range without a lower-waist signal, so a small calorie reduction is warranted.";
+      nextStrategy.calorie_target = changeCalories(strategy, -150);
     } else if ((input.consecutiveFlatWeeks ?? 0) >= 2 && trend.waist_label !== "down") {
       const plateau = useFatLossPlateauLever(profile, strategy);
       decision = plateau.decision;
@@ -103,8 +110,9 @@ export function decideWeeklyAdjustment(input) {
       reason = "Your scale trend is compatible with a measured recomposition phase.";
     }
   } else {
+    const desiredMinLossRate = goal === "aggressive_fat_loss" ? -0.015 : -0.01;
     const maxLossRate = goal === "aggressive_fat_loss" ? -0.015 : -0.0125;
-    if (rate !== null && rate <= -0.0025 && rate >= -0.01) {
+    if (rate !== null && rate <= -0.0025 && rate >= desiredMinLossRate) {
       decision = "keep_plan";
       reason = "Your 7-day average is moving in a sustainable fat-loss range.";
     } else if (rate !== null && rate < maxLossRate) {
@@ -114,6 +122,10 @@ export function decideWeeklyAdjustment(input) {
     } else if (trend.waist_label === "down" && (trend.trend_label === "flat" || trend.trend_label === "gaining")) {
       decision = trend.trend_label === "gaining" ? "keep_plan_possible_recomp_or_water" : "keep_plan_possible_recomp";
       reason = "Waist is down while scale is flat or up. That can be a valid recomp or water-retention signal.";
+    } else if (rate !== null && rate > 0.0025) {
+      decision = "reduce_calories";
+      reason = "Weight is rising beyond the selected fat-loss range without a lower-waist signal, so a small calorie reduction is warranted.";
+      nextStrategy.calorie_target = changeCalories(strategy, -150);
     } else if ((input.consecutiveFlatWeeks ?? 0) >= 2 && trend.waist_label !== "down") {
       const plateau = useFatLossPlateauLever(profile, strategy);
       decision = plateau.decision;

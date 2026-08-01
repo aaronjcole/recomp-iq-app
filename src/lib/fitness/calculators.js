@@ -22,6 +22,11 @@ export const calorieGoalFactors = {
   strength_retention_cut: 0.875
 };
 
+const CALORIE_TARGET_MIN = 1500;
+const CALORIE_TARGET_MAX = 20000;
+const FAT_TARGET_MAX = 2000;
+const CARB_TARGET_MAX = 3000;
+
 export function convertLbsToKg(lbs) {
   return lbs * 0.45359237;
 }
@@ -34,14 +39,14 @@ export function calculateBMR(input) {
   const kg = convertLbsToKg(input.weight_lbs);
   const cm = convertInchesToCm(input.height_in);
   const base = 10 * kg + 6.25 * cm - 5 * input.age;
-  if (input.sex === "male") return Math.round(base + 5);
-  if (input.sex === "female") return Math.round(base - 161);
+  if (input.sex === "male") return Math.max(0, Math.round(base + 5));
+  if (input.sex === "female") return Math.max(0, Math.round(base - 161));
   // "unspecified": average the male (+5) and female (-161) Mifflin-St Jeor constants
-  return Math.round(base + (5 - 161) / 2);
+  return Math.max(0, Math.round(base + (5 - 161) / 2));
 }
 
 export function calculateTDEE(bmr, activity) {
-  return Math.round(bmr * activityMultipliers[activity]);
+  return Math.max(0, Math.round(bmr * activityMultipliers[activity]));
 }
 
 export function calculateCalorieTarget(tdee, goal, options = {}) {
@@ -50,9 +55,7 @@ export function calculateCalorieTarget(tdee, goal, options = {}) {
     ? Math.max(0.925, Math.min(1.05, rawFactor))
     : rawFactor;
   const target = Math.round((tdee * factor) / 10) * 10;
-  if (goal === "maintenance") return target;
-  if (goal === "muscle_gain" || goal === "lean_bulk" || goal === "aggressive_gain") return target;
-  return Math.max(target, 1500);
+  return Math.max(CALORIE_TARGET_MIN, Math.min(CALORIE_TARGET_MAX, target));
 }
 
 export function calculateMacroTargets(input) {
@@ -69,12 +72,18 @@ export function calculateMacroTargets(input) {
   }
   const fatByCalories = Math.round((input.calories * 0.23) / 9);
   const fatByWeight = Math.round(referenceWeight * 0.3);
-  const fat = Math.max(fatByCalories, fatByWeight, 50);
+  const fatNeededForCarbLimit = Math.ceil(
+    Math.max(0, input.calories - protein * 4 - CARB_TARGET_MAX * 4) / 9
+  );
+  const fat = Math.min(
+    FAT_TARGET_MAX,
+    Math.max(fatByCalories, fatByWeight, fatNeededForCarbLimit, 50)
+  );
   const carbCalories = Math.max(0, input.calories - protein * 4 - fat * 9);
   return {
     protein_target_g: protein,
     fat_target_g: fat,
-    carb_target_g: Math.round(carbCalories / 4),
+    carb_target_g: Math.min(CARB_TARGET_MAX, Math.round(carbCalories / 4)),
     notes
   };
 }
