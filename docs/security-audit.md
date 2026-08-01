@@ -6,7 +6,7 @@ Audit date: August 1, 2026
 
 The source tree is substantially safer and now has repeatable security, fitness, and browser
 regression checks. It should not be treated as production-ready until the deployment-only checks
-below pass in Base44 and the repository owner enables the listed GitHub controls.
+below pass in Base44.
 
 ## Fixed on the release branch
 
@@ -24,6 +24,10 @@ below pass in Base44 and the repository owner enables the listed GitHub controls
 - CI now runs lint, typecheck, 32 fitness tests, security tests, production build, and public-browser
   smoke tests. GitHub Actions are pinned to immutable commit SHAs.
 - CodeQL and Dependabot configuration are present in source.
+- GitHub secret scanning, push protection, Dependabot security updates, and protected `main`
+  checks are enabled.
+- Daily logs and habit entries now pass through an authenticated backend reconciliation function
+  instead of creating records directly in the browser.
 
 ## Deployment release blockers
 
@@ -41,22 +45,24 @@ below pass in Base44 and the repository owner enables the listed GitHub controls
 4. **OAuth callback integrity:** the current callback marker has a ten-minute window but is not
    bound to a cryptographic state/PKCE value. Confirm Base44's supported state mechanism and verify
    that a callback cannot swap sessions or clear an unrelated session.
-5. **Cross-tab idempotency:** daily logs, habit entries, and weekly check-ins do not have a declared
-   server-side unique constraint. Test simultaneous writes from two tabs/devices and move these
-   writes behind idempotent backend functions if Base44 cannot enforce uniqueness.
+5. **Cross-instance uniqueness:** Base44 does not expose a declared unique constraint or transaction
+   for these entity schemas. Daily logs and habit entries now serialize same-key writes within a
+   function instance and reconcile all duplicates they observe into a stable record. Test two
+   simultaneous deployed instances and confirm follow-up writes remove any transient duplicate.
+   Weekly check-ins still need the prepare/apply state machine in the v2 specification.
 6. **Public waitlist abuse controls:** the function's in-memory limiter is per instance and forwarded
    IP headers are not a trustworthy distributed control. Configure a Base44 gateway/shared limiter
    or CAPTCHA and enforce normalized-email idempotency outside process memory.
-## GitHub owner actions
+## GitHub controls
 
-The August 1 API check found that `main` was unprotected and GitHub secret scanning, push
-protection, and Dependabot alerts were disabled. Code scanning had no analysis because the CodeQL
-workflow had not yet been pushed.
+Completed August 1, 2026 and verified through the GitHub API:
 
-- Enable secret scanning and push protection.
-- Enable Dependabot alerts and security updates.
-- Protect `main`: require pull requests, required CI and CodeQL checks, no force pushes, and no
-  branch deletion. Decide whether administrator bypass is appropriate.
+- Secret scanning, push protection, Dependabot alerts, and security updates are enabled.
+- `main` requires pull requests, an up-to-date branch, `verify`, and JavaScript/TypeScript CodeQL.
+- Administrator enforcement, linear history, and conversation resolution are enabled; force pushes
+  and branch deletion are disabled. Approval count is zero so a solo maintainer can merge after CI.
+- Dependabot groups patch updates, leaves minor updates individually reviewable, and defers major
+  upgrades to dedicated migration pull requests.
 
 ## Repository history and dependencies
 
@@ -67,8 +73,9 @@ token signature. The remote has only `main` and `codex/release-stabilization`, w
 `npm audit` currently reports two high entries caused by one React Router advisory affecting React
 Server Components action handling. RecompIQ uses declarative client-side `BrowserRouter` routes and
 does not use RSC mode, route actions, or loaders, so that vulnerable path is not currently
-reachable. Track the advisory, retest a compatible upgrade, and remove this temporary exception as
-soon as the dependency line provides a safe migration:
+reachable. GitHub alert 1 is dismissed as `tolerable_risk` with this rationale. Track the advisory,
+retest a compatible upgrade, and remove this temporary exception as soon as the dependency line
+provides a safe migration:
 <https://github.com/advisories/GHSA-qwww-vcr4-c8h2>.
 
 ## Evidence and operating documents
