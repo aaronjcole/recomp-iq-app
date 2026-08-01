@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { createPrivateAnalysisUrl, validateAnalysisImage } from "@/lib/analysisImages";
 import { Button } from "@/components/ui/button";
 import { X, Camera, Loader2, Plus, Bookmark, RefreshCw, Sparkles } from "lucide-react";
 
@@ -92,6 +93,13 @@ export default function FoodPhotoScan({ onClose, onResult }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    try {
+      validateAnalysisImage(file);
+    } catch (validationError) {
+      setErr(validationError.message);
+      setStatus("error");
+      return;
+    }
     setPhoto({ file, url: URL.createObjectURL(file) });
     setStatus("preview");
   };
@@ -109,7 +117,10 @@ export default function FoodPhotoScan({ onClose, onResult }) {
     setStatus("analyzing");
     setErr("");
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: photo.file });
+      const { signedUrl } = await createPrivateAnalysisUrl(
+        base44.integrations.Core,
+        photo.file
+      );
       if (!mountedRef.current) return;
 
       const prompt = `You are a nutrition estimation assistant. Analyze the food in this photo and estimate the nutrition for the VISIBLE PORTION on the plate/in the glass.
@@ -127,7 +138,7 @@ Return ONLY the JSON object matching the schema.`;
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
         model: "gemini_3_flash",
-        file_urls: [file_url],
+        file_urls: [signedUrl],
         response_json_schema: SCHEMA
       });
 

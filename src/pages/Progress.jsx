@@ -9,6 +9,7 @@ import { format, parseISO } from "date-fns";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import BodyCompositionScan from "@/components/progress/BodyCompositionScan";
 import PullToRefresh from "@/components/common/PullToRefresh";
+import { featureFlags } from "@/lib/featureFlags";
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
 const RANGES = [
@@ -142,7 +143,7 @@ export default function Progress() {
         </Card>
       )}
 
-      <BodyCompositionScan />
+      {featureFlags.bodyCompositionScan && <BodyCompositionScan />}
 
       <ProgressPhotos />
     </div>

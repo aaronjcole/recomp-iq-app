@@ -1,4 +1,5 @@
 import LegalShell from "@/components/LegalShell";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 function H2({ children }) {
   return <h2 className="text-xl font-semibold pt-2">{children}</h2>;
@@ -15,7 +16,8 @@ export default function Privacy() {
         steps, sleep, mood, waist), habits, exercise sessions, strength logs, weekly check-ins, and
         decision history. Photos added to your progress timeline are stored locally on your device
         and are not uploaded. If you choose a food-photo or body-composition scan, that photo is
-        uploaded to our hosting and AI inference providers for analysis.
+        uploaded to private storage and shared with our AI inference provider through a temporary
+        signed link for analysis.
       </p>
 
       <H2>2. How we use it</H2>
@@ -29,8 +31,9 @@ export default function Privacy() {
       <p>
         Your account records are stored in our hosted database and encrypted in transit. We retain
         them while your account is active. Deleting your account from Profile removes those records
-        and the current browser's on-device progress photos. Files submitted for optional AI analysis
-        are handled under our hosting and AI providers' retention procedures.
+        and the current browser's on-device progress photos. Deleting an account does not currently
+        guarantee immediate deletion of files previously submitted for optional AI analysis; those
+        files are handled under our hosting and AI providers' retention procedures.
       </p>
 
       <H2>4. Sharing</H2>
@@ -56,7 +59,13 @@ export default function Privacy() {
       <p>We may update this policy; material changes will be surfaced in the app.</p>
 
       <H2>9. Contact</H2>
-      <p>Questions about privacy? Reach out from the app's More tab.</p>
+      <p>
+        Questions about privacy or support? Email{" "}
+        <a className="text-teal underline underline-offset-2" href={SUPPORT_MAILTO}>
+          {SUPPORT_EMAIL}
+        </a>
+        .
+      </p>
 
       <H2>Health disclaimer</H2>
       <p className="text-muted-foreground">

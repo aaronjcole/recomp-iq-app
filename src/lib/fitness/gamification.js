@@ -1,7 +1,13 @@
 // Ported 1:1 from RecompIQ src/lib/fitness/gamification.ts. Signal strength,
 // recomp level, weekly quests, and the "boss battle" framing. Pure functions.
 
-import { sortLogs } from "./trends";
+import { dedupeLogsByDate, logsInCalendarWindow } from "./trends.js";
+
+function localTodayKey() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
 
 export function calculateSignalStrength(trend) {
   let score = 0;
@@ -27,8 +33,9 @@ export function getRecompLevel(signalScore) {
   return { level: "Stage 1", title: "Baseline week", next: "Collect enough logs for the first useful read." };
 }
 
-export function buildWeeklyQuests(logs, strategy) {
-  const recent = sortLogs(logs).slice(-7);
+export function buildWeeklyQuests(logs, strategy, options = {}) {
+  const referenceDate = options.referenceDate || localTodayKey();
+  const recent = logsInCalendarWindow(dedupeLogsByDate(logs), referenceDate, 7);
   const weighIns = recent.filter((log) => typeof log.weight_lbs === "number").length;
   const proteinDays = recent.filter((log) => (log.protein_g ?? 0) >= strategy.protein_target_g * 0.9).length;
   const stepAttempts = recent.filter((log) => (log.steps ?? 0) >= strategy.step_target * 0.8).length;

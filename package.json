@@ -9,6 +9,9 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "test:fitness": "node --test tests/fitness/*.test.js",
+    "test:security": "node --test tests/security/*.test.js",
+    "test:e2e": "playwright test --grep-invert @deployed",
+    "test:e2e:deployed": "playwright test --grep @deployed",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },
@@ -82,6 +85,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

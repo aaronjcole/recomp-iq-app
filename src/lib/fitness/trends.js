@@ -6,7 +6,7 @@ const DAY_MS = 86400000;
 
 function dateKey(value) {
   if (typeof value !== "string") return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
   const [, year, month, day] = match;
   const timestamp = Date.UTC(Number(year), Number(month) - 1, Number(day));

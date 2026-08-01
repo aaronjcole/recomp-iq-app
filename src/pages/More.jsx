@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
   Camera, Mail, CheckCircle, Moon, Sun, LogOut, User, Database, Trash2,
-  ChevronRight, Loader2, Star, ShieldCheck, FileText, History
+  ChevronRight, Loader2, Star, ShieldCheck, FileText, History, LifeBuoy
 } from "lucide-react";
 import { PLAY_STORE_URL } from "@/lib/storeLinks";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { seedDemoData, clearDemoData } from "@/lib/demoData";
 import CheckInSheet from "@/components/more/CheckInSheet";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 const APP_VERSION = "0.1.0";
 
@@ -144,6 +145,7 @@ export default function More() {
     demo: onLoadClick,
     clearDemo: handleClear,
     rate: () => window.open(PLAY_STORE_URL, "_blank", "noopener,noreferrer"),
+    support: () => window.location.assign(SUPPORT_MAILTO),
     privacy: () => navigate("/privacy"),
     terms: () => navigate("/terms")
   };
@@ -201,6 +203,7 @@ export default function More() {
     {
       title: "Legal",
       items: [
+        { icon: LifeBuoy, label: "Support", action: "support", subtitle: SUPPORT_EMAIL },
         { icon: ShieldCheck, label: "Privacy Policy", action: "privacy" },
         { icon: FileText, label: "Terms of Service", action: "terms" }
       ]

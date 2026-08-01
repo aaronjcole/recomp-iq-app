@@ -168,7 +168,10 @@ export default function Profile() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete account?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently removes your RecompIQ account and data. This action can't be undone.
+              This permanently removes your RecompIQ account, hosted records, and progress photos
+              stored in this browser. Files previously submitted for optional AI analysis follow
+              the provider retention terms described in the Privacy Policy. This action can't be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
