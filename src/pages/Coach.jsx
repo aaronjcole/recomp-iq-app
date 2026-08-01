@@ -137,7 +137,7 @@ export default function Coach() {
           actions: reply.actions,
           safetyNote: reply.safetyNote,
           messageId: reply.messageId,
-          preparedAction: reply.safetyNote ? null : preparedAction,
+          preparedAction: reply.actionable ? preparedAction : null,
           clientId: crypto.randomUUID()
         }
       ]);
