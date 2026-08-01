@@ -10,19 +10,26 @@ updates:
       timezone: America/Chicago
     open-pull-requests-limit: 5
     groups:
-      production-dependencies:
+      production-patches:
         dependency-type: production
         update-types:
           - patch
-          - minor
-      development-dependencies:
+      development-patches:
         dependency-type: development
         update-types:
           - patch
-          - minor
+    ignore:
+      # Major upgrades need isolated migration PRs and targeted regression tests.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
