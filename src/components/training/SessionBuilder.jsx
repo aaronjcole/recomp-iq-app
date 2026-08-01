@@ -31,7 +31,7 @@ const TYPE_OPTIONS = [
 ];
 
 export default function SessionBuilder() {
-  const { addSession, upsertDailyLog, addStrengthLog } = useRecomp();
+  const { saveTrainingSession } = useRecomp();
   const { toast } = useToast();
 
   const [date, setDate] = useState(todayStr());
@@ -103,24 +103,21 @@ export default function SessionBuilder() {
         cardio_distance_miles: type === "cardio" || type === "mixed" ? num(cardio.distance) : undefined,
         cardio_avg_heart_rate: type === "cardio" || type === "mixed" ? num(cardio.hr) : undefined
       };
-      await addSession(data);
-      if (isStrength) {
-        await Promise.all(
-          validLifts.map((l) =>
-            addStrengthLog({
-              date,
-              lift_name: l.name.trim(),
-              weight: Number(l.weight),
-              reps: Number(l.reps),
-              sets: Math.max(1, Number(l.sets) || 1),
-              estimated_1rm: estimateOneRepMax(Number(l.weight), Number(l.reps))
-            })
-          )
-        );
-      }
-      if (date === todayStr()) {
-        await upsertDailyLog(todayStr(), { workout_completed: true, workout_type: type });
-      }
+      const strengthEntries = isStrength
+        ? validLifts.map((l) => ({
+            date,
+            lift_name: l.name.trim(),
+            weight: Number(l.weight),
+            reps: Number(l.reps),
+            sets: Math.max(1, Number(l.sets) || 1),
+            estimated_1rm: estimateOneRepMax(Number(l.weight), Number(l.reps))
+          }))
+        : [];
+      await saveTrainingSession({
+        session: data,
+        strengthEntries,
+        markDaily: date === todayStr()
+      });
       toast({ title: "Session logged", description: `${data.title} saved for ${date}.` });
       reset();
     } catch (e) {
@@ -158,14 +155,14 @@ export default function SessionBuilder() {
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Push day, 5k run…" />
           </div>
-          <NumField label="Duration (min)" v={duration} on={setDuration} />
-          <NumField label="RPE (1-10)" v={rpe} on={setRpe} />
+          <NumField label="Duration (min)" v={duration} on={setDuration} min={0} max={1440} />
+          <NumField label="RPE (1-10)" v={rpe} on={setRpe} min={1} max={10} />
         </div>
 
         {(type === "cardio" || type === "mixed") && (
           <div className="grid grid-cols-2 gap-3">
-            <NumField label="Distance (mi)" v={cardio.distance} on={(v) => setCardio((c) => ({ ...c, distance: v }))} />
-            <NumField label="Avg HR" v={cardio.hr} on={(v) => setCardio((c) => ({ ...c, hr: v }))} />
+            <NumField label="Distance (mi)" v={cardio.distance} on={(v) => setCardio((c) => ({ ...c, distance: v }))} min={0} max={1000} />
+            <NumField label="Avg HR" v={cardio.hr} on={(v) => setCardio((c) => ({ ...c, hr: v }))} min={20} max={260} />
           </div>
         )}
 
@@ -220,9 +217,9 @@ export default function SessionBuilder() {
                     </button>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    <NumField compact label="Weight" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} />
-                    <NumField compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} />
-                    <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} />
+                    <NumField compact label="Weight" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
+                    <NumField compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} min={1} max={1000} />
+                    <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
                     <div className="space-y-1">
                       <Label className="text-[10px]">1RM</Label>
                       <div className="font-mono text-xs tabular-nums text-muted-foreground h-8 flex items-center">
@@ -245,11 +242,14 @@ export default function SessionBuilder() {
   );
 }
 
-function NumField({ label, v, on, compact }) {
+/**
+ * @param {{label: React.ReactNode, v: string | number, on: (value: string) => void, compact?: boolean, min?: string | number, max?: string | number}} props
+ */
+function NumField({ label, v, on, compact = false, min, max }) {
   return (
     <div className="space-y-1">
       <Label className={compact ? "text-[10px]" : ""}>{label}</Label>
-      <Input type="number" inputMode="decimal" value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-8 text-sm" : ""} />
+      <Input type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-8 text-sm" : ""} />
     </div>
   );
 }

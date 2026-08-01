@@ -2,6 +2,10 @@
   "name": "StrengthLog",
   "type": "object",
   "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "ExerciseSession that produced this strength log."
+    },
     "date": {
       "type": "string",
       "format": "date"
@@ -11,16 +15,24 @@
     },
     "weight": {
       "type": "number",
+      "minimum": 0,
+      "maximum": 5000,
       "description": "Weight in pounds"
     },
     "reps": {
-      "type": "number"
+      "type": "number",
+      "minimum": 1,
+      "maximum": 1000
     },
     "sets": {
-      "type": "number"
+      "type": "number",
+      "minimum": 1,
+      "maximum": 100
     },
     "estimated_1rm": {
       "type": "number",
+      "minimum": 0,
+      "maximum": 10000,
       "description": "Estimated one-rep max"
     },
     "notes": {

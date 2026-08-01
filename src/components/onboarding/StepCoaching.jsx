@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { SelectField, StepHeader, Why } from "./Fields";
+import { SelectField, StepHeader } from "./Fields";
 import { COACH_TONES } from "@/lib/fitness";
 import { SAFETY_FLAGS, WEEKDAYS, toneLabel } from "./constants";
 import { Check, AlertTriangle } from "lucide-react";

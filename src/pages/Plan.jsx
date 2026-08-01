@@ -26,7 +26,8 @@ export default function Plan() {
       weeks,
       calorieTarget: strategy.calorie_target,
       tdee,
-      goalWeight: profile.goal_weight_lbs
+      goalWeight: profile.goal_weight_lbs,
+      currentWeight: profile.current_weight_lbs
     });
   }, [profile, strategy, logs, tdee, weeks]);
 
@@ -76,7 +77,7 @@ export default function Plan() {
   );
 }
 
-function Stat({ label, value, highlight }) {
+function Stat({ label, value, highlight = false }) {
   return (
     <div>
       <div className={`text-lg font-bold ${highlight ? "text-teal" : ""}`}>{value}</div>

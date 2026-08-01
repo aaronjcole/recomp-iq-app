@@ -11,7 +11,7 @@ function parseDate(s) {
 function dayLabel(date) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const diff = Math.round((today - date) / 86400000);
+  const diff = Math.round((today.getTime() - date.getTime()) / 86400000);
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
   return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });

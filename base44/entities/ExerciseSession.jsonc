@@ -20,13 +20,17 @@
       "type": "string"
     },
     "duration_minutes": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1440
     },
     "calories_estimated": {
       "type": "number"
     },
     "perceived_exertion": {
       "type": "number",
+      "minimum": 1,
+      "maximum": 10,
       "description": "1-10 RPE"
     },
     "muscle_groups": {
@@ -36,10 +40,14 @@
       }
     },
     "cardio_distance_miles": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000
     },
     "cardio_avg_heart_rate": {
-      "type": "number"
+      "type": "number",
+      "minimum": 20,
+      "maximum": 260
     },
     "sets": {
       "type": "array",
@@ -54,10 +62,14 @@
             "type": "number"
           },
           "weight_lbs": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5000
           },
           "reps": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
           },
           "duration_seconds": {
             "type": "number"

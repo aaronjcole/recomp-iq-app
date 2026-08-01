@@ -8,7 +8,20 @@ import {
   SelectItem
 } from "@/components/ui/select";
 
-export function NumField({ label, value, onChange, hint, unit, id }) {
+/**
+ * @param {{
+ *   label: React.ReactNode,
+ *   value?: string | number | readonly string[],
+ *   onChange: (value: string) => void,
+ *   hint?: React.ReactNode,
+ *   unit?: React.ReactNode,
+ *   id?: string,
+ *   min?: string | number,
+ *   max?: string | number,
+ *   step?: string | number,
+ * }} props
+ */
+export function NumField({ label, value, onChange, hint, unit, id, min, max, step = "any" }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -17,6 +30,9 @@ export function NumField({ label, value, onChange, hint, unit, id }) {
           id={id}
           type="number"
           inputMode="decimal"
+          min={min}
+          max={max}
+          step={step}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -31,6 +47,9 @@ export function NumField({ label, value, onChange, hint, unit, id }) {
   );
 }
 
+/**
+ * @param {{label: React.ReactNode, value?: string | number | readonly string[], onChange: (value: string) => void, hint?: React.ReactNode, id?: string}} props
+ */
 export function TextField({ label, value, onChange, hint, id }) {
   return (
     <div className="space-y-1.5">
@@ -41,6 +60,9 @@ export function TextField({ label, value, onChange, hint, id }) {
   );
 }
 
+/**
+ * @param {{label: React.ReactNode, value?: string, onChange: (value: string) => void, options: Array<{value: string, label: React.ReactNode}>, id?: string}} props
+ */
 export function SelectField({ label, value, onChange, options, id }) {
   return (
     <div className="space-y-1.5">
@@ -61,10 +83,12 @@ export function SelectField({ label, value, onChange, options, id }) {
   );
 }
 
+/** @param {{children: React.ReactNode}} props */
 export function Why({ children }) {
   return <p className="text-xs text-muted-foreground">{children}</p>;
 }
 
+/** @param {{title: React.ReactNode, why?: React.ReactNode}} props */
 export function StepHeader({ title, why }) {
   return (
     <div className="space-y-1">
@@ -74,6 +98,7 @@ export function StepHeader({ title, why }) {
   );
 }
 
+/** @param {{options: string[], selected: string[], onToggle: (option: string) => void, name: string}} props */
 export function ChipGroup({ options, selected, onToggle, name }) {
   return (
     <fieldset className="flex flex-wrap gap-2">

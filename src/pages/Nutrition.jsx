@@ -12,7 +12,7 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
-import { Plus, Check, ScanLine, Camera } from "lucide-react";
+import { Plus, ScanLine, Camera } from "lucide-react";
 import BarcodeScanner from "@/components/nutrition/BarcodeScanner";
 import FoodPhotoScan from "@/components/nutrition/FoodPhotoScan";
 import { toast } from "@/components/ui/use-toast";
@@ -31,12 +31,12 @@ export default function Nutrition() {
   const handleScannedFood = async (food, addToToday) => {
     await addFood(food);
     if (addToToday) {
-      await upsertDailyLog(todayStr(), {
-        calories: (todayLog?.calories ?? 0) + (food.calories ?? 0),
-        protein_g: (todayLog?.protein_g ?? 0) + (food.protein_g ?? 0),
-        carbs_g: (todayLog?.carbs_g ?? 0) + (food.carbs_g ?? 0),
-        fat_g: (todayLog?.fat_g ?? 0) + (food.fat_g ?? 0)
-      });
+      await upsertDailyLog(todayStr(), (current) => ({
+        calories: (current?.calories ?? 0) + (food.calories ?? 0),
+        protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
+        carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
+        fat_g: (current?.fat_g ?? 0) + (food.fat_g ?? 0)
+      }));
     }
     toast({ title: `${food.name} ${addToToday ? "added to today" : "saved to library"}` });
     setShowScanner(false);
@@ -66,12 +66,12 @@ export default function Nutrition() {
     };
     await addFood(food);
     if (addToToday) {
-      await upsertDailyLog(todayStr(), {
-        calories: (todayLog?.calories ?? 0) + food.calories,
-        protein_g: (todayLog?.protein_g ?? 0) + food.protein_g,
-        carbs_g: (todayLog?.carbs_g ?? 0) + food.carbs_g,
-        fat_g: (todayLog?.fat_g ?? 0) + food.fat_g
-      });
+      await upsertDailyLog(todayStr(), (current) => ({
+        calories: (current?.calories ?? 0) + food.calories,
+        protein_g: (current?.protein_g ?? 0) + food.protein_g,
+        carbs_g: (current?.carbs_g ?? 0) + food.carbs_g,
+        fat_g: (current?.fat_g ?? 0) + food.fat_g
+      }));
     }
     setForm(empty);
   };

@@ -11,6 +11,11 @@ import BodyCompositionScan from "@/components/progress/BodyCompositionScan";
 import PullToRefresh from "@/components/common/PullToRefresh";
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
+const RANGES = [
+  { value: "35d", label: "35d" },
+  { value: "90d", label: "90d" },
+  { value: "all", label: "All" }
+];
 
 function daysAgoStr(n) {
   const d = new Date();
@@ -51,7 +56,8 @@ export default function Progress() {
             weeks: 12,
             calorieTarget: strategy.calorie_target,
             tdee,
-            goalWeight: profile.goal_weight_lbs
+            goalWeight: profile.goal_weight_lbs,
+            currentWeight: profile.current_weight_lbs
           })
         : null,
     [profile, strategy, logs, tdee]
@@ -69,15 +75,15 @@ export default function Progress() {
           <div className="flex items-center justify-between mb-3">
             <div className="font-medium">Weight trend</div>
             <div className="flex gap-1">
-              {["35d", "90d", "All"].map((r) => (
+              {RANGES.map(({ value, label }) => (
                 <Button
-                  key={r}
+                  key={value}
                   size="sm"
-                  variant={range === r ? "default" : "outline"}
-                  className={range === r ? "bg-teal text-buttonText hover:opacity-90 h-7 px-2.5 text-xs" : "border-line h-7 px-2.5 text-xs"}
-                  onClick={() => setRange(r)}
+                  variant={range === value ? "default" : "outline"}
+                  className={range === value ? "bg-teal text-buttonText hover:opacity-90 h-7 px-2.5 text-xs" : "border-line h-7 px-2.5 text-xs"}
+                  onClick={() => setRange(value)}
                 >
-                  {r}
+                  {label}
                 </Button>
               ))}
             </div>
@@ -153,7 +159,7 @@ function Row({ label, value }) {
   );
 }
 
-function Stat({ label, value, highlight }) {
+function Stat({ label, value, highlight = false }) {
   return (
     <div>
       <div className={`text-lg font-bold ${highlight ? "text-teal" : ""}`}>{value}</div>

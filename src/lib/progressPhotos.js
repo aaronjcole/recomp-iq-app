@@ -1,5 +1,6 @@
 // On-device progress photo storage. No uploads — photos live in IndexedDB.
-// Pure-ish storage module: addPhoto, listPhotos, getPhotoBlob, deletePhoto, estimateUsage.
+// Pure-ish storage module: addPhoto, listPhotos, getPhotoBlob, deletePhoto,
+// deletePhotosForUser, estimateUsage.
 
 const DB_NAME = "recompiq_progress_photos";
 const STORE = "photos";
@@ -145,6 +146,39 @@ export async function getPhotoBlob(id, kind = "full") {
 export async function deletePhoto(id) {
   const db = await openDB();
   await reqPromise(store(db, "readwrite").delete(id));
+}
+
+export async function deletePhotosForUser(userId) {
+  if (!userId) return 0;
+  const db = await openDB();
+
+  return await new Promise((resolve, reject) => {
+    let deleted = 0;
+    const tx = db.transaction(STORE, "readwrite");
+    const photoStore = tx.objectStore(STORE);
+    const request = photoStore.index("userId").openCursor(IDBKeyRange.only(userId));
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      cursor.delete();
+      deleted += 1;
+      cursor.continue();
+    };
+    request.onerror = () => tx.abort();
+    tx.oncomplete = () => {
+      db.close();
+      resolve(deleted);
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error || request.error || new Error("Could not delete progress photos"));
+    };
+    tx.onabort = () => {
+      db.close();
+      reject(tx.error || request.error || new Error("Could not delete progress photos"));
+    };
+  });
 }
 
 export async function estimateUsage() {

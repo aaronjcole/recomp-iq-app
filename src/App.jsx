@@ -1,42 +1,54 @@
+import { lazy, Suspense, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
-// Add page imports here
 import { Navigate } from 'react-router-dom';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { RecompGate, RequireOnboarding } from '@/lib/RecompContext';
-import AppLayout from '@/components/AppLayout';
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-import ForgotPassword from '@/pages/ForgotPassword';
-import ResetPassword from '@/pages/ResetPassword';
-import Onboarding from '@/pages/Onboarding';
-import Today from '@/pages/Today';
-import Nutrition from '@/pages/Nutrition';
-import Training from '@/pages/Training';
-import Progress from '@/pages/Progress';
-import More from '@/pages/More';
-import Plan from '@/pages/Plan';
-import DecisionHistory from '@/pages/DecisionHistory';
-import Coach from '@/pages/Coach';
-import Profile from '@/pages/Profile';
-import Hero from '@/pages/Hero';
-import ComingSoon from '@/pages/ComingSoon';
-import PublicHome from '@/components/PublicHome';
-import Privacy from '@/pages/Privacy';
-import Terms from '@/pages/Terms';
 import AppSplash from '@/components/AppSplash';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 
+const PageNotFound = lazy(() => import('./lib/PageNotFound'));
+const AppLayout = lazy(() => import('@/components/AppLayout'));
+const Login = lazy(() => import('@/pages/Login'));
+const Register = lazy(() => import('@/pages/Register'));
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const Onboarding = lazy(() => import('@/pages/Onboarding'));
+const Today = lazy(() => import('@/pages/Today'));
+const Nutrition = lazy(() => import('@/pages/Nutrition'));
+const Training = lazy(() => import('@/pages/Training'));
+const Progress = lazy(() => import('@/pages/Progress'));
+const More = lazy(() => import('@/pages/More'));
+const Plan = lazy(() => import('@/pages/Plan'));
+const DecisionHistory = lazy(() => import('@/pages/DecisionHistory'));
+const Coach = lazy(() => import('@/pages/Coach'));
+const Profile = lazy(() => import('@/pages/Profile'));
+const Hero = lazy(() => import('@/pages/Hero'));
+const ComingSoon = lazy(() => import('@/pages/ComingSoon'));
+const PublicHome = lazy(() => import('@/components/PublicHome'));
+const Privacy = lazy(() => import('@/pages/Privacy'));
+const Terms = lazy(() => import('@/pages/Terms'));
+const RecompGate = lazy(() =>
+  import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
+);
+const RequireOnboarding = lazy(() =>
+  import('@/lib/RecompContext').then((module) => ({ default: module.RequireOnboarding }))
+);
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  useEffect(() => {
+    if (!isLoadingPublicSettings && !isLoadingAuth && authError?.type === 'auth_required') {
+      navigateToLogin();
+    }
+  }, [authError, isLoadingAuth, isLoadingPublicSettings, navigateToLogin]);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -48,9 +60,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
+      return <AppSplash />;
     }
   }
 
@@ -100,7 +110,9 @@ function App() {
             <ScrollToTop />
             <AndroidBackHandler />
             <OfflineBanner />
-            <AuthenticatedApp />
+            <Suspense fallback={<AppSplash />}>
+              <AuthenticatedApp />
+            </Suspense>
           </Router>
         </ErrorBoundary>
         <Toaster />

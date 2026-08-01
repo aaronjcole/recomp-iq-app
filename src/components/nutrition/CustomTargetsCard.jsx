@@ -10,11 +10,11 @@ import { AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const FIELDS = [
-  { key: "calorie_target", label: "Calories" },
-  { key: "protein_target_g", label: "Protein (g)" },
-  { key: "carb_target_g", label: "Carbs (g)" },
-  { key: "fat_target_g", label: "Fat (g)" },
-  { key: "step_target", label: "Steps" }
+  { key: "calorie_target", label: "Calories", max: 20000 },
+  { key: "protein_target_g", label: "Protein (g)", max: 2000 },
+  { key: "carb_target_g", label: "Carbs (g)", max: 3000 },
+  { key: "fat_target_g", label: "Fat (g)", max: 2000 },
+  { key: "step_target", label: "Steps", max: 200000 }
 ];
 
 export default function CustomTargetsCard() {
@@ -45,6 +45,10 @@ export default function CustomTargetsCard() {
     carb_target_g: num(form.carb_target_g),
     fat_target_g: num(form.fat_target_g),
     step_target: num(form.step_target)
+  });
+  const validTargets = FIELDS.every(({ key, max }) => {
+    const value = num(form[key]);
+    return Number.isFinite(value) && value >= 0 && value <= max;
   });
 
   let bmr = null;
@@ -113,6 +117,8 @@ export default function CustomTargetsCard() {
                 <Input
                   type="number"
                   inputMode="decimal"
+                  min={0}
+                  max={f.max}
                   value={form[f.key]}
                   onChange={(e) => set(f.key, e.target.value)}
                 />
@@ -133,11 +139,16 @@ export default function CustomTargetsCard() {
 
           <Button
             onClick={save}
-            disabled={locked || saving}
+            disabled={locked || saving || !validTargets}
             className="w-full bg-teal text-buttonText hover:opacity-90"
           >
             {saving ? "Saving…" : "Save targets"}
           </Button>
+          {!validTargets && !locked && (
+            <p role="alert" className="text-xs text-red">
+              Enter non-negative targets within the supported range.
+            </p>
+          )}
         </div>
 
         {!strategy.manual_override && (

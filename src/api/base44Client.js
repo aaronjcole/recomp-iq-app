@@ -1,9 +1,8 @@
 import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+import { appParams, markAuthRedirectPending } from '@/lib/app-params';
 
 const { appId, token, functionsVersion, appBaseUrl } = appParams;
 
-//Create a client with authentication required
 export const base44 = createClient({
   appId,
   token,
@@ -12,3 +11,17 @@ export const base44 = createClient({
   requiresAuth: false,
   appBaseUrl
 });
+
+// Bind an OAuth/login callback to a short-lived navigation initiated by this tab.
+// app-params.js rejects unsolicited access_token query parameters.
+const loginWithProvider = base44.auth.loginWithProvider.bind(base44.auth);
+base44.auth.loginWithProvider = (provider, fromUrl) => {
+  markAuthRedirectPending();
+  return loginWithProvider(provider, fromUrl);
+};
+
+const redirectToLogin = base44.auth.redirectToLogin.bind(base44.auth);
+base44.auth.redirectToLogin = (nextUrl) => {
+  markAuthRedirectPending();
+  return redirectToLogin(nextUrl);
+};

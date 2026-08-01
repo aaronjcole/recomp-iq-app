@@ -22,10 +22,64 @@ const SCHEMA = {
 
 export default function FoodPhotoScan({ onClose, onResult }) {
   const inputRef = useRef(null);
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const mountedRef = useRef(false);
   const [photo, setPhoto] = useState(null); // { file, url }
   const [status, setStatus] = useState("capture"); // capture | preview | analyzing | found | error
   const [food, setFood] = useState(null);
   const [err, setErr] = useState("");
+
+  const handleClose = () => onClose();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = /** @type {HTMLElement[]} */ (Array.from(
+        dialogRef.current?.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter((element) => element instanceof HTMLElement && !element.classList.contains("hidden")));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      mountedRef.current = false;
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+    };
+    // The overlay is mounted for its entire lifetime; its callbacks read current refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Revoke any preview object URL when it changes or on unmount, to prevent leaks.
   useEffect(() => {
@@ -56,6 +110,7 @@ export default function FoodPhotoScan({ onClose, onResult }) {
     setErr("");
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: photo.file });
+      if (!mountedRef.current) return;
 
       const prompt = `You are a nutrition estimation assistant. Analyze the food in this photo and estimate the nutrition for the VISIBLE PORTION on the plate/in the glass.
 
@@ -76,25 +131,42 @@ Return ONLY the JSON object matching the schema.`;
         response_json_schema: SCHEMA
       });
 
-      const data = typeof res === "object" && res !== null ? res : null;
+      if (!mountedRef.current) return;
+      const data = /** @type {Record<string, any> | null} */ (
+        typeof res === "object" && res !== null ? res : null
+      );
       if (!data || data.calories == null) throw new Error("No estimate returned");
       setFood({ ...data, source: "manual" });
       setStatus("found");
     } catch (e) {
+      if (!mountedRef.current) return;
       setErr(e?.message || "Couldn't analyze the photo.");
       setStatus("error");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black flex flex-col select-none">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="food-photo-title"
+      aria-describedby="food-photo-description"
+      aria-busy={status === "analyzing"}
+      tabIndex={-1}
+      className="fixed inset-0 z-[60] bg-black flex flex-col select-none"
+    >
+      <p id="food-photo-description" className="sr-only">
+        Take or choose a food photo to estimate its calories and macros.
+      </p>
       <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <div className="flex items-center gap-2 font-medium">
+        <div id="food-photo-title" className="flex items-center gap-2 font-medium">
           <Camera className="w-5 h-5" />
           Snap food
         </div>
         <button
-          onClick={onClose}
+          ref={closeButtonRef}
+          onClick={handleClose}
           className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Close"
         >
@@ -114,6 +186,7 @@ Return ONLY the JSON object matching the schema.`;
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {status === "capture" && (
           <button
+            type="button"
             onClick={() => inputRef.current?.click()}
             className="flex flex-col items-center gap-3 text-white/80 px-8 text-center"
           >
@@ -142,7 +215,7 @@ Return ONLY the JSON object matching the schema.`;
         )}
 
         {status === "analyzing" && (
-          <div className="flex flex-col items-center justify-center text-white gap-3">
+          <div role="status" aria-live="polite" className="flex flex-col items-center justify-center text-white gap-3">
             <Loader2 className="w-8 h-8 animate-spin" />
             <p className="text-sm">Estimating macros…</p>
           </div>
@@ -191,7 +264,7 @@ Return ONLY the JSON object matching the schema.`;
                 >
                   <Bookmark className="w-4 h-4 mr-1" /> Save to library
                 </Button>
-                <Button variant="ghost" className="h-11 min-h-[44px] px-4" onClick={retake}>
+                <Button variant="ghost" className="h-11 min-h-[44px] px-4" onClick={retake} aria-label="Choose another photo">
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
@@ -200,7 +273,7 @@ Return ONLY the JSON object matching the schema.`;
         )}
 
         {status === "error" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 px-8 text-center">
+          <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 px-8 text-center">
             <p className="font-medium">Couldn't analyze the photo</p>
             <p className="text-sm text-white/70">{err}</p>
             <Button variant="outline" className="mt-2 h-11 min-h-[44px]" onClick={retake}>
@@ -213,7 +286,7 @@ Return ONLY the JSON object matching the schema.`;
   );
 }
 
-function Macro({ label, value, unit }) {
+function Macro({ label, value, unit = "" }) {
   return (
     <div className="rounded-lg bg-panel2 py-2">
       <div className="font-mono text-sm font-semibold tabular-nums">

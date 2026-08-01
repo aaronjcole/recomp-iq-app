@@ -14,6 +14,8 @@
     },
     "target_value": {
       "type": "number",
+      "minimum": 0,
+      "maximum": 1000000,
       "description": "Daily target for count habits."
     },
     "unit": {

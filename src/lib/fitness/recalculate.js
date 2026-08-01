@@ -2,13 +2,13 @@
 // fitness modules into the high-level operations used by onboarding, the
 // weekly check-in, and the projection view. Pure functions.
 
-import { calculateInitialStrategy } from "./calculators";
-import { decideWeeklyAdjustment } from "./adjustments";
-import { analyzeTrends } from "./trends";
-import { generateWeightProjection } from "./projections";
+import { calculateInitialStrategy } from "./calculators.js";
+import { decideWeeklyAdjustment } from "./adjustments.js";
+import { analyzeTrends, countConsecutiveFlatWeeks } from "./trends.js";
+import { generateWeightProjection } from "./projections.js";
 
-export function recalculateTargets(profile) {
-  const calc = calculateInitialStrategy(profile);
+export function recalculateTargets(profile, preferences = {}) {
+  const calc = calculateInitialStrategy(profile, preferences);
   return {
     calorie_target: calc.calorie_target,
     protein_target_g: calc.protein_target_g,
@@ -24,10 +24,21 @@ export function recalculateTargets(profile) {
 }
 
 export function runWeeklyCheckIn(args) {
-  const trend = analyzeTrends(args.logs, args.strategy);
+  const trend = analyzeTrends(args.logs, args.strategy, { referenceDate: args.referenceDate });
+  const consecutiveFlatWeeks =
+    typeof args.consecutiveFlatWeeks === "number"
+      ? args.consecutiveFlatWeeks
+      : countConsecutiveFlatWeeks(args.logs, args.referenceDate);
   return {
     trend,
-    adjustment: decideWeeklyAdjustment({ trend, profile: args.profile, preferences: args.preferences, strategy: args.strategy })
+    adjustment: decideWeeklyAdjustment({
+      trend,
+      profile: args.profile,
+      preferences: args.preferences,
+      strategy: args.strategy,
+      consecutiveFlatWeeks,
+      strengthCrashing: args.strengthCrashing
+    })
   };
 }
 
@@ -38,6 +49,7 @@ export function recalculateProjection(args) {
     weeks: 12,
     calorieTarget: args.strategy.calorie_target,
     tdee: args.tdee,
-    goalWeight: args.profile.goal_weight_lbs
+    goalWeight: args.profile.goal_weight_lbs,
+    currentWeight: args.profile.current_weight_lbs
   });
 }

@@ -53,7 +53,7 @@ export default function StepAbout({ p, set, units, setUnits }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <NumField id="age" label="Age" value={p.age} onChange={(v) => set("age", v)} unit="yrs" />
+        <NumField id="age" label="Age" value={p.age} onChange={(v) => set("age", v)} unit="yrs" min={18} max={120} step={1} />
         <div className="space-y-1.5">
           <Label htmlFor="sex">Sex</Label>
           <Select value={p.sex} onValueChange={(v) => set("sex", v)}>
@@ -78,6 +78,8 @@ export default function StepAbout({ p, set, units, setUnits }) {
           <Input
             type="number"
             inputMode="decimal"
+            min={92}
+            max={274}
             value={cmDisplay}
             onChange={(e) =>
               set("height_in", e.target.value === "" ? "" : String(Math.round(cmToIn(Number(e.target.value)))))
@@ -120,6 +122,8 @@ export default function StepAbout({ p, set, units, setUnits }) {
           value={weightDisplay(p.current_weight_lbs)}
           onChange={(v) => weightChange(v, "current_weight_lbs")}
           unit={metric ? "kg" : "lb"}
+          min={metric ? 18 : 40}
+          max={metric ? 544 : 1200}
         />
         <NumField
           id="gw"
@@ -127,6 +131,8 @@ export default function StepAbout({ p, set, units, setUnits }) {
           value={weightDisplay(p.goal_weight_lbs)}
           onChange={(v) => weightChange(v, "goal_weight_lbs")}
           unit={metric ? "kg" : "lb"}
+          min={metric ? 18 : 40}
+          max={metric ? 544 : 1200}
           hint="Optional"
         />
       </div>
@@ -146,6 +152,8 @@ export default function StepAbout({ p, set, units, setUnits }) {
             set("waist_in", v === "" ? "" : metric ? String(+(cmToIn(Number(v)).toFixed(1))) : v)
           }
           unit={metric ? "cm" : "in"}
+          min={metric ? 25 : 10}
+          max={metric ? 381 : 150}
           hint="Optional — seeds your trend"
         />
         <Why>

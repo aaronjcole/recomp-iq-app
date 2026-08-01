@@ -8,22 +8,34 @@
       "description": "Log date (YYYY-MM-DD). One record per day per user."
     },
     "weight_lbs": {
-      "type": "number"
+      "type": "number",
+      "minimum": 40,
+      "maximum": 1200
     },
     "calories": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20000
     },
     "protein_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "carbs_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3000
     },
     "fat_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "steps": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 200000
     },
     "workout_completed": {
       "type": "boolean"
@@ -32,33 +44,48 @@
       "type": "string"
     },
     "waist_in": {
-      "type": "number"
+      "type": "number",
+      "minimum": 10,
+      "maximum": 150
     },
     "water_oz": {
       "type": "number",
+      "minimum": 0,
+      "maximum": 2000,
       "description": "Daily water intake in ounces."
     },
     "hunger_rating": {
       "type": "number",
+      "minimum": 1,
+      "maximum": 5,
       "description": "1-5"
     },
     "energy_rating": {
       "type": "number",
+      "minimum": 1,
+      "maximum": 5,
       "description": "1-5"
     },
     "sleep_hours": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 24
     },
     "sleep_quality": {
       "type": "number",
+      "minimum": 1,
+      "maximum": 5,
       "description": "1-5"
     },
     "soreness_rating": {
       "type": "number",
+      "minimum": 1,
+      "maximum": 5,
       "description": "1-5"
     },
     "notes": {
-      "type": "string"
+      "type": "string",
+      "maxLength": 4000
     }
   },
   "required": [

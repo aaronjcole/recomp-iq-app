@@ -13,7 +13,7 @@ export default function AddRecipeCard() {
   const { addRecipe } = useRecomp();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
-  const [servings, setServings] = useState(1);
+  const [servings, setServings] = useState("1");
   const [rows, setRows] = useState([{ ...emptyRow }]);
 
   const setRow = (i, k, v) => setRows((p) => p.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)));
@@ -35,7 +35,7 @@ export default function AddRecipeCard() {
     });
     toast({ title: "Saved", description: "Recipe added." });
     setTitle("");
-    setServings(1);
+    setServings("1");
     setRows([{ ...emptyRow }]);
   };
 

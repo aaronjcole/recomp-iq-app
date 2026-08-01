@@ -1,9 +1,33 @@
 // Ported 1:1 from RecompIQ src/lib/fitness/adjustments.ts. The weekly decision
 // tree that keeps recommendations safe and trend-driven. Pure functions.
 
+const GAIN_GOALS = new Set(["muscle_gain", "lean_bulk", "aggressive_gain"]);
+const RECOMP_GOALS = new Set(["body_recomposition", "fat_loss_biased_recomp"]);
+
+function changeCalories(strategy, delta) {
+  return Math.max(1500, Math.round((strategy.calorie_target + delta) / 10) * 10);
+}
+
+function useFatLossPlateauLever(profile, strategy) {
+  if (profile.job_activity === "sedentary" && strategy.step_target < 8000) {
+    return {
+      decision: "increase_steps",
+      reason: "Weight and waist are flat with good consistency, and steps are still the lowest-friction lever.",
+      updates: { step_target: strategy.step_target + 1500 },
+      behaviorFocus: "Add a 10-minute lunch walk and a 10-minute after-dinner walk."
+    };
+  }
+  return {
+    decision: "reduce_calories",
+    reason: "Weight and waist are flat with good consistency, so a small calorie reduction is warranted.",
+    updates: { calorie_target: changeCalories(strategy, -150) },
+    behaviorFocus: strategy.behavior_focus
+  };
+}
+
 export function decideWeeklyAdjustment(input) {
   const { trend, profile, preferences, strategy } = input;
-  const safetyRedFlag = (preferences.safety_flags ?? []).length > 0;
+  const safetyRedFlag = (preferences?.safety_flags ?? []).length > 0;
   const adherenceValues = [trend.calorie_adherence, trend.protein_adherence, trend.step_adherence].filter(
     (v) => v !== null
   );
@@ -12,45 +36,90 @@ export function decideWeeklyAdjustment(input) {
   let reason = "The safest move is to keep collecting trend data before making a larger change.";
   let nextStrategy = { ...strategy };
   let behaviorFocus = strategy.behavior_focus;
+  const rate =
+    typeof trend.weight_change_percent_per_week === "number" && Number.isFinite(trend.weight_change_percent_per_week)
+      ? trend.weight_change_percent_per_week
+      : null;
+  const goal = profile.goal || strategy.goal_type;
 
   if (safetyRedFlag) {
     decision = "seek_professional_guidance";
     reason = "A safety flag is present, so RecompIQ avoids aggressive targets and recommends qualified professional guidance.";
+  } else if (trend.days_logged < 14) {
+    decision = "keep_collecting_data";
+    reason = "Fewer than 14 recent calendar days of data is too early to judge the plan.";
   } else if (avgAdherence !== null && avgAdherence < 0.8) {
     decision = "focus_on_adherence";
     reason = "Consistency is below 80%, so changing targets would add noise before solving the main blocker.";
     behaviorFocus = "Make the current plan easier: one protein anchor and one short walk each day.";
-  } else if (trend.days_logged < 14) {
-    decision = "keep_collecting_data";
-    reason = "Fewer than 14 days of data is too early to judge the plan.";
   } else if (input.strengthCrashing || trend.recovery_label === "poor") {
     decision = "reduce_training_fatigue";
     reason = "Recovery or strength signals are poor, so cutting calories harder is not the first move.";
     behaviorFocus = "Protect sleep, hydration, and training performance this week.";
-  } else if (
-    trend.weight_change_percent_per_week !== null &&
-    trend.weight_change_percent_per_week <= -0.0025 &&
-    trend.weight_change_percent_per_week >= -0.01
-  ) {
-    decision = "keep_plan";
-    reason = "Your 7-day average is moving in a sustainable fat-loss range.";
-  } else if (trend.weight_change_percent_per_week !== null && trend.weight_change_percent_per_week < -0.0125 && trend.recovery_label !== "good") {
-    decision = "increase_calories";
-    reason = "Weight is dropping quickly while recovery is not strong. The plan should protect performance.";
-    nextStrategy.calorie_target += 150;
-  } else if (trend.waist_label === "down" && (trend.trend_label === "flat" || trend.trend_label === "gaining")) {
-    decision = trend.trend_label === "gaining" ? "keep_plan_possible_recomp_or_water" : "keep_plan_possible_recomp";
-    reason = "Waist is down while scale is flat or up. That can be a valid recomp or water-retention signal.";
-  } else if (input.consecutiveFlatWeeks && input.consecutiveFlatWeeks >= 2 && trend.waist_label !== "down") {
-    if (profile.job_activity === "sedentary" && strategy.step_target < 8000) {
-      decision = "increase_steps";
-      reason = "Weight and waist are flat with good consistency, and steps are still the lowest-friction lever.";
-      nextStrategy.step_target += 1500;
-      behaviorFocus = "Add a 10-minute lunch walk and a 10-minute after-dinner walk.";
-    } else {
+  } else if (GAIN_GOALS.has(goal)) {
+    const desiredMin = goal === "aggressive_gain" ? 0.0025 : 0.001;
+    const desiredMax = goal === "aggressive_gain" ? 0.01 : 0.005;
+    if (rate !== null && rate >= desiredMin && rate <= desiredMax) {
+      decision = "keep_plan";
+      reason = "Your 7-day average is rising in a measured muscle-gain range.";
+    } else if ((rate !== null && rate < -0.001) || (input.consecutiveFlatWeeks ?? 0) >= 2) {
+      decision = "increase_calories";
+      reason = "Weight is falling or has stayed flat despite good consistency, which does not support the current gain goal.";
+      nextStrategy.calorie_target = changeCalories(strategy, 150);
+    } else if (rate !== null && rate > desiredMax) {
       decision = "reduce_calories";
-      reason = "Weight and waist are flat with good consistency, so a small calorie reduction is warranted.";
-      nextStrategy.calorie_target = Math.max(strategy.calorie_target - 150, 1800);
+      reason = "Weight is rising faster than the selected gain goal calls for, so a small calorie reduction can limit unnecessary fat gain.";
+      nextStrategy.calorie_target = changeCalories(strategy, -150);
+    }
+  } else if (goal === "maintenance") {
+    if (rate !== null && rate < -0.0025) {
+      decision = "increase_calories";
+      reason = "Weight is moving below the maintenance range, so a small calorie increase is warranted.";
+      nextStrategy.calorie_target = changeCalories(strategy, 150);
+    } else if (rate !== null && rate > 0.0025) {
+      decision = "reduce_calories";
+      reason = "Weight is moving above the maintenance range, so a small calorie reduction is warranted.";
+      nextStrategy.calorie_target = changeCalories(strategy, -150);
+    } else if (rate !== null) {
+      decision = "keep_plan";
+      reason = "Your weight trend is within a practical maintenance range.";
+    }
+  } else if (RECOMP_GOALS.has(goal)) {
+    if (trend.waist_label === "down" && (trend.trend_label === "flat" || trend.trend_label === "gaining")) {
+      decision = trend.trend_label === "gaining" ? "keep_plan_possible_recomp_or_water" : "keep_plan_possible_recomp";
+      reason = "Waist is down while scale is flat or up. That can be a valid recomp or water-retention signal.";
+    } else if (rate !== null && rate < -0.01) {
+      decision = "increase_calories";
+      reason = "Weight is dropping faster than a recomposition goal calls for, so the plan should protect recovery and performance.";
+      nextStrategy.calorie_target = changeCalories(strategy, 150);
+    } else if ((input.consecutiveFlatWeeks ?? 0) >= 2 && trend.waist_label !== "down") {
+      const plateau = useFatLossPlateauLever(profile, strategy);
+      decision = plateau.decision;
+      reason = plateau.reason;
+      nextStrategy = { ...nextStrategy, ...plateau.updates };
+      behaviorFocus = plateau.behaviorFocus;
+    } else if (rate !== null && rate >= -0.005 && rate <= 0.0025) {
+      decision = "keep_plan";
+      reason = "Your scale trend is compatible with a measured recomposition phase.";
+    }
+  } else {
+    const maxLossRate = goal === "aggressive_fat_loss" ? -0.015 : -0.0125;
+    if (rate !== null && rate <= -0.0025 && rate >= -0.01) {
+      decision = "keep_plan";
+      reason = "Your 7-day average is moving in a sustainable fat-loss range.";
+    } else if (rate !== null && rate < maxLossRate) {
+      decision = "increase_calories";
+      reason = "Weight is dropping too quickly for the selected goal. The plan should protect performance and recovery.";
+      nextStrategy.calorie_target = changeCalories(strategy, 150);
+    } else if (trend.waist_label === "down" && (trend.trend_label === "flat" || trend.trend_label === "gaining")) {
+      decision = trend.trend_label === "gaining" ? "keep_plan_possible_recomp_or_water" : "keep_plan_possible_recomp";
+      reason = "Waist is down while scale is flat or up. That can be a valid recomp or water-retention signal.";
+    } else if ((input.consecutiveFlatWeeks ?? 0) >= 2 && trend.waist_label !== "down") {
+      const plateau = useFatLossPlateauLever(profile, strategy);
+      decision = plateau.decision;
+      reason = plateau.reason;
+      nextStrategy = { ...nextStrategy, ...plateau.updates };
+      behaviorFocus = plateau.behaviorFocus;
     }
   }
 

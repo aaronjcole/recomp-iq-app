@@ -3,25 +3,39 @@
   "type": "object",
   "properties": {
     "calorie_target": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20000
     },
     "protein_target_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "fat_target_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
     },
     "carb_target_g": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3000
     },
     "step_target": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 200000
     },
     "lifting_days_target": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 7
     },
     "cardio_days_target": {
-      "type": "number"
+      "type": "number",
+      "minimum": 0,
+      "maximum": 7
     },
     "goal_type": {
       "type": "string",

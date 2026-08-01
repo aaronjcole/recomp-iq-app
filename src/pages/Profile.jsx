@@ -26,6 +26,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { LogOut, Trash2 } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
+import { deletePhotosForUser } from "@/lib/progressPhotos";
 
 const GOAL_ORDER = ["fat_loss", "aggressive_fat_loss", "fat_loss_biased_recomp", "body_recomposition", "strength_retention_cut", "maintenance", "lean_bulk", "muscle_gain", "aggressive_gain"];
 
@@ -41,7 +42,7 @@ export default function Profile() {
     setSaving(true);
     try {
       const updated = await updateProfile(profile.id, { goal: newGoal });
-      const strat = recalculateTargets({ ...updated, goal: newGoal });
+      const strat = recalculateTargets({ ...updated, goal: newGoal }, preferences ?? {});
       await updateStrategy(strategy.id, { ...strat, goal_type: newGoal }, `Goal changed to ${GOAL_LABELS[newGoal].label}.`);
     } finally {
       setSaving(false);
@@ -56,10 +57,36 @@ export default function Profile() {
     setDeleting(true);
     try {
       const me = await base44.auth.me();
-      if (me?.id) await base44.entities.User.delete(me.id);
+      if (!me?.id) throw new Error("Could not verify the signed-in account");
+
+      const response = await base44.functions.invoke("deleteAccount", { confirmation: "DELETE" });
+      if (!response.data?.ok) throw new Error("Account deletion was not confirmed");
+
+      const localCleanup = await Promise.allSettled([deletePhotosForUser(me.id)]);
+      if (localCleanup.some((result) => result.status === "rejected")) {
+        console.error("Account deleted, but local progress-photo cleanup failed", localCleanup);
+      }
+
+      try {
+        for (const key of [
+          `recompiq_bf_scan_${me.id}`,
+          `recomp-grocery-checked-${me.id}`,
+          "recompiq_onboarding_v1",
+          "recomp-demo-ids"
+        ]) {
+          localStorage.removeItem(key);
+        }
+      } catch {
+        // The hosted account is already deleted; logout must still complete.
+      }
+
       base44.auth.logout(window.location.origin);
     } catch (e) {
-      toast({ title: "Could not delete account", description: String(e?.message || e) });
+      const serverMessage = e?.response?.data?.error;
+      toast({
+        title: "Could not delete account",
+        description: serverMessage || "Please try again. If the problem continues, contact support."
+      });
     } finally {
       setDeleting(false);
     }

@@ -17,9 +17,9 @@ export default function StepActivity({ p, set }) {
         options={Object.entries(JOB_ACTIVITY_LABELS).map(([k, label]) => ({ value: k, label }))}
       />
       <div className="grid grid-cols-2 gap-4">
-        <NumField id="steps" label="Avg daily steps" value={p.average_steps} onChange={(v) => set("average_steps", v)} />
-        <NumField id="lift" label="Lifting days/wk" value={p.training_days_per_week} onChange={(v) => set("training_days_per_week", v)} />
-        <NumField id="cardio" label="Cardio days/wk" value={p.cardio_days_per_week} onChange={(v) => set("cardio_days_per_week", v)} />
+        <NumField id="steps" label="Avg daily steps" value={p.average_steps} onChange={(v) => set("average_steps", v)} min={0} max={200000} step={1} />
+        <NumField id="lift" label="Lifting days/wk" value={p.training_days_per_week} onChange={(v) => set("training_days_per_week", v)} min={0} max={7} step={1} />
+        <NumField id="cardio" label="Cardio days/wk" value={p.cardio_days_per_week} onChange={(v) => set("cardio_days_per_week", v)} min={0} max={7} step={1} />
         <SelectField
           id="exp"
           label="Experience"
