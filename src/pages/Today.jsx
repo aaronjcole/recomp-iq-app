@@ -7,7 +7,9 @@ import QuickLogSheet from "@/components/today/QuickLogSheet";
 import QuickLogCard from "@/components/today/QuickLogCard";
 import HabitsCard from "@/components/today/HabitsCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
+import BestMoveCard from "@/components/today/BestMoveCard";
 import PullToRefresh from "@/components/common/PullToRefresh";
+import { deriveBestMove } from "@/lib/fitness";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Check, ChevronRight, Bot } from "lucide-react";
@@ -20,7 +22,7 @@ function greeting() {
 }
 
 export default function Today() {
-  const { strategy, trend, quests, todayLog, sessions, reload } = useRecomp();
+  const { preferences, signal, strategy, trend, quests, todayLog, sessions, reload } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
 
   if (!strategy) return null;
@@ -38,6 +40,7 @@ export default function Today() {
       .filter((s) => s.date >= weekStart() && (s.type === "strength" || s.type === "mixed"))
       .map((s) => s.date)
   ).size;
+  const bestMove = deriveBestMove({ preferences, signal, strategy, todayLog, trend });
 
   return (
     <PullToRefresh onRefresh={reload}>
@@ -46,6 +49,8 @@ export default function Today() {
         <p className="text-sm text-muted-foreground">{greeting()}</p>
         <h1 className="text-2xl font-bold">Today</h1>
       </div>
+
+      <BestMoveCard move={bestMove} onLog={() => setLogOpen(true)} />
 
       <RecompSignalHero />
 

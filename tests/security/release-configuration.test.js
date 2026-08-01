@@ -75,6 +75,20 @@ test("mobile release flows prioritize primary actions and usable touch targets",
   const coachSource = readFileSync(resolve(repoRoot, "src/pages/Coach.jsx"), "utf8");
   assert.match(coachSource, /Start with what happened today/);
   assert.match(coachSource, /grid grid-cols-2 gap-2/);
+  assert.match(coachSource, /Review prepared action/);
+  assert.match(coachSource, /No target, meal, or workout has been changed/);
+  assert.match(coachSource, /preparedAction:\s*reply\.safetyNote\s*\?\s*null/);
+
+  const todaySource = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
+  assert.match(todaySource, /<BestMoveCard/);
+  assert.ok(
+    todaySource.indexOf("<BestMoveCard") < todaySource.indexOf("<RecompSignalHero"),
+    "the single daily action should appear before supporting signal detail"
+  );
+  const bestMoveSource = readFileSync(resolve(repoRoot, "src/components\/today\/BestMoveCard.jsx"), "utf8");
+  assert.match(bestMoveSource, /Today&apos;s best move/);
+  assert.match(bestMoveSource, /Why not the alternatives/);
+  assert.match(bestMoveSource, /What would change this call/);
 
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
   assert.match(progressSource, /visibleData\.length < 2/);
