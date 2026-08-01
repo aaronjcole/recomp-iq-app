@@ -1,3 +1,5 @@
+// Shared by Base44 functions and Node regression tests. Base44 packages modules
+// from base44/shared with each importing function deployment.
 export class TrackingRequestError extends Error {
   constructor(message) {
     super(message);
