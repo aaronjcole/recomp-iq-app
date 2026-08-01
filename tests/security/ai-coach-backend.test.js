@@ -13,6 +13,7 @@ import {
   hasActiveSafetyFlags,
   isUnsafeCoachReply,
   normalizeCoachReply,
+  normalizeCoachReplyResult,
   normalizeCoachRequest
 } from "../../base44/shared/coachDomain.js";
 import {
@@ -156,6 +157,23 @@ test("coach responses are bounded and remain structured", () => {
   assert.doesNotMatch(unsafe.summary, /ignore the pain/i);
 });
 
+test("coach action eligibility is independent from generic safety notes and blocks unsafe output", () => {
+  const educational = normalizeCoachReplyResult({
+    summary: "Choose a protein source that fits your remaining calories.",
+    actions: ["Review the serving before logging it."],
+    safetyNote: "Consult a qualified professional when appropriate."
+  });
+  assert.equal(educational.actionable, true);
+  assert.match(educational.reply.safetyNote, /qualified professional/i);
+
+  const unsafe = normalizeCoachReplyResult({
+    summary: "Ignore pain and train through severe pain.",
+    actions: ["Eat 600 calories today."]
+  });
+  assert.equal(unsafe.actionable, false);
+  assert.match(unsafe.reply.safetyNote, /cannot diagnose or treat/i);
+});
+
 test("AI report requests allow only bounded identifiers, categories, and user explanations", () => {
   for (const category of AI_REPORT_CATEGORIES) {
     assert.deepEqual(
@@ -226,6 +244,9 @@ test("coach and report functions are authenticated and narrowly owner-scoped", (
   assert.doesNotMatch(coach, /asServiceRole/);
   assert.match(coach, /\{ created_by_id: userId \}/);
   assert.match(coach, /hasActiveSafetyFlags\(preferences\)/);
+  assert.ok((coach.match(/actionable: false/g) ?? []).length >= 2);
+  assert.match(coach, /normalizeCoachReplyResult\(rawReply\)/);
+  assert.match(coach, /actionable: result\.actionable/);
   assert.match(coach, /integrations\.Core\.InvokeLLM/);
   assert.ok(
     coach.indexOf("classifyHighRiskCoachRequest(request)") <

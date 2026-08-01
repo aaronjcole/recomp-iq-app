@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,22 @@ import RatingDrawer from "@/components/today/RatingDrawer";
 import { useToast } from "@/components/ui/use-toast";
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+
+const EMPTY_FORM = {
+  weight_lbs: "",
+  calories: "",
+  protein_g: "",
+  carbs_g: "",
+  fat_g: "",
+  steps: "",
+  waist_in: "",
+  workout_completed: false,
+  hunger_rating: "",
+  energy_rating: "",
+  soreness_rating: "",
+  sleep_hours: "",
+  notes: ""
+};
 
 /**
  * @typedef {{
@@ -32,7 +48,7 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
 export default function QuickLogSheet({ open, onOpenChange }) {
   const { todayLog, upsertDailyLog } = useRecomp();
   const { toast } = useToast();
-  const [form, setForm] = useState(/** @type {QuickLogForm} */ ({}));
+  const [form, setForm] = useState(/** @type {QuickLogForm} */ ({ ...EMPTY_FORM }));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -87,6 +103,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Log today</SheetTitle>
+          <SheetDescription>Add the signals you have. Empty fields stay unlogged.</SheetDescription>
         </SheetHeader>
         <div className="grid grid-cols-2 gap-4 px-4 py-4">
           <Field label="Weight (lb)" value={form.weight_lbs} onChange={(v) => set("weight_lbs", v)} type="number" min={40} max={1200} />
@@ -102,7 +119,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
           <RatingDrawer label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
           <div className="col-span-2 flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
             <Label htmlFor="wc">Workout completed</Label>
-            <Switch id="wc" checked={form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
+            <Switch id="wc" checked={!!form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
           </div>
           <div className="col-span-2">
             <Label>Notes</Label>

@@ -304,7 +304,7 @@ ${transcript}
 Answer in the requested coaching tone with a concise summary and one to four practical actions.`;
 }
 
-export function normalizeCoachReply(raw) {
+export function normalizeCoachReplyResult(raw) {
   const value = isRecord(raw) ? raw : { summary: raw, actions: [] };
   const summary = clippedString(value.summary, MAX_SUMMARY_LENGTH);
   if (!summary) throw new Error("The coach response did not include a summary");
@@ -323,5 +323,13 @@ export function normalizeCoachReply(raw) {
     actions,
     ...(safetyNote ? { safetyNote } : {})
   };
-  return isUnsafeCoachReply(reply) ? buildHighRiskGuidanceReply("professional") : reply;
+  const unsafe = isUnsafeCoachReply(reply);
+  return {
+    reply: unsafe ? buildHighRiskGuidanceReply("professional") : reply,
+    actionable: !unsafe
+  };
+}
+
+export function normalizeCoachReply(raw) {
+  return normalizeCoachReplyResult(raw).reply;
 }

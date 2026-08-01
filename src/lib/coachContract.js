@@ -65,6 +65,7 @@ export function normalizeCoachReply(payload) {
 
   return {
     messageId: boundedText(data.messageId ?? data.message_id, REPORT_MESSAGE_ID_MAX) || null,
+    actionable: data.actionable === true,
     summary,
     actions,
     safetyNote: boundedText(

@@ -77,7 +77,11 @@ test("mobile release flows prioritize primary actions and usable touch targets",
   assert.match(coachSource, /grid grid-cols-2 gap-2/);
   assert.match(coachSource, /Review prepared action/);
   assert.match(coachSource, /No target, meal, or workout has been changed/);
-  assert.match(coachSource, /preparedAction:\s*reply\.safetyNote\s*\?\s*null/);
+  assert.match(coachSource, /preparedAction:\s*reply\.actionable\s*\?\s*preparedAction\s*:\s*null/);
+
+  const quickLogSource = readFileSync(resolve(repoRoot, "src/components/today/QuickLogSheet.jsx"), "utf8");
+  assert.match(quickLogSource, /<SheetDescription>/);
+  assert.match(quickLogSource, /checked=\{!!form\.workout_completed\}/);
 
   const todaySource = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
   assert.match(todaySource, /<BestMoveCard/);

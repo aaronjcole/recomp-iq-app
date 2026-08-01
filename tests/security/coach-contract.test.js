@@ -26,6 +26,7 @@ test("coach requests are bounded before invoking the backend", () => {
 test("structured coach replies normalize the documented function response", () => {
   const reply = normalizeCoachReply({
     messageId: "coach-message-123",
+    actionable: true,
     reply: {
       summary: "Keep today simple.",
       actions: ["Choose one balanced meal.", "Take a short walk."],
@@ -34,10 +35,23 @@ test("structured coach replies normalize the documented function response", () =
   });
   assert.deepEqual(reply, {
     messageId: "coach-message-123",
+    actionable: true,
     summary: "Keep today simple.",
     actions: ["Choose one balanced meal.", "Take a short walk."],
     safetyNote: "Seek qualified care for medical concerns."
   });
+});
+
+test("coach action eligibility defaults closed and only accepts an explicit backend grant", () => {
+  assert.equal(normalizeCoachReply({ reply: { summary: "Keep going.", actions: [] } }).actionable, false);
+  assert.equal(
+    normalizeCoachReply({ actionable: false, reply: { summary: "Pause here.", actions: [] } }).actionable,
+    false
+  );
+  assert.equal(
+    normalizeCoachReply({ actionable: true, reply: { summary: "Continue.", actions: [] } }).actionable,
+    true
+  );
 });
 
 test("AI reports contain bounded AI output and no user context", () => {

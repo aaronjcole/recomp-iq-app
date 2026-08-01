@@ -7,7 +7,7 @@ import {
   buildSafetyGuidanceReply,
   classifyHighRiskCoachRequest,
   hasActiveSafetyFlags,
-  normalizeCoachReply,
+  normalizeCoachReplyResult,
   normalizeCoachRequest
 } from "../../shared/coachDomain.js";
 
@@ -82,6 +82,7 @@ export default async function(req) {
   if (highRiskRequest) {
     return json({
       messageId: crypto.randomUUID(),
+      actionable: false,
       reply: buildHighRiskGuidanceReply(highRiskRequest)
     });
   }
@@ -104,6 +105,7 @@ export default async function(req) {
     if (hasActiveSafetyFlags(preferences)) {
       return json({
         messageId: crypto.randomUUID(),
+        actionable: false,
         reply: buildSafetyGuidanceReply()
       });
     }
@@ -126,10 +128,12 @@ export default async function(req) {
       prompt,
       response_json_schema: COACH_RESPONSE_SCHEMA
     });
+    const result = normalizeCoachReplyResult(rawReply);
 
     return json({
       messageId: crypto.randomUUID(),
-      reply: normalizeCoachReply(rawReply)
+      actionable: result.actionable,
+      reply: result.reply
     });
   } catch (error) {
     console.error("coachReply failed", safeErrorDetails(error));
