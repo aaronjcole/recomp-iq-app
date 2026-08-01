@@ -9,7 +9,7 @@ import {
   TrackingRequestError,
   normalizeTrackingRequest,
   reconcileTrackingRecords
-} from "../../base44/functions/upsertTrackingRecord/domain.js";
+} from "../../base44/shared/trackingRecordDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -121,4 +121,13 @@ test("tracking writes stay behind an authenticated user-scoped backend function"
   assert.equal(client.match(/functions\.invoke\("upsertTrackingRecord"/g)?.length, 2);
   assert.doesNotMatch(client, /DailyLog\.(?:create|update)\(/);
   assert.doesNotMatch(client, /HabitEntry\.(?:create|update)\(/);
+});
+
+test("function helpers use Base44's supported shared-code directory", () => {
+  const backend = readFileSync(
+    resolve(repoRoot, "base44/functions/upsertTrackingRecord/entry.ts"),
+    "utf8"
+  );
+
+  assert.match(backend, /from "\.\.\/\.\.\/shared\/trackingRecordDomain\.js"/);
 });

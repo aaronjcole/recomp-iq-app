@@ -3,7 +3,7 @@ import {
   TrackingRequestError,
   normalizeTrackingRequest,
   reconcileTrackingRecords
-} from "./domain.js";
+} from "../../shared/trackingRecordDomain.js";
 
 const MAX_REQUEST_BYTES = 16_384;
 const inFlightWrites = new Map();
