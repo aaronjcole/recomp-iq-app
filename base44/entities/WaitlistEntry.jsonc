@@ -9,6 +9,30 @@
     "source": {
       "type": "string",
       "description": "Where the signup originated, e.g. coming_soon_page."
+    },
+    "hero_variant": {
+      "type": "string",
+      "description": "Bounded identifier for the landing-page message variant shown at signup."
+    },
+    "explainer_viewed": {
+      "type": "boolean",
+      "description": "Whether the visitor opened the on-page product explainer before signing up."
+    },
+    "campaign_source": {
+      "type": "string",
+      "description": "Sanitized utm_source value captured only when the visitor submits the waitlist form."
+    },
+    "campaign_medium": {
+      "type": "string",
+      "description": "Sanitized utm_medium value captured only when the visitor submits the waitlist form."
+    },
+    "campaign_name": {
+      "type": "string",
+      "description": "Sanitized utm_campaign value captured only when the visitor submits the waitlist form."
+    },
+    "campaign_content": {
+      "type": "string",
+      "description": "Sanitized utm_content value captured only when the visitor submits the waitlist form."
     }
   },
   "required": [

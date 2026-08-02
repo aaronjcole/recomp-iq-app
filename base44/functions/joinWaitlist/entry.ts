@@ -5,6 +5,13 @@ const MAX_REQUESTS_PER_WINDOW = 5;
 const MAX_BUCKETS = 10_000;
 const rateBuckets = new Map();
 const inFlightEmails = new Map();
+const ATTRIBUTION_FIELDS = new Set([
+  "hero_variant",
+  "campaign_source",
+  "campaign_medium",
+  "campaign_name",
+  "campaign_content"
+]);
 
 function clientKey(req) {
   return (
@@ -35,12 +42,31 @@ function isRateLimited(req) {
   return current.count > MAX_REQUESTS_PER_WINDOW;
 }
 
-async function registerEmail(base44, email) {
+function sanitizeAttribution(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  const sanitized = {
+    explainer_viewed: value.explainer_viewed === true
+  };
+  for (const field of ATTRIBUTION_FIELDS) {
+    if (typeof value[field] !== "string") continue;
+    const fieldValue = value[field]
+      .trim()
+      .slice(0, 80)
+      .replace(/[^a-zA-Z0-9 _.-]/g, "")
+      .replace(/\s+/g, " ");
+    if (fieldValue) sanitized[field] = fieldValue;
+  }
+  return sanitized;
+}
+
+async function registerEmail(base44, email, attribution) {
   const existing = await base44.asServiceRole.entities.WaitlistEntry.filter({ email }, "-created_date", 1);
   if (!existing?.length) {
     await base44.asServiceRole.entities.WaitlistEntry.create({
       email,
-      source: "coming_soon_page"
+      source: "coming_soon_page",
+      ...attribution
     });
   }
 }
@@ -74,9 +100,10 @@ export default async function(req) {
 
   const base44 = createClientFromRequest(req);
   try {
+    const attribution = sanitizeAttribution(body?.attribution);
     let pending = inFlightEmails.get(email);
     if (!pending) {
-      pending = registerEmail(base44, email).finally(() => inFlightEmails.delete(email));
+      pending = registerEmail(base44, email, attribution).finally(() => inFlightEmails.delete(email));
       inFlightEmails.set(email, pending);
     }
     await pending;

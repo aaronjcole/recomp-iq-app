@@ -21,6 +21,12 @@ export default function Privacy() {
         signed link for analysis.
       </p>
       <p>
+        If you join the Android beta, we store your email and may store sanitized campaign labels
+        from the link you used, plus whether you opened the landing-page explainer before signup.
+        These details are captured only when you submit the form and help us compare launch
+        messages. The landing page does not use advertising cookies or cross-site identifiers.
+      </p>
+      <p>
         When you use AI Coach, your message, recent conversation, and relevant RecompIQ profile,
         plan, safety-flag, nutrition, activity, and progress context are processed by an
         authenticated Base44 backend and its configured AI inference provider to generate a reply.
@@ -35,7 +41,8 @@ export default function Privacy() {
         We use your data to compute your adaptive nutrition and training targets, calculate your
         Recomp Signal and trends, generate weekly check-in summaries and AI coach guidance, and
         display your progress. Reported AI replies are used to investigate safety, quality, and
-        policy concerns. We do not sell your data.
+        policy concerns. Waitlist campaign labels are used only to understand which launch sources
+        produce completed signups. We do not sell your data.
       </p>
 
       <H2>3. Storage &amp; retention</H2>
