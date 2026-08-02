@@ -1,12 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 
 /**
  * @param {{
@@ -37,7 +31,7 @@ export function NumField({ label, value, onChange, hint, unit, id, min, max, ste
           onChange={(e) => onChange(e.target.value)}
         />
         {unit && (
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground shrink-0">
             {unit}
           </span>
         )}
@@ -67,18 +61,13 @@ export function SelectField({ label, value, onChange, options, id }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <AdaptiveSelect
+        id={id}
+        value={value}
+        onValueChange={onChange}
+        options={options}
+        drawerTitle={label}
+      />
     </div>
   );
 }

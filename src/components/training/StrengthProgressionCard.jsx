@@ -65,14 +65,14 @@ function LiftRow({ name, summary, series }) {
     <div className="py-2.5 border-b border-lineSoft last:border-0">
       <div className="flex items-center justify-between">
         <div className="min-w-0">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground truncate">{name}</div>
+          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground truncate">{name}</div>
           <div className="font-mono text-xl font-bold tabular-nums leading-tight">
             {curr != null ? `${Math.round(curr)} lb` : "—"}
           </div>
         </div>
         <div className="text-right shrink-0">
           {label === "need_more_data" ? (
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Need more data</div>
+            <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Need more data</div>
           ) : (
             <>
               <div className="flex items-center gap-1.5 justify-end">
@@ -83,7 +83,7 @@ function LiftRow({ name, summary, series }) {
                 </span>
               </div>
               {pct !== null && (
-                <div className="font-mono text-[10px] tabular-nums text-muted-foreground mt-0.5">
+                <div className="font-mono text-xs tabular-nums text-muted-foreground mt-0.5">
                   {pct > 0 ? "+" : ""}
                   {pct}%
                 </div>
@@ -113,7 +113,7 @@ export default function StrengthProgressionCard() {
     return (
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-1">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Strength progression</div>
+          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Strength progression</div>
           <p className="text-sm text-muted-foreground">Log a few lifts to see your 1RM trend.</p>
         </CardContent>
       </Card>
@@ -123,7 +123,7 @@ export default function StrengthProgressionCard() {
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-1">
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Strength progression</div>
+        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1">Strength progression</div>
         {rows.map((r) => (
           <LiftRow key={r.name} name={r.name} summary={r.summary} series={r.series} />
         ))}

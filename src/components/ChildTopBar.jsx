@@ -10,7 +10,7 @@ export default function ChildTopBar({ title }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 -ml-2"
+          className="h-11 min-h-11 w-11 min-w-11 -my-1 -ml-2"
           onClick={() => navigate(-1)}
           aria-label="Back"
         >

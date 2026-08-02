@@ -4,13 +4,7 @@ import { recalculateTargets, GOAL_LABELS, COACH_TONES } from "@/lib/fitness";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
@@ -115,26 +109,28 @@ export default function Profile() {
         <CardContent className="p-5 space-y-4">
           <div className="font-medium">Adjust your goal</div>
           <div className="space-y-1.5">
-            <Label>Goal</Label>
-            <Select value={profile.goal} onValueChange={changeGoal} disabled={saving}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {GOAL_ORDER.map((g) => (
-                  <SelectItem key={g} value={g}>{GOAL_LABELS[g].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="profile-goal">Goal</Label>
+            <AdaptiveSelect
+              id="profile-goal"
+              value={profile.goal}
+              onValueChange={changeGoal}
+              disabled={saving}
+              drawerTitle="Goal"
+              options={GOAL_ORDER.map((goal) => ({ value: goal, label: GOAL_LABELS[goal].label }))}
+            />
           </div>
           <div className="space-y-1.5">
-            <Label>Coach tone</Label>
-            <Select value={preferences?.tone ?? "direct"} onValueChange={changeTone}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {COACH_TONES.map((t) => (
-                  <SelectItem key={t} value={t} className="capitalize">{t.replace("_", " ")}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="coach-tone">Coach tone</Label>
+            <AdaptiveSelect
+              id="coach-tone"
+              value={preferences?.tone ?? "direct"}
+              onValueChange={changeTone}
+              drawerTitle="Coach tone"
+              options={COACH_TONES.map((tone) => ({
+                value: tone,
+                label: <span className="capitalize">{tone.replace("_", " ")}</span>
+              }))}
+            />
           </div>
         </CardContent>
       </Card>

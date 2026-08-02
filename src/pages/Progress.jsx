@@ -178,7 +178,7 @@ function Stat({ label, value, highlight = false }) {
   return (
     <div>
       <div className={`text-lg font-bold ${highlight ? "text-teal" : ""}`}>
-        {value}<span className="ml-1 text-[10px] font-normal text-muted-foreground">lb</span>
+        {value}<span className="ml-1 text-xs font-normal text-muted-foreground">lb</span>
       </div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>

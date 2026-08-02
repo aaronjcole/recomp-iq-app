@@ -11,11 +11,11 @@ export default function SignalStat({ label, value, unit, status = "neutral" }) {
     <div className="rounded-lg bg-panel border border-line px-3 py-2.5">
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
       </div>
       <div className="mt-1 flex items-baseline gap-1">
         <span className="text-2xl font-bold leading-none tabular-nums">{value}</span>
-        {unit && <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{unit}</span>}
+        {unit && <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{unit}</span>}
       </div>
     </div>
   );

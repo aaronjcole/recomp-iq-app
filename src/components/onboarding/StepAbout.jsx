@@ -1,12 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { NumField, StepHeader, Why } from "./Fields";
 
 const kgToLbs = (kg) => kg / 0.45359237;
@@ -43,7 +37,7 @@ export default function StepAbout({ p, set, units, setUnits }) {
             key={u}
             type="button"
             onClick={() => setUnits(u)}
-            className={`px-3 py-1 text-xs font-medium rounded-md capitalize ${
+            className={`min-h-11 px-3 py-2 text-xs font-medium rounded-md capitalize ${
               units === u ? "bg-teal text-buttonText" : "text-muted-foreground"
             }`}
           >
@@ -56,16 +50,17 @@ export default function StepAbout({ p, set, units, setUnits }) {
         <NumField id="age" label="Age" value={p.age} onChange={(v) => set("age", v)} unit="yrs" min={18} max={120} step={1} />
         <div className="space-y-1.5">
           <Label htmlFor="sex">Sex</Label>
-          <Select value={p.sex} onValueChange={(v) => set("sex", v)}>
-            <SelectTrigger id="sex">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="unspecified">Unspecified</SelectItem>
-            </SelectContent>
-          </Select>
+          <AdaptiveSelect
+            id="sex"
+            value={p.sex}
+            onValueChange={(v) => set("sex", v)}
+            drawerTitle="Sex"
+            options={[
+              { value: "male", label: "Male" },
+              { value: "female", label: "Female" },
+              { value: "unspecified", label: "Unspecified" }
+            ]}
+          />
           {p.sex === "unspecified" && (
             <Why>We average the Mifflin-St Jeor constants; targets stay slightly less precise.</Why>
           )}
@@ -87,30 +82,18 @@ export default function StepAbout({ p, set, units, setUnits }) {
           />
         ) : (
           <div className="flex gap-2">
-            <Select value={String(ft)} onValueChange={(v) => set("height_in", String(Number(v) * 12 + inch))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[4, 5, 6, 7].map((f) => (
-                  <SelectItem key={f} value={String(f)}>
-                    {f} ft
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={String(inch)} onValueChange={(v) => set("height_in", String(ft * 12 + Number(v)))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => i).map((i) => (
-                  <SelectItem key={i} value={String(i)}>
-                    {i} in
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AdaptiveSelect
+              value={String(ft)}
+              onValueChange={(v) => set("height_in", String(Number(v) * 12 + inch))}
+              drawerTitle="Height in feet"
+              options={[4, 5, 6, 7].map((f) => ({ value: String(f), label: `${f} ft` }))}
+            />
+            <AdaptiveSelect
+              value={String(inch)}
+              onValueChange={(v) => set("height_in", String(ft * 12 + Number(v)))}
+              drawerTitle="Additional inches"
+              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i), label: `${i} in` }))}
+            />
           </div>
         )}
       </div>

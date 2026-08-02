@@ -73,30 +73,30 @@ export default function DecisionLedgerTimeline() {
               className="absolute left-0 top-1 w-[11px] h-[11px] rounded-full border-2 border-bg"
               style={{ background: dotColor }}
             />
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{fmtDate(entry.date)}</div>
+            <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{fmtDate(entry.date)}</div>
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {deltas.map((d) => (
                 <Chip key={d.label}>
-                  <span className="font-mono uppercase tracking-wider text-[10px]">{d.label}</span>
+                  <span className="font-mono text-xs uppercase tracking-wider">{d.label}</span>
                   <span className="tabular-nums">{d.before} → {d.after}</span>
-                  {d.unit && <span className="text-[10px] opacity-80">{d.unit}</span>}
+                  {d.unit && <span className="text-xs opacity-80">{d.unit}</span>}
                 </Chip>
               ))}
               {focusChanged && (
                 <Chip>
-                  <span className="font-mono uppercase tracking-wider text-[10px]">Focus</span>
+                  <span className="font-mono text-xs uppercase tracking-wider">Focus</span>
                   <span>{fmt(focusBefore)} → {fmt(focusAfter)}</span>
                 </Chip>
               )}
               {held && (
                 <>
                   <Chip color="var(--green)">
-                    <span className="font-mono uppercase tracking-wider text-[10px]">Held</span>
+                    <span className="font-mono text-xs uppercase tracking-wider">Held</span>
                   </Chip>
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <span className="font-mono uppercase tracking-wider text-[10px]">Calories</span>
+                    <span className="font-mono text-xs uppercase tracking-wider">Calories</span>
                     <span className="tabular-nums">{fmt(currentValue)}</span>
-                    <span className="text-[10px]">kcal</span>
+                    <span className="text-xs">kcal</span>
                   </span>
                 </>
               )}

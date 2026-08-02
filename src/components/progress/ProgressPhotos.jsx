@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Camera, Trash2, Download } from "lucide-react";
 
@@ -118,25 +118,20 @@ export default function ProgressPhotos() {
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="font-medium">Progress photos</div>
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">On-device</span>
+          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">On-device</span>
         </div>
         <p className="text-xs text-muted-foreground">Stored only on this device — never uploaded.</p>
 
         <div className="space-y-2">
           <div className="flex gap-2">
-            <Select value={pose} onValueChange={setPose}>
-              <SelectTrigger className="w-28 h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {POSES.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="flex-1 h-9" />
+            <AdaptiveSelect
+              value={pose}
+              onValueChange={setPose}
+              options={POSES.map((option) => ({ value: option, label: option }))}
+              drawerTitle="Photo pose"
+              triggerClassName="w-28"
+            />
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="h-11 flex-1" />
           </div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={onPick} />
           <Button onClick={() => fileRef.current?.click()} disabled={saving} className="w-full bg-teal text-buttonText hover:opacity-90">
@@ -167,32 +162,24 @@ export default function ProgressPhotos() {
 
         {photos.length >= 2 && (
           <div className="space-y-2 pt-1">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Compare</div>
+            <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Compare</div>
             <div className="grid grid-cols-2 gap-2">
-              <Select value={compareA} onValueChange={setCompareA}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="First" />
-                </SelectTrigger>
-                <SelectContent>
-                  {photos.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {fmtDate(p.date)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={compareB} onValueChange={setCompareB}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Second" />
-                </SelectTrigger>
-                <SelectContent>
-                  {photos.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {fmtDate(p.date)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AdaptiveSelect
+                value={compareA}
+                onValueChange={setCompareA}
+                options={photos.map((photo) => ({ value: photo.id, label: fmtDate(photo.date) }))}
+                placeholder="First"
+                drawerTitle="First comparison photo"
+                triggerClassName="text-xs"
+              />
+              <AdaptiveSelect
+                value={compareB}
+                onValueChange={setCompareB}
+                options={photos.map((photo) => ({ value: photo.id, label: fmtDate(photo.date) }))}
+                placeholder="Second"
+                drawerTitle="Second comparison photo"
+                triggerClassName="text-xs"
+              />
             </div>
             {compareA && compareB && compareA !== compareB && (
               <div className="grid grid-cols-2 gap-2">
@@ -204,8 +191,8 @@ export default function ProgressPhotos() {
         )}
 
         <div className="flex items-center justify-between pt-1 border-t border-lineSoft">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Device storage</span>
-          <span className="font-mono text-[10px] uppercase tracking-wider tabular-nums">Using {formatBytes(usageBytes)}</span>
+          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Device storage</span>
+          <span className="font-mono text-xs uppercase tracking-wider tabular-nums">Using {formatBytes(usageBytes)}</span>
         </div>
       </CardContent>
 
@@ -226,10 +213,10 @@ export default function ProgressPhotos() {
               </DialogHeader>
               <DetailImage id={selected.id} />
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Weight</span>
+                <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Weight</span>
                 <span className="tabular-nums">{selected.weight_lbs != null ? `${selected.weight_lbs} lb` : "—"}</span>
                 {selected.pose && (
-                  <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{selected.pose}</span>
+                  <span className="ml-auto font-mono text-xs uppercase tracking-wider text-muted-foreground">{selected.pose}</span>
                 )}
               </div>
               {selected.note && <p className="text-sm text-muted-foreground">{selected.note}</p>}
@@ -288,9 +275,9 @@ function PhotoThumb({ id, date, weight_lbs, onClick }) {
     <button type="button" onClick={onClick} className="relative aspect-square rounded-lg overflow-hidden bg-panel2 border border-line">
       {url && <img src={url} alt="" className="w-full h-full object-cover" />}
       <div className="absolute bottom-0 inset-x-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
-        <div className="font-mono text-[9px] uppercase tracking-wider text-white leading-none">{fmtDate(date)}</div>
+        <div className="font-mono text-xs uppercase tracking-wider text-white leading-tight">{fmtDate(date)}</div>
         {weight_lbs != null && (
-          <div className="font-mono text-[9px] tabular-nums text-white/80 leading-none mt-0.5">{weight_lbs} lb</div>
+          <div className="mt-0.5 font-mono text-xs tabular-nums leading-tight text-white/80">{weight_lbs} lb</div>
         )}
       </div>
     </button>
@@ -319,8 +306,8 @@ function CompareImage({ photo }) {
         {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full" />}
       </div>
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider">{fmtDate(photo.date)}</span>
-        <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+        <span className="font-mono text-xs uppercase tracking-wider">{fmtDate(photo.date)}</span>
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">
           {photo.weight_lbs != null ? `${photo.weight_lbs} lb` : "—"}
         </span>
       </div>
