@@ -13,7 +13,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page).toHaveTitle("RecompIQ — Adaptive Recomposition");
+  await expect(page).toHaveTitle("RecompOne — Adaptive Recomposition");
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await expect(skipLink).toHaveAttribute(
     "href",
@@ -54,7 +54,7 @@ test("coming-soon page explains the decision system and exposes the Android beta
   await expect(page.getByRole("button", { name: "Join the Android beta" })).toBeVisible();
   await expect(page.getByText("Hold targets steady")).toBeVisible();
 
-  await page.getByRole("link", { name: "See how RecompIQ decides" }).click();
+  await page.getByRole("link", { name: "See how RecompOne decides" }).click();
   await expect(page).toHaveURL(/#how-it-works$/);
   await expect(page.getByRole("heading", { name: "A feedback loop, not another dashboard." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Act on one best move" })).toBeVisible();
@@ -74,11 +74,11 @@ test("privacy, terms, support, and deletion pages are reachable without an accou
   await expect(page.getByRole("heading", { name: "Health disclaimer" })).toBeVisible();
 
   await page.goto("/support");
-  await expect(page.getByRole("heading", { level: 1, name: "RecompIQ Support" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "RecompOne Support" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Email recompappsupport@gmail.com/ })).toBeVisible();
 
   await page.goto("/delete-account");
-  await expect(page.getByRole("heading", { level: 1, name: "Delete your RecompIQ account" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Delete your RecompOne account" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Request deletion by email" })).toHaveAttribute(
     "href",
     /^mailto:recompappsupport@gmail\.com/
@@ -90,10 +90,10 @@ test("authentication entry points render and link together", async ({ page }) =>
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/login");
-  await expect(page).toHaveTitle("Sign In | RecompIQ");
+  await expect(page).toHaveTitle("Sign In | RecompOne");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     "content",
-    "Sign in to your RecompIQ account.",
+    "Sign in to your RecompOne account.",
   );
   await expect(page.getByRole("heading", { level: 1, name: "Welcome back" })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
@@ -101,7 +101,7 @@ test("authentication entry points render and link together", async ({ page }) =>
 
   await page.getByRole("link", { name: "Create one" }).click();
   await expect(page).toHaveURL(/\/register$/);
-  await expect(page).toHaveTitle("Create Account | RecompIQ");
+  await expect(page).toHaveTitle("Create Account | RecompOne");
   await expect(page.getByRole("heading", { level: 1, name: "Create your account" })).toBeVisible();
 
   await page.getByLabel("Email").fill("test@example.com");

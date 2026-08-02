@@ -1,11 +1,12 @@
 # Android and Google Play release
 
-RecompIQ uses Base44's managed Android wrapper and AAB generator. Do not create a second
+RecompOne uses Base44's managed Android wrapper and AAB generator. Do not create a second
 Bubblewrap package for the Base44 production origin: Base44 already publishes the Android package
 association and owns the wrapper's upload-key workflow.
 
 ## Stable release identity
 
+- Display name: `RecompOne`
 - Base44 app ID: `6a68bb922bf88da5ec767da3`
 - Android package: `com.base6a68bb922bf88da5ec767da3.app`
 - Production origin: `https://recomp-iq.base44.app`
@@ -15,6 +16,9 @@ association and owns the wrapper's upload-key workflow.
 - Terms: `https://recomp-iq.base44.app/terms`
 - Support: `https://recomp-iq.base44.app/support`
 - Account deletion: `https://recomp-iq.base44.app/delete-account`
+
+The production origin intentionally retains its legacy Base44 slug. A display-name rebrand must not
+create a second Android package or break the existing origin association.
 
 The package name is permanent after the first Play release. Confirm it, the launch origin, target SDK,
 version, wrapper type, exported components, and permission list in the generated AAB before creating
@@ -27,7 +31,7 @@ branding and may differ from the repository's `/manifest.json`; the live verifie
 2. In the Base44 editor, open **Publish → Mobile app**.
 3. Run the Google Play app scan and resolve all critical findings.
 4. Choose **Build Store Files → Create Google Play files**.
-5. Confirm the RecompIQ icon and generate the AAB.
+5. Confirm the RecompOne icon and generate the AAB.
 6. Download the AAB to a secure, non-repository location. Never commit an AAB, keystore, service
    account key, Play credential, or signing certificate private key.
 
@@ -64,7 +68,7 @@ live verification. The Play signing certificate is different from the upload cer
 Install a current JDK and download Google's `bundletool` jar outside the repository. Then run:
 
 ```bash
-AAB_PATH="/secure/path/recompiq.aab" \
+AAB_PATH="/secure/path/recompone.aab" \
 BUNDLETOOL_JAR="/secure/path/bundletool-all.jar" \
 JAVA_BIN="/secure/path/jdk/bin/java" \
 npm run verify:android:aab
@@ -76,26 +80,26 @@ permission, validates the upload certificate, and checks 64-bit ELF libraries fo
 alignment. Still install a Play-generated APK on a 16 KB page-size emulator before production.
 
 Camera permission is expected only for the user-initiated barcode scanner and must be tested for
-allow, deny, cancel, and retry. RecompIQ does not need location, contacts, calendar, microphone,
+allow, deny, cancel, and retry. RecompOne does not need location, contacts, calendar, microphone,
 SMS, phone-state, physical-activity, body-sensor, or broad-storage permissions.
 
 ## Latest generated AAB audit (2026-08-01)
 
-Base44 generated `android-2.130297.2.aab` after the previous RecompIQ icon was uploaded. Keep that
+Base44 generated `android-2.130297.2.aab` after the legacy-branded icon was uploaded. Keep that
 artifact outside the repository. Verified passes:
 
 - Package `com.base6a68bb922bf88da5ec767da3.app`, target API 36, version `2.130297.0` (code 2).
 - Release is not debuggable, does not opt into cleartext traffic, and uses the expected Base44
   WebView wrapper.
-- The embedded launcher uses the previous RecompIQ icon. Generate a replacement AAB after Base44
-  receives the current R-and-pulse launcher asset from `docs/play-store/app-icon-512.png`.
+- The embedded launcher still uses the legacy-branded icon. Generate a replacement AAB after Base44
+  receives the current RecompOne R-and-pulse launcher asset from `docs/play-store/app-icon-512.png`.
 - The upload certificate SHA-256 matches Base44's published Digital Asset Links certificate.
 - All 76 arm64/x86_64 libraries use 16 KB ELF load alignment. An installed 16 KB-emulator test is
   still required.
 
 Do **not** upload this AAB to a Play release yet. Its Base44/Wix wrapper declares unused sensitive
 permissions for precise/coarse location, contacts, calendar, microphone, phone calls, legacy broad
-storage, and device audio. It also marks location and Bluetooth hardware as required. RecompIQ does
+storage, and device audio. It also marks location and Bluetooth hardware as required. RecompOne does
 not use those capabilities. For a health app, Google requires unused permissions to be removed; a
 privacy-policy explanation cannot turn unused access into necessary core functionality.
 
@@ -106,7 +110,7 @@ permission/feature list and request a regenerated least-privilege bundle. Re-run
 artifact.
 
 The Base44-managed web manifest also fixes its native theme/background at black and white rather than
-the desired RecompIQ teal/forest colors. Upload the current R-and-pulse icon before the replacement
+the desired RecompOne teal/forest colors. Upload the current R-and-pulse icon before the replacement
 AAB; the splash colors remain a non-blocking visual advisory unless Base44 exposes branding controls.
 
 ## Play Console completion

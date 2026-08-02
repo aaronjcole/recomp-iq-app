@@ -12,7 +12,7 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("RecompIQ crash:", error, info);
+    console.error("RecompOne crash:", error, info);
   }
 
   handleReload = () => {
@@ -29,7 +29,7 @@ export default class ErrorBoundary extends Component {
           </div>
           <h1 className="text-lg font-semibold">Something went wrong</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            RecompIQ hit an unexpected error. Reloading usually fixes it.
+            RecompOne hit an unexpected error. Reloading usually fixes it.
           </p>
           <button
             onClick={this.handleReload}

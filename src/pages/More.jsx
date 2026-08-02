@@ -225,7 +225,7 @@ export default function More() {
         </Card>
       ))}
 
-      <p className="text-center text-xs text-muted-foreground pt-1">RecompIQ v{APP_VERSION}</p>
+      <p className="text-center text-xs text-muted-foreground pt-1">RecompOne v{APP_VERSION}</p>
 
       <CheckInSheet
         open={checkinOpen}

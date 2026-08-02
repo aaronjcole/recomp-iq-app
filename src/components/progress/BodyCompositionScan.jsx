@@ -29,6 +29,7 @@ const SCHEMA = {
 };
 
 function storageKey(userId) {
+  // Preserve the legacy key so existing scan results survive the display-name change.
   return `recompiq_bf_scan_${userId ?? "anon"}`;
 }
 

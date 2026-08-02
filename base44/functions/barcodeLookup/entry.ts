@@ -59,7 +59,7 @@ export default async function(req) {
   try {
     const url = `${OFF_BASE}/${encodeURIComponent(barcode)}.json?fields=product_name,brands,serving_size,serving_quantity,nutriments`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "RecompIQ/1.0 (barcode lookup)" },
+      headers: { "User-Agent": "RecompOne/1.0 (barcode lookup)" },
       signal: controller.signal
     });
     if (!res.ok) return Response.json({ error: "Lookup service unavailable" }, { status: 502 });

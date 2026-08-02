@@ -13,7 +13,7 @@ export default function LegalShell({ title, updated, children }) {
             <div className="w-7 h-7 rounded-lg bg-teal flex items-center justify-center">
               <Target className="w-4 h-4 text-buttonText" />
             </div>
-            <span className="font-semibold">RecompIQ</span>
+            <span className="font-semibold">RecompOne</span>
           </div>
         </div>
       </header>

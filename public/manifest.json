@@ -1,6 +1,6 @@
 {
-  "name": "RecompIQ",
-  "short_name": "RecompIQ",
+  "name": "RecompOne",
+  "short_name": "RecompOne",
   "description": "Adaptive nutrition and training plans built around your real progress.",
   "id": "/",
   "start_url": "/",
@@ -11,19 +11,19 @@
   "theme_color": "#12836f",
   "icons": [
     {
-      "src": "/icons/recompiq-192.png",
+      "src": "/icons/recompone-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/recompiq-512.png",
+      "src": "/icons/recompone-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/recompiq-maskable-512.png",
+      "src": "/icons/recompone-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

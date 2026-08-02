@@ -53,7 +53,7 @@ export function deriveBestMove({ preferences, signal, strategy, todayLog, trend 
       ...base,
       id: "safety-hold",
       title: "Keep the plan steady today",
-      summary: "A safety guardrail is active, so RecompIQ will not recommend an aggressive target change.",
+      summary: "A safety guardrail is active, so RecompOne will not recommend an aggressive target change.",
       evidence: [
         { label: "Safety", value: "Guardrail active" },
         { label: "Current signal", value: `${base.confidence.score}/100` }

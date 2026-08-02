@@ -5,12 +5,12 @@ export default function StepWelcome() {
   return (
     <div className="space-y-4">
       <StepHeader
-        title="Welcome to RecompIQ"
+        title="Welcome to RecompOne"
         why="An adaptive recomposition companion — not a crash diet."
       />
       <div className="space-y-3 text-sm text-muted-foreground">
         <p>
-          RecompIQ builds your plan from{" "}
+          RecompOne builds your plan from{" "}
           <span className="text-foreground font-medium">your own data</span> —
           weight trend, waist, steps, training, and adherence — then adjusts it
           weekly.

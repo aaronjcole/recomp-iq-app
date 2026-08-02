@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/services/localRecompService.ts. Composes the
+// Ported 1:1 from RecompOne src/services/localRecompService.ts. Composes the
 // fitness modules into the high-level operations used by onboarding, the
 // weekly check-in, and the projection view. Pure functions.
 

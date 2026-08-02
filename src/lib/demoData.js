@@ -1,4 +1,4 @@
-// Demo data seeding for RecompIQ. Creates ~35 days of realistic records for the
+// Demo data seeding for RecompOne. Creates ~35 days of realistic records for the
 // current user through the Base44 SDK so created_by_id / RLS are honoured.
 // Does NOT touch any fitness math — only uses recalculateTargets (for a missing
 // strategy) and estimateOneRepMax (for strength logs) from @/lib/fitness.

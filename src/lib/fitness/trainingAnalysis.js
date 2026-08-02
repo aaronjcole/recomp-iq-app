@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/trainingAnalysis.ts. Pure functions.
+// Ported 1:1 from RecompOne src/lib/fitness/trainingAnalysis.ts. Pure functions.
 
 import { estimateOneRepMax } from "./calculators";
 import { average, sortLogs } from "./trends";

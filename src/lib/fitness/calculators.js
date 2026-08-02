@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/calculators.ts (Mifflin-St Jeor BMR,
+// Ported 1:1 from RecompOne src/lib/fitness/calculators.ts (Mifflin-St Jeor BMR,
 // activity-multiplied TDEE, goal-based calorie targets, macro split, step
 // targets, 1RM estimate, sustainability score). Pure functions, no React.
 
@@ -132,7 +132,7 @@ export function calculateInitialStrategy(profile, preferences = {}) {
     step_target: stepTarget,
     confidence: "medium",
     notes: [
-      "Your first target is an estimate. RecompIQ updates based on 7-day trends, waist, steps, training, recovery, and adherence.",
+      "Your first target is an estimate. RecompOne updates based on 7-day trends, waist, steps, training, recovery, and adherence.",
       ...(safetyConstrained
         ? ["Safety flags keep the starting calorie target within a conservative range; consult a qualified professional before pursuing an aggressive change."]
         : []),

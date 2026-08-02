@@ -10,7 +10,7 @@ export default function DeviceMockup() {
   return (
     <div
       className="relative mx-auto w-[280px] rounded-[2.35rem] border-[6px] border-foreground/15 bg-panel p-3 shadow-2xl"
-      aria-label="Illustrative RecompIQ recommendation showing one best move and its supporting evidence"
+      aria-label="Illustrative RecompOne recommendation showing one best move and its supporting evidence"
     >
       <div className="absolute left-1/2 top-2 h-4 w-16 -translate-x-1/2 rounded-full bg-foreground/15" />
 

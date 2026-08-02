@@ -27,7 +27,7 @@ export default function Privacy() {
         messages. The landing page does not use advertising cookies or cross-site identifiers.
       </p>
       <p>
-        When you use AI Coach, your message, recent conversation, and relevant RecompIQ profile,
+        When you use AI Coach, your message, recent conversation, and relevant RecompOne profile,
         plan, safety-flag, nutrition, activity, and progress context are processed by an
         authenticated Base44 backend and its configured AI inference provider to generate a reply.
         If you report a reply, we store its bounded message identifier, report category, any
@@ -49,7 +49,7 @@ export default function Privacy() {
       <p>
         Your account records are stored in our hosted database and encrypted in transit. We retain
         them while your account is active. Deleting your account removes those hosted records and
-        progress photos stored by RecompIQ in the current browser or app installation. Operational
+        progress photos stored by RecompOne in the current browser or app installation. Operational
         copies of AI requests and responses—including Coach messages, relevant account context,
         generated replies, and files submitted for optional AI analysis—may remain temporarily in
         provider backups or security logs under the provider&apos;s limited retention process. Support
@@ -79,7 +79,7 @@ export default function Privacy() {
       </p>
 
       <H2>6. Children</H2>
-      <p>RecompIQ is not intended for anyone under 18.</p>
+      <p>RecompOne is not intended for anyone under 18.</p>
 
       <H2>7. Security</H2>
       <p>We use reasonable technical and organizational measures to protect your data, but no system is perfectly secure.</p>
@@ -97,12 +97,12 @@ export default function Privacy() {
       </p>
       <p>
         For troubleshooting and request instructions, visit{" "}
-        <Link className="text-teal underline underline-offset-2" to="/support">RecompIQ Support</Link>.
+        <Link className="text-teal underline underline-offset-2" to="/support">RecompOne Support</Link>.
       </p>
 
       <H2>Health disclaimer</H2>
       <p className="text-muted-foreground">
-        RecompIQ provides general fitness and nutrition information, not medical advice. RecompIQ
+        RecompOne provides general fitness and nutrition information, not medical advice. RecompOne
         is not a medical device and does not diagnose, treat, cure, or prevent any medical
         condition. Consult a qualified healthcare professional before starting any diet or
         exercise program.

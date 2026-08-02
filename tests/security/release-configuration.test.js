@@ -195,10 +195,10 @@ test("mobile release flows prioritize primary actions and usable touch targets",
 });
 
 test("route metadata stays accurate across public and authenticated navigation", () => {
-  assert.equal(getRouteMetadata("/coach").title, "Coach | RecompIQ");
-  assert.equal(getRouteMetadata("/today").title, "Today | RecompIQ");
-  assert.equal(getRouteMetadata("/privacy/").title, "Privacy Policy | RecompIQ");
-  assert.equal(getRouteMetadata("/missing").title, "Page Not Found | RecompIQ");
+  assert.equal(getRouteMetadata("/coach").title, "Coach | RecompOne");
+  assert.equal(getRouteMetadata("/today").title, "Today | RecompOne");
+  assert.equal(getRouteMetadata("/privacy/").title, "Privacy Policy | RecompOne");
+  assert.equal(getRouteMetadata("/missing").title, "Page Not Found | RecompOne");
 
   const routeAccessibilitySource = readFileSync(
     resolve(repoRoot, "src/components/RouteAccessibility.jsx"),

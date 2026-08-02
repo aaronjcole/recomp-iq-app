@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/adjustments.ts. The weekly decision
+// Ported 1:1 from RecompOne src/lib/fitness/adjustments.ts. The weekly decision
 // tree that keeps recommendations safe and trend-driven. Pure functions.
 
 const GAIN_GOALS = new Set(["muscle_gain", "lean_bulk", "aggressive_gain"]);
@@ -44,13 +44,13 @@ export function decideWeeklyAdjustment(input) {
 
   if (safetyRedFlag) {
     decision = "seek_professional_guidance";
-    reason = "A safety flag is present, so RecompIQ avoids aggressive targets and recommends qualified professional guidance.";
+    reason = "A safety flag is present, so RecompOne avoids aggressive targets and recommends qualified professional guidance.";
   } else if (trend.days_logged < 14) {
     decision = "keep_collecting_data";
     reason = "Fewer than 14 recent calendar days of data is too early to judge the plan.";
   } else if (!adherenceValues.length) {
     decision = "keep_collecting_data";
-    reason = "Adherence data is missing, so RecompIQ cannot tell whether the current targets were followed.";
+    reason = "Adherence data is missing, so RecompOne cannot tell whether the current targets were followed.";
   } else if (avgAdherence !== null && avgAdherence < 0.8) {
     decision = "focus_on_adherence";
     reason = "Consistency is below 80%, so changing targets would add noise before solving the main blocker.";

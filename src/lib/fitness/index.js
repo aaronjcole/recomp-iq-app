@@ -1,4 +1,4 @@
-// Single entry point for the RecompIQ fitness engine. Import from here in the
+// Single entry point for the RecompOne fitness engine. Import from here in the
 // UI and (later) backend functions so the surface stays stable.
 
 export * from "./calculators";

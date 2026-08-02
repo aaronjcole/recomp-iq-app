@@ -1,4 +1,4 @@
-// Shared constants and friendly labels for the RecompIQ fitness engine.
+// Shared constants and friendly labels for the RecompOne fitness engine.
 
 export const SEXES = ["male", "female", "unspecified"];
 

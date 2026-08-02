@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/nutritionScoring.ts. Pure functions.
+// Ported 1:1 from RecompOne src/lib/fitness/nutritionScoring.ts. Pure functions.
 
 function round(value, places = 1) {
   const factor = 10 ** places;

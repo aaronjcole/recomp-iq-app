@@ -2,6 +2,7 @@
 // Pure-ish storage module: addPhoto, listPhotos, getPhotoBlob, deletePhoto,
 // deletePhotosForUser, estimateUsage.
 
+// Renaming this database would orphan existing on-device photos.
 const DB_NAME = "recompiq_progress_photos";
 const STORE = "photos";
 const DB_VERSION = 1;

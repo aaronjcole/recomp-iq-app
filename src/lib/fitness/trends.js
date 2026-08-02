@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/trends.ts. Pure functions.
+// Ported 1:1 from RecompOne src/lib/fitness/trends.ts. Pure functions.
 
 import { summarizeAdherence } from "./adherence.js";
 

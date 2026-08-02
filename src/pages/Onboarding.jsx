@@ -12,6 +12,7 @@ import StepNutrition from "@/components/onboarding/StepNutrition";
 import StepCoaching from "@/components/onboarding/StepCoaching";
 import StepReview from "@/components/onboarding/StepReview";
 
+// Keep the legacy key so existing users retain onboarding progress through the rebrand.
 const STORAGE_KEY = "recompiq_onboarding_v1";
 const STEPS = 7;
 
@@ -269,7 +270,7 @@ export default function Onboarding() {
         <div className="w-9 h-9 rounded-xl bg-teal flex items-center justify-center">
           <Target className="w-5 h-5 text-buttonText" />
         </div>
-        <span className="font-semibold text-lg">RecompIQ</span>
+        <span className="font-semibold text-lg">RecompOne</span>
       </div>
 
       <div className="flex gap-1.5 mb-6">

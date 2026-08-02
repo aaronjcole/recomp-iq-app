@@ -1,4 +1,4 @@
-# RecompIQ security and data-integrity audit
+# RecompOne security and data-integrity audit
 
 Audit date: August 1, 2026
 
@@ -71,7 +71,7 @@ file, private key, credential file, or high-confidence AWS, Google, GitHub, Slac
 token signature. The remote has only `main` and `codex/release-stabilization`, with no tags.
 
 `npm audit` currently reports two high entries caused by one React Router advisory affecting React
-Server Components action handling. RecompIQ uses declarative client-side `BrowserRouter` routes and
+Server Components action handling. RecompOne uses declarative client-side `BrowserRouter` routes and
 does not use RSC mode, route actions, or loaders, so that vulnerable path is not currently
 reachable. GitHub alert 1 is dismissed as `tolerable_risk` with this rationale. Track the advisory,
 retest a compatible upgrade, and remove this temporary exception as soon as the dependency line
