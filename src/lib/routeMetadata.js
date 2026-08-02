@@ -6,7 +6,7 @@ const ROUTE_METADATA = Object.freeze({
     title: "RecompIQ — Adaptive Recomposition",
     announcement: "RecompIQ home",
     description:
-      "Build a personalized nutrition and training plan that adapts to your real recomposition progress."
+      "Turn nutrition, training, recovery, and body-trend data into one evidence-backed next move."
   },
   "/hero": {
     title: "RecompIQ — Adaptive Recomposition",
@@ -17,7 +17,7 @@ const ROUTE_METADATA = Object.freeze({
   "/coming-soon": {
     title: "Coming Soon | RecompIQ",
     announcement: "Coming soon",
-    description: "Join the RecompIQ early-access list."
+    description: "Join the RecompIQ Android beta and see how your fitness signals become one clear next move."
   },
   "/privacy": {
     title: "Privacy Policy | RecompIQ",

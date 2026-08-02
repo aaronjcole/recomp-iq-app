@@ -40,6 +40,28 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   assertNoPageErrors();
 });
 
+test("coming-soon page explains the decision system and exposes the Android beta CTA", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/coming-soon?utm_source=playwright");
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Stop guessing whether to hold, adjust, or push."
+    })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Join the Android beta" })).toBeVisible();
+  await expect(page.getByText("Hold targets steady")).toBeVisible();
+
+  await page.getByRole("link", { name: "See how RecompIQ decides" }).click();
+  await expect(page).toHaveURL(/#how-it-works$/);
+  await expect(page.getByRole("heading", { name: "A feedback loop, not another dashboard." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Act on one best move" })).toBeVisible();
+  await expect(page.getByText("No advertising cookies or cross-site tracking.")).toBeVisible();
+  assertNoPageErrors();
+});
+
 test("privacy, terms, support, and deletion pages are reachable without an account", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
