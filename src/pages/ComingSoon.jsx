@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import BrandMark from "@/components/BrandMark";
 import DeviceMockup from "@/components/hero/DeviceMockup";
 import {
-  Brain, Activity, LineChart, RefreshCw, ShieldCheck, Target,
+  Brain, Activity, LineChart, RefreshCw, ShieldCheck,
   Check, Loader2, ArrowRight, Mail
 } from "lucide-react";
 
@@ -41,9 +42,7 @@ export default function ComingSoon() {
       <header className="sticky top-0 z-40 backdrop-blur bg-bg/80 border-b border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-teal flex items-center justify-center">
-              <Target className="w-5 h-5 text-buttonText" />
-            </div>
+            <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold text-lg">RecompIQ</span>
           </Link>
 
@@ -131,9 +130,7 @@ export default function ComingSoon() {
       <footer className="border-t border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-teal flex items-center justify-center">
-              <Target className="w-3.5 h-3.5 text-buttonText" />
-            </div>
+            <BrandMark className="h-6 w-6 rounded-lg" />
             <span>© {new Date().getFullYear()} RecompIQ</span>
           </div>
           <div className="flex items-center gap-4">

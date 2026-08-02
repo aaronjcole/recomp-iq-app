@@ -81,13 +81,14 @@ SMS, phone-state, physical-activity, body-sensor, or broad-storage permissions.
 
 ## Latest generated AAB audit (2026-08-01)
 
-Base44 generated `android-2.130297.2.aab` after the approved RecompIQ icon was uploaded. Keep that
+Base44 generated `android-2.130297.2.aab` after the previous RecompIQ icon was uploaded. Keep that
 artifact outside the repository. Verified passes:
 
 - Package `com.base6a68bb922bf88da5ec767da3.app`, target API 36, version `2.130297.0` (code 2).
 - Release is not debuggable, does not opt into cleartext traffic, and uses the expected Base44
   WebView wrapper.
-- The embedded launcher uses the approved RecompIQ icon.
+- The embedded launcher uses the previous RecompIQ icon. Generate a replacement AAB after Base44
+  receives the current R-and-pulse launcher asset from `docs/play-store/app-icon-512.png`.
 - The upload certificate SHA-256 matches Base44's published Digital Asset Links certificate.
 - All 76 arm64/x86_64 libraries use 16 KB ELF load alignment. An installed 16 KB-emulator test is
   still required.
@@ -105,8 +106,8 @@ permission/feature list and request a regenerated least-privilege bundle. Re-run
 artifact.
 
 The Base44-managed web manifest also fixes its native theme/background at black and white rather than
-the desired RecompIQ teal/forest colors. The correct icon is now live; the splash colors remain a
-non-blocking visual advisory unless Base44 exposes branding controls.
+the desired RecompIQ teal/forest colors. Upload the current R-and-pulse icon before the replacement
+AAB; the splash colors remain a non-blocking visual advisory unless Base44 exposes branding controls.
 
 ## Play Console completion
 

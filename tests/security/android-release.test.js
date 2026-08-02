@@ -83,11 +83,17 @@ test("Play submission routes remain public and machine-listed", () => {
 });
 
 test("Play listing core images use Google's required dimensions", () => {
+  const primaryLogoPath = resolve(repoRoot, "public/brand/recompiq-logo-primary.png");
+  const faviconPath = resolve(repoRoot, "public/icons/recompiq-32.png");
   const appIconPath = resolve(repoRoot, "docs/play-store/app-icon-512.png");
   const featureGraphicPath = resolve(repoRoot, "docs/play-store/feature-graphic-1024x500.png");
 
+  const primaryLogo = readFileSync(primaryLogoPath);
+  const favicon = readFileSync(faviconPath);
   const appIcon = readFileSync(appIconPath);
   const featureGraphic = readFileSync(featureGraphicPath);
+  assert.deepEqual([primaryLogo.readUInt32BE(16), primaryLogo.readUInt32BE(20)], [1024, 1024]);
+  assert.deepEqual([favicon.readUInt32BE(16), favicon.readUInt32BE(20)], [32, 32]);
   assert.deepEqual([appIcon.readUInt32BE(16), appIcon.readUInt32BE(20)], [512, 512]);
   assert.deepEqual(
     [featureGraphic.readUInt32BE(16), featureGraphic.readUInt32BE(20)],
@@ -96,4 +102,14 @@ test("Play listing core images use Google's required dimensions", () => {
   assert.equal(featureGraphic[25], 2, "feature graphic must be opaque RGB PNG");
   assert.ok(statSync(appIconPath).size <= 1_048_576, "Play icon must be at most 1 MB");
   assert.ok(statSync(featureGraphicPath).size <= 15_728_640, "feature graphic must be at most 15 MB");
+
+  const indexSource = readFileSync(resolve(repoRoot, "index.html"), "utf8");
+  assert.match(indexSource, /recompiq-32\.png/);
+  assert.doesNotMatch(indexSource, /recompiq-icon\.svg/);
+
+  for (const path of ["src/components/AppSplash.jsx", "src/pages/Hero.jsx", "src/pages/ComingSoon.jsx"]) {
+    const source = readFileSync(resolve(repoRoot, path), "utf8");
+    assert.match(source, /BrandMark/);
+    assert.doesNotMatch(source, /<Target/);
+  }
 });
