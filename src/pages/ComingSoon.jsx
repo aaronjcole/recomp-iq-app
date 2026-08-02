@@ -50,7 +50,8 @@ export default function ComingSoon() {
         </div>
       </header>
 
-      <section className="max-w-5xl mx-auto px-5 grid md:grid-cols-2 gap-10 items-center pt-12 pb-16">
+      <main id="main-content" tabIndex={-1}>
+        <section className="max-w-5xl mx-auto px-5 grid md:grid-cols-2 gap-10 items-center pt-12 pb-16">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 text-gold px-3 py-1 text-[11px] font-mono uppercase tracking-wider">
             <ShieldCheck className="w-3.5 h-3.5" /> Coming soon
@@ -63,7 +64,7 @@ export default function ComingSoon() {
           </p>
 
           {status === "done" ? (
-            <div className="mt-7 flex items-center gap-3 rounded-2xl border border-teal/40 bg-teal/10 px-5 py-4">
+            <div role="status" className="mt-7 flex items-center gap-3 rounded-2xl border border-teal/40 bg-teal/10 px-5 py-4">
               <span className="w-9 h-9 rounded-full bg-teal flex items-center justify-center shrink-0">
                 <Check className="w-5 h-5 text-buttonText" />
               </span>
@@ -75,9 +76,13 @@ export default function ComingSoon() {
           ) : (
             <form onSubmit={submit} className="mt-7 flex flex-col sm:flex-row gap-2 max-w-md">
               <div className="relative flex-1">
+                <label htmlFor="waitlist-email" className="sr-only">Email address</label>
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
+                  id="waitlist-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setStatus("idle"); }}
@@ -96,7 +101,7 @@ export default function ComingSoon() {
             </form>
           )}
           {status === "error" && (
-            <p className="mt-2 text-sm text-red">{msg}</p>
+            <p role="alert" className="mt-2 text-sm text-red">{msg}</p>
           )}
 
           <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
@@ -106,9 +111,9 @@ export default function ComingSoon() {
         <div className="flex justify-center md:justify-end">
           <DeviceMockup />
         </div>
-      </section>
+        </section>
 
-      <section className="max-w-5xl mx-auto px-5 pb-16">
+        <section className="max-w-5xl mx-auto px-5 pb-16">
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-2xl border border-line bg-panel p-5">
@@ -120,7 +125,8 @@ export default function ComingSoon() {
             </div>
           ))}
         </div>
-      </section>
+        </section>
+      </main>
 
       <footer className="border-t border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">

@@ -13,6 +13,18 @@ test("landing page exposes the core public navigation", async ({ page }) => {
 
   await page.goto("/");
 
+  await expect(page).toHaveTitle("RecompIQ — Adaptive Recomposition");
+  const skipLink = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skipLink).toHaveAttribute(
+    "href",
+    "#main-content",
+  );
+  const mainContent = page.locator("main#main-content");
+  await expect(mainContent).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await skipLink.click();
+  await expect(mainContent).toBeFocused();
   await expect(
     page.getByRole("heading", {
       level: 1,
@@ -56,12 +68,18 @@ test("authentication entry points render and link together", async ({ page }) =>
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/login");
+  await expect(page).toHaveTitle("Sign In | RecompIQ");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    "Sign in to your RecompIQ account.",
+  );
   await expect(page.getByRole("heading", { level: 1, name: "Welcome back" })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
 
   await page.getByRole("link", { name: "Create one" }).click();
   await expect(page).toHaveURL(/\/register$/);
+  await expect(page).toHaveTitle("Create Account | RecompIQ");
   await expect(page.getByRole("heading", { level: 1, name: "Create your account" })).toBeVisible();
 
   await page.getByLabel("Email").fill("test@example.com");

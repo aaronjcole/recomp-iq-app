@@ -48,7 +48,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-bg text-foreground flex flex-col">
-      <main className={`mx-auto w-full max-w-md flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] ${isTab ? "pb-28" : "pb-6"}`}>
+      <main id="main-content" tabIndex={-1} className={`mx-auto w-full max-w-md flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] ${isTab ? "pb-28" : "pb-6"}`}>
         {TAB_PATHS.filter((p) => cache.current[p]).map((p) => (
           <div key={p} className={p === location.pathname ? "" : "hidden"}>
             {cache.current[p]}
@@ -69,7 +69,7 @@ export default function AppLayout() {
         </AnimatePresence>
       </main>
       {isTab && (
-        <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
+        <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
           <div className="flex">
             {tabs.map(({ to, icon: Icon, label, end }) => (
               <NavLink

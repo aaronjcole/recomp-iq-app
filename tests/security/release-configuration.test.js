@@ -10,6 +10,7 @@ import {
   SUPPORT_MAILTO,
   SUPPORT_REQUEST_MAILTO
 } from "../../src/lib/support.js";
+import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -106,6 +107,21 @@ test("mobile release flows prioritize primary actions and usable touch targets",
   );
   assert.doesNotMatch(trainingSource, /min-h-\[28px\]/);
   assert.match(trainingSource, /min-h-11/);
+});
+
+test("route metadata stays accurate across public and authenticated navigation", () => {
+  assert.equal(getRouteMetadata("/coach").title, "Coach | RecompIQ");
+  assert.equal(getRouteMetadata("/today").title, "Today | RecompIQ");
+  assert.equal(getRouteMetadata("/privacy/").title, "Privacy Policy | RecompIQ");
+  assert.equal(getRouteMetadata("/missing").title, "Page Not Found | RecompIQ");
+
+  const routeAccessibilitySource = readFileSync(
+    resolve(repoRoot, "src/components/RouteAccessibility.jsx"),
+    "utf8"
+  );
+  assert.match(routeAccessibilitySource, /document\.title = metadata\.title/);
+  assert.match(routeAccessibilitySource, /href="#main-content"/);
+  assert.match(routeAccessibilitySource, /aria-live="polite"/);
 });
 
 test("public legal and support routes are not blocked by app authentication errors", () => {

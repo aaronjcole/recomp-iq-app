@@ -11,6 +11,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AppSplash from '@/components/AppSplash';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
+import RouteAccessibility from '@/components/RouteAccessibility';
 
 const PageNotFound = lazy(() => import('./lib/PageNotFound'));
 const AppLayout = lazy(() => import('@/components/AppLayout'));
@@ -96,6 +97,7 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <ErrorBoundary>
           <Router>
+            <RouteAccessibility />
             <ScrollToTop />
             <AndroidBackHandler />
             <OfflineBanner />
