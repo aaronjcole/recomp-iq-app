@@ -62,6 +62,18 @@ test("launch configuration disables undeclared telemetry and unfinished store cl
 });
 
 test("mobile release flows prioritize primary actions and usable touch targets", () => {
+  const appLayoutSource = readFileSync(resolve(repoRoot, "src/components/AppLayout.jsx"), "utf8");
+  assert.match(appLayoutSource, /if \(location\.pathname !== to\) return/);
+  assert.match(appLayoutSource, /scrollPositions\.current\[to\] = 0/);
+
+  const recompContextSource = readFileSync(resolve(repoRoot, "src/lib/RecompContext.jsx"), "utf8");
+  assert.ok(
+    recompContextSource.indexOf("const optimistic = mergeDefined") <
+      recompContextSource.indexOf('functions.invoke("upsertTrackingRecord"'),
+    "daily quick logs should update the visible state before the network write"
+  );
+  assert.match(recompContextSource, /patchIsCurrent/);
+
   const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
   assert.ok(
     nutritionSource.indexOf("Quick add food") < nutritionSource.indexOf("Macro breakdown"),
@@ -120,8 +132,14 @@ test("route metadata stays accurate across public and authenticated navigation",
     "utf8"
   );
   assert.match(routeAccessibilitySource, /document\.title = metadata\.title/);
-  assert.match(routeAccessibilitySource, /href="#main-content"/);
+  assert.match(routeAccessibilitySource, /href="#app-content"/);
   assert.match(routeAccessibilitySource, /aria-live="polite"/);
+
+  const appSource = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
+  assert.match(appSource, /id="app-content" tabIndex=\{-1\}/);
+
+  const splashSource = readFileSync(resolve(repoRoot, "src/components/AppSplash.jsx"), "utf8");
+  assert.doesNotMatch(splashSource, /id="main-content"/);
 });
 
 test("public legal and support routes are not blocked by app authentication errors", () => {

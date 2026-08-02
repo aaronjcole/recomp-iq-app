@@ -101,9 +101,11 @@ function App() {
             <ScrollToTop />
             <AndroidBackHandler />
             <OfflineBanner />
-            <Suspense fallback={<AppSplash />}>
-              <AuthenticatedApp />
-            </Suspense>
+            <div id="app-content" tabIndex={-1}>
+              <Suspense fallback={<AppSplash />}>
+                <AuthenticatedApp />
+              </Suspense>
+            </div>
           </Router>
         </ErrorBoundary>
         <Toaster />

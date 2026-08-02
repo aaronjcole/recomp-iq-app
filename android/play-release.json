@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "packagingProvider": "base44",
+  "base44AppId": "6a68bb922bf88da5ec767da3",
+  "packageName": "com.base6a68bb922bf88da5ec767da3.app",
+  "base44UploadCertificateSha256": "B7:5B:33:41:01:46:16:F1:A3:66:E0:82:60:81:F4:5C:C9:6C:22:08:B6:F7:51:80:A5:30:01:C1:3B:57:1A:1A",
+  "webOrigin": "https://recomp-iq.base44.app",
+  "manifestPath": "/manifest.json",
+  "base44ManagedManifestPath": "/api/apps/manifests/6a68bb922bf88da5ec767da3/manifest.json",
+  "assetLinksPath": "/.well-known/assetlinks.json",
+  "minimumTargetSdk": 36,
+  "expectedWrapperType": "base44-webview",
+  "requiredDisplayMode": "standalone",
+  "requiredOrientation": "portrait-primary",
+  "requiredThemeColor": "#12836f",
+  "requiredBackgroundColor": "#07110f",
+  "managedIconAsset": "docs/play-store/app-icon-512.png",
+  "requiredPublicPaths": [
+    "/privacy",
+    "/terms",
+    "/support",
+    "/delete-account"
+  ],
+  "requiredAndroidPermissions": [
+    "android.permission.INTERNET"
+  ],
+  "reviewAndroidPermissions": [
+    "android.permission.CAMERA"
+  ],
+  "forbiddenAndroidPermissions": [
+    "android.permission.ACCESS_BACKGROUND_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACTIVITY_RECOGNITION",
+    "android.permission.BODY_SENSORS",
+    "android.permission.BODY_SENSORS_BACKGROUND",
+    "android.permission.CALL_PHONE",
+    "android.permission.MANAGE_EXTERNAL_STORAGE",
+    "android.permission.READ_CALENDAR",
+    "android.permission.READ_CONTACTS",
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.READ_MEDIA_AUDIO",
+    "android.permission.READ_PHONE_STATE",
+    "android.permission.READ_SMS",
+    "android.permission.RECORD_AUDIO",
+    "android.permission.SEND_SMS",
+    "android.permission.WRITE_CALENDAR",
+    "android.permission.WRITE_CONTACTS",
+    "android.permission.WRITE_EXTERNAL_STORAGE"
+  ],
+  "forbiddenRequiredAndroidFeatures": [
+    "android.hardware.bluetooth",
+    "android.hardware.location"
+  ]
+}

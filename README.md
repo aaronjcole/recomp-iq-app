@@ -79,6 +79,19 @@ After pushing your changes to git, open the Base44 dashboard and publish the app
 base44 dashboard open
 ```
 
+## Prepare the Android release
+
+RecompIQ uses Base44's managed Android package and AAB generator. Validate the repository contract
+and the live package association before generating a store artifact:
+
+```bash
+npm run verify:android
+npm run verify:android:live
+```
+
+See [docs/android-play-release.md](docs/android-play-release.md) for the stable package identity,
+AAB inspection command, Play App Signing handoff, and Play Console checklist.
+
 ## Docs & Support
 
 Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)

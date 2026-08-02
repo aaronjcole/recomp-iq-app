@@ -135,11 +135,11 @@ export function RecompProvider({ children }) {
   }, [habitEntries]);
 
   const setLogsCurrent = useCallback((nextOrUpdater) => {
-    setLogs((previous) => {
-      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
-      logsRef.current = next;
-      return next;
-    });
+    const next = typeof nextOrUpdater === "function"
+      ? nextOrUpdater(logsRef.current)
+      : nextOrUpdater;
+    logsRef.current = next;
+    setLogs(next);
   }, []);
 
   const setSessionsCurrent = useCallback((nextOrUpdater) => {
@@ -314,48 +314,87 @@ export function RecompProvider({ children }) {
   );
 
   const upsertDailyLog = useCallback(
-    (date, fieldsOrUpdater) =>
-      enqueueByKey(dailyQueues, date, async () => {
-        const local = logsRef.current.find((item) => item.date === date) ?? null;
-        const remote = await base44.entities.DailyLog.filter({ date }, "-created_date", 10);
-        const existing = newestByKey(
-          [...remote, ...(local ? [local] : [])],
-          (item) => item.date
-        )[0] ?? null;
-        const fields =
-          typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(existing) : fieldsOrUpdater;
-        const result = await base44.functions.invoke("upsertTrackingRecord", {
-          kind: "daily_log",
-          date,
-          fields
-        });
-        const response = result?.data?.record;
-        if (!response?.id) throw new Error("The daily log update returned no record");
-        const saved = mergeDefined(existing, response);
-        setLogsCurrent((previous) =>
-          [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
-            b.date.localeCompare(a.date)
-          )
-        );
+    (date, fieldsOrUpdater) => {
+      const previousLocal = logsRef.current.find((item) => item.date === date) ?? null;
+      const fields =
+        typeof fieldsOrUpdater === "function"
+          ? fieldsOrUpdater(previousLocal)
+          : fieldsOrUpdater;
+      const optimistic = mergeDefined(previousLocal ?? { date }, fields);
 
-        if (fields.weight_lbs != null && profileRef.current?.id) {
-          const hasNewerWeight = logsRef.current.some(
-            (item) => item.date > date && item.weight_lbs != null
+      setLogsCurrent((previous) =>
+        [optimistic, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
+          b.date.localeCompare(a.date)
+        )
+      );
+
+      return enqueueByKey(dailyQueues, date, async () => {
+        try {
+          const local = logsRef.current.find((item) => item.date === date) ?? null;
+          const remote = await base44.entities.DailyLog.filter({ date }, "-created_date", 10);
+          const existing = newestByKey(
+            [...remote, ...(local ? [local] : [])],
+            (item) => item.date
+          )[0] ?? null;
+          const result = await base44.functions.invoke("upsertTrackingRecord", {
+            kind: "daily_log",
+            date,
+            fields
+          });
+          const response = result?.data?.record;
+          if (!response?.id) throw new Error("The daily log update returned no record");
+          const current = logsRef.current.find((item) => item.date === date) ?? null;
+          const saved = mergeDefined(mergeDefined(existing, response), current);
+          setLogsCurrent((previous) =>
+            [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
+              b.date.localeCompare(a.date)
+            )
           );
-          if (!hasNewerWeight) {
-            try {
-              const updatedProfile = await base44.entities.UserProfile.update(profileRef.current.id, {
-                current_weight_lbs: fields.weight_lbs
-              });
-              profileRef.current = updatedProfile;
-              setProfile(updatedProfile);
-            } catch (error) {
-              console.warn("Daily weight saved, but profile weight could not be synchronized.", error);
+
+          if (fields.weight_lbs != null && profileRef.current?.id) {
+            const hasNewerWeight = logsRef.current.some(
+              (item) => item.date > date && item.weight_lbs != null
+            );
+            if (!hasNewerWeight) {
+              try {
+                const updatedProfile = await base44.entities.UserProfile.update(profileRef.current.id, {
+                  current_weight_lbs: fields.weight_lbs
+                });
+                profileRef.current = updatedProfile;
+                setProfile(updatedProfile);
+              } catch (error) {
+                console.warn("Daily weight saved, but profile weight could not be synchronized.", error);
+              }
             }
           }
+          return saved;
+        } catch (error) {
+          setLogsCurrent((previous) => {
+            const current = previous.find((item) => item.date === date) ?? null;
+            if (!current) return previous;
+
+            const patchIsCurrent = Object.entries(fields).every(([key, value]) =>
+              Object.is(current[key], value)
+            );
+            if (!patchIsCurrent) return previous;
+            if (!previousLocal) return previous.filter((item) => item.date !== date);
+
+            const restored = { ...current };
+            for (const key of Object.keys(fields)) {
+              if (Object.prototype.hasOwnProperty.call(previousLocal, key)) {
+                restored[key] = previousLocal[key];
+              } else {
+                delete restored[key];
+              }
+            }
+            return [restored, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
+              b.date.localeCompare(a.date)
+            );
+          });
+          throw error;
         }
-        return saved;
-      }),
+      });
+    },
     [setLogsCurrent]
   );
 
