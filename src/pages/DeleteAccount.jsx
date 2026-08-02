@@ -12,11 +12,11 @@ function H2({ children }) {
 
 export default function DeleteAccount() {
   return (
-    <LegalShell title="Delete your RecompIQ account" updated="August 2026">
+    <LegalShell title="Delete your RecompOne account" updated="August 2026">
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
         <Trash2 className="w-5 h-5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
         <p>
-          Account deletion removes access to your RecompIQ account and begins deletion of the
+          Account deletion removes access to your RecompOne account and begins deletion of the
           hosted profile, nutrition, training, habit, progress, and plan-history records described below.
         </p>
       </div>
@@ -28,14 +28,14 @@ export default function DeleteAccount() {
         <li>Review the warning and confirm deletion.</li>
       </ol>
       <p>
-        This also removes progress photos stored by RecompIQ in the current browser or app
+        This also removes progress photos stored by RecompOne in the current browser or app
         installation. Photos stored in another installation remain on that device until its
         local app data is removed.
       </p>
 
       <H2>If you cannot access the app</H2>
       <p>
-        Send a deletion request from the email address used for your RecompIQ account. We may
+        Send a deletion request from the email address used for your RecompOne account. We may
         ask you to verify ownership before completing the request. Do not send your password,
         verification code, photos, or health records.
       </p>

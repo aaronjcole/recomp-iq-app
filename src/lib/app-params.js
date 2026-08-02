@@ -1,5 +1,6 @@
 const isBrowser = typeof window !== "undefined";
 
+// This persisted key is intentionally stable across the RecompOne rebrand.
 const AUTH_REDIRECT_KEY = "recompiq_auth_redirect_pending";
 const AUTH_REDIRECT_MAX_AGE_MS = 10 * 60 * 1000;
 const URL_BOOTSTRAP_PARAMS = [

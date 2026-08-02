@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/gamification.ts. Signal strength,
+// Ported 1:1 from RecompOne src/lib/fitness/gamification.ts. Signal strength,
 // recomp level, weekly quests, and the "boss battle" framing. Pure functions.
 
 import { dedupeLogsByDate, logsInCalendarWindow } from "./trends.js";

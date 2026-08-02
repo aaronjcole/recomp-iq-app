@@ -43,7 +43,7 @@ const TRUST_POINTS = [
   {
     icon: ShieldCheck,
     title: "Conservative by design",
-    body: "RecompIQ looks for enough recent signal before suggesting a measured adjustment."
+    body: "RecompOne looks for enough recent signal before suggesting a measured adjustment."
   },
   {
     icon: Brain,
@@ -59,16 +59,16 @@ const TRUST_POINTS = [
 
 const FAQS = [
   {
-    question: "Who is RecompIQ for?",
+    question: "Who is RecompOne for?",
     answer: "Adults pursuing sustainable fat loss, muscle retention, or body recomposition who want help interpreting their own fitness data."
   },
   {
     question: "Does one weigh-in change the plan?",
-    answer: "No. RecompIQ uses recent patterns, logging consistency, and recovery context before treating a change as meaningful."
+    answer: "No. RecompOne uses recent patterns, logging consistency, and recovery context before treating a change as meaningful."
   },
   {
-    question: "Is RecompIQ medical advice?",
-    answer: "No. RecompIQ provides general educational fitness and nutrition guidance and is not a medical device."
+    question: "Is RecompOne medical advice?",
+    answer: "No. RecompOne provides general educational fitness and nutrition guidance and is not a medical device."
   }
 ];
 
@@ -103,9 +103,9 @@ export default function ComingSoon() {
     <div className="min-h-screen bg-bg text-foreground">
       <header className="sticky top-0 z-40 border-b border-lineSoft bg-bg/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
-          <Link to="/" className="flex min-h-11 items-center gap-2" aria-label="RecompIQ home">
+          <Link to="/" className="flex min-h-11 items-center gap-2" aria-label="RecompOne home">
             <BrandMark className="h-9 w-9 rounded-xl" />
-            <span className="text-lg font-semibold">RecompIQ</span>
+            <span className="text-lg font-semibold">RecompOne</span>
           </Link>
           <a
             href="#how-it-works"
@@ -127,7 +127,7 @@ export default function ComingSoon() {
               Stop guessing whether to hold, adjust, or push.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              RecompIQ turns nutrition, training, recovery, and body-trend data into one evidence-backed next move—then shows which signals influenced it.
+              RecompOne turns nutrition, training, recovery, and body-trend data into one evidence-backed next move—then shows which signals influenced it.
             </p>
 
             {status === "done" ? (
@@ -141,7 +141,7 @@ export default function ComingSoon() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={submit} className="mt-7 max-w-xl" aria-label="Join the RecompIQ Android beta">
+              <form onSubmit={submit} className="mt-7 max-w-xl" aria-label="Join the RecompOne Android beta">
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <div className="relative flex-1">
                     <label htmlFor="waitlist-email" className="sr-only">Email address</label>
@@ -183,7 +183,7 @@ export default function ComingSoon() {
                 onClick={() => setExplainerViewed(true)}
                 className="inline-flex min-h-11 items-center gap-2 font-medium text-teal hover:underline"
               >
-                See how RecompIQ decides <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                See how RecompOne decides <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <span className="text-xs text-muted-foreground">For adults 18+ · Educational guidance, not medical advice</span>
             </div>
@@ -206,7 +206,7 @@ export default function ComingSoon() {
               <span className="font-mono text-xs uppercase tracking-wider text-teal">One decision from many signals</span>
               <h2 className="mt-3 text-3xl font-bold tracking-tight">A feedback loop, not another dashboard.</h2>
               <p className="mt-3 leading-relaxed text-muted-foreground">
-                RecompIQ organizes the signals you already care about, waits for enough context, and turns them into one inspectable next step.
+                RecompOne organizes the signals you already care about, waits for enough context, and turns them into one inspectable next step.
               </p>
             </div>
 
@@ -262,12 +262,12 @@ export default function ComingSoon() {
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-5 py-8 text-xs text-muted-foreground sm:flex-row">
           <div className="flex items-center gap-2">
             <BrandMark className="h-6 w-6 rounded-lg" />
-            <span>© {new Date().getFullYear()} RecompIQ</span>
+            <span>© {new Date().getFullYear()} RecompOne</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
             <Link to="/privacy" className="min-h-11 content-center hover:text-foreground">Privacy</Link>
             <Link to="/terms" className="min-h-11 content-center hover:text-foreground">Terms</Link>
-            <span>RecompIQ is not a medical device.</span>
+            <span>RecompOne is not a medical device.</span>
           </div>
         </div>
       </footer>

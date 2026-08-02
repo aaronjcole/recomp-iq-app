@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export default function BrandMark({ className, alt = "" }) {
   return (
     <img
-      src="/icons/recompiq-192.png"
+      src="/icons/recompone-192.png"
       alt={alt}
       width="192"
       height="192"

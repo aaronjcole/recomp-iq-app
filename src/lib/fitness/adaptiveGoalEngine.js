@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/adaptiveGoalEngine.ts. Blends a
+// Ported 1:1 from RecompOne src/lib/fitness/adaptiveGoalEngine.ts. Blends a
 // Mifflin-St Jeor static TDEE with an observed TDEE derived from intake and
 // weight rate, then produces safe, bounded recommendations. Pure functions.
 

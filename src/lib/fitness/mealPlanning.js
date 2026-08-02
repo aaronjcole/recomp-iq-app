@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/mealPlanning.ts. Pure functions.
+// Ported 1:1 from RecompOne src/lib/fitness/mealPlanning.ts. Pure functions.
 
 import { scoreNutritionQuality } from "./nutritionScoring";
 

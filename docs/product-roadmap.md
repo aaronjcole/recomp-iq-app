@@ -1,4 +1,4 @@
-# RecompIQ product roadmap
+# RecompOne product roadmap
 
 This roadmap prioritizes user trust, measurement quality, and a short feedback loop between GitHub implementation and Base44 testing.
 

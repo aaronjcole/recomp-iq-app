@@ -1,118 +1,118 @@
 const DEFAULT_DESCRIPTION =
-  "RecompIQ turns daily nutrition, training, and recovery signals into a plan that adapts to real progress.";
+  "RecompOne turns daily nutrition, training, and recovery signals into a plan that adapts to real progress.";
 
 const ROUTE_METADATA = Object.freeze({
   "/": {
-    title: "RecompIQ — Adaptive Recomposition",
-    announcement: "RecompIQ home",
+    title: "RecompOne — Adaptive Recomposition",
+    announcement: "RecompOne home",
     description:
       "Turn nutrition, training, recovery, and body-trend data into one evidence-backed next move."
   },
   "/hero": {
-    title: "RecompIQ — Adaptive Recomposition",
-    announcement: "RecompIQ overview",
+    title: "RecompOne — Adaptive Recomposition",
+    announcement: "RecompOne overview",
     description:
       "Build a personalized nutrition and training plan that adapts to your real recomposition progress."
   },
   "/coming-soon": {
-    title: "Coming Soon | RecompIQ",
+    title: "Coming Soon | RecompOne",
     announcement: "Coming soon",
-    description: "Join the RecompIQ Android beta and see how your fitness signals become one clear next move."
+    description: "Join the RecompOne Android beta and see how your fitness signals become one clear next move."
   },
   "/privacy": {
-    title: "Privacy Policy | RecompIQ",
+    title: "Privacy Policy | RecompOne",
     announcement: "Privacy policy",
-    description: "Learn how RecompIQ collects, uses, and protects your information."
+    description: "Learn how RecompOne collects, uses, and protects your information."
   },
   "/terms": {
-    title: "Terms of Service | RecompIQ",
+    title: "Terms of Service | RecompOne",
     announcement: "Terms of service",
-    description: "Review the RecompIQ terms of service and health disclaimer."
+    description: "Review the RecompOne terms of service and health disclaimer."
   },
   "/support": {
-    title: "Support | RecompIQ",
-    announcement: "RecompIQ support",
-    description: "Get help with your RecompIQ account and app experience."
+    title: "Support | RecompOne",
+    announcement: "RecompOne support",
+    description: "Get help with your RecompOne account and app experience."
   },
   "/delete-account": {
-    title: "Delete Account | RecompIQ",
-    announcement: "Delete your RecompIQ account",
-    description: "Learn how to request deletion of your RecompIQ account and data."
+    title: "Delete Account | RecompOne",
+    announcement: "Delete your RecompOne account",
+    description: "Learn how to request deletion of your RecompOne account and data."
   },
   "/login": {
-    title: "Sign In | RecompIQ",
+    title: "Sign In | RecompOne",
     announcement: "Sign in",
-    description: "Sign in to your RecompIQ account."
+    description: "Sign in to your RecompOne account."
   },
   "/register": {
-    title: "Create Account | RecompIQ",
+    title: "Create Account | RecompOne",
     announcement: "Create your account",
-    description: "Create a RecompIQ account and start building your adaptive plan."
+    description: "Create a RecompOne account and start building your adaptive plan."
   },
   "/forgot-password": {
-    title: "Reset Password | RecompIQ",
+    title: "Reset Password | RecompOne",
     announcement: "Reset your password",
-    description: "Request a password reset for your RecompIQ account."
+    description: "Request a password reset for your RecompOne account."
   },
   "/reset-password": {
-    title: "Choose a New Password | RecompIQ",
+    title: "Choose a New Password | RecompOne",
     announcement: "Choose a new password",
-    description: "Choose a new password for your RecompIQ account."
+    description: "Choose a new password for your RecompOne account."
   },
   "/onboarding": {
-    title: "Set Up Your Plan | RecompIQ",
+    title: "Set Up Your Plan | RecompOne",
     announcement: "Set up your plan",
-    description: "Set up your RecompIQ nutrition, training, and coaching preferences."
+    description: "Set up your RecompOne nutrition, training, and coaching preferences."
   },
   "/today": {
-    title: "Today | RecompIQ",
+    title: "Today | RecompOne",
     announcement: "Today",
-    description: "See today's RecompIQ signal, priorities, habits, and quick log."
+    description: "See today's RecompOne signal, priorities, habits, and quick log."
   },
   "/nutrition": {
-    title: "Fuel | RecompIQ",
+    title: "Fuel | RecompOne",
     announcement: "Fuel",
     description: "Review nutrition targets, meals, recipes, and food logs."
   },
   "/training": {
-    title: "Training | RecompIQ",
+    title: "Training | RecompOne",
     announcement: "Training",
-    description: "Plan and log training sessions with RecompIQ."
+    description: "Plan and log training sessions with RecompOne."
   },
   "/progress": {
-    title: "Progress | RecompIQ",
+    title: "Progress | RecompOne",
     announcement: "Progress",
     description: "Review weight, measurements, strength, and recomposition trends."
   },
   "/plan": {
-    title: "Plan | RecompIQ",
+    title: "Plan | RecompOne",
     announcement: "Your plan",
-    description: "Review your current adaptive RecompIQ plan."
+    description: "Review your current adaptive RecompOne plan."
   },
   "/decisions": {
-    title: "Decision History | RecompIQ",
+    title: "Decision History | RecompOne",
     announcement: "Decision history",
-    description: "Review the adjustments and evidence behind your RecompIQ plan."
+    description: "Review the adjustments and evidence behind your RecompOne plan."
   },
   "/coach": {
-    title: "Coach | RecompIQ",
+    title: "Coach | RecompOne",
     announcement: "Coach",
-    description: "Ask the RecompIQ coach for educational guidance based on your recent data."
+    description: "Ask the RecompOne coach for educational guidance based on your recent data."
   },
   "/more": {
-    title: "More | RecompIQ",
+    title: "More | RecompOne",
     announcement: "More",
-    description: "Open RecompIQ settings, plan tools, support, and account options."
+    description: "Open RecompOne settings, plan tools, support, and account options."
   },
   "/profile": {
-    title: "Profile | RecompIQ",
+    title: "Profile | RecompOne",
     announcement: "Profile",
-    description: "Review and update your RecompIQ profile."
+    description: "Review and update your RecompOne profile."
   }
 });
 
 const NOT_FOUND_METADATA = Object.freeze({
-  title: "Page Not Found | RecompIQ",
+  title: "Page Not Found | RecompOne",
   announcement: "Page not found",
   description: DEFAULT_DESCRIPTION
 });

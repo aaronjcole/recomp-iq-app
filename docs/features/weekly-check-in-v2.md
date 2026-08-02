@@ -8,7 +8,7 @@ The experience should answer four questions:
 
 1. What happened during the review period?
 2. How reliable is the available data?
-3. What does RecompIQ recommend, and why?
+3. What does RecompOne recommend, and why?
 4. Does the user want to apply that recommendation?
 
 ## Current behavior and risk

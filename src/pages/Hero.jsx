@@ -26,7 +26,7 @@ export default function Hero({ preview }) {
         <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <BrandMark className="h-9 w-9 rounded-xl" />
-            <span className="font-semibold text-lg">RecompIQ</span>
+            <span className="font-semibold text-lg">RecompOne</span>
           </Link>
           <Link to="/login" className="text-sm font-medium text-teal hover:underline">Sign in</Link>
         </div>
@@ -42,7 +42,7 @@ export default function Hero({ preview }) {
             Train and eat for the body you're actually building.
           </h1>
           <p className="mt-4 text-muted-foreground text-lg max-w-md">
-            RecompIQ turns your daily logs into a living plan — recalculating calories, macros, and training every week based on how you're actually progressing.
+            RecompOne turns your daily logs into a living plan — recalculating calories, macros, and training every week based on how you're actually progressing.
           </p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3">
             <Link
@@ -98,12 +98,12 @@ export default function Hero({ preview }) {
         <div className="max-w-5xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <BrandMark className="h-6 w-6 rounded-lg" />
-            <span>© {new Date().getFullYear()} RecompIQ</span>
+            <span>© {new Date().getFullYear()} RecompOne</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <Link to="/terms" className="hover:text-foreground">Terms</Link>
-            <span>RecompIQ is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.</span>
+            <span>RecompOne is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.</span>
           </div>
         </div>
       </footer>

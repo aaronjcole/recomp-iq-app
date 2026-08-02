@@ -1,4 +1,4 @@
-# Base44 Project
+# RecompOne
 
 Use this repository to run and edit the app locally, then publish changes back through Base44.
 
@@ -81,7 +81,7 @@ base44 dashboard open
 
 ## Prepare the Android release
 
-RecompIQ uses Base44's managed Android package and AAB generator. Validate the repository contract
+RecompOne uses Base44's managed Android package and AAB generator. Validate the repository contract
 and the live package association before generating a store artifact:
 
 ```bash

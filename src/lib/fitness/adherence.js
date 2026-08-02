@@ -1,4 +1,4 @@
-// Ported 1:1 from RecompIQ src/lib/fitness/adherence.ts. Pure functions.
+// Ported 1:1 from RecompOne src/lib/fitness/adherence.ts. Pure functions.
 
 function averageAcrossExpectedDays(scores, expectedDays) {
   if (!scores.length) return null;

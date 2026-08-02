@@ -62,6 +62,7 @@ export default function Profile() {
       }
 
       try {
+        // Legacy storage identifiers remain part of account cleanup after the RecompOne rebrand.
         for (const key of [
           `recompiq_bf_scan_${me.id}`,
           `recomp-grocery-checked-${me.id}`,
@@ -164,7 +165,7 @@ export default function Profile() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete account?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes your RecompIQ account, hosted records, and progress photos
+              This removes your RecompOne account, hosted records, and progress photos
               stored in this browser. Files previously submitted for optional AI analysis follow
               the provider retention terms described in the Privacy Policy. This action can't be
               undone.

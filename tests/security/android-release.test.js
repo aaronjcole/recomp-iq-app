@@ -83,8 +83,8 @@ test("Play submission routes remain public and machine-listed", () => {
 });
 
 test("Play listing core images use Google's required dimensions", () => {
-  const primaryLogoPath = resolve(repoRoot, "public/brand/recompiq-logo-primary.png");
-  const faviconPath = resolve(repoRoot, "public/icons/recompiq-32.png");
+  const primaryLogoPath = resolve(repoRoot, "public/brand/recompone-logo-primary.png");
+  const faviconPath = resolve(repoRoot, "public/icons/recompone-32.png");
   const appIconPath = resolve(repoRoot, "docs/play-store/app-icon-512.png");
   const featureGraphicPath = resolve(repoRoot, "docs/play-store/feature-graphic-1024x500.png");
 
@@ -104,8 +104,8 @@ test("Play listing core images use Google's required dimensions", () => {
   assert.ok(statSync(featureGraphicPath).size <= 15_728_640, "feature graphic must be at most 15 MB");
 
   const indexSource = readFileSync(resolve(repoRoot, "index.html"), "utf8");
-  assert.match(indexSource, /recompiq-32\.png/);
-  assert.doesNotMatch(indexSource, /recompiq-icon\.svg/);
+  assert.match(indexSource, /recompone-32\.png/);
+  assert.doesNotMatch(indexSource, /recompone-icon\.svg/);
 
   for (const path of ["src/components/AppSplash.jsx", "src/pages/Hero.jsx", "src/pages/ComingSoon.jsx"]) {
     const source = readFileSync(resolve(repoRoot, path), "utf8");

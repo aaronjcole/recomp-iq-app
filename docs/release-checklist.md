@@ -1,4 +1,4 @@
-# RecompIQ release checklist
+# RecompOne release checklist
 
 Use this checklist against a Base44 preview or staging deployment before merging a release PR.
 Production accounts and production health data must not be used for automation.

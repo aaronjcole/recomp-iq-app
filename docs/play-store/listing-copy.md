@@ -1,8 +1,8 @@
-# RecompIQ Google Play listing copy
+# RecompOne Google Play listing copy
 
 ## App name
 
-RecompIQ
+RecompOne
 
 ## Short description
 
@@ -10,11 +10,11 @@ Adaptive nutrition and training guidance built around your real progress.
 
 ## Full description
 
-RecompIQ turns everyday nutrition, training, recovery, and progress check-ins into one clear next
+RecompOne turns everyday nutrition, training, recovery, and progress check-ins into one clear next
 step.
 
 Build a starting plan around your goals and routine, log the signals that matter, and see how your
-plan responds over time. RecompIQ is designed to help you understand the reasoning behind each
+plan responds over time. RecompOne is designed to help you understand the reasoning behind each
 recommendation instead of overwhelming you with disconnected charts and targets.
 
 Key features:
@@ -28,7 +28,7 @@ Key features:
 - An AI Coach for general educational fitness and nutrition guidance
 - A decision history that shows what changed and why
 
-RecompIQ provides general fitness and nutrition information. It is not medical advice, does not
+RecompOne provides general fitness and nutrition information. It is not medical advice, does not
 diagnose or treat medical conditions, and is not a medical device. Consult a qualified healthcare
 professional before starting or changing a diet or exercise program.
 
@@ -41,18 +41,21 @@ professional before starting or changing a diet or exercise program.
 - Support: `https://recomp-iq.base44.app/support`
 - Account deletion: `https://recomp-iq.base44.app/delete-account`
 
+The Base44 URLs intentionally retain the app's legacy origin slug; the public product name is
+RecompOne.
+
 ## Recommended phone screenshots
 
 Capture four 1080×1920 portrait screenshots from a disposable demo account:
 
 1. **Today** — show the daily best move and Recomp Signal summary.
-   Alt text: RecompIQ Today screen presenting one recommended action and supporting progress signals.
+   Alt text: RecompOne Today screen presenting one recommended action and supporting progress signals.
 2. **Fuel** — show nutrition targets and a populated daily macro summary without photo scanning.
-   Alt text: RecompIQ nutrition screen showing daily calorie and macro progress.
+   Alt text: RecompOne nutrition screen showing daily calorie and macro progress.
 3. **Training** — show the current session or recent strength progression.
-   Alt text: RecompIQ training screen showing a structured workout and recent progression.
+   Alt text: RecompOne training screen showing a structured workout and recent progression.
 4. **Progress** — show synthetic weight trends, projections, and confidence labels.
-   Alt text: RecompIQ progress screen showing synthetic trend data and an adaptive projection.
+   Alt text: RecompOne progress screen showing synthetic trend data and an adaptive projection.
 
 An optional fifth Coach screenshot may show a safe educational answer with the general-guidance
 disclaimer visible. Do not show a crisis prompt, a reported response, personal health data, or a

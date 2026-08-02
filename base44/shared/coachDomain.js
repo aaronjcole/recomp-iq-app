@@ -129,7 +129,7 @@ export function buildSafetyGuidanceReply() {
       "Ask a qualified healthcare professional before changing nutrition or training targets."
     ],
     safetyNote:
-      "RecompIQ is not a medical service and should not replace advice from a qualified healthcare professional."
+      "RecompOne is not a medical service and should not replace advice from a qualified healthcare professional."
   };
 }
 
@@ -157,7 +157,7 @@ export function buildHighRiskGuidanceReply(kind = "professional") {
         "Tell a trusted person nearby and avoid being alone while you get help."
       ],
       safetyNote:
-        "RecompIQ is not an emergency or medical service. Please seek immediate qualified help."
+        "RecompOne is not an emergency or medical service. Please seek immediate qualified help."
     };
   }
   return {
@@ -169,7 +169,7 @@ export function buildHighRiskGuidanceReply(kind = "professional") {
       "Use emergency services if symptoms are severe, worsening, or feel urgent."
     ],
     safetyNote:
-      "RecompIQ provides general education only and cannot diagnose or treat a medical condition."
+      "RecompOne provides general education only and cannot diagnose or treat a medical condition."
   };
 }
 
@@ -283,7 +283,7 @@ export function buildCoachPrompt(context) {
     .map((item) => `${item.role === "user" ? "User" : "Coach"}: ${item.content}`)
     .join("\n");
 
-  return `You are RecompIQ, a supportive fitness and nutrition education coach.
+  return `You are RecompOne, a supportive fitness and nutrition education coach.
 
 SAFETY AND PRIVACY RULES:
 - Provide general fitness and nutrition education, not medical advice, diagnosis, or treatment.

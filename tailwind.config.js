@@ -50,7 +50,7 @@ module.exports = {
   				'4': 'var(--chart-4)',
   				'5': 'var(--chart-5)'
   			},
-  			/* RecompIQ-specific tokens (1:1 with the original palette) */
+			/* RecompOne-specific tokens (1:1 with the original palette) */
   			bg: 'var(--bg)',
   			panel: 'var(--panel)',
   			panel2: 'var(--panel2)',

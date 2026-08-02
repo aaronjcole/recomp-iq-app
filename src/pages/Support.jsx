@@ -12,11 +12,11 @@ function H2({ children }) {
 
 export default function Support() {
   return (
-    <LegalShell title="RecompIQ Support" updated="August 2026">
+    <LegalShell title="RecompOne Support" updated="August 2026">
       <div className="rounded-xl border border-line bg-panel p-4 flex items-start gap-3">
         <LifeBuoy className="w-5 h-5 text-teal shrink-0 mt-0.5" aria-hidden="true" />
         <div className="space-y-1">
-          <p className="font-medium">Contact the RecompIQ support team</p>
+          <p className="font-medium">Contact the RecompOne support team</p>
           <p className="text-muted-foreground">
             Email us from the address associated with your account whenever the issue is
             account-specific.

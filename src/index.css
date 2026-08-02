@@ -9,7 +9,7 @@
 
 @layer base {
   :root {
-    /* RecompIQ light palette */
+    /* RecompOne light palette */
     --background: #f6f3ec;
     --foreground: #17211e;
     --card: #fffdf8;
@@ -48,7 +48,7 @@
     --sidebar-border: #c8d2cc;
     --sidebar-ring: #12836f;
 
-    /* RecompIQ-specific tokens */
+    /* RecompOne-specific tokens */
     --bg: #f6f3ec;
     --panel: #fffdf8;
     --panel2: #f0ebe2;
@@ -67,7 +67,7 @@
   }
 
   .dark {
-    /* RecompIQ dark palette */
+    /* RecompOne dark palette */
     --background: #07110f;
     --foreground: #f3efe7;
     --card: #111816;
