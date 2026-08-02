@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-
-const ROOT_TABS = ["/today", "/nutrition", "/training", "/progress", "/more"];
+import { getTabRootPath, isTabRootPath } from "@/lib/tabNavigation";
 
 export default function AndroidBackHandler() {
   const navigate = useNavigate();
@@ -9,12 +8,17 @@ export default function AndroidBackHandler() {
 
   useEffect(() => {
     window.handleAndroidBack = () => {
-      if (ROOT_TABS.includes(location.pathname)) {
+      if (isTabRootPath(location.pathname)) {
         return false;
       }
       const idx = window.history.state?.idx ?? 0;
       if (idx > 0) {
         navigate(-1);
+        return true;
+      }
+      const tabRootPath = getTabRootPath(location.pathname);
+      if (tabRootPath) {
+        navigate(tabRootPath, { replace: true });
         return true;
       }
       navigate("/");

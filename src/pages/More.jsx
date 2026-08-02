@@ -111,7 +111,7 @@ export default function More() {
     {
       title: "Coaching & plan",
       items: [
-        { icon: MessageCircle, label: "AI Coach", to: "/coach" },
+        { icon: MessageCircle, label: "AI Coach", to: "/more/coach" },
         {
           icon: RefreshCw,
           label: "Weekly check-in",
@@ -123,7 +123,7 @@ export default function More() {
             ? `Last ${lastCheckIn.end_date}`
             : "Run the adaptive engine"
         },
-        { icon: Target, label: "Plan & projections", to: "/plan" },
+        { icon: Target, label: "Plan & projections", to: "/more/plan" },
         { icon: SlidersHorizontal, label: "Custom targets", to: "/nutrition?panel=targets" }
       ]
     },
@@ -138,7 +138,7 @@ export default function More() {
       title: "Progress & data",
       items: [
         { icon: Camera, label: "Progress photos", to: "/progress", subtitle: "On this device only" },
-        { icon: History, label: "Decision history", to: "/decisions", subtitle: "Plan change log" }
+        { icon: History, label: "Decision history", to: "/more/decisions", subtitle: "Plan change log" }
       ]
     },
     {
@@ -148,7 +148,7 @@ export default function More() {
     {
       title: "App & account",
       items: [
-        { icon: User, label: "Profile & plan", to: "/profile" },
+        { icon: User, label: "Profile & plan", to: "/more/profile" },
         { icon: theme === "dark" ? Moon : Sun, label: "Dark mode", control: "theme" },
         { icon: RefreshCw, label: "Refresh data", action: "reload" },
         { icon: LogOut, label: "Log out", action: "logout" }
@@ -177,7 +177,7 @@ export default function More() {
       {/* Identity header — status glance */}
       <Card className="bg-panel border-line">
         <CardContent className="p-4">
-          <button className="flex w-full items-center gap-3" onClick={() => navigate("/profile")}>
+          <button className="flex w-full items-center gap-3" onClick={() => navigate("/more/profile")}>
             <div className="h-12 w-12 rounded-full bg-teal text-[#03110e] flex items-center justify-center font-semibold shrink-0">
               {initials}
             </div>

@@ -124,7 +124,7 @@ export default function Today() {
         </Card>
       )}
 
-      <Link to="/coach">
+      <Link to="/more/coach">
         <Card className="bg-teal/10 border-teal/30">
           <CardContent className="p-4 flex items-center gap-3">
             <Bot className="w-5 h-5 text-teal" />

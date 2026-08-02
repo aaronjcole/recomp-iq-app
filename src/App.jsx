@@ -75,11 +75,16 @@ const AuthenticatedApp = () => {
               <Route path="/nutrition" element={<Nutrition />} />
               <Route path="/training" element={<Training />} />
               <Route path="/progress" element={<Progress />} />
-              <Route path="/plan" element={<Plan />} />
-              <Route path="/decisions" element={<DecisionHistory />} />
-              <Route path="/coach" element={<Coach />} />
               <Route path="/more" element={<More />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/more/plan" element={<Plan />} />
+              <Route path="/more/decisions" element={<DecisionHistory />} />
+              <Route path="/more/coach" element={<Coach />} />
+              <Route path="/more/profile" element={<Profile />} />
+              {/* Preserve established deep links while using tab-owned routes internally. */}
+              <Route path="/plan" element={<Navigate to="/more/plan" replace />} />
+              <Route path="/decisions" element={<Navigate to="/more/decisions" replace />} />
+              <Route path="/coach" element={<Navigate to="/more/coach" replace />} />
+              <Route path="/profile" element={<Navigate to="/more/profile" replace />} />
             </Route>
           </Route>
         </Route>

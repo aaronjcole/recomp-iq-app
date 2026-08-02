@@ -101,6 +101,12 @@ export default function Coach() {
   const [reportedIds, setReportedIds] = useState(() => new Set());
   const scrollRef = useRef(null);
 
+  const goBack = () => {
+    const historyIndex = window.history.state?.idx ?? 0;
+    if (historyIndex > 0) navigate(-1);
+    else navigate("/more", { replace: true });
+  };
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
@@ -170,7 +176,7 @@ export default function Coach() {
   return (
     <div className="flex flex-col h-[calc(100dvh-8.5rem)]">
       <div className="flex items-center gap-2 pb-3">
-        <button onClick={() => navigate(-1)} className="min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Back">
+        <button onClick={goBack} className="min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold leading-none">Coach</h1>
