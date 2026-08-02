@@ -73,8 +73,8 @@ export default function HabitsCard() {
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Habits</div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 relative after:absolute after:content-[''] after:-inset-2" onClick={() => setEditorOpen(true)} aria-label="Edit habits">
+          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Habits</div>
+          <Button variant="ghost" size="icon" className="h-11 min-h-11 w-11 min-w-11 -my-2 -mr-2" onClick={() => setEditorOpen(true)} aria-label="Edit habits">
             <Pencil className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -98,12 +98,12 @@ export default function HabitsCard() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{h.name}</div>
                       {streak > 0 && (
-                        <div className="font-mono text-[10px] text-muted-foreground">{streak} day streak</div>
+                        <div className="font-mono text-xs text-muted-foreground">{streak} day streak</div>
                       )}
                     </div>
                     <button
                       onClick={() => toggle(h)}
-                      className={`h-7 w-7 rounded-full flex items-center justify-center border transition-colors relative after:absolute after:content-[''] after:-inset-2 ${
+                      className={`h-11 min-h-11 w-11 min-w-11 rounded-full flex items-center justify-center border transition-colors ${
                         done ? "bg-teal border-teal" : "border-line"
                       }`}
                       aria-label={done ? "Mark incomplete" : "Mark complete"}
@@ -121,7 +121,7 @@ export default function HabitsCard() {
                   <Icon className="w-4 h-4 text-teal shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{h.name}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                    <div className="font-mono text-xs text-muted-foreground tabular-nums">
                       {Math.round(value)}/{target} {h.unit || ""}
                       {streak > 0 ? ` · ${streak}d streak` : ""}
                     </div>
@@ -130,7 +130,7 @@ export default function HabitsCard() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7 rounded-full border-line relative after:absolute after:content-[''] after:-inset-2"
+                      className="h-11 min-h-11 w-11 min-w-11 rounded-full border-line"
                       onClick={() => step(h, -stepSize)}
                       aria-label="Decrease"
                     >
@@ -140,7 +140,7 @@ export default function HabitsCard() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7 rounded-full border-line relative after:absolute after:content-[''] after:-inset-2"
+                      className="h-11 min-h-11 w-11 min-w-11 rounded-full border-line"
                       onClick={() => step(h, stepSize)}
                       aria-label="Increase"
                     >

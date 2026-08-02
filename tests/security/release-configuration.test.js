@@ -119,6 +119,41 @@ test("mobile release flows prioritize primary actions and usable touch targets",
   );
   assert.doesNotMatch(trainingSource, /min-h-\[28px\]/);
   assert.match(trainingSource, /min-h-11/);
+
+  const childTopBarSource = readFileSync(resolve(repoRoot, "src/components/ChildTopBar.jsx"), "utf8");
+  assert.match(childTopBarSource, /h-11 min-h-11 w-11 min-w-11/);
+
+  const habitsSource = readFileSync(resolve(repoRoot, "src/components/today/HabitsCard.jsx"), "utf8");
+  assert.doesNotMatch(habitsSource, /h-7 w-7/);
+  assert.ok(
+    (habitsSource.match(/h-11 min-h-11 w-11 min-w-11/g) || []).length >= 4,
+    "habit edit, check, decrease, and increase controls should have real 44px targets"
+  );
+
+  const adaptiveSelectSource = readFileSync(
+    resolve(repoRoot, "src/components/ui/adaptive-select.jsx"),
+    "utf8"
+  );
+  assert.match(adaptiveSelectSource, /useIsMobile/);
+  assert.match(adaptiveSelectSource, /<Drawer open=/);
+  assert.match(adaptiveSelectSource, /min-h-12/);
+  for (const path of [
+    "src/components/onboarding/Fields.jsx",
+    "src/components/onboarding/StepAbout.jsx",
+    "src/pages/Profile.jsx",
+    "src/components/progress/ProgressPhotos.jsx"
+  ]) {
+    assert.match(readFileSync(resolve(repoRoot, path), "utf8"), /AdaptiveSelect/);
+  }
+
+  for (const path of [
+    "src/components/common/SignalStat.jsx",
+    "src/components/common/DecisionLedgerTimeline.jsx",
+    "src/components/training/StrengthProgressionCard.jsx",
+    "src/components/progress/ProgressPhotos.jsx"
+  ]) {
+    assert.doesNotMatch(readFileSync(resolve(repoRoot, path), "utf8"), /text-\[(?:9|10)px\]/);
+  }
 });
 
 test("route metadata stays accurate across public and authenticated navigation", () => {
