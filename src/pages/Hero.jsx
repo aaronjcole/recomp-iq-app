@@ -33,7 +33,8 @@ export default function Hero({ preview }) {
         </div>
       </header>
 
-      <section className="max-w-5xl mx-auto px-5 grid md:grid-cols-2 gap-10 items-center pt-12 pb-16">
+      <main id="main-content" tabIndex={-1}>
+        <section className="max-w-5xl mx-auto px-5 grid md:grid-cols-2 gap-10 items-center pt-12 pb-16">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-teal/10 text-teal px-3 py-1 text-[11px] font-mono uppercase tracking-wider">
             <ShieldCheck className="w-3.5 h-3.5" /> Adaptive recomposition
@@ -65,9 +66,9 @@ export default function Hero({ preview }) {
         <div className="flex justify-center md:justify-end">
           <DeviceMockup />
         </div>
-      </section>
+        </section>
 
-      <section className="max-w-5xl mx-auto px-5 pb-16">
+        <section className="max-w-5xl mx-auto px-5 pb-16">
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-2xl border border-line bg-panel p-5">
@@ -79,9 +80,9 @@ export default function Hero({ preview }) {
             </div>
           ))}
         </div>
-      </section>
+        </section>
 
-      <section className="max-w-5xl mx-auto px-5 pb-16">
+        <section className="max-w-5xl mx-auto px-5 pb-16">
         <div className="rounded-3xl bg-teal text-buttonText p-8 sm:p-12 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold">Your recomposition, instrumented.</h2>
           <p className="mt-2 opacity-90 max-w-xl mx-auto">Create an account and let the adaptive engine build your first week.</p>
@@ -91,7 +92,8 @@ export default function Hero({ preview }) {
             </Link>
           </div>
         </div>
-      </section>
+        </section>
+      </main>
 
       <footer className="border-t border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">

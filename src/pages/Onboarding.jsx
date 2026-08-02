@@ -238,15 +238,18 @@ export default function Onboarding() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-bg">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-panel2 border-t-teal" />
-      </div>
+      <main id="main-content" tabIndex={-1} className="fixed inset-0 flex items-center justify-center bg-bg">
+        <div role="status">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-panel2 border-t-teal" />
+          <span className="sr-only">Loading your account</span>
+        </div>
+      </main>
     );
   }
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md flex items-center">
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md flex items-center">
         <div className="space-y-3 text-center">
           <h1 className="text-xl font-semibold">We couldn't check your account</h1>
           <p className="text-sm text-muted-foreground">
@@ -256,12 +259,12 @@ export default function Onboarding() {
             Try again
           </Button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md">
       <div className="flex items-center gap-2 mb-8">
         <div className="w-9 h-9 rounded-xl bg-teal flex items-center justify-center">
           <Target className="w-5 h-5 text-buttonText" />
@@ -327,6 +330,6 @@ export default function Onboarding() {
           </Button>
         )}
       </div>
-    </div>
+    </main>
   );
 }

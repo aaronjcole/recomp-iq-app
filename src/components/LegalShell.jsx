@@ -17,11 +17,13 @@ export default function LegalShell({ title, updated, children }) {
           </div>
         </div>
       </header>
-      <article className="max-w-3xl mx-auto px-5 py-10 space-y-6 text-sm leading-relaxed">
-        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        {updated && <p className="text-muted-foreground -mt-3">Last updated: {updated}</p>}
-        {children}
-      </article>
+      <main id="main-content" tabIndex={-1}>
+        <article className="max-w-3xl mx-auto px-5 py-10 space-y-6 text-sm leading-relaxed">
+          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          {updated && <p className="text-muted-foreground -mt-3">Last updated: {updated}</p>}
+          {children}
+        </article>
+      </main>
     </div>
   );
 }
