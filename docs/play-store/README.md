@@ -5,18 +5,24 @@ Play listing.
 
 ## Included
 
-- `app-icon-512.png` — 512×512 full-square listing icon with no baked rounded corners or shadow.
+- `app-icon-512.png` — 512×512 full-square R-and-pulse listing icon with no baked rounded corners.
 - `feature-graphic-1024x500.png` — 1024×500 opaque feature graphic.
+- `brand-generation-prompts.md` — reproducible source provenance and generation prompts.
 - `listing-copy.md` — reviewed listing copy, URLs, and screenshot plan.
 
-The feature graphic was generated with the built-in image-generation workflow and then cropped and
-resampled to Google's exact dimensions. It contains no text, pricing, rankings, medical imagery,
-body transformations, store badges, or performance claims.
+The canonical user-supplied lockup is preserved byte-for-byte at
+`public/brand/recompiq-logo-primary.png`. The emblem-only launcher master lives at
+`public/brand/recompiq-mark-master.png`; its full-bleed navy background and centered safe-zone layout
+allow Android and Google Play to apply their own icon masks without clipping the mark.
 
-Feature graphic alt text: Abstract teal progress rings and forward-moving curves on a deep green
-background.
+The emblem master and feature graphic were created with the built-in image-generation workflow,
+then resampled to Google's exact dimensions. The feature graphic contains no text, pricing,
+rankings, medical imagery, body transformations, store badges, or performance claims.
 
-App icon alt text: White RecompIQ target-and-arrow mark on a solid teal square.
+Feature graphic alt text: Mint, teal, and blue RecompIQ R-and-pulse emblem over a deep navy signal
+wave background.
+
+App icon alt text: Mint, teal, and blue RecompIQ R-and-pulse emblem on a deep navy square.
 
 ## Screenshot rules
 

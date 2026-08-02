@@ -1,9 +1,10 @@
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import AppSplash from "@/components/AppSplash";
+import BrandMark from "@/components/BrandMark";
 import DeviceMockup from "@/components/hero/DeviceMockup";
 import {
-  Brain, Activity, LineChart, RefreshCw, ShieldCheck, ArrowRight, Target, UserPlus, LogIn
+  Brain, Activity, LineChart, RefreshCw, ShieldCheck, ArrowRight, UserPlus, LogIn
 } from "lucide-react";
 
 const FEATURES = [
@@ -24,9 +25,7 @@ export default function Hero({ preview }) {
       <header className="sticky top-0 z-40 backdrop-blur bg-bg/80 border-b border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-teal flex items-center justify-center">
-              <Target className="w-5 h-5 text-buttonText" />
-            </div>
+            <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold text-lg">RecompIQ</span>
           </Link>
           <Link to="/login" className="text-sm font-medium text-teal hover:underline">Sign in</Link>
@@ -98,9 +97,7 @@ export default function Hero({ preview }) {
       <footer className="border-t border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-teal flex items-center justify-center">
-              <Target className="w-3.5 h-3.5 text-buttonText" />
-            </div>
+            <BrandMark className="h-6 w-6 rounded-lg" />
             <span>© {new Date().getFullYear()} RecompIQ</span>
           </div>
           <div className="flex items-center gap-4">
