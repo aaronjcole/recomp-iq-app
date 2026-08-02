@@ -63,7 +63,7 @@ export function deriveBestMove({ preferences, signal, strategy, todayLog, trend 
         { label: "Add training volume", reason: "Rejected without qualified guidance." }
       ],
       whatChanges: "Qualified guidance or an updated safety preference can change this recommendation.",
-      action: { label: "Ask about the guardrail", to: "/coach" }
+      action: { label: "Ask about the guardrail", to: "/more/coach" }
     };
   }
 

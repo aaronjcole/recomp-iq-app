@@ -108,6 +108,26 @@ const ROUTE_METADATA = Object.freeze({
     title: "Profile | RecompOne",
     announcement: "Profile",
     description: "Review and update your RecompOne profile."
+  },
+  "/more/plan": {
+    title: "Plan | RecompOne",
+    announcement: "Your plan",
+    description: "Review your current adaptive RecompOne plan."
+  },
+  "/more/decisions": {
+    title: "Decision History | RecompOne",
+    announcement: "Decision history",
+    description: "Review the adjustments and evidence behind your RecompOne plan."
+  },
+  "/more/coach": {
+    title: "Coach | RecompOne",
+    announcement: "Coach",
+    description: "Ask the RecompOne coach for educational guidance based on your recent data."
+  },
+  "/more/profile": {
+    title: "Profile | RecompOne",
+    announcement: "Profile",
+    description: "Review and update your RecompOne profile."
   }
 });
 

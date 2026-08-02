@@ -3,23 +3,56 @@ import { useRef, useState } from "react";
 const THRESHOLD = 70;
 const REFRESH_HEIGHT = 44;
 const MAX_PULL = 110;
+const HORIZONTAL_GESTURE_TOLERANCE = 8;
+const PULL_GESTURE_IGNORE_SELECTOR = [
+  "[data-pull-to-refresh-ignore]",
+  "[data-swipeable]",
+  ".recharts-wrapper",
+  '[role="slider"]',
+  'input[type="range"]'
+].join(",");
+
+function shouldIgnorePull(target) {
+  return Boolean(target?.closest?.(PULL_GESTURE_IGNORE_SELECTOR));
+}
 
 export default function PullToRefresh({ onRefresh, children }) {
   const [dist, setDist] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef(0);
+  const startX = useRef(0);
   const distRef = useRef(0);
   const active = useRef(false);
 
+  const resetPull = () => {
+    active.current = false;
+    distRef.current = 0;
+    setDist(0);
+  };
+
   const onTouchStart = (e) => {
-    if (refreshing || window.scrollY > 0) return;
+    if (
+      refreshing ||
+      window.scrollY > 0 ||
+      e.touches.length !== 1 ||
+      shouldIgnorePull(e.target)
+    ) return;
+    startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     active.current = true;
   };
 
   const onTouchMove = (e) => {
     if (!active.current || refreshing) return;
+    const deltaX = e.touches[0].clientX - startX.current;
     const d = e.touches[0].clientY - startY.current;
+    if (
+      Math.abs(deltaX) > HORIZONTAL_GESTURE_TOLERANCE &&
+      Math.abs(deltaX) > Math.abs(d)
+    ) {
+      resetPull();
+      return;
+    }
     if (d <= 0) {
       distRef.current = 0;
       setDist(0);
@@ -45,15 +78,19 @@ export default function PullToRefresh({ onRefresh, children }) {
         distRef.current = 0;
       }
     } else {
-      setDist(0);
-      distRef.current = 0;
+      resetPull();
     }
   };
 
   const showIndicator = refreshing || dist > 0;
 
   return (
-    <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+    <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={resetPull}
+    >
       <div
         className="flex items-end justify-center overflow-hidden"
         style={{

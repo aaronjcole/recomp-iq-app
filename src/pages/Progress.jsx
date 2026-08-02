@@ -106,7 +106,7 @@ export default function Progress() {
               </p>
             </div>
           ) : (
-            <div className="h-56 -ml-4">
+            <div className="h-56 -ml-4" data-pull-to-refresh-ignore>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={visibleData} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="var(--lineSoft)" vertical={false} />
