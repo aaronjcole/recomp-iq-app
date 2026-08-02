@@ -17,14 +17,14 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await expect(skipLink).toHaveAttribute(
     "href",
-    "#main-content",
+    "#app-content",
   );
-  const mainContent = page.locator("main#main-content");
-  await expect(mainContent).toBeVisible();
+  const appContent = page.locator("#app-content");
+  await expect(appContent).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(skipLink).toBeFocused();
   await skipLink.click();
-  await expect(mainContent).toBeFocused();
+  await expect(appContent).toBeFocused();
   await expect(
     page.getByRole("heading", {
       level: 1,

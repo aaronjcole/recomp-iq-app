@@ -2,9 +2,9 @@ import { Target } from "lucide-react";
 
 export default function AppSplash() {
   return (
-    <main
-      id="main-content"
-      tabIndex={-1}
+    <div
+      role="status"
+      aria-live="polite"
       aria-label="Loading RecompIQ"
       className="fixed inset-0 flex flex-col items-center justify-center bg-bg text-foreground"
     >
@@ -16,6 +16,6 @@ export default function AppSplash() {
       </div>
       <div className="mt-5 font-semibold text-lg tracking-tight">RecompIQ</div>
       <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">adaptive recomposition</div>
-    </main>
+    </div>
   );
 }

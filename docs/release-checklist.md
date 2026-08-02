@@ -91,6 +91,8 @@ a primary owner and a backup who can access that entity and the support inbox at
 - [ ] `npm run test:security`
 - [ ] `npm run test:e2e`
 - [ ] `npm run build`
+- [ ] `npm run verify:android`
+- [ ] `npm run verify:android:live`
 - [ ] GitHub Actions is green.
 - [ ] CodeQL is green; secret scanning, push protection, Dependabot alerts, and `main` branch protection are enabled.
 - [ ] No secrets are present in the current tree or Git history.
@@ -98,3 +100,21 @@ a primary owner and a backup who can access that entity and the support inbox at
 - [ ] Primary and backup AI-report moderation owners are named and have tested production access.
 - [ ] A rollback commit or previously known-good deployment is identified.
 - [ ] The pull request is taken out of draft only after the deployed smoke test passes.
+
+## Google Play artifact
+
+- [ ] Base44 supplies a least-privilege replacement AAB that removes the unused location, contacts,
+      calendar, microphone, phone, broad-storage, and media-audio permissions plus unrelated required
+      location/Bluetooth hardware features found in the 2026-08-01 bundle audit.
+- [ ] Base44's Google Play scan has no unresolved critical findings.
+- [ ] The AAB package is `com.base6a68bb922bf88da5ec767da3.app` and targets API 36 or newer.
+- [ ] The AAB permission list matches the released features; barcode camera access is the only
+      reviewed device permission and no forbidden permission from `android/play-release.json` appears.
+- [ ] The AAB contains no native libraries, or every native library passes 16 KB page-size testing.
+- [ ] Play App Signing is enabled and its SHA-256 certificate is added to Base44.
+- [ ] `PLAY_APP_SIGNING_SHA256="..." npm run verify:android:live` passes.
+- [ ] The installed Play-generated build passes login, Google OAuth, deep-link, Android-back,
+      keyboard, offline/retry, barcode-permission, support, and account-deletion testing.
+- [ ] Play Console has the Health Apps, Data Safety, content-rating, target-audience, app-access,
+      privacy-policy, and account-deletion declarations completed from actual production behavior.
+- [ ] A permanent reviewer account and concise login instructions are available to Google Play.

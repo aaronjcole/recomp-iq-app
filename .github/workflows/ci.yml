@@ -41,6 +41,9 @@ jobs:
       - name: Test repository security policies
         run: npm run test:security
 
+      - name: Verify Android release contract
+        run: npm run verify:android
+
       - name: Build production bundle
         run: npm run build
 

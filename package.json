@@ -12,6 +12,9 @@
     "test:security": "node --test tests/security/*.test.js",
     "test:e2e": "playwright test --grep-invert @deployed",
     "test:e2e:deployed": "playwright test --grep @deployed",
+    "verify:android": "node scripts/verify-android-release.mjs",
+    "verify:android:live": "node scripts/verify-android-release.mjs --live",
+    "verify:android:aab": "node scripts/verify-android-release.mjs --live --aab",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },
