@@ -11,19 +11,33 @@ const ENDPOINT = import.meta.env?.VITE_TELEMETRY_ENDPOINT || "";
 const APP_VERSION = import.meta.env?.VITE_APP_VERSION || "dev";
 const IS_DEV = Boolean(import.meta.env?.DEV);
 
-// Never forward anything that could identify a user or leak health data. Only
-// the error itself, the route path (no query string), and safe event props.
-const BLOCKED_PROP = /email|name|token|password|secret|weight|waist|address|phone|note/i;
+// Fail-closed allowlist: only forward keys we know carry no identity or health
+// data. A blocklist leaks any newly-introduced sensitive key (userId, dob,
+// bodyFatPercent, ...) by default; this drops anything not named here, so a new
+// prop can only ship telemetry once it's been explicitly vetted and added.
+const ALLOWED_PROP = /^(tab|source|variant|status|screen|step|index|count|done|skipped|kind)$/;
 
 export function sanitizeProps(props) {
   const out = {};
   for (const [key, value] of Object.entries(props || {})) {
-    if (BLOCKED_PROP.test(key)) continue;
+    if (!ALLOWED_PROP.test(key)) continue;
     if (value === null) out[key] = null;
     else if (typeof value === "string") out[key] = value.slice(0, 120);
     else if (typeof value === "number" || typeof value === "boolean") out[key] = value;
   }
   return out;
+}
+
+// Values can also ride along inside a thrown Error's own message/stack — the one
+// payload path that doesn't go through sanitizeProps. Scrub the obvious carriers
+// (emails, tokenized query params) so the crash path keeps the same guarantee.
+const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+const SENSITIVE_QS = /([?&](?:access_token|token|email|password|secret)=)[^&\s]*/gi;
+
+export function redactText(value) {
+  return String(value || "")
+    .replace(EMAIL, "[redacted-email]")
+    .replace(SENSITIVE_QS, "$1[redacted]");
 }
 
 function currentPath(fallback) {
@@ -36,9 +50,9 @@ export function buildErrorPayload(error, context = {}, now = Date.now()) {
   return {
     type: "error",
     name: err.name || "Error",
-    message: (err.message || "").slice(0, 500),
-    stack: (err.stack || "").slice(0, 2000),
-    componentStack: (context.componentStack || "").slice(0, 2000),
+    message: redactText(err.message).slice(0, 500),
+    stack: redactText(err.stack).slice(0, 2000),
+    componentStack: redactText(context.componentStack).slice(0, 2000),
     boundary: context.boundary || null,
     path: currentPath(context.path),
     appVersion: APP_VERSION,

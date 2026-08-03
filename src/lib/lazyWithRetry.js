@@ -7,6 +7,11 @@ import { lazy } from "react";
 
 const RELOAD_KEY = "recompone_chunk_reloaded";
 
+// Backstop for sessions where sessionStorage throws (Safari private mode, storage
+// disabled): without it, a persistent failure would reload on every exhausted
+// import. This in-memory flag survives until the reload actually navigates away.
+let reloadedThisLoad = false;
+
 export async function importWithRetry(factory, { retries = 1, onExhausted } = {}) {
   try {
     return await factory();
@@ -19,12 +24,15 @@ export async function importWithRetry(factory, { retries = 1, onExhausted } = {}
 
 function hardReloadOnce() {
   if (typeof window === "undefined") return;
+  if (reloadedThisLoad) return; // in-memory guard, works even if storage throws
   try {
     if (window.sessionStorage.getItem(RELOAD_KEY)) return; // already tried this session
     window.sessionStorage.setItem(RELOAD_KEY, "1");
   } catch {
-    // If storage is unavailable, fall through to a single reload attempt.
+    // Storage unavailable (e.g. private mode): the in-memory guard below still
+    // prevents a reload loop within this page load.
   }
+  reloadedThisLoad = true;
   window.location.reload();
 }
 

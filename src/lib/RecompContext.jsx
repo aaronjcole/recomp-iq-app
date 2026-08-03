@@ -274,6 +274,10 @@ export function RecompProvider({ children }) {
   const completeOnboarding = useCallback(async (profileData, prefData) => {
     // Each stage is an upsert so retrying after an outage repairs a partial
     // onboarding instead of creating duplicates or trapping the account.
+    // completeOnboarding is therefore idempotent; only record the funnel event
+    // on the not-onboarded -> onboarded transition, not on repair re-runs.
+    const wasOnboarded =
+      !!profileRef.current && !!preferencesRef.current && !!strategyRef.current;
     const existingProfile = profileRef.current;
     const profileResponse = existingProfile?.id
       ? await base44.entities.UserProfile.update(existingProfile.id, profileData)
@@ -300,7 +304,7 @@ export function RecompProvider({ children }) {
     strategyRef.current = savedStrategy;
     setStrategy(savedStrategy);
 
-    trackEvent("onboarding_complete");
+    if (!wasOnboarded) trackEvent("onboarding_complete");
     return { profile: savedProfile, preferences: savedPreferences, strategy: savedStrategy };
   }, []);
 

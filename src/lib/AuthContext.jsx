@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
@@ -14,6 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  // checkUserAuth runs on every protected-route check, so guard the funnel event
+  // to fire once per unauthenticated -> authenticated transition, not per check.
+  const hasTrackedSignInRef = useRef(false);
 
   useEffect(() => {
     checkAppState();
@@ -103,7 +106,10 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       setAuthChecked(true);
-      trackEvent('signed_in');
+      if (!hasTrackedSignInRef.current) {
+        hasTrackedSignInRef.current = true;
+        trackEvent('signed_in');
+      }
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
@@ -123,7 +129,9 @@ export const AuthProvider = ({ children }) => {
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    
+    // Allow the next sign-in to record the funnel event again.
+    hasTrackedSignInRef.current = false;
+
     if (shouldRedirect) {
       // Use the SDK's logout method which handles token cleanup and redirect
       base44.auth.logout(window.location.href);

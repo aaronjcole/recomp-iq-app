@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   telemetryEnabled,
   sanitizeProps,
+  redactText,
   buildErrorPayload,
   buildEventPayload,
   reportError,
@@ -47,13 +48,27 @@ test("sanitizeProps drops anything that could identify a user or leak health dat
 
 test("sanitizeProps caps string length and ignores object/array values", () => {
   const cleaned = sanitizeProps({
-    label: "x".repeat(500),
+    source: "x".repeat(500),
     payload: { nested: true },
     list: [1, 2, 3],
   });
-  assert.equal(cleaned.label.length, 120);
+  assert.equal(cleaned.source.length, 120);
   assert.equal("payload" in cleaned, false);
   assert.equal("list" in cleaned, false);
+});
+
+test("sanitizeProps fails closed: an unknown key is dropped even if it looks benign", () => {
+  // The whole point of the allowlist — a new, unvetted prop cannot leak.
+  const cleaned = sanitizeProps({ campaign: "summer", userId: "u-1", tab: "today" });
+  assert.deepEqual(cleaned, { tab: "today" });
+});
+
+test("redactText scrubs emails and tokenized query params", () => {
+  assert.match(redactText("Invalid login for a@b.com"), /\[redacted-email\]/);
+  assert.doesNotMatch(redactText("Invalid login for a@b.com"), /a@b\.com/);
+  const url = redactText("GET /x?access_token=abc123&page=2 failed");
+  assert.match(url, /access_token=\[redacted\]/);
+  assert.doesNotMatch(url, /abc123/);
 });
 
 test("buildErrorPayload normalizes non-Errors and truncates unbounded fields", () => {
@@ -73,11 +88,17 @@ test("buildErrorPayload normalizes non-Errors and truncates unbounded fields", (
   assert.ok(payload.stack.length <= 2000);
 });
 
+test("buildErrorPayload redacts PII embedded in an error message", () => {
+  const payload = buildErrorPayload(new Error("Rejected weigh-in for user a@b.com"));
+  assert.doesNotMatch(payload.message, /a@b\.com/);
+  assert.match(payload.message, /\[redacted-email\]/);
+});
+
 test("buildEventPayload clamps the event name and sanitizes props", () => {
-  const payload = buildEventPayload("x".repeat(200), { email: "a@b.com", ok: true }, 7);
+  const payload = buildEventPayload("x".repeat(200), { email: "a@b.com", done: true }, 7);
   assert.equal(payload.type, "event");
   assert.equal(payload.name.length, 64);
-  assert.deepEqual(payload.props, { ok: true });
+  assert.deepEqual(payload.props, { done: true });
   assert.equal(payload.at, 7);
 });
 
