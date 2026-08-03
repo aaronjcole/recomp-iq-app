@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { calculateBMR } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,8 @@ const FIELDS = [
 ];
 
 export default function CustomTargetsCard({ embedded = false }) {
-  const { strategy, profile, updateStrategy } = useRecomp();
+  const { strategy, profile } = useRecompRef();
+  const { updateStrategy } = useRecompActions();
   const { toast } = useToast();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);

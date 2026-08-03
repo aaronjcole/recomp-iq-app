@@ -26,8 +26,8 @@ const contextPath = resolve(srcDir, "lib/RecompContext.jsx");
 
 // Which `*Value` object(s) back each hook. useRecomp() composes data + actions.
 const HOOK_PROVIDERS = {
-  useRecomp: ["dataValue", "actionsValue"],
-  useRecompData: ["dataValue"],
+  useRecomp: ["refValue", "liveValue", "actionsValue"],
+  useRecompRef: ["refValue"],
   useRecompActions: ["actionsValue"],
   useRecompHabits: ["habitsValue"],
 };
@@ -56,7 +56,7 @@ function collectConsumers() {
   const consumers = [];
   // Group 1: destructured names. Group 2: the hook (useRecomp / useRecompX).
   // Capture stops at `;`/braces so it can't bridge across an adjacent hook.
-  const pattern = /const\s*\{([^{};]*?)\}\s*=\s*(useRecomp(?:Data|Actions|Habits)?)\(\)/g;
+  const pattern = /const\s*\{([^{};]*?)\}\s*=\s*(useRecomp(?:Ref|Actions|Habits)?)\(\)/g;
   for (const file of walk(srcDir)) {
     const source = readFileSync(file, "utf8");
     let match;
@@ -156,7 +156,8 @@ test("every context key is read through a hook that provides it", () => {
 test("each context value is wired to its provider", () => {
   const source = readFileSync(contextPath, "utf8");
   const wiring = [
-    ["Ctx", "dataValue"],
+    ["Ctx", "liveValue"],
+    ["RefCtx", "refValue"],
     ["ActionsCtx", "actionsValue"],
     ["HabitsCtx", "habitsValue"],
   ];

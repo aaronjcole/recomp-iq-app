@@ -13,7 +13,8 @@ import {
   estimateOneRepMax
 } from "@/lib/fitness";
 
-const Ctx = createContext(null);
+const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
+const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
 const ActionsCtx = createContext(null);
 const HabitsCtx = createContext(null);
 
@@ -35,12 +36,23 @@ export const useRecompHabits = () => {
   return c;
 };
 
-// Backwards-compatible view combining data + actions for existing consumers.
+// Stable reference data (profile, preferences, strategy, foods, recipes, meal
+// templates, sessions, strength logs, check-ins, decision ledger, load state).
+// None of it is derived from the daily log, so reference-only consumers read
+// here and skip re-rendering on the highest-frequency write — a daily log.
+export const useRecompRef = () => {
+  const c = useContext(RefCtx);
+  if (!c) throw new Error("useRecompRef must be used within RecompProvider");
+  return c;
+};
+
+// Backwards-compatible view combining reference + live data + actions.
 export const useRecomp = () => {
-  const data = useContext(Ctx);
+  const live = useContext(Ctx);
+  const ref = useContext(RefCtx);
   const actions = useContext(ActionsCtx);
-  if (!data || !actions) throw new Error("useRecomp must be used within RecompProvider");
-  return useMemo(() => ({ ...data, ...actions }), [data, actions]);
+  if (!live || !ref || !actions) throw new Error("useRecomp must be used within RecompProvider");
+  return useMemo(() => ({ ...ref, ...live, ...actions }), [ref, live, actions]);
 };
 
 export function todayStr() {
@@ -711,14 +723,15 @@ export function RecompProvider({ children }) {
     ]
   );
 
-  const dataValue = useMemo(
+  // Reference data: unchanged by a daily-log write. Its own writes (a workout,
+  // a saved food, a check-in) still update it as usual.
+  const refValue = useMemo(
     () => ({
       loading,
       loadError,
       profile,
       preferences,
       strategy,
-      logs,
       sessions,
       strengthLogs,
       checkIns,
@@ -726,13 +739,6 @@ export function RecompProvider({ children }) {
       recipes,
       decisionLedger,
       mealTemplates,
-      trend,
-      signal,
-      recompLevel,
-      quests,
-      boss,
-      recompSignal,
-      todayLog,
       onboarded
     }),
     [
@@ -741,7 +747,6 @@ export function RecompProvider({ children }) {
       profile,
       preferences,
       strategy,
-      logs,
       sessions,
       strengthLogs,
       checkIns,
@@ -749,15 +754,24 @@ export function RecompProvider({ children }) {
       recipes,
       decisionLedger,
       mealTemplates,
+      onboarded
+    ]
+  );
+
+  // Live data: the daily log plus everything derived from it. A log write lands
+  // here and re-renders only the consumers that actually read these.
+  const liveValue = useMemo(
+    () => ({
+      logs,
+      todayLog,
       trend,
       signal,
       recompLevel,
       quests,
       boss,
-      recompSignal,
-      todayLog,
-      onboarded
-    ]
+      recompSignal
+    }),
+    [logs, todayLog, trend, signal, recompLevel, quests, boss, recompSignal]
   );
 
   const habitsValue = useMemo(
@@ -771,7 +785,9 @@ export function RecompProvider({ children }) {
   return (
     <ActionsCtx.Provider value={actionsValue}>
       <HabitsCtx.Provider value={habitsValue}>
-        <Ctx.Provider value={dataValue}>{children}</Ctx.Provider>
+        <RefCtx.Provider value={refValue}>
+          <Ctx.Provider value={liveValue}>{children}</Ctx.Provider>
+        </RefCtx.Provider>
       </HabitsCtx.Provider>
     </ActionsCtx.Provider>
   );

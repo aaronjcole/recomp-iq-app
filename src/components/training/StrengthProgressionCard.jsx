@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef } from "@/lib/RecompContext";
 import { summarizeStrengthProgress } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -98,7 +98,7 @@ function LiftRow({ name, summary, series }) {
 }
 
 export default function StrengthProgressionCard() {
-  const { strengthLogs } = useRecomp();
+  const { strengthLogs } = useRecompRef();
 
   const rows = useMemo(() => {
     if (!strengthLogs || strengthLogs.length === 0) return [];
