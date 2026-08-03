@@ -19,8 +19,13 @@ function localTodayKey() {
   return local.toISOString().slice(0, 10);
 }
 
+function normalizeLogs(logs, deduped) {
+  return deduped && Array.isArray(logs) ? logs : dedupeLogsByDate(logs);
+}
+
 export function calculateWeightTrend(logs, options = {}) {
-  const weights = dedupeLogsByDate(logs).filter(
+  const normalized = normalizeLogs(logs, options.deduped);
+  const weights = normalized.filter(
     (log) => typeof log.weight_lbs === "number" && Number.isFinite(log.weight_lbs)
   );
   const referenceDate = options.referenceDate || weights.at(-1)?.date;
@@ -32,8 +37,9 @@ export function calculateWeightTrend(logs, options = {}) {
   return current !== null && previous !== null ? Number((current - previous).toFixed(2)) : null;
 }
 
-export function calculateWeightVariance(logs) {
-  const values = dedupeLogsByDate(logs)
+export function calculateWeightVariance(logs, options = {}) {
+  const normalized = normalizeLogs(logs, options.deduped);
+  const values = normalized
     .map((log) => log.weight_lbs)
     .filter((value) => typeof value === "number" && Number.isFinite(value));
   const avg = average(values) ?? 0;
@@ -42,7 +48,8 @@ export function calculateWeightVariance(logs) {
 }
 
 export function calculateProjectionConfidence(logs, variance, options = {}) {
-  const weights = dedupeLogsByDate(logs).filter(
+  const normalized = normalizeLogs(logs, options.deduped);
+  const weights = normalized.filter(
     (log) => typeof log.weight_lbs === "number" && Number.isFinite(log.weight_lbs)
   );
   const referenceDate = options.referenceDate || weights.at(-1)?.date;
@@ -74,7 +81,8 @@ export function generateMilestoneForecasts(input) {
 }
 
 export function generateWeightProjection(input) {
-  const weightLogs = dedupeLogsByDate(input.logs).filter(
+  const normalized = normalizeLogs(input.logs, input.logsAreDeduped);
+  const weightLogs = normalized.filter(
     (log) => typeof log.weight_lbs === "number" && Number.isFinite(log.weight_lbs)
   );
   const referenceDate = input.referenceDate || localTodayKey();
@@ -92,10 +100,16 @@ export function generateWeightProjection(input) {
     profileWeight,
     weightLogs.at(-1)?.weight_lbs
   );
-  const variance = calculateWeightVariance(recentWeightLogs);
-  const confidence = calculateProjectionConfidence(recentWeightLogs, variance, { referenceDate });
+  const variance = calculateWeightVariance(recentWeightLogs, { deduped: true });
+  const confidence = calculateProjectionConfidence(recentWeightLogs, variance, {
+    referenceDate,
+    deduped: true
+  });
   const planWeekly = (input.calorieTarget - input.tdee) / 500;
-  const observedWeekly = calculateWeightTrend(weightLogs, { referenceDate }) ?? planWeekly;
+  const observedWeekly = calculateWeightTrend(weightLogs, {
+    referenceDate,
+    deduped: true
+  }) ?? planWeekly;
   const bodyWeight = currentAvg ?? profileWeight ?? 250;
   const stepWeekly = -(estimateStepCalorieDelta(bodyWeight, 2000) * 7) / 3500;
   const calorieWeekly = -((150 * 7) / 3500);

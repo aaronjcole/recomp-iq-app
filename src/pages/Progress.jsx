@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
-import { calculateInitialStrategy, generateWeightProjection, calculateMovingAverage } from "@/lib/fitness";
+import {
+  calculateInitialStrategy,
+  calculateMovingAverage,
+  dedupeLogsByDate,
+  generateWeightProjection
+} from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +19,7 @@ import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
+const EMPTY_LOGS = [];
 const RANGES = [
   { value: "35d", label: "35d" },
   { value: "90d", label: "90d" },
@@ -28,19 +35,31 @@ function daysAgoStr(n) {
 
 export default function Progress() {
   const { profile, strategy, logs, trend, reload } = useRecomp();
+  const location = useLocation();
+  const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
   const [range, setRange] = useState("35d");
 
+  const dedupedLogs = useMemo(
+    () => (isActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
+    [isActive, logs]
+  );
+
   const chartData = useMemo(() => {
-    const weights = logs
+    if (!isActive) return [];
+    const weights = dedupedLogs
       .filter((l) => typeof l.weight_lbs === "number")
-      .sort((a, b) => a.date.localeCompare(b.date))
       .map((l) => ({ date: l.date, weight: l.weight_lbs }));
     const ma = calculateMovingAverage(
       weights.map((w) => ({ date: w.date, value: w.weight })),
-      7
+      7,
+      { deduped: true }
     );
-    return weights.map((w) => ({ ...w, ma: ma.find((m) => m.date === w.date)?.value ?? null }));
-  }, [logs]);
+    const maByDate = new Map(ma.map((point) => [point.date, point.value]));
+    return weights.map((weight) => ({
+      ...weight,
+      ma: maByDate.get(weight.date) ?? null
+    }));
+  }, [dedupedLogs, isActive]);
 
   const rangeDays = range === "all" ? null : range === "90d" ? 90 : 35;
   const visibleData = useMemo(
@@ -51,9 +70,10 @@ export default function Progress() {
   const tdee = useMemo(() => (profile ? calculateInitialStrategy(profile).tdee_estimate : null), [profile]);
   const projection = useMemo(
     () =>
-      profile && strategy
+      isActive && profile && strategy
         ? generateWeightProjection({
-            logs,
+            logs: dedupedLogs,
+            logsAreDeduped: true,
             mode: "current_plan",
             weeks: 12,
             calorieTarget: strategy.calorie_target,
@@ -62,7 +82,7 @@ export default function Progress() {
             currentWeight: profile.current_weight_lbs
           })
         : null,
-    [profile, strategy, logs, tdee]
+    [dedupedLogs, isActive, profile, strategy, tdee]
   );
 
   if (!profile || !strategy) return null;
