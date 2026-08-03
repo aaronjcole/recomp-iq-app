@@ -136,9 +136,10 @@ test("mobile release flows prioritize primary actions and usable touch targets",
 
   const todaySource = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
   assert.match(todaySource, /<BestMoveCard/);
+  assert.match(todaySource, /<RecompSignalHero/);
   assert.ok(
-    todaySource.indexOf("<BestMoveCard") < todaySource.indexOf("<RecompSignalHero"),
-    "the single daily action should appear before supporting signal detail"
+    todaySource.indexOf("<RecompSignalHero") < todaySource.indexOf("<BestMoveCard"),
+    "the recomposition signal leads as the hero, with the best-move action directly beneath it"
   );
   const bestMoveSource = readFileSync(resolve(repoRoot, "src/components\/today\/BestMoveCard.jsx"), "utf8");
   assert.match(bestMoveSource, /Today&apos;s best move/);
