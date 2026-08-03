@@ -74,3 +74,33 @@ test("Today opens the single canonical logging sheet", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Save today's log/i })).toBeVisible();
   assertNoPageErrors();
 });
+
+// Interaction coverage: exercises the write -> optimistic state -> render loop,
+// which the pure render tests above do not. This is what makes the context
+// split safe — a broken habits domain (e.g. habitEntries no longer flowing to
+// HabitsCard) fails here, not silently in production.
+test("incrementing a habit updates its counter without a reload", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/today");
+  // Fixture seeds Water at 80/100 today; step size is target/10 = 10.
+  await expect(page.getByText("80/100 oz")).toBeVisible();
+  await page.getByRole("button", { name: "Increase" }).click();
+  await expect(page.getByText("90/100 oz")).toBeVisible();
+
+  assertNoPageErrors();
+});
+
+test("saving the daily log closes the sheet without error", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/today");
+  await page.getByRole("button", { name: /Log today/i }).first().click();
+  const sheetText = page.getByText("Add the signals you have. Empty fields stay unlogged.");
+  await expect(sheetText).toBeVisible();
+
+  await page.getByRole("button", { name: /Save today's log/i }).click();
+  await expect(sheetText).toBeHidden();
+
+  assertNoPageErrors();
+});

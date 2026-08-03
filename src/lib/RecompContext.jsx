@@ -15,12 +15,23 @@ import {
 
 const Ctx = createContext(null);
 const ActionsCtx = createContext(null);
+const HabitsCtx = createContext(null);
 
 // Stable actions live in their own context so components that only invoke
 // actions (never read state) stop re-rendering on unrelated data changes.
 export const useRecompActions = () => {
   const c = useContext(ActionsCtx);
   if (!c) throw new Error("useRecompActions must be used within RecompProvider");
+  return c;
+};
+
+// The habits domain (habits + habitEntries) is the highest-churn daily
+// interaction. Isolating it means a habit tap only re-renders habit consumers,
+// not the rest of Today. useRecomp() intentionally does NOT expose these —
+// habit consumers read them here.
+export const useRecompHabits = () => {
+  const c = useContext(HabitsCtx);
+  if (!c) throw new Error("useRecompHabits must be used within RecompProvider");
   return c;
 };
 
@@ -715,8 +726,6 @@ export function RecompProvider({ children }) {
       recipes,
       decisionLedger,
       mealTemplates,
-      habits,
-      habitEntries,
       trend,
       signal,
       recompLevel,
@@ -740,8 +749,6 @@ export function RecompProvider({ children }) {
       recipes,
       decisionLedger,
       mealTemplates,
-      habits,
-      habitEntries,
       trend,
       signal,
       recompLevel,
@@ -753,9 +760,19 @@ export function RecompProvider({ children }) {
     ]
   );
 
+  const habitsValue = useMemo(
+    () => ({
+      habits,
+      habitEntries
+    }),
+    [habits, habitEntries]
+  );
+
   return (
     <ActionsCtx.Provider value={actionsValue}>
-      <Ctx.Provider value={dataValue}>{children}</Ctx.Provider>
+      <HabitsCtx.Provider value={habitsValue}>
+        <Ctx.Provider value={dataValue}>{children}</Ctx.Provider>
+      </HabitsCtx.Provider>
     </ActionsCtx.Provider>
   );
 }

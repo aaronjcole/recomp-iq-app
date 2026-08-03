@@ -105,7 +105,14 @@ export async function installAuthenticatedBase44(page, options = {}) {
     }
 
     if (url.includes("/functions/")) {
-      return json({ data: { record: { id: "record-e2e", ...readBody(request) } } });
+      // Mirror upsertTrackingRecord: the saved record has the request's
+      // `fields` flattened onto it (value/done for a habit, macros for a log),
+      // so an optimistic write reconciles instead of reverting.
+      const body = readBody(request);
+      const record = { id: "record-e2e", habit_id: body.habit_id, date: body.date, ...(body.fields || {}) };
+      // The function's HTTP body is { record }; the SDK's invoke() wraps it as
+      // { data: <body> }, which is why callers read result.data.record.
+      return json({ record });
     }
 
     // Fail loudly: an unmatched /api/apps/** call likely means a route or entity

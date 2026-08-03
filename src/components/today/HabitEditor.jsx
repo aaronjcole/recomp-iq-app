@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompHabits, useRecompActions } from "@/lib/RecompContext";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,8 @@ import { ICON_KEYS, iconFor } from "@/lib/habitIcons";
 const blank = { id: null, name: "", kind: "check", target_value: "", unit: "", icon: "" };
 
 export default function HabitEditor({ open, onOpenChange }) {
-  const { habits, addHabit, updateHabit, archiveHabit } = useRecomp();
+  const { habits } = useRecompHabits();
+  const { addHabit, updateHabit, archiveHabit } = useRecompActions();
   const [form, setForm] = useState(blank);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { useRecompHabits, useRecompActions, todayStr } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, Check, Pencil } from "lucide-react";
@@ -40,7 +40,8 @@ function computeStreak(entries, habit) {
 }
 
 export default function HabitsCard() {
-  const { habits, habitEntries, upsertHabitEntry } = useRecomp();
+  const { habits, habitEntries } = useRecompHabits();
+  const { upsertHabitEntry } = useRecompActions();
   const today = todayStr();
   const [editorOpen, setEditorOpen] = useState(false);
 
