@@ -39,6 +39,24 @@ test("best move waits for enough evidence before suggesting a plan change", () =
   assert.match(move.guardrail, /does not change/);
 });
 
+test("no intake history yields a log-intake move, not a confident hold", () => {
+  const move = deriveBestMove({
+    signal,
+    strategy,
+    todayLog: { weight_lbs: 180 },
+    trend: trend({
+      days_logged: 20,
+      calorie_adherence: null,
+      protein_adherence: null,
+      step_adherence: null
+    })
+  });
+
+  assert.equal(move.id, "log-intake");
+  assert.equal(move.action.type, "log");
+  assert.notEqual(move.id, "hold-steady");
+});
+
 test("poor recovery takes priority over nutrition and activity nudges", () => {
   const move = deriveBestMove({
     signal,

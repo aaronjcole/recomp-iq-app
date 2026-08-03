@@ -107,6 +107,33 @@ export function deriveBestMove({ preferences, signal, strategy, todayLog, trend 
     };
   }
 
+  // With 14+ days logged but no intake history at all, adherence is unknown —
+  // not perfect. The `?? 1` fallbacks below would otherwise skip every gap
+  // check and fall through to a confident "hold targets steady" for a
+  // weight-only user, contradicting the weekly engine (adjustments.js), which
+  // returns keep_collecting_data for the same input. Mirror that guard here.
+  const hasIntakeHistory = [trend.calorie_adherence, trend.protein_adherence, trend.step_adherence]
+    .some((value) => Number.isFinite(value));
+  if (!hasIntakeHistory) {
+    return {
+      ...base,
+      id: "log-intake",
+      title: "Start logging your intake",
+      summary: "You have weigh-ins, but no calorie, protein, or step history yet—so there is nothing to hold steady on. Log what you eat and your steps for a few days to unlock a target decision.",
+      evidence: [
+        { label: "Calories logged", value: "None yet" },
+        { label: "Protein logged", value: "None yet" },
+        { label: "Recent days", value: `${trend.days_logged} logged` }
+      ],
+      alternatives: [
+        { label: "Hold targets steady", reason: "Rejected because there is no intake data to confirm the plan is working." },
+        { label: "Change targets", reason: "Rejected because a target change needs calorie or protein history first." }
+      ],
+      whatChanges: "A few days of logged calories, protein, or steps turns this into a real hold-or-adjust decision.",
+      action: { label: "Log today's intake", type: "log" }
+    };
+  }
+
   if ((trend.calorie_adherence ?? 1) < 0.8) {
     return {
       ...base,
