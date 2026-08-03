@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
 import { Link } from "react-router-dom";
 import ProgressRing from "@/components/common/ProgressRing";
-import MacroBar from "@/components/common/MacroBar";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
-import QuickLogCard from "@/components/today/QuickLogCard";
 import HabitsCard from "@/components/today/HabitsCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
 import BestMoveCard from "@/components/today/BestMoveCard";
@@ -22,24 +20,13 @@ function greeting() {
 }
 
 export default function Today() {
-  const { preferences, signal, strategy, trend, quests, todayLog, sessions, reload } = useRecomp();
+  const { preferences, signal, strategy, trend, quests, todayLog, reload } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
 
   if (!strategy) return null;
 
-  const consumed = {
-    calories: todayLog?.calories ?? 0,
-    protein: todayLog?.protein_g ?? 0,
-    carbs: todayLog?.carbs_g ?? 0,
-    fat: todayLog?.fat_g ?? 0,
-    steps: todayLog?.steps ?? 0
-  };
-  const remaining = Math.max(0, strategy.calorie_target - consumed.calories);
-  const liftingDaysThisWeek = new Set(
-    sessions
-      .filter((s) => s.date >= weekStart() && (s.type === "strength" || s.type === "mixed"))
-      .map((s) => s.date)
-  ).size;
+  const consumedCalories = todayLog?.calories ?? 0;
+  const remaining = Math.max(0, strategy.calorie_target - consumedCalories);
   const bestMove = deriveBestMove({ preferences, signal, strategy, todayLog, trend });
 
   return (
@@ -50,16 +37,19 @@ export default function Today() {
         <h1 className="text-2xl font-bold">Today</h1>
       </div>
 
-      <BestMoveCard move={bestMove} onLog={() => setLogOpen(true)} />
-
+      {/* The recomposition signal is the single hero. */}
       <RecompSignalHero />
 
+      {/* Best move: one action strip beneath the signal, not a competing hero. */}
+      <BestMoveCard move={bestMove} onLog={() => setLogOpen(true)} compact />
+
+      {/* Daily loop: one canonical logging entry point (QuickLogSheet). */}
       <Card className="bg-panel border-line">
         <CardContent className="p-5 flex items-center gap-5">
           <ProgressRing
-            value={consumed.calories}
+            value={consumedCalories}
             max={strategy.calorie_target}
-            label={String(Math.round(consumed.calories))}
+            label={String(Math.round(consumedCalories))}
             sublabel={`of ${strategy.calorie_target}`}
           />
           <div className="flex-1 space-y-1">
@@ -72,27 +62,7 @@ export default function Today() {
         </CardContent>
       </Card>
 
-      <QuickLogCard />
-
       <HabitsCard />
-
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="font-medium text-sm">Today's metrics</div>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-teal" onClick={() => setLogOpen(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" /> Log
-            </Button>
-          </div>
-          <MacroBar label="Protein" value={consumed.protein} target={strategy.protein_target_g} unit="g" colorClass="bg-teal" />
-          <MacroBar label="Carbs" value={consumed.carbs} target={strategy.carb_target_g} unit="g" colorClass="bg-blue" />
-          <MacroBar label="Fat" value={consumed.fat} target={strategy.fat_target_g} unit="g" colorClass="bg-gold" />
-          <button type="button" onClick={() => setLogOpen(true)} className="w-full text-left">
-            <MacroBar label="Steps" value={consumed.steps} target={strategy.step_target} colorClass="bg-green" />
-          </button>
-          <MacroBar label="Lifts this week" value={liftingDaysThisWeek} target={strategy.lifting_days_target} colorClass="bg-orange" />
-        </CardContent>
-      </Card>
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
@@ -111,19 +81,6 @@ export default function Today() {
         </CardContent>
       </Card>
 
-      {trend && (
-        <Card className="bg-panel border-line">
-          <CardContent className="p-5 space-y-2 text-sm">
-            <div className="font-medium mb-1">Latest read</div>
-            <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
-            <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
-            <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
-            <Row label="Recovery" value={trend.recovery_label} />
-            <Row label="Days logged" value={trend.days_logged} />
-          </CardContent>
-        </Card>
-      )}
-
       <Link to="/more/coach">
         <Card className="bg-teal/10 border-teal/30">
           <CardContent className="p-4 flex items-center gap-3">
@@ -141,20 +98,4 @@ export default function Today() {
     </div>
     </PullToRefresh>
   );
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium capitalize">{value}</span>
-    </div>
-  );
-}
-
-function weekStart() {
-  const d = new Date();
-  d.setDate(d.getDate() - 7);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
 }
