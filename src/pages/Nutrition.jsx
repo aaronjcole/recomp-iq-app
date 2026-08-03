@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
@@ -14,8 +14,11 @@ import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
 import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal } from "lucide-react";
-import BarcodeScanner from "@/components/nutrition/BarcodeScanner";
-import FoodPhotoScan from "@/components/nutrition/FoodPhotoScan";
+// Loaded on demand so the ~110KB @zxing barcode decoder (and the flag-gated AI
+// food-photo scanner) stay out of the Fuel tab's initial chunk and only download
+// when the user actually opens a scanner.
+const BarcodeScanner = lazy(() => import("@/components/nutrition/BarcodeScanner"));
+const FoodPhotoScan = lazy(() => import("@/components/nutrition/FoodPhotoScan"));
 import { toast } from "@/components/ui/use-toast";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
@@ -224,20 +227,41 @@ export default function Nutrition() {
       <AddRecipeCard />
 
       {showScanner && (
-        <BarcodeScanner
-          onClose={() => setShowScanner(false)}
-          onResult={handleScannedFood}
-        />
+        <Suspense fallback={<ScannerLoading />}>
+          <BarcodeScanner
+            onClose={() => setShowScanner(false)}
+            onResult={handleScannedFood}
+          />
+        </Suspense>
       )}
 
       {featureFlags.foodPhotoScan && showPhotoScan && (
-        <FoodPhotoScan
-          onClose={() => setShowPhotoScan(false)}
-          onResult={handleScannedFood}
-        />
+        <Suspense fallback={<ScannerLoading />}>
+          <FoodPhotoScan
+            onClose={() => setShowPhotoScan(false)}
+            onResult={handleScannedFood}
+          />
+        </Suspense>
       )}
     </div>
     </PullToRefresh>
+  );
+}
+
+function ScannerLoading() {
+  // Visible feedback while the lazily-loaded scanner chunk downloads, so a slow
+  // mobile network doesn't make the tap look like it did nothing.
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-panel px-6 py-5">
+        <div className="w-8 h-8 border-4 border-panel2 border-t-teal rounded-full animate-spin" />
+        <span className="text-sm text-muted-foreground">Loading scanner…</span>
+      </div>
+    </div>
   );
 }
 

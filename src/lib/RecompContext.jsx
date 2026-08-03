@@ -401,37 +401,71 @@ export function RecompProvider({ children }) {
   const upsertHabitEntry = useCallback(
     (habitId, date, fieldsOrUpdater) => {
       const key = `${habitId}:${date}`;
+      const matches = (item) => item.habit_id === habitId && item.date === date;
+
+      // Optimistically apply the change from the locally-known entry so the
+      // habit ring/counter/streak moves on tap instead of freezing until the
+      // read + write round-trips return. Mirrors upsertDailyLog. The server
+      // function reconciles duplicates; failures roll back below.
+      const previousLocal = habitEntriesRef.current.find(matches) ?? null;
+      const fields =
+        typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(previousLocal) : fieldsOrUpdater;
+      const optimistic = mergeDefined(previousLocal ?? { habit_id: habitId, date }, fields);
+
+      setHabitEntriesCurrent((previous) => [
+        optimistic,
+        ...previous.filter((item) => !matches(item))
+      ]);
+
       return enqueueByKey(habitQueues, key, async () => {
-        const local =
-          habitEntriesRef.current.find((item) => item.habit_id === habitId && item.date === date) ?? null;
-        const remote = await base44.entities.HabitEntry.filter(
-          { habit_id: habitId, date },
-          "-created_date",
-          10
-        );
-        const existing = newestByKey(
-          [...remote, ...(local ? [local] : [])],
-          (item) => `${item.habit_id}:${item.date}`
-        )[0] ?? null;
-        const fields =
-          typeof fieldsOrUpdater === "function" ? fieldsOrUpdater(existing) : fieldsOrUpdater;
-        const result = await base44.functions.invoke("upsertTrackingRecord", {
-          kind: "habit_entry",
-          habit_id: habitId,
-          date,
-          fields
-        });
-        const response = result?.data?.record;
-        if (!response?.id) throw new Error("The habit update returned no record");
-        const saved = mergeDefined(existing, response);
-        setHabitEntriesCurrent((previous) => [
-          saved,
-          ...previous.filter(
-            (item) =>
-              item.id !== saved.id && !(item.habit_id === habitId && item.date === date)
-          )
-        ]);
-        return saved;
+        try {
+          const local = habitEntriesRef.current.find(matches) ?? null;
+          const remote = await base44.entities.HabitEntry.filter(
+            { habit_id: habitId, date },
+            "-created_date",
+            10
+          );
+          const existing = newestByKey(
+            [...remote, ...(local ? [local] : [])],
+            (item) => `${item.habit_id}:${item.date}`
+          )[0] ?? null;
+          const result = await base44.functions.invoke("upsertTrackingRecord", {
+            kind: "habit_entry",
+            habit_id: habitId,
+            date,
+            fields
+          });
+          const response = result?.data?.record;
+          if (!response?.id) throw new Error("The habit update returned no record");
+          const current = habitEntriesRef.current.find(matches) ?? null;
+          const saved = mergeDefined(mergeDefined(existing, response), current);
+          setHabitEntriesCurrent((previous) => [
+            saved,
+            ...previous.filter((item) => item.id !== saved.id && !matches(item))
+          ]);
+          return saved;
+        } catch (error) {
+          // Roll back the optimistic entry only if it is still the current value.
+          setHabitEntriesCurrent((previous) => {
+            const current = previous.find(matches) ?? null;
+            if (!current) return previous;
+            const patchIsCurrent = Object.entries(fields).every(([k, v]) =>
+              Object.is(current[k], v)
+            );
+            if (!patchIsCurrent) return previous;
+            if (!previousLocal) return previous.filter((item) => !matches(item));
+            const restored = { ...current };
+            for (const k of Object.keys(fields)) {
+              if (Object.prototype.hasOwnProperty.call(previousLocal, k)) {
+                restored[k] = previousLocal[k];
+              } else {
+                delete restored[k];
+              }
+            }
+            return [restored, ...previous.filter((item) => !matches(item))];
+          });
+          throw error;
+        }
       });
     },
     [setHabitEntriesCurrent]
