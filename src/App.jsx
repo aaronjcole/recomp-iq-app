@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -10,36 +10,38 @@ import { Navigate } from 'react-router-dom';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppSplash from '@/components/AppSplash';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import RouteErrorBoundary from '@/components/RouteErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 import RouteAccessibility from '@/components/RouteAccessibility';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
-const PageNotFound = lazy(() => import('./lib/PageNotFound'));
-const AppLayout = lazy(() => import('@/components/AppLayout'));
-const Login = lazy(() => import('@/pages/Login'));
-const Register = lazy(() => import('@/pages/Register'));
-const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
-const Onboarding = lazy(() => import('@/pages/Onboarding'));
-const Today = lazy(() => import('@/pages/Today'));
-const Nutrition = lazy(() => import('@/pages/Nutrition'));
-const Training = lazy(() => import('@/pages/Training'));
-const Progress = lazy(() => import('@/pages/Progress'));
-const More = lazy(() => import('@/pages/More'));
-const Plan = lazy(() => import('@/pages/Plan'));
-const DecisionHistory = lazy(() => import('@/pages/DecisionHistory'));
-const Coach = lazy(() => import('@/pages/Coach'));
-const Profile = lazy(() => import('@/pages/Profile'));
-const Hero = lazy(() => import('@/pages/Hero'));
-const ComingSoon = lazy(() => import('@/pages/ComingSoon'));
-const PublicHome = lazy(() => import('@/components/PublicHome'));
-const Privacy = lazy(() => import('@/pages/Privacy'));
-const Terms = lazy(() => import('@/pages/Terms'));
-const Support = lazy(() => import('@/pages/Support'));
-const DeleteAccount = lazy(() => import('@/pages/DeleteAccount'));
-const RecompGate = lazy(() =>
+const PageNotFound = lazyWithRetry(() => import('./lib/PageNotFound'));
+const AppLayout = lazyWithRetry(() => import('@/components/AppLayout'));
+const Login = lazyWithRetry(() => import('@/pages/Login'));
+const Register = lazyWithRetry(() => import('@/pages/Register'));
+const ForgotPassword = lazyWithRetry(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazyWithRetry(() => import('@/pages/ResetPassword'));
+const Onboarding = lazyWithRetry(() => import('@/pages/Onboarding'));
+const Today = lazyWithRetry(() => import('@/pages/Today'));
+const Nutrition = lazyWithRetry(() => import('@/pages/Nutrition'));
+const Training = lazyWithRetry(() => import('@/pages/Training'));
+const Progress = lazyWithRetry(() => import('@/pages/Progress'));
+const More = lazyWithRetry(() => import('@/pages/More'));
+const Plan = lazyWithRetry(() => import('@/pages/Plan'));
+const DecisionHistory = lazyWithRetry(() => import('@/pages/DecisionHistory'));
+const Coach = lazyWithRetry(() => import('@/pages/Coach'));
+const Profile = lazyWithRetry(() => import('@/pages/Profile'));
+const Hero = lazyWithRetry(() => import('@/pages/Hero'));
+const ComingSoon = lazyWithRetry(() => import('@/pages/ComingSoon'));
+const PublicHome = lazyWithRetry(() => import('@/components/PublicHome'));
+const Privacy = lazyWithRetry(() => import('@/pages/Privacy'));
+const Terms = lazyWithRetry(() => import('@/pages/Terms'));
+const Support = lazyWithRetry(() => import('@/pages/Support'));
+const DeleteAccount = lazyWithRetry(() => import('@/pages/DeleteAccount'));
+const RecompGate = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
 );
-const RequireOnboarding = lazy(() =>
+const RequireOnboarding = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RequireOnboarding }))
 );
 
@@ -107,9 +109,11 @@ function App() {
             <AndroidBackHandler />
             <OfflineBanner />
             <div id="app-content" tabIndex={-1}>
-              <Suspense fallback={<AppSplash />}>
-                <AuthenticatedApp />
-              </Suspense>
+              <RouteErrorBoundary>
+                <Suspense fallback={<AppSplash />}>
+                  <AuthenticatedApp />
+                </Suspense>
+              </RouteErrorBoundary>
             </div>
           </Router>
         </ErrorBoundary>

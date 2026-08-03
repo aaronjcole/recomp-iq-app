@@ -12,6 +12,7 @@ import {
   runWeeklyCheckIn,
   estimateOneRepMax
 } from "@/lib/fitness";
+import { trackEvent } from "@/lib/telemetry";
 
 const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
 const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
@@ -299,6 +300,7 @@ export function RecompProvider({ children }) {
     strategyRef.current = savedStrategy;
     setStrategy(savedStrategy);
 
+    trackEvent("onboarding_complete");
     return { profile: savedProfile, preferences: savedPreferences, strategy: savedStrategy };
   }, []);
 
