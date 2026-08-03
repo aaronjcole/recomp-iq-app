@@ -108,7 +108,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
       return json({ data: { record: { id: "record-e2e", ...readBody(request) } } });
     }
 
-    return json({});
+    // Fail loudly: an unmatched /api/apps/** call likely means a route or entity
+    // contract changed and the fixtures/harness have not accounted for it, which
+    // is exactly the kind of regression this oracle should surface.
+    return json({ error: `Unhandled Base44 mock route: ${method} ${url}` }, 404);
   });
 }
 

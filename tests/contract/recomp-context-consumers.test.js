@@ -49,9 +49,10 @@ function keysFromDestructure(body) {
 /** Every key any component reads from useRecomp(), with the files that read it. */
 function collectConsumedKeys() {
   const consumed = new Map();
-  // Stop the capture at `;` or a brace so it can't bridge across an adjacent
+  // Matches useRecomp() and the split useRecompActions()/useRecompData() hooks.
+  // Stops the capture at `;` or a brace so it can't bridge across an adjacent
   // hook (e.g. `const { user } = useAuth();` sitting above the useRecomp call).
-  const pattern = /const\s*\{([^{};]*?)\}\s*=\s*useRecomp\(\)/g;
+  const pattern = /const\s*\{([^{};]*?)\}\s*=\s*useRecomp(?:Actions|Data)?\(\)/g;
   for (const file of walk(srcDir)) {
     const source = readFileSync(file, "utf8");
     let match;
@@ -65,18 +66,8 @@ function collectConsumedKeys() {
   return consumed;
 }
 
-/**
- * Keys the provider(s) expose. Today that is the single `const value = {…}`
- * object in RecompContext. When the context is split, extend this to read the
- * union of every object passed to a `<*.Provider value={…}>`.
- */
-function collectProvidedKeys() {
-  const source = readFileSync(contextPath, "utf8");
-  const start = source.indexOf("const value = {");
-  assert.notEqual(start, -1, "RecompContext must build a `const value = {…}` object");
-
-  // Brace-match from the opening `{` to its close so nested objects are skipped.
-  const open = source.indexOf("{", start);
+/** Top-level keys of the object literal whose opening `{` is at `open`. */
+function topLevelKeys(source, open) {
   let depth = 0;
   let end = -1;
   for (let i = open; i < source.length; i += 1) {
@@ -89,26 +80,51 @@ function collectProvidedKeys() {
       }
     }
   }
-  assert.notEqual(end, -1, "RecompContext `value` object must be balanced");
+  assert.notEqual(end, -1, "a context value object must be balanced");
 
-  const provided = new Set();
-  // Only consider keys at the top level of the value object (depth 1).
+  const keys = new Set();
+  const spreads = [];
   let level = 0;
-  const body = source.slice(open, end + 1);
-  const lines = body.split("\n");
-  for (const line of lines) {
+  for (const line of source.slice(open, end + 1).split("\n")) {
     const trimmed = line.trim();
-    // Track nesting so we don't pick up nested object keys.
     const openers = (trimmed.match(/\{/g) || []).length;
     const closers = (trimmed.match(/\}/g) || []).length;
     if (level === 1) {
-      // `key,` (shorthand), `key: value`, or a trailing shorthand `key` with
-      // no comma (the last property in the object).
+      // A top-level spread (`...actions`) hides its keys from this text parser;
+      // fail loudly so a future refactor resolves them instead of producing a
+      // wall of false "missing key" errors.
+      if (trimmed.startsWith("...")) spreads.push(trimmed.replace(/,$/, ""));
+      // `key,` (shorthand), `key: value`, or a trailing shorthand key.
       const m = trimmed.match(/^([A-Za-z0-9_]+)\s*(?:[:,]|$)/);
-      if (m) provided.add(m[1]);
+      if (m) keys.add(m[1]);
     }
     level += openers - closers;
   }
+  assert.deepEqual(
+    spreads,
+    [],
+    `a context value object uses spread properties this collector cannot resolve — extend collectProvidedKeys:\n  ${spreads.join("\n  ")}`
+  );
+  return keys;
+}
+
+/**
+ * Keys the provider(s) expose: the union of every `const <name>Value = {…}`
+ * object in RecompContext (the actions/data split provides `actionsValue` and
+ * `dataValue`). Add more `*Value` objects and they are picked up automatically.
+ */
+function collectProvidedKeys() {
+  const source = readFileSync(contextPath, "utf8");
+  const provided = new Set();
+  const decl = /const\s+\w+Value\s*=\s*(?:useMemo\([^{]*|)\{/g;
+  let match;
+  let found = 0;
+  while ((match = decl.exec(source)) !== null) {
+    found += 1;
+    const open = source.indexOf("{", match.index + match[0].length - 1);
+    for (const key of topLevelKeys(source, open)) provided.add(key);
+  }
+  assert.ok(found >= 1, "RecompContext must build at least one `const <name>Value = {…}` object");
   return provided;
 }
 
@@ -116,8 +132,17 @@ test("every useRecomp() consumer key is provided by RecompContext", () => {
   const consumed = collectConsumedKeys();
   const provided = collectProvidedKeys();
 
-  assert.ok(consumed.size >= 20, `expected the app to consume many context keys, found ${consumed.size}`);
-  assert.ok(provided.size >= 25, `expected RecompContext to provide many keys, found ${provided.size}`);
+  // Sanity floors, not fixed counts: a zero means the parser stopped matching
+  // (regex drift), not that the app stopped using the context. The split can
+  // legitimately move keys between providers and change the totals.
+  assert.ok(
+    consumed.size > 0,
+    "found no useRecomp()/useRecompActions() consumers — the consumer regex no longer matches the source"
+  );
+  assert.ok(
+    provided.size > 0,
+    "found no keys in RecompContext's *Value objects — collectProvidedKeys no longer parses them"
+  );
 
   const missing = [];
   for (const [key, files] of consumed) {
@@ -131,11 +156,16 @@ test("every useRecomp() consumer key is provided by RecompContext", () => {
   );
 });
 
-test("the RecompContext value is wired to the provider", () => {
+test("both context values are wired to their providers", () => {
   const source = readFileSync(contextPath, "utf8");
   assert.match(
     source,
-    /<Ctx\.Provider value=\{value\}>/,
-    "the assembled value object must be passed to Ctx.Provider"
+    /<Ctx\.Provider\s+value=\{\s*dataValue\s*\}/,
+    "dataValue must be passed to Ctx.Provider"
+  );
+  assert.match(
+    source,
+    /<ActionsCtx\.Provider\s+value=\{\s*actionsValue\s*\}/,
+    "actionsValue must be passed to ActionsCtx.Provider"
   );
 });

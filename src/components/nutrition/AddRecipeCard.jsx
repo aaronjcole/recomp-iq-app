@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Plus, Trash2, ChefHat } from "lucide-react";
 const emptyRow = { name: "", quantity: "", unit: "" };
 
 export default function AddRecipeCard() {
-  const { addRecipe } = useRecomp();
+  const { addRecipe } = useRecompActions();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [servings, setServings] = useState("1");
