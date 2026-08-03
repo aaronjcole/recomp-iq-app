@@ -5,24 +5,32 @@ import { fileURLToPath } from "node:url";
 import { resolve, join } from "node:path";
 
 /**
- * Context contract oracle for the Wave 1 mega-context refactor.
+ * Context contract oracle for the Wave 1 context split.
  *
- * RecompContext exposes ~30 keys through a single `value` object, consumed by
- * 20+ components via `const { ... } = useRecomp()`. When that provider is split
- * (stable actions vs. per-domain data), the easiest and most damaging mistake
- * is to drop a key from what the provider(s) expose — a bug that lint,
- * typecheck, and the unit tests all pass right through, surfacing only as a
- * blank or stale screen at runtime.
+ * RecompContext is split into per-concern providers (data, actions, habits),
+ * each read through its own hook. The easiest and most damaging mistake in this
+ * refactor is to read a key through the wrong hook — e.g. destructuring `habits`
+ * from useRecomp() after it moved to useRecompHabits(). That returns undefined
+ * at runtime and blanks or crashes a screen, but lint, typecheck, and the unit
+ * tests all pass right through it.
  *
- * This test fails loudly and specifically if any key a component destructures
- * from useRecomp() is not provided by RecompContext. After the split, update
- * `collectProvidedKeys` to union every context the refactor introduces — a
- * failure here means "you forgot to expose <key> somewhere".
+ * This test is hook-aware: every key a component reads must be provided by the
+ * object(s) backing the hook it read from. When you add or reshape a provider,
+ * update HOOK_PROVIDERS and the provider-wiring test below — a failure here is
+ * the point: it names the key and the file so the fix is obvious.
  */
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const srcDir = resolve(repoRoot, "src");
 const contextPath = resolve(srcDir, "lib/RecompContext.jsx");
+
+// Which `*Value` object(s) back each hook. useRecomp() composes data + actions.
+const HOOK_PROVIDERS = {
+  useRecomp: ["dataValue", "actionsValue"],
+  useRecompData: ["dataValue"],
+  useRecompActions: ["actionsValue"],
+  useRecompHabits: ["habitsValue"],
+};
 
 function walk(dir) {
   const out = [];
@@ -34,36 +42,32 @@ function walk(dir) {
   return out;
 }
 
-/** Extract the identifier names from a destructuring pattern body. */
 function keysFromDestructure(body) {
   return body
     .split(",")
     .map((part) => part.replace(/\/\/.*$/gm, "").trim())
     .filter(Boolean)
-    // `logs: renamed` -> consumed context key is `logs` (before the colon).
-    // `logs = fallback` -> strip the default. Ignore rest `...rest`.
     .map((part) => part.split(":")[0].split("=")[0].trim())
     .filter((name) => name && !name.startsWith("..."));
 }
 
-/** Every key any component reads from useRecomp(), with the files that read it. */
-function collectConsumedKeys() {
-  const consumed = new Map();
-  // Matches useRecomp() and the split useRecompActions()/useRecompData() hooks.
-  // Stops the capture at `;` or a brace so it can't bridge across an adjacent
-  // hook (e.g. `const { user } = useAuth();` sitting above the useRecomp call).
-  const pattern = /const\s*\{([^{};]*?)\}\s*=\s*useRecomp(?:Actions|Data)?\(\)/g;
+/** Every context key read in src, tagged with the hook it was read from. */
+function collectConsumers() {
+  const consumers = [];
+  // Group 1: destructured names. Group 2: the hook (useRecomp / useRecompX).
+  // Capture stops at `;`/braces so it can't bridge across an adjacent hook.
+  const pattern = /const\s*\{([^{};]*?)\}\s*=\s*(useRecomp(?:Data|Actions|Habits)?)\(\)/g;
   for (const file of walk(srcDir)) {
     const source = readFileSync(file, "utf8");
     let match;
     while ((match = pattern.exec(source)) !== null) {
+      const hook = match[2];
       for (const key of keysFromDestructure(match[1])) {
-        if (!consumed.has(key)) consumed.set(key, []);
-        consumed.get(key).push(file.replace(`${repoRoot}/`, ""));
+        consumers.push({ hook, key, file: file.replace(`${repoRoot}/`, "") });
       }
     }
   }
-  return consumed;
+  return consumers;
 }
 
 /** Top-level keys of the object literal whose opening `{` is at `open`. */
@@ -91,10 +95,8 @@ function topLevelKeys(source, open) {
     const closers = (trimmed.match(/\}/g) || []).length;
     if (level === 1) {
       // A top-level spread (`...actions`) hides its keys from this text parser;
-      // fail loudly so a future refactor resolves them instead of producing a
-      // wall of false "missing key" errors.
+      // fail loudly so a future refactor resolves them.
       if (trimmed.startsWith("...")) spreads.push(trimmed.replace(/,$/, ""));
-      // `key,` (shorthand), `key: value`, or a trailing shorthand key.
       const m = trimmed.match(/^([A-Za-z0-9_]+)\s*(?:[:,]|$)/);
       if (m) keys.add(m[1]);
     }
@@ -103,69 +105,66 @@ function topLevelKeys(source, open) {
   assert.deepEqual(
     spreads,
     [],
-    `a context value object uses spread properties this collector cannot resolve — extend collectProvidedKeys:\n  ${spreads.join("\n  ")}`
+    `a context value object uses spread properties this collector cannot resolve — extend collectProvidedByObject:\n  ${spreads.join("\n  ")}`
   );
   return keys;
 }
 
-/**
- * Keys the provider(s) expose: the union of every `const <name>Value = {…}`
- * object in RecompContext (the actions/data split provides `actionsValue` and
- * `dataValue`). Add more `*Value` objects and they are picked up automatically.
- */
-function collectProvidedKeys() {
+/** Map of `<name>Value` -> Set of the keys it provides. */
+function collectProvidedByObject() {
   const source = readFileSync(contextPath, "utf8");
-  const provided = new Set();
-  const decl = /const\s+\w+Value\s*=\s*(?:useMemo\([^{]*|)\{/g;
+  const byObject = new Map();
+  const decl = /const\s+(\w+Value)\s*=\s*(?:useMemo\([^{]*|)\{/g;
   let match;
-  let found = 0;
   while ((match = decl.exec(source)) !== null) {
-    found += 1;
     const open = source.indexOf("{", match.index + match[0].length - 1);
-    for (const key of topLevelKeys(source, open)) provided.add(key);
+    byObject.set(match[1], topLevelKeys(source, open));
   }
-  assert.ok(found >= 1, "RecompContext must build at least one `const <name>Value = {…}` object");
-  return provided;
+  assert.ok(byObject.size >= 1, "RecompContext must build at least one `const <name>Value = {…}` object");
+  return byObject;
 }
 
-test("every useRecomp() consumer key is provided by RecompContext", () => {
-  const consumed = collectConsumedKeys();
-  const provided = collectProvidedKeys();
+test("every context key is read through a hook that provides it", () => {
+  const consumers = collectConsumers();
+  const byObject = collectProvidedByObject();
 
-  // Sanity floors, not fixed counts: a zero means the parser stopped matching
-  // (regex drift), not that the app stopped using the context. The split can
-  // legitimately move keys between providers and change the totals.
-  assert.ok(
-    consumed.size > 0,
-    "found no useRecomp()/useRecompActions() consumers — the consumer regex no longer matches the source"
-  );
-  assert.ok(
-    provided.size > 0,
-    "found no keys in RecompContext's *Value objects — collectProvidedKeys no longer parses them"
-  );
+  // Sanity floors: a zero means the parser stopped matching (regex drift), not
+  // that the app stopped using the context.
+  assert.ok(consumers.length > 0, "found no useRecomp*() consumers — the consumer regex no longer matches the source");
+  assert.ok(byObject.size > 0, "found no RecompContext *Value objects — the provider regex no longer matches the source");
 
-  const missing = [];
-  for (const [key, files] of consumed) {
-    if (!provided.has(key)) missing.push(`${key}  (read in ${files.join(", ")})`);
+  const violations = [];
+  for (const { hook, key, file } of consumers) {
+    const objects = HOOK_PROVIDERS[hook];
+    if (!objects) {
+      violations.push(`${key} read via unknown hook ${hook}() in ${file}`);
+      continue;
+    }
+    const provided = objects.some((name) => byObject.get(name)?.has(key));
+    if (!provided) {
+      violations.push(`${key} read via ${hook}() in ${file}, but no ${objects.join(" / ")} provides it`);
+    }
   }
 
   assert.deepEqual(
-    missing,
+    violations,
     [],
-    `useRecomp() keys with no provider — a context split dropped them:\n  ${missing.join("\n  ")}`
+    `context keys read through a hook that does not provide them:\n  ${violations.join("\n  ")}`
   );
 });
 
-test("both context values are wired to their providers", () => {
+test("each context value is wired to its provider", () => {
   const source = readFileSync(contextPath, "utf8");
-  assert.match(
-    source,
-    /<Ctx\.Provider\s+value=\{\s*dataValue\s*\}/,
-    "dataValue must be passed to Ctx.Provider"
-  );
-  assert.match(
-    source,
-    /<ActionsCtx\.Provider\s+value=\{\s*actionsValue\s*\}/,
-    "actionsValue must be passed to ActionsCtx.Provider"
-  );
+  const wiring = [
+    ["Ctx", "dataValue"],
+    ["ActionsCtx", "actionsValue"],
+    ["HabitsCtx", "habitsValue"],
+  ];
+  for (const [ctx, value] of wiring) {
+    assert.match(
+      source,
+      new RegExp(`<${ctx}\\.Provider\\s+value=\\{\\s*${value}\\s*\\}`),
+      `${value} must be passed to ${ctx}.Provider`
+    );
+  }
 });
