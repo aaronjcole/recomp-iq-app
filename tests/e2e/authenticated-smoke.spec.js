@@ -85,7 +85,15 @@ test("incrementing a habit updates its counter without a reload", async ({ page 
   await page.goto("/today");
   // Fixture seeds Water at 80/100 today; step size is target/10 = 10.
   await expect(page.getByText("80/100 oz")).toBeVisible();
+
+  // Assert only after the write reconciles, so this verifies the persisted
+  // value survives — not just the optimistic paint that appears before the
+  // network resolves (which would hide a broken reconcile/rollback).
+  const written = page.waitForResponse(
+    (r) => r.url().includes("/functions/upsertTrackingRecord") && r.request().method() === "POST"
+  );
   await page.getByRole("button", { name: "Increase" }).click();
+  await written;
   await expect(page.getByText("90/100 oz")).toBeVisible();
 
   assertNoPageErrors();
