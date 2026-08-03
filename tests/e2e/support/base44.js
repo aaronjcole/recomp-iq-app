@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { AUTH_USER, ENTITY_FIXTURES, PUBLIC_SETTINGS } from "./fixtures.js";
 
 /**
  * Fulfil the single Base44 request made before public routes render. This keeps
@@ -35,6 +36,82 @@ export async function installUnauthenticatedBase44(page) {
   // recursively send them back to itself.
   await page.route("**/api/apps/playwright-local/analytics/**", async (route) => {
     await route.fulfill({ status: 204, body: "" });
+  });
+}
+
+function readBody(request) {
+  try {
+    return request.postDataJSON() ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function idFromEntityUrl(url) {
+  const m = url.match(/\/entities\/[A-Za-z0-9_]+\/([A-Za-z0-9_-]+)/);
+  return m && m[1] !== "me" ? m[1] : null;
+}
+
+/**
+ * Boot the real app as a signed-in user with a fixture dataset, without any
+ * network or credentials. Seeds a stored token so AuthContext takes the
+ * authenticated path, then serves every Base44 /api call from ENTITY_FIXTURES.
+ *
+ * This is the runtime oracle for the Wave 1 data-layer / mega-context refactor:
+ * if a refactor drops a context consumer, mis-gates first paint, or white-
+ * screens a tab, the screen fails to render its heading or throws a page error.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ user?: object, entities?: Record<string, object[]> }} [options]
+ */
+export async function installAuthenticatedBase44(page, options = {}) {
+  const user = options.user ?? AUTH_USER;
+  const entities = options.entities ?? ENTITY_FIXTURES;
+
+  await page.addInitScript(() => {
+    try {
+      const token = "e2e-authenticated-token-playwright-local";
+      window.localStorage.setItem("base44_access_token", token);
+      window.localStorage.setItem("token", token);
+    } catch {
+      // Storage can be unavailable; the test will surface it as an auth failure.
+    }
+  });
+
+  // Scope strictly to the Base44 backend (/api/apps/**). A broad **/api/**
+  // would also shadow the app's own module at /src/api/base44Client.js and
+  // break the dev server's module MIME type.
+  await page.route("**/api/apps/**", async (route) => {
+    const request = route.request();
+    const url = request.url();
+    const method = request.method();
+    const json = (body, status = 200) =>
+      route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+
+    if (url.includes("/apps/public/")) return json(PUBLIC_SETTINGS);
+    if (url.includes("/analytics/")) return route.fulfill({ status: 204, body: "" });
+    if (/\/entities\/User\/me\b/.test(url)) return json(user);
+
+    const entityMatch = url.match(/\/entities\/([A-Za-z0-9_]+)/);
+    if (entityMatch) {
+      const name = entityMatch[1];
+      const rows = entities[name] ?? [];
+      if (method === "GET") return json(rows);
+      if (method === "POST") return json({ id: `${name}-e2e-created`, ...readBody(request) });
+      if (method === "PUT" || method === "PATCH") {
+        return json({ id: idFromEntityUrl(url) ?? `${name}-e2e`, ...readBody(request) });
+      }
+      if (method === "DELETE") return json({ success: true });
+    }
+
+    if (url.includes("/functions/")) {
+      return json({ data: { record: { id: "record-e2e", ...readBody(request) } } });
+    }
+
+    // Fail loudly: an unmatched /api/apps/** call likely means a route or entity
+    // contract changed and the fixtures/harness have not accounted for it, which
+    // is exactly the kind of regression this oracle should surface.
+    return json({ error: `Unhandled Base44 mock route: ${method} ${url}` }, 404);
   });
 }
 

@@ -14,10 +14,22 @@ import {
 } from "@/lib/fitness";
 
 const Ctx = createContext(null);
-export const useRecomp = () => {
-  const c = useContext(Ctx);
-  if (!c) throw new Error("useRecomp must be used within RecompProvider");
+const ActionsCtx = createContext(null);
+
+// Stable actions live in their own context so components that only invoke
+// actions (never read state) stop re-rendering on unrelated data changes.
+export const useRecompActions = () => {
+  const c = useContext(ActionsCtx);
+  if (!c) throw new Error("useRecompActions must be used within RecompProvider");
   return c;
+};
+
+// Backwards-compatible view combining data + actions for existing consumers.
+export const useRecomp = () => {
+  const data = useContext(Ctx);
+  const actions = useContext(ActionsCtx);
+  if (!data || !actions) throw new Error("useRecomp must be used within RecompProvider");
+  return useMemo(() => ({ ...data, ...actions }), [data, actions]);
 };
 
 export function todayStr() {
@@ -640,52 +652,112 @@ export function RecompProvider({ children }) {
     return { trend: t, adjustment, checkIn, manual, advisory: manual ? adjustment.nextStrategy : null };
   }, [profile, strategy, preferences, logs, updateStrategy]);
 
-  const value = {
-    loading,
-    loadError,
-    profile,
-    preferences,
-    strategy,
-    logs,
-    sessions,
-    strengthLogs,
-    checkIns,
-    foods,
-    recipes,
-    decisionLedger,
-    mealTemplates,
-    habits,
-    habitEntries,
-    trend,
-    signal,
-    recompLevel,
-    quests,
-    boss,
-    recompSignal,
-    todayLog,
-    onboarded,
-    reload: loadAll,
-    completeOnboarding,
-    updateProfile,
-    updatePreferences,
-    updateStrategy,
-    upsertDailyLog,
-    upsertHabitEntry,
-    addHabit,
-    updateHabit,
-    archiveHabit,
-    addSession,
-    saveTrainingSession,
-    deleteSession,
-    addFood,
-    addStrengthLog,
-    saveMealTemplate,
-    logMealTemplate,
-    addRecipe,
-    runCheckIn
-  };
+  // Actions are stable across data changes (they are all useCallback'd), so a
+  // component that only calls actions never needs to re-render when state
+  // updates. Kept in their own memoized object + context.
+  const actionsValue = useMemo(
+    () => ({
+      reload: loadAll,
+      completeOnboarding,
+      updateProfile,
+      updatePreferences,
+      updateStrategy,
+      upsertDailyLog,
+      upsertHabitEntry,
+      addHabit,
+      updateHabit,
+      archiveHabit,
+      addSession,
+      saveTrainingSession,
+      deleteSession,
+      addFood,
+      addStrengthLog,
+      saveMealTemplate,
+      logMealTemplate,
+      addRecipe,
+      runCheckIn
+    }),
+    [
+      loadAll,
+      completeOnboarding,
+      updateProfile,
+      updatePreferences,
+      updateStrategy,
+      upsertDailyLog,
+      upsertHabitEntry,
+      addHabit,
+      updateHabit,
+      archiveHabit,
+      addSession,
+      saveTrainingSession,
+      deleteSession,
+      addFood,
+      addStrengthLog,
+      saveMealTemplate,
+      logMealTemplate,
+      addRecipe,
+      runCheckIn
+    ]
+  );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  const dataValue = useMemo(
+    () => ({
+      loading,
+      loadError,
+      profile,
+      preferences,
+      strategy,
+      logs,
+      sessions,
+      strengthLogs,
+      checkIns,
+      foods,
+      recipes,
+      decisionLedger,
+      mealTemplates,
+      habits,
+      habitEntries,
+      trend,
+      signal,
+      recompLevel,
+      quests,
+      boss,
+      recompSignal,
+      todayLog,
+      onboarded
+    }),
+    [
+      loading,
+      loadError,
+      profile,
+      preferences,
+      strategy,
+      logs,
+      sessions,
+      strengthLogs,
+      checkIns,
+      foods,
+      recipes,
+      decisionLedger,
+      mealTemplates,
+      habits,
+      habitEntries,
+      trend,
+      signal,
+      recompLevel,
+      quests,
+      boss,
+      recompSignal,
+      todayLog,
+      onboarded
+    ]
+  );
+
+  return (
+    <ActionsCtx.Provider value={actionsValue}>
+      <Ctx.Provider value={dataValue}>{children}</Ctx.Provider>
+    </ActionsCtx.Provider>
+  );
 }
 
 export function RecompGate() {

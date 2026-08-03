@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { useRecompActions, todayStr } from "@/lib/RecompContext";
 import { estimateOneRepMax } from "@/lib/fitness";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const TYPE_OPTIONS = [
 ];
 
 export default function SessionBuilder() {
-  const { saveTrainingSession } = useRecomp();
+  const { saveTrainingSession } = useRecompActions();
   const { toast } = useToast();
 
   const [date, setDate] = useState(todayStr());

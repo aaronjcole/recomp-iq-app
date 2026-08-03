@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "test:fitness": "node --test tests/fitness/*.test.js",
     "test:security": "node --test tests/security/*.test.js",
+    "test:contract": "node --test tests/contract/*.test.js",
     "test:e2e": "playwright test --grep-invert @deployed",
     "test:e2e:deployed": "playwright test --grep @deployed",
     "verify:android": "node scripts/verify-android-release.mjs",
