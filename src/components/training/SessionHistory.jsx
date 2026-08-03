@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dumbbell, Trash2 } from "lucide-react";
 
@@ -37,7 +37,8 @@ function summarizeSets(sets) {
 }
 
 export default function SessionHistory() {
-  const { sessions, deleteSession } = useRecomp();
+  const { sessions } = useRecompRef();
+  const { deleteSession } = useRecompActions();
   const [confirmId, setConfirmId] = useState(null);
 
   const days = useMemo(() => {

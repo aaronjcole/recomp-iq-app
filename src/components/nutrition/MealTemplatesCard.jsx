@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,8 @@ const emptyItem = { name: "", serving_description: "1 serving", calories: "", pr
 const n = (v) => Number(v) || 0;
 
 export default function MealTemplatesCard() {
-  const { mealTemplates, foods, saveMealTemplate, logMealTemplate } = useRecomp();
+  const { mealTemplates, foods } = useRecompRef();
+  const { saveMealTemplate, logMealTemplate } = useRecompActions();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [items, setItems] = useState([]);

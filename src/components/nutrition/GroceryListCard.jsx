@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef } from "@/lib/RecompContext";
 import { buildGroceryListFromRecipes } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { ShoppingCart, ListChecks } from "lucide-react";
 
 export default function GroceryListCard() {
-  const { recipes } = useRecomp();
+  const { recipes } = useRecompRef();
   const [userId, setUserId] = useState("anon");
   const [selected, setSelected] = useState([]);
   const [checked, setChecked] = useState({});
