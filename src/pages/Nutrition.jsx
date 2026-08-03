@@ -227,7 +227,7 @@ export default function Nutrition() {
       <AddRecipeCard />
 
       {showScanner && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ScannerLoading />}>
           <BarcodeScanner
             onClose={() => setShowScanner(false)}
             onResult={handleScannedFood}
@@ -236,7 +236,7 @@ export default function Nutrition() {
       )}
 
       {featureFlags.foodPhotoScan && showPhotoScan && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ScannerLoading />}>
           <FoodPhotoScan
             onClose={() => setShowPhotoScan(false)}
             onResult={handleScannedFood}
@@ -245,6 +245,23 @@ export default function Nutrition() {
       )}
     </div>
     </PullToRefresh>
+  );
+}
+
+function ScannerLoading() {
+  // Visible feedback while the lazily-loaded scanner chunk downloads, so a slow
+  // mobile network doesn't make the tap look like it did nothing.
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-panel px-6 py-5">
+        <div className="w-8 h-8 border-4 border-panel2 border-t-teal rounded-full animate-spin" />
+        <span className="text-sm text-muted-foreground">Loading scanner…</span>
+      </div>
+    </div>
   );
 }
 

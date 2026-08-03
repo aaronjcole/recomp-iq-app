@@ -4,7 +4,12 @@ _A full audit of the shipped Android/Base44 build, verified against a production
 
 **Method:** 6 review dimensions × find-then-adversarially-verify, plus a completeness critic. 45 findings survived verification (0 refuted). Bundle sizes below were measured from `npm run build`, not estimated.
 
-> Scope note: two items the audit listed as "delete unused PNGs" were checked and are **not** dead — `public/brand/recompone-logo-primary.png` is validated as a 1024×1024 Play-listing asset by `tests/security/android-release.test.js` and referenced in `docs/play-store/`, and `recompone-mark-master.png` is a documented brand master. They are intentionally excluded from the cleanup.
+> **Reading note.** This plan and the appendix below are a snapshot of the original audit, verified *before* any implementation. The appendix therefore quotes each finding's raw text and describes the code as it was at audit time. Two things follow from that:
+>
+> - **Already shipped in PR #29** (treat their appendix / Wave-0 entries as historical, not backlog): the optimistic habit-tap fix, the barcode/food-photo scanner lazy-load, and the removal of 11 unused dependencies + 2 orphaned UI files.
+> - **PNG policy — decided: keep both.** Where the raw appendix finding recommends *deleting* `public/brand/recompone-logo-primary.png` and `recompone-mark-master.png`, that is **superseded**. `recompone-logo-primary.png` is validated as a 1024×1024 Play-listing asset by `tests/security/android-release.test.js` **and** referenced in `docs/play-store/`; `recompone-mark-master.png` is a documented brand master. Both are intentionally kept; the "delete PNGs" quick win was dropped.
+>
+> The "45 findings" figure counts the verified appendix findings; the "Reliability blind spots" section adds follow-ups the completeness critic raised on top of that count.
 
 ## Executive summary
 

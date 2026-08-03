@@ -73,7 +73,8 @@ to provide anything else you need. Thanks!
 2. `AAB_PATH=/path/to/app.aab npm run verify:android:aab` — the verifier must pass (it currently
    blocks the old artifact by design; see `scripts/verify-android-release.mjs` and
    `android/play-release.json`).
-3. Confirm `CAMERA` is still present (barcode scanning must survive the rebuild) and every entry in
+3. Confirm `CAMERA` is still present **and declared optional** (`uses-feature android:required="false"`,
+   not just the permission), that barcode scanning survives the rebuild, and that every entry in
    `forbiddenAndroidPermissions` / `forbiddenRequiredAndroidFeatures` is gone.
 4. Only then proceed with the Play Console upload and the Health Apps + Data Safety declarations in
    `docs/android-play-release.md`.
@@ -81,5 +82,9 @@ to provide anything else you need. Thanks!
 ## Repo-side guardrail (already covered, keep it)
 
 `npm run verify:android` runs in CI and `tests/security/android-release.test.js` asserts the
-required/forbidden permission contract, so a regressed bundle that re-adds these permissions cannot
-silently pass. Make `verify:android:aab` a mandatory manual gate before every Play upload.
+required/forbidden permission **contract in `android/play-release.json`** — but that is a *static*
+check of the repo's declared policy, not an inspection of the generated bundle. Actual permission
+scanning of an AAB only happens with `npm run verify:android:aab` (it needs `AAB_PATH` and
+`BUNDLETOOL_JAR`). So CI alone will **not** catch a regenerated bundle that re-adds forbidden
+permissions — that is exactly why `verify:android:aab` against Base44's rebuilt AAB must be a
+mandatory manual gate before every Play upload (or wired into CI with those env vars).
