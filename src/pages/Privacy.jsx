@@ -67,6 +67,13 @@ export default function Privacy() {
         under appropriate confidentiality obligations, or when required by law. Aggregated,
         de-identified analytics may be used to improve the product.
       </p>
+      <p>
+        If enabled for a build, the app may send de-identified diagnostics to help us fix crashes
+        and understand which screens are used: error details, the screen path, app version, and
+        basic milestones such as opening the app or completing onboarding. These reports never
+        include your name, email, account identifiers, photos, or your health and body metrics, and
+        are not used to identify you. Diagnostics are off unless the deployed build turns them on.
+      </p>
 
       <H2>5. Your rights &amp; choices</H2>
       <p>
