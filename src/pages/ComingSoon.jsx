@@ -3,17 +3,22 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import BrandMark from "@/components/BrandMark";
 import DeviceMockup from "@/components/hero/DeviceMockup";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import { buildWaitlistAttribution } from "@/lib/marketingAttribution";
 import {
   Activity,
   ArrowRight,
   Brain,
+  CalendarDays,
   Check,
   ChevronDown,
   ClipboardList,
+  Dumbbell,
   Loader2,
   Mail,
+  ScanLine,
   ShieldCheck,
+  Sparkles,
   Target,
   UserCheck
 } from "lucide-react";
@@ -54,6 +59,29 @@ const TRUST_POINTS = [
     icon: UserCheck,
     title: "You stay in control",
     body: "Use adaptive guidance or keep manual targets. Recommendations never write a meal or workout for you."
+  }
+];
+
+const PREMIUM_FEATURES = [
+  {
+    icon: CalendarDays,
+    title: "Adaptive meal planning",
+    body: "Builds seven target-scaled days and one consolidated grocery list from your goals, preferences, and last week's adherence."
+  },
+  {
+    icon: Dumbbell,
+    title: "Adaptive training blocks",
+    body: "Builds a 4–6 week block around recent sessions, schedule, equipment, and recovery—without inventing loads."
+  },
+  {
+    icon: Sparkles,
+    title: "Weekly Autopilot",
+    body: "Connects nutrition, training, weight, habits, and recovery into one confidence-aware next move."
+  },
+  {
+    icon: ScanLine,
+    title: "Visual progress tools",
+    body: "Compare photos privately on your device, with an optional AI-assisted body-composition range for eligible testers."
   }
 ];
 
@@ -223,6 +251,55 @@ export default function ComingSoon() {
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
                 </article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-5xl px-5 py-16" aria-labelledby="premium-heading">
+          <div className="overflow-hidden rounded-3xl border border-teal/20 bg-panel shadow-sm">
+            <div className="border-b border-lineSoft bg-gradient-to-br from-teal/10 via-panel to-panel p-6 sm:p-9">
+              <PremiumBadge label="Premium beta" />
+              <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.7fr)] md:items-end">
+                <div>
+                  <h2 id="premium-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Premium plans that adapt with you.
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                    Turn the same signals you already track into a practical week of food, a progressive training block, and one clear adjustment at a time.
+                  </p>
+                </div>
+                <p className="rounded-2xl border border-lineSoft bg-bg/60 px-4 py-3 text-sm text-muted-foreground md:text-right">
+                  Premium features are available to approved testers during beta.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-px bg-lineSoft sm:grid-cols-2">
+              {PREMIUM_FEATURES.map((feature) => (
+                <article key={feature.title} className="bg-panel p-6 sm:p-7">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal/10">
+                      <feature.icon className="h-5 w-5 text-teal" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{feature.title}</h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-lineSoft p-6 sm:flex-row sm:items-center sm:justify-between sm:px-9">
+              <p className="text-xs text-muted-foreground">
+                AI-assisted estimates are educational, optional, and never medical measurements.
+              </p>
+              <a
+                href="#waitlist-email"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-buttonText hover:opacity-90"
+              >
+                Join the Android beta <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
             </div>
           </div>
         </section>

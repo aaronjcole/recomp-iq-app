@@ -65,6 +65,16 @@ test("coming-soon page explains the decision system and exposes the Android beta
   await expect(page.getByRole("heading", { name: "A feedback loop, not another dashboard." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Act on one best move" })).toBeVisible();
   await expect(page.getByText("No advertising cookies or cross-site tracking.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Premium plans that adapt with you." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Adaptive meal planning" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Adaptive training blocks" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Weekly Autopilot" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Visual progress tools" })).toBeVisible();
+  await expect(page.getByText("Premium features are available to approved testers during beta.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Join the Android beta" })).toHaveAttribute(
+    "href",
+    "#waitlist-email"
+  );
   assertNoPageErrors();
 });
 
