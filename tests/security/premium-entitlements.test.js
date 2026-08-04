@@ -61,6 +61,7 @@ test("revoked, expired, malformed, and unknown entitlements fail closed", () => 
   ], NOW);
 
   assert.deepEqual(access, EMPTY_PREMIUM_ACCESS);
+  assert.deepEqual(access.releaseFlags, { bodyCompositionScan: false });
   assert.equal(Object.isFrozen(access), true);
 });
 
@@ -83,10 +84,14 @@ test("premium access is server-authorized, admin-owned, and removed with the acc
   assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
   assert.match(server, /owner_id:\s*ownerId/);
   assert.match(server, /listAllEntitlements\(base44, user\.id\)/);
+  assert.match(server, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
+  assert.match(server, /releaseFlags:\s*\{[\s\S]*bodyCompositionScan/);
   assert.match(server, /Cache-Control", "no-store"/);
   assert.match(server, /const ENTITLEMENT_PAGE_SIZE = 500/);
-  assert.match(server, /while \(true\)/);
+  assert.match(server, /const MAX_ENTITLEMENT_RECORDS = 1_000/);
+  assert.match(server, /while \(records\.length < MAX_ENTITLEMENT_RECORDS\)/);
   assert.match(server, /skip \+= page\.length/);
+  assert.doesNotMatch(server, /while \(true\)/);
   assert.doesNotMatch(server, /PremiumEntitlement\.filter\([\s\S]*?\n\s*20\s*\n/);
   assert.match(deletion, /PremiumEntitlement\.deleteMany\(\{ owner_id: user\.id \}\)/);
   assert.match(app, /<PremiumAccessProvider>/);

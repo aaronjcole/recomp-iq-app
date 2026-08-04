@@ -11,6 +11,7 @@ const PremiumAccessContext = createContext(null);
  * @property {boolean} hasBundleAccess
  * @property {boolean} testerAccess
  * @property {Record<string, boolean>} features
+ * @property {{bodyCompositionScan: boolean}} releaseFlags
  * @property {readonly string[]} products
  * @property {readonly string[]} sources
  */
@@ -27,6 +28,9 @@ function normalizeResponse(result) {
     features: Object.fromEntries(
       Object.values(PREMIUM_FEATURES).map((feature) => [feature, access.features[feature] === true])
     ),
+    releaseFlags: {
+      bodyCompositionScan: access.releaseFlags?.bodyCompositionScan === true
+    },
     products: Array.isArray(access.products)
       ? access.products.filter((product) => typeof product === "string")
       : [],

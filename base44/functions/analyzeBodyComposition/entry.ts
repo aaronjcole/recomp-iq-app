@@ -15,6 +15,8 @@ const MAX_REQUEST_BYTES = 10_000;
 const ENTITLEMENT_PAGE_SIZE = 500;
 const MAX_ENTITLEMENT_RECORDS = 1_000;
 const SIGNED_URL_TTL_SECONDS = 300;
+const BODY_COMPOSITION_SCAN_DISABLED =
+  Deno.env.get("ENABLE_BODY_COMPOSITION_SCAN") !== "true";
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -83,6 +85,9 @@ export default async function(req) {
     return json({ error: "Could not verify the account" }, { status: 500 });
   }
   if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
+  if (BODY_COMPOSITION_SCAN_DISABLED) {
+    return json({ error: "Body-composition analysis is not enabled for this release" }, { status: 403 });
+  }
 
   let request;
   try {

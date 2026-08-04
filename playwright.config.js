@@ -35,7 +35,6 @@ export default defineConfig({
           ...process.env,
           VITE_BASE44_APP_ID: "playwright-local",
           VITE_BASE44_APP_BASE_URL: localBaseURL,
-          VITE_ENABLE_BODY_COMPOSITION_SCAN: "true",
         },
       },
 });

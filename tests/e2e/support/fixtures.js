@@ -117,6 +117,7 @@ export const PREMIUM_TESTER_ACCESS = {
   hasAnyAccess: true,
   hasBundleAccess: true,
   testerAccess: true,
+  releaseFlags: { bodyCompositionScan: true },
   features: {
     meal_planning: true,
     training_planning: true,

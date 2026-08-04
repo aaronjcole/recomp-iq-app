@@ -19,6 +19,8 @@ test("body composition analysis verifies Premium access before sensitive reads o
   assert.match(server, /MAX_ENTITLEMENT_RECORDS/);
   assert.doesNotMatch(server, /throw error/);
   assert.match(server, /PREMIUM_FEATURES\.VISUAL_PROGRESS/);
+  assert.match(server, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
+  assert.match(server, /BODY_COMPOSITION_SCAN_DISABLED/);
   assert.match(server, /created_by_id:\s*userId/);
   assert.match(server, /CreateFileSignedUrl/);
   assert.match(server, /SIGNED_URL_TTL_SECONDS = 300/);
@@ -26,13 +28,14 @@ test("body composition analysis verifies Premium access before sensitive reads o
   assert.match(server, /integrations\.Core\.InvokeLLM/);
   assert.doesNotMatch(server, /\bemail\b/i);
 
+  const releaseGate = server.indexOf("if (BODY_COMPOSITION_SCAN_DISABLED)");
   const authorization = server.indexOf("const entitlements = await listAllEntitlements");
   const profileRead = server.indexOf('ownedRecords(base44, "UserProfile"');
   const signedUrl = server.indexOf("CreateFileSignedUrl");
   const inference = server.indexOf("integrations.Core.InvokeLLM");
   assert.ok(
-    authorization >= 0 && authorization < profileRead,
-    "Premium authorization must execute before owned profile reads"
+    releaseGate >= 0 && releaseGate < authorization && authorization < profileRead,
+    "The deploy opt-in and Premium authorization must execute before owned profile reads"
   );
   assert.ok(
     authorization < signedUrl && signedUrl < inference,
@@ -53,7 +56,7 @@ test("body composition photos use private upload while analysis stays behind the
   assert.match(component, /sessionStorage/);
   assert.doesNotMatch(component, /localStorage/);
   assert.doesNotMatch(component, /CreateFileSignedUrl|InvokeLLM|createPrivateAnalysisUrl/);
-  assert.match(progress, /featureFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/);
+  assert.match(progress, /\(featureFlags\.bodyCompositionScan\s*\|\|\s*releaseFlags\.bodyCompositionScan\)\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/);
   assert.match(premium, /AI-assisted body-composition range/i);
 });
 
