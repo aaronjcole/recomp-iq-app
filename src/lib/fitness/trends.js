@@ -21,6 +21,10 @@ function dateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+export function normalizeDateKey(value) {
+  return dateKey(value);
+}
+
 function dayNumber(value) {
   const key = dateKey(value);
   if (!key) return null;
@@ -185,7 +189,7 @@ export function analyzeTrends(logs, strategy, options = {}) {
       weightChange === null ? "insufficient_data" : weightChange < -0.3 ? "losing" : weightChange > 0.3 ? "gaining" : "flat",
     waist_label: waistChange === null ? "unavailable" : waistChange < -0.2 ? "down" : waistChange > 0.2 ? "up" : "flat",
     recovery_label:
-      sleep === null && energy === null
+      sleep === null && energy === null && soreness === null
         ? "unknown"
         : (sleep ?? 8) >= 7 && (energy ?? 3) >= 3 && (soreness ?? 3) <= 3
           ? "good"
