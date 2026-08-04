@@ -44,13 +44,30 @@ test("static crawler files define the public index when Base44 generation is dis
 
   const sitemap = readFileSync(sitemapPath, "utf8");
   const robots = readFileSync(robotsPath, "utf8");
-  for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {
-    assert.match(sitemap, new RegExp(`<loc>${siteUrl}${path === "/" ? "/" : path}</loc>`));
+  const publicUrls = [
+    `${siteUrl}/`,
+    `${siteUrl}/privacy`,
+    `${siteUrl}/terms`,
+    `${siteUrl}/support`,
+    `${siteUrl}/delete-account`
+  ];
+  const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  assert.deepEqual(sitemapUrls, publicUrls);
+
+  for (const url of publicUrls) {
+    assert.ok(sitemap.includes(`<loc>${url}</loc>`));
   }
-  for (const path of ["/hero", "/coming-soon", "/login", "/register"]) {
-    assert.doesNotMatch(sitemap, new RegExp(`<loc>${siteUrl}${path}</loc>`));
+  for (const path of [
+    "/hero",
+    "/coming-soon",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password"
+  ]) {
+    assert.ok(!sitemap.includes(`<loc>${siteUrl}${path}</loc>`));
   }
-  assert.match(robots, new RegExp(`Sitemap: ${siteUrl}/sitemap\\.xml`));
+  assert.ok(robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`));
 
   const checklist = readFileSync(resolve(repoRoot, "docs/base44-seo-configuration.md"), "utf8");
   for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {

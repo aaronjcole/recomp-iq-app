@@ -31,8 +31,9 @@ Console can reject. With generation disabled, Base44 serves the repository's val
 | `/forgot-password` | No index | Authentication utility route |
 | `/reset-password` | No index | Authentication utility route |
 
-Pages that require login are excluded automatically by Base44. Confirm that authenticated app
-routes are absent from the generated sitemap after every routing release.
+`public/sitemap.xml` is the source of truth for route inclusion. Whenever routing changes, update
+and verify its exact public URL set; authenticated, authentication-utility, beta-gateway, and
+other non-public routes must remain absent.
 
 ## Page metadata
 
@@ -66,9 +67,11 @@ hosting that supports path rules or a future Base44 platform capability.
 
 1. Confirm `/` initial HTML contains the homepage title, description, canonical, and `index`.
 2. Confirm `/hero` and the auth pages contain `noindex` in their initial HTML.
-3. Confirm `/sitemap.xml` returns valid XML with an XML content type and lists only the five
-   indexable public routes above.
-4. Confirm `/robots.txt` returns plain text and references the canonical sitemap URL.
+3. Confirm `/sitemap.xml` returns valid XML with `application/xml`, `text/xml`, or an
+   `application/*+xml` media type (an optional charset is allowed) and lists only the five
+   indexable public routes above. `text/html` is a failure.
+4. Confirm `/robots.txt` returns `text/plain` (an optional charset is allowed) and references the
+   canonical sitemap URL. `text/html` is a failure.
 5. Confirm `/coming-soon` reaches `/` in the browser and remains absent from the sitemap.
 6. Submit the sitemap in Google Search Console and request indexing for `/`.
 
