@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
-import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal } from "lucide-react";
+import PremiumBadge from "@/components/premium/PremiumBadge";
+import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight } from "lucide-react";
 // Loaded on demand so the ~110KB @zxing barcode decoder (and the flag-gated AI
 // food-photo scanner) stay out of the Fuel tab's initial chunk and only download
 // when the user actually opens a scanner.
@@ -218,6 +219,30 @@ export default function Nutrition() {
               <CustomTargetsCard embedded />
             </div>
           </details>
+        </CardContent>
+      </Card>
+
+      <Card className="border-line bg-panel">
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+              <CalendarDays className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-medium">Adaptive weekly meal plan</h2>
+                <PremiumBadge />
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Turn your targets and last check-in into seven days of meals and one grocery list.
+              </p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="w-full border-line">
+            <Link to="/nutrition/meal-plan">
+              Open meal planner <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

@@ -74,6 +74,11 @@ const ROUTE_METADATA = Object.freeze({
     announcement: "Fuel",
     description: "Review nutrition targets, meals, recipes, and food logs."
   },
+  "/nutrition/meal-plan": {
+    title: "Adaptive Meal Plan | RecompOne",
+    announcement: "Adaptive meal plan",
+    description: "Build a seven-day meal plan and grocery list from your targets and weekly progress."
+  },
   "/training": {
     title: "Training | RecompOne",
     announcement: "Training",

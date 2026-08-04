@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import {
   AUTH_USER,
+  ADAPTIVE_MEAL_PLAN,
   ENTITY_FIXTURES,
   PREMIUM_TESTER_ACCESS,
   PUBLIC_SETTINGS
@@ -67,12 +68,13 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object, mealPlan?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
   const entities = options.entities ?? ENTITY_FIXTURES;
   const premiumAccess = options.premiumAccess ?? PREMIUM_TESTER_ACCESS;
+  const mealPlan = options.mealPlan ?? ADAPTIVE_MEAL_PLAN;
 
   await page.addInitScript(() => {
     try {
@@ -114,6 +116,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
       if (url.includes("/functions/getPremiumAccess")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
         return json(premiumAccess);
+      }
+      if (url.includes("/functions/generateAdaptiveMealPlan")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(mealPlan);
       }
       // Mirror upsertTrackingRecord: the saved record has the request's
       // `fields` flattened onto it (value/done for a habit, macros for a log),

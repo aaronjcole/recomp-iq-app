@@ -1,7 +1,9 @@
-import { CalendarDays, Dumbbell, ScanLine, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, CalendarDays, Dumbbell, ScanLine, Sparkles } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
 
@@ -10,7 +12,8 @@ const FEATURES = [
     key: PREMIUM_FEATURES.MEAL_PLANNING,
     icon: CalendarDays,
     title: "Adaptive meal planning",
-    description: "A weekly meal plan and grocery list shaped by your targets and recent progress."
+    description: "A weekly meal plan and grocery list shaped by your targets and recent progress.",
+    to: "/nutrition/meal-plan"
   },
   {
     key: PREMIUM_FEATURES.TRAINING_PLANNING,
@@ -60,7 +63,7 @@ export default function Premium() {
       </Card>
 
       <div className="space-y-3" aria-label="Premium feature catalog">
-        {FEATURES.map(({ key, icon: Icon, title, description }) => {
+        {FEATURES.map(({ key, icon: Icon, title, description, to }) => {
           const available = canAccess(key);
           return (
             <Card key={key} className="border-line bg-panel">
@@ -75,8 +78,13 @@ export default function Premium() {
                   </div>
                   <p className="text-sm text-muted-foreground">{description}</p>
                   <p className={`text-xs font-medium ${available ? "text-teal" : "text-muted-foreground"}`}>
-                    {available ? "Access granted · rollout in progress" : "Locked until Premium launches"}
+                    {available && to ? "Access granted · available now" : available ? "Access granted · rollout in progress" : "Locked until Premium launches"}
                   </p>
+                  {available && to && (
+                    <Button asChild variant="outline" size="sm" className="mt-2 w-full border-line">
+                      <Link to={to}>Open feature <ArrowRight aria-hidden="true" /></Link>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

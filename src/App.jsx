@@ -25,6 +25,7 @@ const ResetPassword = lazyWithRetry(() => import('@/pages/ResetPassword'));
 const Onboarding = lazyWithRetry(() => import('@/pages/Onboarding'));
 const Today = lazyWithRetry(() => import('@/pages/Today'));
 const Nutrition = lazyWithRetry(() => import('@/pages/Nutrition'));
+const AdaptiveMealPlan = lazyWithRetry(() => import('@/pages/AdaptiveMealPlan'));
 const Training = lazyWithRetry(() => import('@/pages/Training'));
 const Progress = lazyWithRetry(() => import('@/pages/Progress'));
 const More = lazyWithRetry(() => import('@/pages/More'));
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
             <Route element={<AppLayout />}>
               <Route path="/today" element={<Today />} />
               <Route path="/nutrition" element={<Nutrition />} />
+              <Route path="/nutrition/meal-plan" element={<AdaptiveMealPlan />} />
               <Route path="/training" element={<Training />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/more" element={<More />} />
