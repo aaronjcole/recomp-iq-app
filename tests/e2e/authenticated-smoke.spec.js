@@ -112,3 +112,31 @@ test("saving the daily log closes the sheet without error", async ({ page }) => 
 
   assertNoPageErrors();
 });
+
+test("shared controls stay touch-safe without overflowing a narrow mobile layout", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 320, height: 640 });
+
+  await page.goto("/nutrition");
+  await expect(page.getByRole("heading", { level: 1, name: "Nutrition" })).toBeVisible();
+
+  const barcodeBox = await page.getByRole("button", { name: /Barcode/i }).boundingBox();
+  expect(barcodeBox?.height).toBeGreaterThanOrEqual(44);
+
+  const inputBox = await page.locator("input").first().boundingBox();
+  expect(inputBox?.height).toBeGreaterThanOrEqual(44);
+
+  const layoutWidth = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    content: document.documentElement.scrollWidth,
+  }));
+  expect(layoutWidth.content).toBeLessThanOrEqual(layoutWidth.viewport);
+
+  await page.goto("/today");
+  await page.getByRole("button", { name: /Log today/i }).first().click();
+  const closeBox = await page.getByRole("button", { name: "Close" }).boundingBox();
+  expect(closeBox?.height).toBeGreaterThanOrEqual(44);
+  expect(closeBox?.width).toBeGreaterThanOrEqual(44);
+
+  assertNoPageErrors();
+});
