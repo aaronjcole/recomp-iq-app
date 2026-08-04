@@ -33,7 +33,8 @@ const FEATURES = [
     key: PREMIUM_FEATURES.VISUAL_PROGRESS,
     icon: ScanLine,
     title: "Visual Progress Check",
-    description: "Private, consent-based photo comparisons focused on ranges and trends—not medical claims."
+    description: "Private, on-device photo comparisons focused on visible change—not medical claims.",
+    to: "/progress/visual-check"
   }
 ];
 
