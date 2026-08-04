@@ -13,7 +13,7 @@ function ReviewSection({ step, title, rows, onEdit }) {
     <Card className="bg-panel border-line">
       <CardContent className="p-4 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="font-mono text-label uppercase tracking-wider text-muted-foreground">
             {title}
           </span>
           <Button

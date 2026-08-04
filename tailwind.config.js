@@ -83,6 +83,9 @@ module.exports = {
   			display: ['var(--font-display)'],
   			mono: ['var(--font-mono)']
   		},
+		fontSize: {
+			label: '0.75rem'
+		},
   		keyframes: {
   			'accordion-down': {
   				from: { height: '0' },

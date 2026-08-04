@@ -227,7 +227,7 @@ export default function SessionBuilder() {
                     <NumField compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} min={1} max={1000} />
                     <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
                     <div className="space-y-1">
-                      <Label className="text-[10px]">1RM</Label>
+                      <Label className="text-label">1RM</Label>
                       <div className="flex h-11 items-center font-mono text-xs tabular-nums text-muted-foreground">
                         {e1rm != null ? `${e1rm}` : "—"}
                       </div>
@@ -254,7 +254,7 @@ export default function SessionBuilder() {
 function NumField({ label, v, on, compact = false, min, max }) {
   return (
     <div className="space-y-1">
-      <Label className={compact ? "text-[10px]" : ""}>{label}</Label>
+      <Label className={compact ? "text-label" : ""}>{label}</Label>
       <Input type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-11 text-sm" : "h-11"} />
     </div>
   );

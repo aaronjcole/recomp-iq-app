@@ -123,7 +123,7 @@ export default function HabitEditor({ open, onOpenChange }) {
 
         {habits.length > 0 && (
           <div className="pt-3 border-t border-lineSoft space-y-1">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground pt-2">Your habits</div>
+            <div className="font-mono text-label uppercase tracking-wider text-muted-foreground pt-2">Your habits</div>
             {habits.map((h) => (
               <div key={h.id} className="flex items-center gap-2 py-1.5">
                 <span className="flex-1 text-sm truncate">{h.name}{h.archived ? " (archived)" : ""}</span>
