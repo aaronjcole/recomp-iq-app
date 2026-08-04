@@ -15,7 +15,7 @@ test("Visual Progress Check stays in the Progress tab and requires Premium acces
   assert.match(app, /path=["']\/progress\/visual-check["']/);
   assert.match(page, /canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/);
   assert.match(progress, /to=["']\/progress\/visual-check["']/);
-  assert.match(premium, /to:\s*["']\/progress\/visual-check["']/);
+  assert.match(premium, /to:\s*["']\/progress["']/);
 });
 
 test("Visual Progress Check reads only the on-device photo store and makes no biometric estimate", () => {

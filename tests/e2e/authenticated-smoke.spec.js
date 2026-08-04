@@ -270,11 +270,49 @@ test("a Premium tester can open the on-device Visual Progress Check inside the P
 
 test("a Premium tester sees the deploy-enabled AI body-composition range in Progress", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
+  const tinyPng = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZfN8AAAAASUVORK5CYII=",
+    "base64"
+  );
+  const uploadResponses = [];
+  page.on("response", (response) => {
+    if (response.url().includes("/integration-endpoints/Core/UploadPrivateFile")) {
+      uploadResponses.push(response);
+    }
+  });
 
   await page.goto("/progress");
   await expect(page.getByRole("heading", { level: 2, name: "AI body-composition range" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Estimate a range" })).toBeDisabled();
   await expect(page.getByText(/cannot currently request immediate deletion/i)).toBeVisible();
+
+  const photoInputs = page.locator('input[type="file"][accept="image/jpeg,image/png,image/webp"]');
+  await expect(photoInputs).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    await photoInputs.nth(index).setInputFiles({
+      name: `pose-${index}.png`,
+      mimeType: "image/png",
+      buffer: tinyPng
+    });
+  }
+
+  const analyzeResponse = page.waitForResponse((response) =>
+    response.url().includes("/functions/analyzeBodyComposition")
+  );
+  await page.getByRole("button", { name: "Estimate a range" }).click();
+  const response = await analyzeResponse;
+  expect(response.request().method()).toBe("POST");
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON()).toEqual({
+    photoRefs: {
+      front: "private/user-test/body-scan-1.png",
+      side: "private/user-test/body-scan-2.png",
+      back: "private/user-test/body-scan-3.png"
+    }
+  });
+  expect(uploadResponses).toHaveLength(3);
+  await expect(page.getByText("18–22%")).toBeVisible();
+  await expect(page.getByText("141.2–148.4 lb")).toBeVisible();
+  await expect(page.getByText(/three views support a broad visual estimate/i)).toBeVisible();
 
   assertNoPageErrors();
 });

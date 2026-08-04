@@ -3,6 +3,7 @@ import {
   AUTH_USER,
   ADAPTIVE_MEAL_PLAN,
   ADAPTIVE_TRAINING_BLOCK,
+  BODY_COMPOSITION_RESULT,
   ENTITY_FIXTURES,
   PREMIUM_TESTER_ACCESS,
   PUBLIC_SETTINGS,
@@ -70,7 +71,7 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
@@ -79,6 +80,8 @@ export async function installAuthenticatedBase44(page, options = {}) {
   const mealPlan = options.mealPlan ?? ADAPTIVE_MEAL_PLAN;
   const trainingBlock = options.trainingBlock ?? ADAPTIVE_TRAINING_BLOCK;
   const autopilotReview = options.autopilotReview ?? WEEKLY_AUTOPILOT_REVIEW;
+  const bodyCompositionResult = options.bodyCompositionResult ?? BODY_COMPOSITION_RESULT;
+  let privateUploadCount = 0;
 
   await page.addInitScript(() => {
     try {
@@ -103,6 +106,12 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (url.includes("/apps/public/")) return json(PUBLIC_SETTINGS);
     if (url.includes("/analytics/")) return route.fulfill({ status: 204, body: "" });
     if (/\/entities\/User\/me\b/.test(url)) return json(user);
+
+    if (url.includes("/integration-endpoints/Core/UploadPrivateFile")) {
+      if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+      privateUploadCount += 1;
+      return json({ file_uri: `private/user-test/body-scan-${privateUploadCount}.png` });
+    }
 
     const entityMatch = url.match(/\/entities\/([A-Za-z0-9_]+)/);
     if (entityMatch) {
@@ -132,6 +141,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
       if (url.includes("/functions/generateWeeklyAutopilot")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
         return json(autopilotReview);
+      }
+      if (url.includes("/functions/analyzeBodyComposition")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(bodyCompositionResult);
       }
       // Mirror upsertTrackingRecord: the saved record has the request's
       // `fields` flattened onto it (value/done for a habit, macros for a log),

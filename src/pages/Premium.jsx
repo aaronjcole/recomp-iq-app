@@ -34,7 +34,7 @@ const FEATURES = [
     icon: ScanLine,
     title: "Visual progress tools",
     description: "Private, on-device comparisons plus an optional AI-assisted body-composition range—not a medical measurement.",
-    to: "/progress/visual-check"
+    to: "/progress"
   }
 ];
 

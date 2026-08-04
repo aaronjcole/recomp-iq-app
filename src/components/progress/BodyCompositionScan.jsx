@@ -146,7 +146,6 @@ export default function BodyCompositionScan() {
                   ref={(element) => { fileRefs.current[key] = element; }}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
                   className="hidden"
                   onChange={(event) => onPick(key, event)}
                 />

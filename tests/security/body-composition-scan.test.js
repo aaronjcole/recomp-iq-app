@@ -16,6 +16,8 @@ test("body composition analysis verifies Premium access before sensitive reads o
   assert.match(server, /user = await base44\.auth\.me\(\)/);
   assert.match(server, /Cache-Control", "no-store"/);
   assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
+  assert.match(server, /MAX_ENTITLEMENT_RECORDS/);
+  assert.doesNotMatch(server, /throw error/);
   assert.match(server, /PREMIUM_FEATURES\.VISUAL_PROGRESS/);
   assert.match(server, /created_by_id:\s*userId/);
   assert.match(server, /CreateFileSignedUrl/);
@@ -28,8 +30,14 @@ test("body composition analysis verifies Premium access before sensitive reads o
   const profileRead = server.indexOf('ownedRecords(base44, "UserProfile"');
   const signedUrl = server.indexOf("CreateFileSignedUrl");
   const inference = server.indexOf("integrations.Core.InvokeLLM");
-  assert.ok(authorization >= 0 && authorization < profileRead);
-  assert.ok(authorization < signedUrl && signedUrl < inference);
+  assert.ok(
+    authorization >= 0 && authorization < profileRead,
+    "Premium authorization must execute before owned profile reads"
+  );
+  assert.ok(
+    authorization < signedUrl && signedUrl < inference,
+    "Premium authorization must precede signed URL creation and paid inference"
+  );
 });
 
 test("body composition photos use private upload while analysis stays behind the backend gate", () => {

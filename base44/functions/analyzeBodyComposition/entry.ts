@@ -13,6 +13,7 @@ import {
 
 const MAX_REQUEST_BYTES = 10_000;
 const ENTITLEMENT_PAGE_SIZE = 500;
+const MAX_ENTITLEMENT_RECORDS = 1_000;
 const SIGNED_URL_TTL_SECONDS = 300;
 
 function statusOf(error) {
@@ -35,19 +36,22 @@ function safeErrorDetails(error) {
 async function listAllEntitlements(base44, ownerId) {
   const records = [];
   let skip = 0;
-  while (true) {
+  while (records.length < MAX_ENTITLEMENT_RECORDS) {
+    const remaining = MAX_ENTITLEMENT_RECORDS - records.length;
+    const pageSize = Math.min(ENTITLEMENT_PAGE_SIZE, remaining);
     const page = await base44.asServiceRole.entities.PremiumEntitlement.filter(
       { owner_id: ownerId },
       "-created_date",
-      ENTITLEMENT_PAGE_SIZE,
+      pageSize,
       skip,
       ["product_id", "source", "status", "expires_at"]
     );
     if (!Array.isArray(page)) throw new Error("Invalid entitlement response");
     records.push(...page);
-    if (page.length < ENTITLEMENT_PAGE_SIZE) return records;
+    if (page.length < pageSize) return records;
     skip += page.length;
   }
+  throw new Error("Entitlement response exceeded the safe record limit");
 }
 
 async function ownedRecords(base44, entityName, userId, sort, limit) {
@@ -91,7 +95,8 @@ export default async function(req) {
           : "A JSON request body is required"
       }, { status: 400 });
     }
-    throw error;
+    console.error("analyzeBodyComposition request parsing failed", safeErrorDetails(error));
+    return json({ error: "The request body could not be read" }, { status: 400 });
   }
 
   try {

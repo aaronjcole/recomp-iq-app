@@ -5,6 +5,7 @@ const MAX_BODY_FAT_PCT = 60;
 const MIN_RANGE_WIDTH_PCT = 2;
 const MAX_SUMMARY_LENGTH = 800;
 const MAX_TIP_LENGTH = 240;
+const MIN_TIPS = 2;
 const MAX_TIPS = 5;
 
 export const BODY_COMPOSITION_RESPONSE_SCHEMA = Object.freeze({
@@ -12,10 +13,14 @@ export const BODY_COMPOSITION_RESPONSE_SCHEMA = Object.freeze({
   properties: {
     body_fat_range_low_pct: {
       type: "number",
+      minimum: MIN_BODY_FAT_PCT,
+      maximum: MAX_BODY_FAT_PCT,
       description: "Conservative lower bound of an educational photo-based body-fat range (2-60)"
     },
     body_fat_range_high_pct: {
       type: "number",
+      minimum: MIN_BODY_FAT_PCT,
+      maximum: MAX_BODY_FAT_PCT,
       description: "Conservative upper bound of an educational photo-based body-fat range (2-60)"
     },
     confidence: { type: "string", enum: ["low", "moderate", "high"] },
@@ -26,6 +31,8 @@ export const BODY_COMPOSITION_RESPONSE_SCHEMA = Object.freeze({
     tips: {
       type: "array",
       items: { type: "string" },
+      minItems: MIN_TIPS,
+      maxItems: MAX_TIPS,
       description: "Two to five practical, non-medical suggestions"
     }
   },
@@ -51,7 +58,9 @@ function boundedString(value, maxLength) {
 }
 
 function finiteNumber(value) {
-  const parsed = typeof value === "number" ? value : Number(value);
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value.trim());
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -59,6 +68,7 @@ function roundOne(value) {
   return Math.round(value * 10) / 10;
 }
 
+/** Validate the bounded private references accepted by the analysis function. */
 export function normalizeBodyCompositionRequest(value) {
   const refs = value?.photoRefs;
   if (!refs || typeof refs !== "object" || Array.isArray(refs)) {
@@ -88,6 +98,7 @@ export function normalizeBodyCompositionRequest(value) {
   return { photoRefs };
 }
 
+/** Build a non-diagnostic prompt from the server-owned fitness context. */
 export function buildBodyCompositionPrompt({ profile, strategy }) {
   const currentWeight = finiteNumber(profile?.current_weight_lbs);
   const calorieTarget = finiteNumber(strategy?.calorie_target);
@@ -110,6 +121,7 @@ Return a conservative body-fat RANGE, never a single exact percentage. Photo-bas
 Return only JSON matching the supplied schema.`;
 }
 
+/** Normalize model output and derive lean-mass ranges from a trusted weight. */
 export function normalizeBodyCompositionResult(value, currentWeightLbs) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new BodyCompositionRequestError("The analysis provider returned an invalid result.");
@@ -137,7 +149,7 @@ export function normalizeBodyCompositionResult(value, currentWeightLbs) {
       .filter(Boolean)
       .slice(0, MAX_TIPS)
     : [];
-  if (!summary || tips.length === 0) {
+  if (!summary || tips.length < MIN_TIPS) {
     throw new BodyCompositionRequestError("The analysis provider returned an incomplete result.");
   }
 
