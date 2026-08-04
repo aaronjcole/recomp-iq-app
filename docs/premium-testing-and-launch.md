@@ -9,7 +9,7 @@ This is the source of truth for Premium access while the app is in testing and f
 | Adaptive weekly meal plan + grocery list | `/nutrition/meal-plan` | `adaptive_meal_plans` | Server-generated from the signed-in user's current targets and recent progress. |
 | Adaptive 4–6 week training block | `/training/plan` | `adaptive_training_blocks` | Server-generated from schedule, equipment, recent sessions, and recovery signals. |
 | Weekly Autopilot Review | `/today/autopilot` | `weekly_autopilot` | Server-generated seven-day scorecard with one prioritized next action. |
-| Visual Progress Check | `/progress/visual-check` | `visual_progress_checks` | Reads existing photos from this device's IndexedDB. No upload, AI analysis, body-fat estimate, or medical claim. |
+| Visual progress tools | `/progress/visual-check` and Progress | `visual_progress_checks` | On-device comparison plus an optional, deploy-enabled AI body-composition range. The AI flow uses private uploads, five-minute signed links, server-side entitlement checks, and no medical claim. |
 
 The all-in-one product ID is `recompone_premium`. It unlocks all four features. The individual product IDs above are already supported so pricing can later be bundle-only, add-on-only, or a mixture without changing feature gates.
 
@@ -59,11 +59,13 @@ Confirm Base44's supported billing bridge before implementation. This is a Secti
 
 Reference: [Base44 — Uploading your app to app stores](https://docs.base44.com/documentation/building-your-app/uploading-to-app-stores)
 
-### AI body-composition scanning
+### AI body-composition scanning — approved deploy opt-in
 
-The older `BodyCompositionScan` remains off by default. It uploads sensitive photos, makes exact body-fat/lean-mass estimates, and cannot yet guarantee immediate private-file deletion because Base44's documented integrations expose private upload and signed URL creation but not a delete-file operation.
+`BodyCompositionScan` remains off by default in source and only appears when the deployment sets `VITE_ENABLE_BODY_COMPOSITION_SCAN=true`. The founder accepted Base44's current private-file deletion limitation for the initial live test. The limitation is disclosed immediately before upload and in the Privacy Policy.
 
-The shipped Visual Progress Check is the safe testing alternative: comparison stays on-device and is descriptive only. Do not enable the older scanner until retention/deletion, explicit consent, estimate validation, usage limits, and Play Data Safety disclosures are approved.
+The enabled flow requires the `visual_progress` Premium entitlement in both the UI and backend. The browser uploads only to private storage; the authenticated backend verifies entitlement before reading profile data, creates five-minute signed URLs, invokes the AI provider, and returns a conservative body-fat range. Lean-mass ranges are derived on the server from the bounded result. Results remain in session storage only. Safety flags pause the flow.
+
+Before a public Play rollout, re-review usage limits and confirm that Play Data Safety answers cover optional body photos and AI processing. Keep the on-device Visual Progress Check available as the lower-data alternative.
 
 Reference: [Base44 integrations reference](https://docs.base44.com/developers/references/sdk/docs/type-aliases/integrations)
 
@@ -71,7 +73,7 @@ Reference: [Base44 integrations reference](https://docs.base44.com/developers/re
 
 - Premium UI is discoverable while locked; data access and generation are not.
 - Server-backed Premium features verify entitlement before reading fitness history.
-- Visual Progress Check never sends photos or photo metadata to Base44 or an AI provider.
+- Visual Progress Check never sends photos or photo metadata to Base44 or an AI provider; the separate, explicitly disclosed AI range does.
 - No entitlement stores an email, purchase receipt, profile field, or health metric.
 - In-app account deletion removes server-owned Premium entitlements and the current device's progress photos.
 - Both brand PNGs remain in the repository.

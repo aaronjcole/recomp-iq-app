@@ -267,3 +267,14 @@ test("a Premium tester can open the on-device Visual Progress Check inside the P
 
   assertNoPageErrors();
 });
+
+test("a Premium tester sees the deploy-enabled AI body-composition range in Progress", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { level: 2, name: "AI body-composition range" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Estimate a range" })).toBeDisabled();
+  await expect(page.getByText(/cannot currently request immediate deletion/i)).toBeVisible();
+
+  assertNoPageErrors();
+});

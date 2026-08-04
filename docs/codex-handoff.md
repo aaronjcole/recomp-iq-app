@@ -32,7 +32,7 @@ Every change lands as a GitHub PR against `main`; merging auto-syncs to Base44. 
 - **No font / typography changes.** The current type feels better than the mockups; the Today redesign was explicitly content/hierarchy only. Leave the type scale alone unless the founder reopens it. (The rem type-token task below is about *dynamic-type scaling*, not restyling — keep it visually neutral.)
 - **Keep both brand PNGs.** `recompone-logo-primary.png` is a validated Play-listing asset; `recompone-mark-master.png` is the brand master. The plan's "delete PNGs" quick win is superseded.
 - **Play permissions escalation** is drafted and ready to send: `docs/play-permissions-escalation.md`. This is a Base44 **support** action (the AAB permissions aren't editable in-repo), not code.
-- **Premium testing/launch behavior** is documented in `docs/premium-testing-and-launch.md`. Do not create a client-side billing bypass or enable the older AI body scanner.
+- **Premium testing/launch behavior** is documented in `docs/premium-testing-and-launch.md`. Do not create a client-side billing bypass. The founder approved a deploy-time opt-in for the AI body-composition range despite Base44's current private-file deletion limitation; keep the source flag off by default and preserve the in-flow/privacy disclosures.
 
 ---
 
@@ -107,7 +107,7 @@ Replace the one `AnimatePresence` route transition in `AppLayout` with a GPU-com
 ### D. Device- or platform-gated — confirm the constraint first
 - **Android hardware-Back overlay stack** — a back-intent stack so system Back dismisses the open scanner/dialog/sheet instead of exiting the app. Code is a known pattern, but real verification needs the Base44 WebView on a device/emulator (CI can't exercise it).
 - **Offline-first** — precached shell + IndexedDB write outbox for flaky-network logging. **Blocked on whether a service worker can register at the Base44 wrapper origin** — prototype against the wrapper before committing; escalate if forbidden.
-- **Private-file / localStorage deletion hygiene** — track every scan `fileUri` and delete after inference + in `deleteAccount`; move the body-fat cache off unencrypted `localStorage`. **Blocked on a Base44 delete-file API** — until confirmed, keep both scan flags OFF (they already are).
+- **Private-file deletion hygiene** — Base44 still exposes no documented delete-file API. The body-composition result moved from `localStorage` to `sessionStorage`, and the founder explicitly accepted the remaining private-file retention limitation for deploy-opt-in testing. Keep the source flag OFF by default, retain the disclosure, and add immediate deletion when Base44 exposes a supported API.
 - **Google Play Billing bridge** — the Premium entitlement domain and tester workflow are shipped, but Base44 does not currently document a supported native Play Billing bridge. Do not mint `source: google_play` entitlements from an unverified browser callback. Follow `docs/premium-testing-and-launch.md` and get founder approval before starting device/license-tester work.
 
 ### E. Ops follow-through (not code)

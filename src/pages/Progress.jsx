@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import {
@@ -14,10 +14,13 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { format, parseISO } from "date-fns";
 import { ArrowRight, Scale, ScanLine } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
-import BodyCompositionScan from "@/components/progress/BodyCompositionScan";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
+import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+
+const BodyCompositionScan = lazy(() => import("@/components/progress/BodyCompositionScan"));
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
 const EMPTY_LOGS = [];
@@ -36,6 +39,7 @@ function daysAgoStr(n) {
 
 export default function Progress() {
   const { profile, strategy, logs, trend, reload } = useRecomp();
+  const { canAccess } = usePremiumAccess();
   const location = useLocation();
   const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
   const [range, setRange] = useState("35d");
@@ -178,7 +182,11 @@ export default function Progress() {
         </Card>
       )}
 
-      {featureFlags.bodyCompositionScan && <BodyCompositionScan />}
+      {featureFlags.bodyCompositionScan && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
+        <Suspense fallback={null}>
+          <BodyCompositionScan />
+        </Suspense>
+      )}
 
       <Card className="border-line bg-panel">
         <CardContent className="flex gap-3 p-5">
