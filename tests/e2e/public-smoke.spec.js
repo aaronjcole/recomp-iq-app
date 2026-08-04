@@ -37,6 +37,12 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   );
   await expect(page.getByRole("link", { name: "Privacy" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Premium plans that adapt with you." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Adaptive meal planning" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Adaptive training blocks" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Weekly Autopilot" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Visual progress tools" })).toBeVisible();
+  await expect(page.getByText("Premium features are available to approved testers during beta.")).toBeVisible();
   assertNoPageErrors();
 });
 
