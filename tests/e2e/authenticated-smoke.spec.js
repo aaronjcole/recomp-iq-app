@@ -173,8 +173,8 @@ test("the Premium catalog shows server-authorized tester access inside the More 
   await expect(page).toHaveURL(/\/more\/premium$/);
   await expect(page.getByRole("heading", { level: 1, name: "Premium features" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Testing access enabled" })).toBeVisible();
-  await expect(page.getByText("Access granted · available now")).toHaveCount(2);
-  await expect(page.getByText("Access granted · rollout in progress")).toHaveCount(2);
+  await expect(page.getByText("Access granted · available now")).toHaveCount(3);
+  await expect(page.getByText("Access granted · rollout in progress")).toHaveCount(1);
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
   assertNoPageErrors();
@@ -226,6 +226,31 @@ test("a Premium tester can build a training block inside the Train tab", async (
   await expect(page.getByRole("heading", { level: 2, name: "Weekly schedule" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Week-by-week progression" })).toBeVisible();
   await expect(page.getByText("Week 5 · Deload")).toBeVisible();
+
+  assertNoPageErrors();
+});
+
+test("a Premium tester can run Weekly Autopilot inside the Today tab", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/today");
+  await page.getByRole("link", { name: /Weekly Autopilot/i }).click();
+  await expect(page).toHaveURL(/\/today\/autopilot$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Weekly Autopilot" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+
+  const reviewResponse = page.waitForResponse((response) =>
+    response.url().includes("/functions/generateWeeklyAutopilot")
+  );
+  await page.getByRole("button", { name: "Run weekly review" }).click();
+  const response = await reviewResponse;
+  expect(response.request().method()).toBe("POST");
+  expect(response.status()).toBe(200);
+
+  await expect(page.getByRole("heading", { level: 2, name: "Hold the plan steady" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Weekly scorecard" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "How the adaptive tools respond" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "Weight trend" })).toBeVisible();
 
   assertNoPageErrors();
 });

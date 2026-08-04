@@ -7,10 +7,11 @@ import HabitsCard from "@/components/today/HabitsCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
 import BestMoveCard from "@/components/today/BestMoveCard";
 import PullToRefresh from "@/components/common/PullToRefresh";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import { deriveBestMove } from "@/lib/fitness";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Check, ChevronRight, Bot } from "lucide-react";
+import { Plus, Check, ChevronRight, Bot, Sparkles } from "lucide-react";
 
 function greeting() {
   const h = new Date().getHours();
@@ -62,6 +63,24 @@ export default function Today() {
           </div>
         </CardContent>
       </Card>
+
+      <Link to="/today/autopilot" className="block">
+        <Card className="border-teal/30 bg-teal/10">
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-medium">Weekly Autopilot</h2>
+                <PremiumBadge />
+              </div>
+              <p className="text-xs text-muted-foreground">Five weekly signals distilled into one next move</p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </CardContent>
+        </Card>
+      </Link>
 
       <HabitsCard />
 
