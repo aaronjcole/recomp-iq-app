@@ -57,6 +57,7 @@ export default async function(req) {
     }
 
     await base44.asServiceRole.entities.AiContentReport.deleteMany({ owner_id: user.id });
+    await base44.asServiceRole.entities.CoachRequestUsage.deleteMany({ owner_id: user.id });
 
     if (user.email) {
       await base44.asServiceRole.entities.WaitlistEntry.deleteMany({

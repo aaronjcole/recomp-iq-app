@@ -1,0 +1,52 @@
+{
+  "name": "CoachRequestUsage",
+  "type": "object",
+  "description": "Minimal server-only reservations used to enforce shared AI coach quotas. No prompts or health data are stored.",
+  "properties": {
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Authenticated account identifier set only by the backend function."
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9-]+$",
+      "description": "Opaque reservation identifier; it never contains user content."
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp used for the hourly and daily quota windows."
+    }
+  },
+  "required": [
+    "owner_id",
+    "request_id",
+    "requested_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
