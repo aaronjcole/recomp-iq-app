@@ -138,6 +138,14 @@ export function normalizeTrackingRequest(body) {
 }
 
 function compareRecords(left, right) {
+  const leftStamp = left?.updated_date ?? left?.created_date ?? "";
+  const rightStamp = right?.updated_date ?? right?.created_date ?? "";
+  const byUpdated = leftStamp.localeCompare(rightStamp);
+  if (byUpdated !== 0) return byUpdated;
+  return String(left?.id ?? "").localeCompare(String(right?.id ?? ""));
+}
+
+function compareCreatedRecords(left, right) {
   const leftStamp = left?.created_date ?? "";
   const rightStamp = right?.created_date ?? "";
   const byCreated = leftStamp.localeCompare(rightStamp);
@@ -151,7 +159,8 @@ export function reconcileTrackingRecords(records, incomingFields, mutableFields)
     if (record?.id) unique.set(record.id, record);
   }
   const ordered = [...unique.values()].sort(compareRecords);
-  const canonical = ordered[0] ?? null;
+  const canonicalOrder = [...unique.values()].sort(compareCreatedRecords);
+  const canonical = canonicalOrder[0] ?? null;
   const fields = {};
   const unsetFields = [];
 
@@ -169,5 +178,5 @@ export function reconcileTrackingRecords(records, incomingFields, mutableFields)
     }
   }
 
-  return { canonical, duplicates: ordered.slice(1), fields, unsetFields };
+  return { canonical, duplicates: canonicalOrder.slice(1), fields, unsetFields };
 }

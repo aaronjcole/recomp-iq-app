@@ -2,8 +2,8 @@
 // Mifflin-St Jeor static TDEE with an observed TDEE derived from intake and
 // weight rate, then produces safe, bounded recommendations. Pure functions.
 
-import { calculateBMR, calculateCalorieTarget, calculateMacroTargets, calculateTDEE } from "./calculators";
-import { average, sortLogs } from "./trends";
+import { calculateBMR, calculateCalorieTarget, calculateMacroTargets, calculateTDEE } from "./calculators.js";
+import { average, sortLogs } from "./trends.js";
 
 const ENERGY_PER_LB = 3500;
 
@@ -53,13 +53,14 @@ export function estimateObservedTdee(logs, windowDays = 28) {
     };
   }
 
-  const firstWeights = weightLogs.slice(0, Math.min(7, Math.ceil(weightLogs.length / 2)));
-  const lastWeights = weightLogs.slice(-Math.min(7, Math.ceil(weightLogs.length / 2)));
+  const sampleSize = Math.min(7, Math.floor(weightLogs.length / 2));
+  const firstWeights = weightLogs.slice(0, sampleSize);
+  const lastWeights = weightLogs.slice(-sampleSize);
   const firstAvg = average(firstWeights.map((log) => log.weight_lbs));
   const lastAvg = average(lastWeights.map((log) => log.weight_lbs));
-  const firstDate = new Date(firstWeights[0].date).getTime();
-  const lastDate = new Date(lastWeights[lastWeights.length - 1].date).getTime();
-  const elapsedDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
+  const firstDate = average(firstWeights.map((log) => new Date(log.date).getTime()));
+  const lastDate = average(lastWeights.map((log) => new Date(log.date).getTime()));
+  const elapsedDays = Math.max(1, (lastDate - firstDate) / 86400000);
   const dailyWeightRate = (lastAvg - firstAvg) / elapsedDays;
   const weeklyWeightRate = dailyWeightRate * 7;
   const avgCalories = average(calorieLogs.map((log) => log.calories));

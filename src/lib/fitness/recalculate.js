@@ -7,6 +7,12 @@ import { decideWeeklyAdjustment } from "./adjustments.js";
 import { analyzeTrends, countConsecutiveFlatWeeks } from "./trends.js";
 import { generateWeightProjection } from "./projections.js";
 
+function localTodayKey() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function recalculateTargets(profile, preferences = {}) {
   const calc = calculateInitialStrategy(profile, preferences);
   return {
@@ -24,11 +30,12 @@ export function recalculateTargets(profile, preferences = {}) {
 }
 
 export function runWeeklyCheckIn(args) {
-  const trend = analyzeTrends(args.logs, args.strategy, { referenceDate: args.referenceDate });
+  const referenceDate = args.referenceDate || localTodayKey();
+  const trend = analyzeTrends(args.logs, args.strategy, { referenceDate });
   const consecutiveFlatWeeks =
     typeof args.consecutiveFlatWeeks === "number"
       ? args.consecutiveFlatWeeks
-      : countConsecutiveFlatWeeks(args.logs, args.referenceDate);
+      : countConsecutiveFlatWeeks(args.logs, referenceDate);
   return {
     trend,
     adjustment: decideWeeklyAdjustment({
