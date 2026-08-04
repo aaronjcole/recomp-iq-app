@@ -50,6 +50,11 @@ const RequireOnboarding = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RequireOnboarding }))
 );
 
+function RootRedirect() {
+  const { isAuthenticated } = useAuth();
+  return <Navigate to={isAuthenticated ? "/today" : "/login"} replace />;
+}
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
 
@@ -62,9 +67,9 @@ const AuthenticatedApp = () => {
   // authentication is required. ProtectedRoute owns auth errors for app data.
   return (
     <Routes>
-      <Route path="/" element={<PublicHome />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/hero" element={<Hero />} />
-      <Route path="/coming-soon" element={<Navigate to="/" replace />} />
+      <Route path="/coming-soon" element={<PublicHome />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />
