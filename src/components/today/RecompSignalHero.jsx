@@ -71,7 +71,7 @@ export default function RecompSignalHero() {
   return (
     <div className="rounded-xl bg-panel border border-line shadow p-5 space-y-5">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Recomp Signal</span>
+        <h2 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Recomp Signal</h2>
         <span className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${chipClass}`}>
           {signal.label}
         </span>

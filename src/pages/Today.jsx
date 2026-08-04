@@ -51,9 +51,10 @@ export default function Today() {
             max={strategy.calorie_target}
             label={String(Math.round(consumedCalories))}
             sublabel={`of ${strategy.calorie_target}`}
+            ariaLabel={`Calories: ${Math.round(consumedCalories)} of ${strategy.calorie_target}`}
           />
           <div className="flex-1 space-y-1">
-            <div className="text-xs text-muted-foreground">Calories</div>
+            <h2 className="text-xs text-muted-foreground">Calories</h2>
             <div className="text-xl font-bold">{remaining} left</div>
             <Button size="sm" className="mt-2 bg-teal text-buttonText hover:opacity-90" onClick={() => setLogOpen(true)}>
               <Plus className="w-4 h-4 mr-1" /> Log today
@@ -66,7 +67,7 @@ export default function Today() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
-          <div className="font-medium">This week's quests</div>
+          <h2 className="font-medium">This week's quests</h2>
           {quests.map((q) => (
             <div key={q.id} className="flex items-center gap-3">
               <div className={`w-5 h-5 rounded-full flex items-center justify-center ${q.complete ? "bg-teal" : "bg-panel2 border border-line"}`}>
@@ -86,7 +87,7 @@ export default function Today() {
           <CardContent className="p-4 flex items-center gap-3">
             <Bot className="w-5 h-5 text-teal" />
             <div className="flex-1">
-              <div className="text-sm font-medium">Ask your AI coach</div>
+              <h2 className="text-sm font-medium">Ask your AI coach</h2>
               <div className="text-xs text-muted-foreground">Specific guidance from your data</div>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />

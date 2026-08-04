@@ -95,7 +95,7 @@ export default function Progress() {
       <Card className="bg-panel border-line">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="font-medium">Weight trend</div>
+            <h2 className="font-medium">Weight trend</h2>
             <div className="flex gap-1">
               {RANGES.map(({ value, label }) => (
                 <Button
@@ -148,7 +148,7 @@ export default function Progress() {
       {trend && (
         <Card className="bg-panel border-line">
           <CardContent className="p-5 space-y-2 text-sm">
-            <div className="font-medium mb-1">Latest read</div>
+            <h2 className="font-medium mb-1">Latest read</h2>
             <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
             <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
             <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
@@ -164,7 +164,7 @@ export default function Progress() {
         <Card className="bg-panel border-line">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="font-medium">12-week projection</div>
+              <h2 className="font-medium">12-week projection</h2>
               <Badge variant="outline" className="capitalize">{projection.confidence} confidence</Badge>
             </div>
             <div className="grid grid-cols-3 text-center">

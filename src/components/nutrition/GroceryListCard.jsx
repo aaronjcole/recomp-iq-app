@@ -59,9 +59,9 @@ export default function GroceryListCard() {
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-4">
-        <div className="flex items-center gap-2 font-medium">
+        <h2 className="flex items-center gap-2 font-medium">
           <ShoppingCart className="w-4 h-4 text-teal" /> Grocery list
-        </div>
+        </h2>
 
         {recipes.length === 0 && (
           <p className="text-sm text-muted-foreground">Add a recipe below to build a grocery list.</p>

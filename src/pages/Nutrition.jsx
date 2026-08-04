@@ -114,7 +114,7 @@ export default function Nutrition() {
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="font-medium">Quick add food</div>
+            <h2 className="font-medium">Quick add food</h2>
             <div className="flex items-center gap-2">
               {featureFlags.foodPhotoScan && (
                 <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
@@ -156,7 +156,7 @@ export default function Nutrition() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
-          <div className="font-medium">Food library</div>
+          <h2 className="font-medium">Food library</h2>
           {foods.length === 0 && <p className="text-sm text-muted-foreground">No foods saved yet.</p>}
           {foods.slice(0, 12).map((f) => {
             const q = scoreNutritionQuality(f);
