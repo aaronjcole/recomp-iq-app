@@ -152,3 +152,39 @@ export const ADAPTIVE_MEAL_PLAN = {
   allergyNotice: "Review every ingredient for allergies, intolerances, medication interactions, and dietary restrictions before using this plan.",
   nutritionNotice: "Calories and macros are estimates for planning—not medical advice. Confirm portions and labels when logging.",
 };
+
+export const ADAPTIVE_TRAINING_BLOCK = {
+  weekStart: isoDaysAgo(0),
+  blockLengthWeeks: 5,
+  equipment: "full_gym",
+  split: "upper_lower",
+  adaptation: {
+    mode: "progressive_build",
+    consistency: 0.8,
+    averageRpe: 7,
+    summary: "Recent training supports a progressive block with planned rep, load, and volume steps.",
+  },
+  trackedLifts: ["Back Squat", "Barbell Bench Press"],
+  preferredTraining: "strength",
+  progressionRule: "Stay inside the listed rep range. Add reps first; only add the smallest practical load after every set reaches the top of the range with clean form and the target RPE.",
+  safetyNotice: "Stop for sharp pain, dizziness, or unusual symptoms. Exercise selection and progression are educational and are not medical care.",
+  schedule: ["Upper A", "Lower A", "Upper B", "Lower B"].map((title, index) => ({
+    day: index + 1,
+    title,
+    focus: index % 2 === 0 ? "Upper body" : "Lower body",
+    estimatedMinutes: 55,
+    exercises: [
+      { name: index % 2 === 0 ? "Barbell Bench Press" : "Back Squat", movement: index % 2 === 0 ? "horizontal_push" : "squat", sets: 3, reps: "6–10", targetRpe: 7, alternatives: ["Machine press"] },
+      { name: index % 2 === 0 ? "Chest-supported row" : "Romanian deadlift", movement: index % 2 === 0 ? "horizontal_pull" : "hinge", sets: 3, reps: "6–10", targetRpe: 7, alternatives: ["Cable row"] },
+      { name: "Accessory movement", movement: "accessory", sets: 3, reps: "10–15", targetRpe: 7, alternatives: [] },
+      { name: "Core movement", movement: "core", sets: 3, reps: "10–15", targetRpe: 7, alternatives: [] },
+    ],
+  })),
+  weeks: Array.from({ length: 5 }, (_, index) => ({
+    week: index + 1,
+    phase: index === 4 ? "deload" : index === 0 ? "baseline" : "progress_load",
+    targetRpe: index === 4 ? 6 : index === 0 ? 7 : 8,
+    setMultiplier: index === 4 ? 0.67 : 1,
+    instruction: index === 4 ? "Reduce sets by about one-third." : "Progress while form and recovery remain solid.",
+  })),
+};
