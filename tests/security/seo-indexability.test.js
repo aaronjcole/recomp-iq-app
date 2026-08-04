@@ -36,9 +36,21 @@ test("the canonical homepage is indexable while beta and app routes stay out of 
   }
 });
 
-test("Base44 owns crawler files and the deployment checklist defines the public index", () => {
-  assert.equal(existsSync(resolve(repoRoot, "public/sitemap.xml")), false);
-  assert.equal(existsSync(resolve(repoRoot, "public/robots.txt")), false);
+test("static crawler files define the public index when Base44 generation is disabled", () => {
+  const sitemapPath = resolve(repoRoot, "public/sitemap.xml");
+  const robotsPath = resolve(repoRoot, "public/robots.txt");
+  assert.equal(existsSync(sitemapPath), true);
+  assert.equal(existsSync(robotsPath), true);
+
+  const sitemap = readFileSync(sitemapPath, "utf8");
+  const robots = readFileSync(robotsPath, "utf8");
+  for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {
+    assert.match(sitemap, new RegExp(`<loc>${siteUrl}${path === "/" ? "/" : path}</loc>`));
+  }
+  for (const path of ["/hero", "/coming-soon", "/login", "/register"]) {
+    assert.doesNotMatch(sitemap, new RegExp(`<loc>${siteUrl}${path}</loc>`));
+  }
+  assert.match(robots, new RegExp(`Sitemap: ${siteUrl}/sitemap\\.xml`));
 
   const checklist = readFileSync(resolve(repoRoot, "docs/base44-seo-configuration.md"), "utf8");
   for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {

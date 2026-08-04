@@ -1,15 +1,18 @@
 # Base44 SEO & GEO deployment configuration
 
-Base44 serves RecompOne as a static single-page application. It owns the custom-domain
-`/sitemap.xml`, `/robots.txt`, initial route metadata, and canonical tags; committed files at
-those reserved paths do not replace the platform-generated responses. Keep platform meta-tag
-injection enabled so crawler-visible HTML matches the route policy below.
+Base44 serves RecompOne as a static single-page application. Keep platform meta-tag injection
+enabled so crawler-visible HTML matches the route policy below. Keep Base44's generated crawler
+files disabled: the generator currently labels both responses as `text/html`, which Google Search
+Console can reject. With generation disabled, Base44 serves the repository's validated
+`public/sitemap.xml` and `public/robots.txt` instead.
 
 ## Advanced settings
 
 - Platform meta tag injection: **Enabled**
 - Platform structured data injection: **Disabled** (RecompOne supplies the `WebSite` and
   `Organization` JSON-LD in `index.html`.)
+- Generate robots.txt: **Disabled** (serve `public/robots.txt`)
+- Generate sitemap.xml: **Disabled** (serve `public/sitemap.xml`)
 - Primary custom domain: `https://fitnesstrackerapps.com`
 
 ## Per-page indexing
@@ -63,9 +66,11 @@ hosting that supports path rules or a future Base44 platform capability.
 
 1. Confirm `/` initial HTML contains the homepage title, description, canonical, and `index`.
 2. Confirm `/hero` and the auth pages contain `noindex` in their initial HTML.
-3. Confirm the generated `/sitemap.xml` lists only the five indexable public routes above.
-4. Confirm `/coming-soon` reaches `/` in the browser and remains absent from the sitemap.
-5. Submit the generated sitemap in Google Search Console and request indexing for `/`.
+3. Confirm `/sitemap.xml` returns valid XML with an XML content type and lists only the five
+   indexable public routes above.
+4. Confirm `/robots.txt` returns plain text and references the canonical sitemap URL.
+5. Confirm `/coming-soon` reaches `/` in the browser and remains absent from the sitemap.
+6. Submit the sitemap in Google Search Console and request indexing for `/`.
 
 ## Platform references
 
