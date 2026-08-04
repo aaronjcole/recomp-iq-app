@@ -16,6 +16,7 @@ test("shared form controls provide a 44px minimum touch target", () => {
 
   const input = read("src/components/ui/input.jsx");
   assert.match(input, /"flex[^\"]*min-h-11[^\"]*w-full/);
+  assert.match(input, /"flex[^\"]*w-full[^\"]*min-w-0/);
 });
 
 test("dialog and sheet close controls expand the hit area around the icon", () => {
