@@ -103,7 +103,7 @@ export default function CustomTargetsCard({ embedded = false }) {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Custom targets</div>
+          <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Custom targets</div>
           <div className="text-sm font-medium">Use my own targets</div>
         </div>
         <Switch checked={!!strategy.manual_override} onCheckedChange={toggleOverride} aria-label="Toggle custom targets" />
@@ -113,7 +113,7 @@ export default function CustomTargetsCard({ embedded = false }) {
         <div className="grid grid-cols-2 gap-3">
           {FIELDS.map((f) => (
             <div key={f.key} className="space-y-1.5">
-              <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</Label>
+              <Label className="font-mono text-label uppercase tracking-wider text-muted-foreground">{f.label}</Label>
               <Input
                 className="h-11"
                 type="number"

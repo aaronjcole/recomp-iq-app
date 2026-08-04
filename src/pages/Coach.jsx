@@ -340,7 +340,7 @@ function ActionReviewDialog({ action, open, onOpenChange, onContinue }) {
         </DialogHeader>
         <div className="space-y-4">
           <div className="rounded-lg border border-line bg-panel2 p-4">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Prepared steps</div>
+            <div className="mb-2 font-mono text-label uppercase tracking-wider text-muted-foreground">Prepared steps</div>
             <ol className="list-decimal space-y-2 pl-5 text-sm">
               {(action?.steps ?? []).map((step) => <li key={step}>{step}</li>)}
             </ol>

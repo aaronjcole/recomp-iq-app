@@ -24,7 +24,7 @@ export default function ConfidenceRing({ value, size = 120, stroke = 12, label }
         </div>
       </div>
       {label && (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-2">{label}</span>
+        <span className="font-mono text-label uppercase tracking-wider text-muted-foreground mt-2">{label}</span>
       )}
     </div>
   );

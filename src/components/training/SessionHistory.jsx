@@ -60,7 +60,7 @@ export default function SessionHistory() {
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5">
-        <h2 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Training history</h2>
+        <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground mb-3">Training history</h2>
         {sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No sessions logged yet.</p>
         ) : (
@@ -69,8 +69,8 @@ export default function SessionHistory() {
               {visibleDays.map(([dateStr, items]) => (
                 <div key={dateStr}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <h3 className="font-mono text-[10px] uppercase tracking-wider text-foreground">{dayLabel(parseDate(dateStr))}</h3>
-                    <span className="font-mono text-[10px] text-muted-foreground">{items.length} {items.length === 1 ? "session" : "sessions"}</span>
+                    <h3 className="font-mono text-label uppercase tracking-wider text-foreground">{dayLabel(parseDate(dateStr))}</h3>
+                    <span className="font-mono text-label text-muted-foreground">{items.length} {items.length === 1 ? "session" : "sessions"}</span>
                   </div>
                   <div className="space-y-2">
                     {items.map((s) => {
@@ -89,13 +89,13 @@ export default function SessionHistory() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium truncate">{s.title}</span>
-                                <span className="shrink-0 rounded-full bg-panel2 text-muted-foreground px-1.5 py-0.5 text-[10px]">{TYPE_LABEL[s.type] ?? s.type}</span>
+                                <span className="shrink-0 rounded-full bg-panel2 text-muted-foreground px-1.5 py-0.5 text-label">{TYPE_LABEL[s.type] ?? s.type}</span>
                               </div>
                               {meta && <div className="text-xs text-muted-foreground font-mono tabular-nums">{meta}</div>}
                               {s.muscle_groups?.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {s.muscle_groups.map((mg) => (
-                                    <span key={mg} className="rounded-full border border-line text-muted-foreground px-1.5 py-0.5 text-[10px]">{mg}</span>
+                                    <span key={mg} className="rounded-full border border-line text-muted-foreground px-1.5 py-0.5 text-label">{mg}</span>
                                   ))}
                                 </div>
                               )}

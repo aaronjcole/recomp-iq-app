@@ -190,7 +190,7 @@ Return ONLY the JSON object matching the schema. Use only numbers from the profi
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-muted-foreground">
                       <Camera className="w-5 h-5" />
-                      <span className="text-[10px] font-mono uppercase tracking-wider">{p.label}</span>
+                      <span className="text-label font-mono uppercase tracking-wider">{p.label}</span>
                     </div>
                   )}
                 </button>
@@ -219,23 +219,23 @@ Return ONLY the JSON object matching the schema. Use only numbers from the profi
           <div className="space-y-3 pt-2 border-t border-lineSoft">
             <div className="flex items-end justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Estimated body fat</div>
+                <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Estimated body fat</div>
                 <div className="text-3xl font-bold tabular-nums">{Math.round(result.body_fat_pct)}<span className="text-lg text-muted-foreground">%</span></div>
               </div>
               <div className="text-right">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Lean mass</div>
+                <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Lean mass</div>
                 <div className="text-lg font-semibold tabular-nums">{result.lean_mass_estimate_lbs != null ? `${Math.round(result.lean_mass_estimate_lbs)} lb` : "—"}</div>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="rounded-full bg-panel3 px-2 py-0.5 text-xs">{result.category}</span>
               <span className="rounded-full border border-line px-2 py-0.5 text-xs capitalize">Confidence: {result.confidence}</span>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground ml-auto">{result.date}</span>
+              <span className="font-mono text-label uppercase tracking-wider text-muted-foreground ml-auto">{result.date}</span>
             </div>
             <p className="text-sm text-muted-foreground">{result.summary}</p>
             {result.tips?.length > 0 && (
               <div className="space-y-1.5">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Personalized tips</div>
+                <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Personalized tips</div>
                 <ul className="space-y-1.5">
                   {result.tips.map((t, i) => (
                     <li key={i} className="text-sm flex gap-2">

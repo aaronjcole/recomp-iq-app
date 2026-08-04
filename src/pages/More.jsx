@@ -46,7 +46,7 @@ function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) 
         </span>
       </button>
       {item.badge && (
-        <span className="rounded bg-questComplete text-gold px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide">
+        <span className="rounded bg-questComplete text-gold px-1.5 py-0.5 text-label font-mono uppercase tracking-wide">
           {item.badge}
         </span>
       )}
@@ -185,14 +185,14 @@ export default function More() {
               <div className="font-semibold truncate">{fullName}</div>
               <div className="text-xs text-muted-foreground truncate">{email}</div>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                <span className="rounded-full bg-panel2 text-muted-foreground px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide">
+                <span className="rounded-full bg-panel2 text-muted-foreground px-2 py-0.5 text-label font-mono uppercase tracking-wide">
                   {goalLabel}
                 </span>
-                <span className="rounded-full bg-teal/15 text-teal px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide">
+                <span className="rounded-full bg-teal/15 text-teal px-2 py-0.5 text-label font-mono uppercase tracking-wide">
                   {level}
                 </span>
                 {signalScore != null && (
-                  <span className="rounded-full bg-teal/15 text-teal px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide">
+                  <span className="rounded-full bg-teal/15 text-teal px-2 py-0.5 text-label font-mono uppercase tracking-wide">
                     Signal {signalScore}
                   </span>
                 )}
@@ -207,7 +207,7 @@ export default function More() {
       {SECTIONS.map((section) => (
         <Card key={section.title} className="bg-panel border-line">
           <CardContent className="p-2">
-            <div className="px-3 pt-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="px-3 pt-2 pb-1 font-mono text-label uppercase tracking-wider text-muted-foreground">
               {section.title}
             </div>
             {section.items.map((item, idx) => (
