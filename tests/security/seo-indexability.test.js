@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
@@ -36,18 +36,24 @@ test("the canonical homepage is indexable while beta and app routes stay out of 
   }
 });
 
-test("the sitemap contains only canonical public pages", () => {
-  const sitemap = readFileSync(resolve(repoRoot, "public/sitemap.xml"), "utf8");
-  const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+test("Base44 owns crawler files and the deployment checklist defines the public index", () => {
+  assert.equal(existsSync(resolve(repoRoot, "public/sitemap.xml")), false);
+  assert.equal(existsSync(resolve(repoRoot, "public/robots.txt")), false);
 
-  assert.deepEqual(locations, [
-    `${siteUrl}/`,
-    `${siteUrl}/privacy`,
-    `${siteUrl}/terms`,
-    `${siteUrl}/support`,
-    `${siteUrl}/delete-account`
-  ]);
-  assert.doesNotMatch(sitemap, /\/(?:hero|coming-soon|login|register|coach|plan|profile|decisions)<\/loc>/);
+  const checklist = readFileSync(resolve(repoRoot, "docs/base44-seo-configuration.md"), "utf8");
+  for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {
+    assert.ok(checklist.includes(`| \`${path}\` | Index |`));
+  }
+  for (const path of [
+    "/hero",
+    "/coming-soon",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password"
+  ]) {
+    assert.ok(checklist.includes(`| \`${path}\` | No index |`));
+  }
 });
 
 test("the static document exposes canonical, social, and organization metadata", () => {
