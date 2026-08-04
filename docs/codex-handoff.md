@@ -16,14 +16,23 @@ Every change lands as a GitHub PR against `main`; merging auto-syncs to Base44. 
 | #31 | **Wave 1 harness + first context split** — the render oracle + context-contract test, plus extracting the actions context out of the mega-context. |
 | #32 | **Wave 1** — extracted the habits domain + added write→optimistic→render interaction coverage. |
 | #33 | **Wave 1** — split stable reference data from live/derived data. `RecompContext` is now four contexts: Actions / Habits / Ref / Live. |
+| #34 | **Observability + route resilience** — privacy-gated telemetry (off by default), route error recovery, and stale-chunk retry. |
+| #35–#42 | **Low-risk audit batch** — Progress O(n²), engine correctness, missing fitness suites, accessibility, reduced motion, 44px targets, scalable type token, and stable React vendor chunk. |
+| #43–#44 | **Backend/release hardening** — shared AI Coach quota and live `frame-ancestors` verification. |
+| #45 | **Premium entitlement foundation** — admin-owned, server-authorized bundle/add-on access with tester support and fail-closed UI. |
+| #46 | **Adaptive meal planning** — seven-day target-aware plan and grocery list. |
+| #47 | **Adaptive training blocks** — equipment-, history-, and recovery-aware 4–6 week programming. |
+| #48 | **Weekly Autopilot Review** — five-signal scorecard with one prioritized next move. |
+| #49 | **Visual Progress Check** — Premium on-device comparison with no upload or biometric estimate. |
 
 ### In flight
-- **PR #34 — observability + route resilience** (this session). Crash reporting + minimal funnel analytics (both **off by default**), per-route error boundary with in-place reset, and dynamic-import retry + one guarded hard-reload for stale chunks after a republish. Under CI/CodeRabbit review at handoff. **Don't duplicate this work.**
+- None. Start every new change from the latest `main`; do not reuse any merged branch.
 
 ### Decided, don't relitigate
 - **No font / typography changes.** The current type feels better than the mockups; the Today redesign was explicitly content/hierarchy only. Leave the type scale alone unless the founder reopens it. (The rem type-token task below is about *dynamic-type scaling*, not restyling — keep it visually neutral.)
 - **Keep both brand PNGs.** `recompone-logo-primary.png` is a validated Play-listing asset; `recompone-mark-master.png` is the brand master. The plan's "delete PNGs" quick win is superseded.
 - **Play permissions escalation** is drafted and ready to send: `docs/play-permissions-escalation.md`. This is a Base44 **support** action (the AAB permissions aren't editable in-repo), not code.
+- **Premium testing/launch behavior** is documented in `docs/premium-testing-and-launch.md`. Do not create a client-side billing bypass or enable the older AI body scanner.
 
 ---
 
@@ -83,17 +92,10 @@ rm -f pw.local.config.mjs
 
 Grouped by risk and dependency. Full per-item detail (files, line refs, approach, risk) is in `docs/improvement-plan.md`.
 
-### A. Low-risk parallel batch — subagent-deployable, each its own PR
-These are well-scoped, unit-testable, and independent. Fan them out.
-- **Progress O(n²) fix** — rewrite `calculateMovingAverage` as an O(n) sliding window, replace `ma.find` with a date-keyed Map, dedupe logs once, gate heavy memos on `isActive`. Guarded by existing projection tests.
-- **Recommendation-engine correctness batch** — thread one `referenceDate` through `runWeeklyCheckIn` → `analyzeTrends`/`countConsecutiveFlatWeeks`; make recovery honor soreness-only logging; unify the duplicate-record tie-break (client `updated_date` vs server `created_date`); fix `estimateObservedTdee` middle-index double-count. One unit test each.
-- **Missing fitness test suites** — `nutritionScoring`, `strengthTrend`, `summarizeStrengthProgress`, `adaptiveGoalEngine` under `tests/fitness`. Prioritize the two live modules (`nutritionScoring`, `strengthTrend`).
-- **Accessibility pass** — real `h2`/`h3` section headings, habit-name-interpolated stepper aria-labels, `role="img"` + value/max on the rings, windowing cap on `SessionHistory`. Purely additive, no visual diff.
-- **`prefers-reduced-motion`** — standalone global `@media` block + `MotionConfig` (covers MacroBar/ProgressRing/PullToRefresh). This is an S-effort win; **do NOT wait on the framer-motion swap** below.
-- **44px touch targets** — pad `DialogClose`/`SheetClose` to a 44px hit area, bump `Button`/`Input` default sizes in the shared primitives. Verify dense rows (Nutrition quick-add) still fit.
-- **Type-token unification** — replace the 33× ad-hoc `text-[10px]` with a rem-based label token (~0.75rem, min 11–12px) so metadata scales with the Android system font. Visually neutral — **not** a restyle.
-- **`manualChunks` vendor split** — isolate a stable `react-vendor` group so framework bytes stay cached across app updates. Low priority.
-- **Backend hardening** — per-user rate limit on `coachReply` (mirror `reportAiContent`'s 10/hr), move the waitlist limiter off client-controlled IP headers, confirm CSP `frame-ancestors` on the deployed origin. Some of this depends on a Base44 shared store.
+### A. Low-risk parallel batch — complete
+PRs #35–#44 shipped the Progress optimization, engine correctness fixes, missing fitness suites, accessibility pass, reduced motion, touch targets, scalable metadata token, vendor split, shared Coach quota, and live frame-protection verification.
+
+One audit follow-up remains: move the waitlist limiter away from client-controlled forwarding headers if Base44 exposes a trustworthy shared request identity/store. Treat that as platform-dependent; do not claim an in-memory map is a distributed rate limiter.
 
 ### B. framer-motion → CSS transitions (M, subagent-deployable)
 Replace the one `AnimatePresence` route transition in `AppLayout` with a GPU-composited CSS keyframe, then `npm rm framer-motion` (~39KB gz off every session). Independent of A's reduced-motion item.
@@ -106,10 +108,12 @@ Replace the one `AnimatePresence` route transition in `AppLayout` with a GPU-com
 - **Android hardware-Back overlay stack** — a back-intent stack so system Back dismisses the open scanner/dialog/sheet instead of exiting the app. Code is a known pattern, but real verification needs the Base44 WebView on a device/emulator (CI can't exercise it).
 - **Offline-first** — precached shell + IndexedDB write outbox for flaky-network logging. **Blocked on whether a service worker can register at the Base44 wrapper origin** — prototype against the wrapper before committing; escalate if forbidden.
 - **Private-file / localStorage deletion hygiene** — track every scan `fileUri` and delete after inference + in `deleteAccount`; move the body-fat cache off unencrypted `localStorage`. **Blocked on a Base44 delete-file API** — until confirmed, keep both scan flags OFF (they already are).
+- **Google Play Billing bridge** — the Premium entitlement domain and tester workflow are shipped, but Base44 does not currently document a supported native Play Billing bridge. Do not mint `source: google_play` entitlements from an unverified browser callback. Follow `docs/premium-testing-and-launch.md` and get founder approval before starting device/license-tester work.
 
 ### E. Ops follow-through (not code)
 - **Turn on the telemetry from #34 deliberately.** It ships off. To actually see crashes/funnel, set `VITE_ENABLE_TELEMETRY=true` **and** `VITE_TELEMETRY_ENDPOINT` in the Base44 build env, stand up an endpoint to receive the beacons, and **update Play Data Safety** to match before enabling. Then use the `signed_in` / `onboarding_complete` events to measure onboarding drop-off (the funnel the plan flags as unmeasured).
 - **Send the Play permissions escalation** (`docs/play-permissions-escalation.md`) to Base44 support and make `verify:android:aab` a mandatory pre-upload gate.
+- **Premium internal testing** — provision the tester's Base44 User ID using `docs/premium-testing-and-launch.md`, exercise all four routes, and revoke tester records during the production cutover.
 
 ---
 

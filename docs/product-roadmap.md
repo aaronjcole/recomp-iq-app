@@ -80,16 +80,18 @@ Status: discovery
 
 ## Premium add-ons
 
-Status: discovery
+Status: testing foundation shipped
 
-- Treat body-composition photo analysis as an optional premium capability rather than part of the
-  free core experience.
-- Require an authenticated server-side entitlement and usage allowance before enabling analysis;
-  never rely on the current build-time feature flag as a payment control.
-- Price against actual inference and private-storage costs, with a clear monthly scan allowance.
-- Keep the feature disabled until private-file retention, deletion, consent, and estimate-quality
-  standards are acceptable.
-- Avoid medical claims and keep photo-based estimates clearly labeled as approximate.
+- The server-authorized Premium bundle and individual add-on model is live for tester entitlements.
+- Adaptive meal planning, adaptive training blocks, Weekly Autopilot, and on-device Visual Progress
+  Check are available to authorized testers and visibly labeled Premium.
+- The older AI body-composition scanner remains disabled. Visual Progress Check makes no biometric
+  estimate and does not upload photos.
+- Production monetization remains gated on a supported Google Play Billing verification bridge;
+  never rely on a build-time flag, browser callback, or client state as a payment control.
+- Launch with the all-in-one bundle first; preserve individual product IDs for later pricing tests.
+
+Testing, product IDs, cutover steps, and platform blockers: [Premium testing and launch](premium-testing-and-launch.md)
 
 ## Delivery approach
 
