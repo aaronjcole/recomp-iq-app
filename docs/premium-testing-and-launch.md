@@ -61,7 +61,7 @@ Reference: [Base44 — Uploading your app to app stores](https://docs.base44.com
 
 ### AI body-composition scanning — approved deploy opt-in
 
-`BodyCompositionScan` remains off by default in source and only appears when the deployment sets `VITE_ENABLE_BODY_COMPOSITION_SCAN=true`. The founder accepted Base44's current private-file deletion limitation for the initial live test. The limitation is disclosed immediately before upload and in the Privacy Policy.
+`BodyCompositionScan` remains off by default in source. Local Vite builds can opt in with `VITE_ENABLE_BODY_COMPOSITION_SCAN=true`. A hosted Base44 release must instead set the app Secret `ENABLE_BODY_COMPOSITION_SCAN=true`; the authenticated Premium-access function exposes only that release boolean, and the analysis endpoint independently enforces the same Secret. The founder accepted Base44's current private-file deletion limitation for the initial live test. The limitation is disclosed immediately before upload and in the Privacy Policy.
 
 The enabled flow requires the `visual_progress` Premium entitlement in both the UI and backend. The browser uploads only to private storage; the authenticated backend verifies entitlement before reading profile data, creates five-minute signed URLs, invokes the AI provider, and returns a conservative body-fat range. Lean-mass ranges are derived on the server from the bounded result. Results remain in session storage only. Safety flags pause the flow.
 

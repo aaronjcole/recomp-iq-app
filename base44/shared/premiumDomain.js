@@ -25,12 +25,14 @@ const PRODUCT_FEATURES = Object.freeze({
 const lockedFeatures = Object.freeze(
   Object.fromEntries(ALL_FEATURES.map((feature) => [feature, false]))
 );
+const disabledReleaseFlags = Object.freeze({ bodyCompositionScan: false });
 
 export const EMPTY_PREMIUM_ACCESS = Object.freeze({
   hasAnyAccess: false,
   hasBundleAccess: false,
   testerAccess: false,
   features: lockedFeatures,
+  releaseFlags: disabledReleaseFlags,
   products: Object.freeze([]),
   sources: Object.freeze([])
 });
@@ -66,6 +68,7 @@ export function resolvePremiumAccess(records, now = Date.now()) {
     features: Object.freeze(
       Object.fromEntries(ALL_FEATURES.map((feature) => [feature, unlocked.has(feature)]))
     ),
+    releaseFlags: disabledReleaseFlags,
     products: Object.freeze(products),
     sources: Object.freeze(sources)
   });

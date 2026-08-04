@@ -27,6 +27,7 @@ Every change lands as a GitHub PR against `main`; merging auto-syncs to Base44. 
 | #50 | **Premium testing + launch runbook** — tester provisioning, route matrix, production cutover, and billing guardrails. |
 | #51 | **AI body-composition range** — Premium-gated private uploads, server authorization, bounded educational results, and accepted deletion-limit disclosures. |
 | #52 | **Hero Premium positioning** — public beta messaging for adaptive meal plans, training blocks, Weekly Autopilot, and visual progress tools. |
+| #53 | **Base44 release gate** — server-controlled body-scan opt-in with a matching backend enforcement check and no frontend secret exposure. |
 
 ### In flight
 - None. Start every new change from the latest `main`; do not reuse any merged branch.
@@ -35,7 +36,7 @@ Every change lands as a GitHub PR against `main`; merging auto-syncs to Base44. 
 - **No font / typography changes.** The current type feels better than the mockups; the Today redesign was explicitly content/hierarchy only. Leave the type scale alone unless the founder reopens it. (The rem type-token task below is about *dynamic-type scaling*, not restyling — keep it visually neutral.)
 - **Keep both brand PNGs.** `recompone-logo-primary.png` is a validated Play-listing asset; `recompone-mark-master.png` is the brand master. The plan's "delete PNGs" quick win is superseded.
 - **Play permissions escalation** is drafted and ready to send: `docs/play-permissions-escalation.md`. This is a Base44 **support** action (the AAB permissions aren't editable in-repo), not code.
-- **Premium testing/launch behavior** is documented in `docs/premium-testing-and-launch.md`. Do not create a client-side billing bypass. The founder approved a deploy-time opt-in for the AI body-composition range despite Base44's current private-file deletion limitation; keep the source flag off by default and preserve the in-flow/privacy disclosures.
+- **Premium testing/launch behavior** is documented in `docs/premium-testing-and-launch.md`. Do not create a client-side billing bypass. The founder approved a deploy-time opt-in for the AI body-composition range despite Base44's current private-file deletion limitation; keep the source flag off by default, use the Base44 Secret `ENABLE_BODY_COMPOSITION_SCAN=true` for the hosted release, and preserve the in-flow/privacy disclosures.
 
 ---
 

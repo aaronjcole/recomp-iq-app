@@ -39,7 +39,7 @@ function daysAgoStr(n) {
 
 export default function Progress() {
   const { profile, strategy, logs, trend, reload } = useRecomp();
-  const { canAccess } = usePremiumAccess();
+  const { canAccess, releaseFlags } = usePremiumAccess();
   const location = useLocation();
   const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
   const [range, setRange] = useState("35d");
@@ -182,7 +182,7 @@ export default function Progress() {
         </Card>
       )}
 
-      {featureFlags.bodyCompositionScan && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
+      {(featureFlags.bodyCompositionScan || releaseFlags.bodyCompositionScan) && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
         <Suspense fallback={null}>
           <BodyCompositionScan />
         </Suspense>

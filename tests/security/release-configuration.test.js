@@ -30,8 +30,20 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
   assert.match(
     progressSource,
-    /featureFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/
+    /\(featureFlags\.bodyCompositionScan\s*\|\|\s*releaseFlags\.bodyCompositionScan\)\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/
   );
+
+  const premiumAccessSource = readFileSync(
+    resolve(repoRoot, "base44/functions/getPremiumAccess/entry.ts"),
+    "utf8"
+  );
+  const bodyCompositionSource = readFileSync(
+    resolve(repoRoot, "base44/functions/analyzeBodyComposition/entry.ts"),
+    "utf8"
+  );
+  assert.match(premiumAccessSource, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
+  assert.match(bodyCompositionSource, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
+  assert.match(bodyCompositionSource, /BODY_COMPOSITION_SCAN_DISABLED/);
 
   const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
   assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&/);
