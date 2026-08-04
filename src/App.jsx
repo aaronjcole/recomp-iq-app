@@ -38,7 +38,6 @@ const Coach = lazyWithRetry(() => import('@/pages/Coach'));
 const Profile = lazyWithRetry(() => import('@/pages/Profile'));
 const Premium = lazyWithRetry(() => import('@/pages/Premium'));
 const Hero = lazyWithRetry(() => import('@/pages/Hero'));
-const ComingSoon = lazyWithRetry(() => import('@/pages/ComingSoon'));
 const PublicHome = lazyWithRetry(() => import('@/components/PublicHome'));
 const Privacy = lazyWithRetry(() => import('@/pages/Privacy'));
 const Terms = lazyWithRetry(() => import('@/pages/Terms'));
@@ -65,7 +64,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<PublicHome />} />
       <Route path="/hero" element={<Hero />} />
-      <Route path="/coming-soon" element={<ComingSoon />} />
+      <Route path="/coming-soon" element={<Navigate to="/" replace />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />
