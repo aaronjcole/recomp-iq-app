@@ -132,7 +132,7 @@ export default function SessionBuilder() {
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Dumbbell className="w-4 h-4 text-teal" />
-          <span className="font-medium">Log a session</span>
+          <h2 className="font-medium">Log a session</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

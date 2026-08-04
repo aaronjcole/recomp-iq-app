@@ -148,7 +148,7 @@ Return ONLY the JSON object matching the schema. Use only numbers from the profi
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center gap-2">
           <ScanLine className="w-4 h-4 text-teal" />
-          <span className="font-medium">Body composition scan</span>
+          <h2 className="font-medium">Body composition scan</h2>
         </div>
         <p className="text-xs text-muted-foreground">
           Upload front, side, and back photos for an AI body-fat estimate and personalized tips.

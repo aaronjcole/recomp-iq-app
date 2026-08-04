@@ -74,7 +74,7 @@ export default function HabitsCard() {
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Habits</div>
+          <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Habits</h2>
           <Button variant="ghost" size="icon" className="h-11 min-h-11 w-11 min-w-11 -my-2 -mr-2" onClick={() => setEditorOpen(true)} aria-label="Edit habits">
             <Pencil className="w-3.5 h-3.5" />
           </Button>
@@ -107,7 +107,7 @@ export default function HabitsCard() {
                       className={`h-11 min-h-11 w-11 min-w-11 rounded-full flex items-center justify-center border transition-colors ${
                         done ? "bg-teal border-teal" : "border-line"
                       }`}
-                      aria-label={done ? "Mark incomplete" : "Mark complete"}
+                      aria-label={done ? `Mark ${h.name} incomplete` : `Mark ${h.name} complete`}
                     >
                       {done && <Check className="w-3.5 h-3.5 text-buttonText" />}
                     </button>
@@ -133,17 +133,23 @@ export default function HabitsCard() {
                       size="icon"
                       className="h-11 min-h-11 w-11 min-w-11 rounded-full border-line"
                       onClick={() => step(h, -stepSize)}
-                      aria-label="Decrease"
+                      aria-label={`Decrease ${h.name}`}
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </Button>
-                    <ProgressRing size={36} stroke={4} value={value} max={target} />
+                    <ProgressRing
+                      size={36}
+                      stroke={4}
+                      value={value}
+                      max={target}
+                      ariaLabel={`${h.name}: ${value} of ${target}${h.unit ? ` ${h.unit}` : ""}`}
+                    />
                     <Button
                       variant="outline"
                       size="icon"
                       className="h-11 min-h-11 w-11 min-w-11 rounded-full border-line"
                       onClick={() => step(h, stepSize)}
-                      aria-label="Increase"
+                      aria-label={`Increase ${h.name}`}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
