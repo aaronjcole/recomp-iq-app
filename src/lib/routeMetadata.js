@@ -99,6 +99,11 @@ const ROUTE_METADATA = Object.freeze({
     announcement: "Progress",
     description: "Review weight, measurements, strength, and recomposition trends."
   },
+  "/progress/visual-check": {
+    title: "Visual Progress Check | RecompOne",
+    announcement: "Visual Progress Check",
+    description: "Compare private progress photos on your device without uploads or body-fat estimates."
+  },
   "/plan": {
     title: "Plan | RecompOne",
     announcement: "Your plan",

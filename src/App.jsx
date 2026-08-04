@@ -30,6 +30,7 @@ const AdaptiveMealPlan = lazyWithRetry(() => import('@/pages/AdaptiveMealPlan'))
 const Training = lazyWithRetry(() => import('@/pages/Training'));
 const AdaptiveTrainingBlock = lazyWithRetry(() => import('@/pages/AdaptiveTrainingBlock'));
 const Progress = lazyWithRetry(() => import('@/pages/Progress'));
+const VisualProgressCheck = lazyWithRetry(() => import('@/pages/VisualProgressCheck'));
 const More = lazyWithRetry(() => import('@/pages/More'));
 const Plan = lazyWithRetry(() => import('@/pages/Plan'));
 const DecisionHistory = lazyWithRetry(() => import('@/pages/DecisionHistory'));
@@ -85,6 +86,7 @@ const AuthenticatedApp = () => {
               <Route path="/training" element={<Training />} />
               <Route path="/training/plan" element={<AdaptiveTrainingBlock />} />
               <Route path="/progress" element={<Progress />} />
+              <Route path="/progress/visual-check" element={<VisualProgressCheck />} />
               <Route path="/more" element={<More />} />
               <Route path="/more/plan" element={<Plan />} />
               <Route path="/more/decisions" element={<DecisionHistory />} />

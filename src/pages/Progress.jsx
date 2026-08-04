@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import {
   calculateInitialStrategy,
@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
-import { Scale } from "lucide-react";
+import { ArrowRight, Scale, ScanLine } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import BodyCompositionScan from "@/components/progress/BodyCompositionScan";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
 
@@ -178,6 +179,26 @@ export default function Progress() {
       )}
 
       {featureFlags.bodyCompositionScan && <BodyCompositionScan />}
+
+      <Card className="border-line bg-panel">
+        <CardContent className="flex gap-3 p-5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+            <ScanLine className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-medium">Visual Progress Check</h2>
+              <PremiumBadge />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Compare two private photos with an on-device reveal—no upload or body-fat estimate.
+            </p>
+            <Button asChild variant="outline" className="mt-3 w-full justify-between border-line">
+              <Link to="/progress/visual-check">Open visual check <ArrowRight aria-hidden="true" /></Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <ProgressPhotos />
     </div>

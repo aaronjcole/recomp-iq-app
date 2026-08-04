@@ -173,8 +173,7 @@ test("the Premium catalog shows server-authorized tester access inside the More 
   await expect(page).toHaveURL(/\/more\/premium$/);
   await expect(page.getByRole("heading", { level: 1, name: "Premium features" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Testing access enabled" })).toBeVisible();
-  await expect(page.getByText("Access granted · available now")).toHaveCount(3);
-  await expect(page.getByText("Access granted · rollout in progress")).toHaveCount(1);
+  await expect(page.getByText("Access granted · available now")).toHaveCount(4);
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
   assertNoPageErrors();
@@ -251,6 +250,20 @@ test("a Premium tester can run Weekly Autopilot inside the Today tab", async ({ 
   await expect(page.getByRole("heading", { level: 2, name: "Weekly scorecard" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "How the adaptive tools respond" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 3, name: "Weight trend" })).toBeVisible();
+
+  assertNoPageErrors();
+});
+
+test("a Premium tester can open the on-device Visual Progress Check inside the Progress tab", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/progress");
+  await page.getByRole("link", { name: /Open visual check/i }).click();
+  await expect(page).toHaveURL(/\/progress\/visual-check$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Visual Progress Check" })).toBeVisible();
+  await expect(page.getByText("No uploads, no AI analysis, and no body-fat or medical estimate.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Add two progress photos" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
   assertNoPageErrors();
 });
