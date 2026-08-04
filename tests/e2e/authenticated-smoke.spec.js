@@ -157,3 +157,24 @@ test("shared controls stay touch-safe without overflowing a narrow mobile layout
 
   assertNoPageErrors();
 });
+
+test("the Premium catalog shows server-authorized tester access inside the More tab", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  const premiumResponse = page.waitForResponse((response) =>
+    response.url().includes("/functions/getPremiumAccess")
+  );
+
+  await page.goto("/more");
+  await page.getByRole("button", { name: /Premium features/i }).click();
+
+  const response = await premiumResponse;
+  expect(response.request().method()).toBe("POST");
+  expect(response.status()).toBe(200);
+  await expect(page).toHaveURL(/\/more\/premium$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Premium features" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Testing access enabled" })).toBeVisible();
+  await expect(page.getByText("Access granted · rollout in progress")).toHaveCount(4);
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+
+  assertNoPageErrors();
+});
