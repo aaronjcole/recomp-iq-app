@@ -84,6 +84,11 @@ const ROUTE_METADATA = Object.freeze({
     announcement: "Training",
     description: "Plan and log training sessions with RecompOne."
   },
+  "/training/plan": {
+    title: "Adaptive Training Block | RecompOne",
+    announcement: "Adaptive training block",
+    description: "Build a progressive 4–6 week training block from your schedule, history, and recovery signals."
+  },
   "/progress": {
     title: "Progress | RecompOne",
     announcement: "Progress",

@@ -19,7 +19,8 @@ const FEATURES = [
     key: PREMIUM_FEATURES.TRAINING_PLANNING,
     icon: Dumbbell,
     title: "Adaptive training blocks",
-    description: "Four-to-six-week workout blocks that respond to your schedule, training history, and recovery."
+    description: "Four-to-six-week workout blocks that respond to your schedule, training history, and recovery.",
+    to: "/training/plan"
   },
   {
     key: PREMIUM_FEATURES.WEEKLY_AUTOPILOT,
