@@ -295,7 +295,9 @@ test("weekly check-in uses one reference date for trends and plateau detection",
     strategy
   };
 
-  assert.deepEqual(runWeeklyCheckIn(args), runWeeklyCheckIn({ ...args, referenceDate: today }));
+  const expected = runWeeklyCheckIn({ ...args, referenceDate: today });
+  assert.deepEqual(runWeeklyCheckIn(args), expected);
+  assert.deepEqual(runWeeklyCheckIn({ ...args, referenceDate: "not-a-date" }), expected);
 });
 
 test("soreness-only recovery data can trigger fatigue protection", () => {
@@ -308,17 +310,33 @@ test("soreness-only recovery data can trigger fatigue protection", () => {
   assert.equal(trend.recovery_label, "poor");
 });
 
-test("observed TDEE uses non-overlapping weight samples to recover a linear slope", () => {
-  const logs = Array.from({ length: 7 }, (_, index) => ({
-    date: isoDate(index + 1),
+test("observed TDEE uses non-overlapping averaged weight samples", () => {
+  const dayOffsets = [0, 1, 3, 6, 7, 10, 12];
+  const logs = dayOffsets.map((dayOffset, index) => ({
+    date: offsetDate("2026-01-01", dayOffset),
     calories: 2000,
-    weight_lbs: 200 - index * 0.2
+    weight_lbs: 200 - dayOffset * 0.2 + (index === 1 ? 1 : 0)
   }));
 
   const result = estimateObservedTdee(logs);
 
-  assert.equal(result.weekly_weight_rate_lbs, -1.4);
-  assert.equal(result.observed_tdee, 2700);
+  assert.equal(result.weekly_weight_rate_lbs, -1.68);
+  assert.equal(result.observed_tdee, 2840);
+});
+
+test("observed TDEE fails closed when too few finite dated weights remain", () => {
+  const logs = Array.from({ length: 7 }, (_, index) => ({
+    date: isoDate(index + 1),
+    calories: 2000,
+    weight_lbs: index === 5 ? Number.POSITIVE_INFINITY : 200 - index * 0.2
+  }));
+  logs[6].date = "not-a-date";
+
+  const result = estimateObservedTdee(logs);
+
+  assert.equal(result.weight_days_used, 5);
+  assert.equal(result.weekly_weight_rate_lbs, null);
+  assert.equal(result.observed_tdee, null);
 });
 
 test("safety flags constrain aggressive starting targets and halt weekly changes", () => {

@@ -4,7 +4,7 @@
 
 import { calculateInitialStrategy } from "./calculators.js";
 import { decideWeeklyAdjustment } from "./adjustments.js";
-import { analyzeTrends, countConsecutiveFlatWeeks } from "./trends.js";
+import { analyzeTrends, countConsecutiveFlatWeeks, normalizeDateKey } from "./trends.js";
 import { generateWeightProjection } from "./projections.js";
 
 function localTodayKey() {
@@ -30,7 +30,7 @@ export function recalculateTargets(profile, preferences = {}) {
 }
 
 export function runWeeklyCheckIn(args) {
-  const referenceDate = args.referenceDate || localTodayKey();
+  const referenceDate = normalizeDateKey(args.referenceDate) || localTodayKey();
   const trend = analyzeTrends(args.logs, args.strategy, { referenceDate });
   const consecutiveFlatWeeks =
     typeof args.consecutiveFlatWeeks === "number"

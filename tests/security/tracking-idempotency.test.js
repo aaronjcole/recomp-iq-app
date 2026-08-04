@@ -130,6 +130,10 @@ test("duplicate tracking records use the latest update for overlapping fields", 
   );
 
   assert.equal(result.canonical.id, "record-old");
+  assert.deepEqual(
+    result.duplicates.map((record) => record.id),
+    ["record-new"]
+  );
   assert.deepEqual(result.fields, {
     weight_lbs: 190,
     calories: 1800,

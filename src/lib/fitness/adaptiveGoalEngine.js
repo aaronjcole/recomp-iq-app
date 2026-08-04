@@ -40,8 +40,10 @@ function goalCopy(goal) {
 
 export function estimateObservedTdee(logs, windowDays = 28) {
   const sorted = sortLogs(logs).slice(-windowDays);
-  const calorieLogs = sorted.filter((log) => typeof log.calories === "number");
-  const weightLogs = sorted.filter((log) => typeof log.weight_lbs === "number");
+  const calorieLogs = sorted.filter((log) => Number.isFinite(log.calories));
+  const weightLogs = sorted.filter(
+    (log) => Number.isFinite(log.weight_lbs) && Number.isFinite(new Date(log.date).getTime())
+  );
   const daysUsed = sorted.length;
   if (calorieLogs.length < 7 || weightLogs.length < 6) {
     return {

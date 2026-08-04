@@ -21,6 +21,10 @@ function dateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+export function normalizeDateKey(value) {
+  return dateKey(value);
+}
+
 function dayNumber(value) {
   const key = dateKey(value);
   if (!key) return null;
