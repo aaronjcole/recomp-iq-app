@@ -145,9 +145,9 @@ export default function Nutrition() {
             <Field label="Fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
             <Field label="Fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
           </div>
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="min-h-11 flex-1" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
-            <Button className="min-h-11 flex-1 bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
+          <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
+            <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
+            <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
               <Plus className="w-4 h-4 mr-1" /> Add to today
             </Button>
           </div>
