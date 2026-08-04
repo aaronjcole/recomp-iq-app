@@ -129,8 +129,25 @@ test("shared controls stay touch-safe without overflowing a narrow mobile layout
   const layoutWidth = await page.evaluate(() => ({
     viewport: window.innerWidth,
     content: document.documentElement.scrollWidth,
+    overflowing: [...document.body.querySelectorAll("*")]
+      .map((element) => {
+        const bounds = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          className: element.getAttribute("class") || "",
+          text: element.textContent?.trim().replace(/\s+/g, " ").slice(0, 80) || "",
+          left: Math.round(bounds.left),
+          right: Math.round(bounds.right),
+          width: Math.round(bounds.width),
+        };
+      })
+      .filter(({ left, right, width }) => width > 0 && (left < 0 || right > window.innerWidth))
+      .slice(0, 12),
   }));
-  expect(layoutWidth.content).toBeLessThanOrEqual(layoutWidth.viewport);
+  expect(
+    layoutWidth.content,
+    `Overflowing elements: ${JSON.stringify(layoutWidth.overflowing)}`
+  ).toBeLessThanOrEqual(layoutWidth.viewport);
 
   await page.goto("/today");
   await page.getByRole("button", { name: /Log today/i }).first().click();
