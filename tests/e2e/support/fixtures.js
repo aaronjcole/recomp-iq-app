@@ -127,6 +127,19 @@ export const PREMIUM_TESTER_ACCESS = {
   sources: ["tester"],
 };
 
+export const BODY_COMPOSITION_RESULT = {
+  bodyFatRangeLowPct: 18,
+  bodyFatRangeHighPct: 22,
+  leanMassRangeLowLbs: 141.2,
+  leanMassRangeHighLbs: 148.4,
+  confidence: "moderate",
+  summary: "The three views support a broad visual estimate while lighting and pose still limit precision.",
+  tips: [
+    "Keep protein near the current target.",
+    "Use the weekly weight trend before changing calories."
+  ]
+};
+
 export const ADAPTIVE_MEAL_PLAN = {
   weekStart: isoDaysAgo(0),
   dietStyle: "omnivore",

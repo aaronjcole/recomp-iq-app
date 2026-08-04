@@ -28,7 +28,10 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.equal(enabledFromEnvironment("true"), true);
 
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
-  assert.match(progressSource, /featureFlags\.bodyCompositionScan\s*&&\s*<BodyCompositionScan/);
+  assert.match(
+    progressSource,
+    /featureFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/
+  );
 
   const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
   assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&/);

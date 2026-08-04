@@ -4,6 +4,7 @@ import {
   ANALYSIS_IMAGE_MAX_BYTES,
   ANALYSIS_URL_TTL_SECONDS,
   createPrivateAnalysisUrl,
+  uploadPrivateAnalysisImage,
   validateAnalysisImage
 } from "../../src/lib/analysisImages.js";
 
@@ -54,6 +55,19 @@ test("analysis images use private storage and a short-lived signed URL", async (
       }
     ]
   ]);
+});
+
+test("analysis images can upload privately without exposing a signed URL to the client", async () => {
+  const calls = [];
+  const core = {
+    async UploadPrivateFile(payload) {
+      calls.push(payload);
+      return { file_uri: "private/user/image.jpg" };
+    }
+  };
+
+  assert.equal(await uploadPrivateAnalysisImage(core, validFile), "private/user/image.jpg");
+  assert.deepEqual(calls, [{ file: validFile }]);
 });
 
 test("analysis upload fails closed when Base44 omits a private reference", async () => {

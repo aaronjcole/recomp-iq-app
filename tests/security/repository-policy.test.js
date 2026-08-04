@@ -138,6 +138,10 @@ test("AI analysis features never use Base44 public file storage", () => {
   for (const path of analysisComponents) {
     const source = readFileSync(join(repoRoot, path), "utf8");
     assert.doesNotMatch(source, /\.Core\.UploadFile\s*\(/, `${path} must not upload publicly`);
-    assert.match(source, /createPrivateAnalysisUrl/, `${path} must use private signed URLs`);
+    assert.match(
+      source,
+      /createPrivateAnalysisUrl|uploadPrivateAnalysisImage/,
+      `${path} must use private analysis storage`
+    );
   }
 });
