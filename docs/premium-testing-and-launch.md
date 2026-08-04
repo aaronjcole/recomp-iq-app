@@ -15,6 +15,18 @@ The all-in-one product ID is `recompone_premium`. It unlocks all four features. 
 
 ## Give an account testing access
 
+### Option A — env var (recommended for early testing)
+
+Set the `PREMIUM_TESTER_EMAILS` app Secret in Base44 to a comma-separated list of account email addresses. Any signed-in user whose email matches receives full bundle tester access without a database record. The check is server-side and transparent in `getPremiumAccess/entry.ts`.
+
+```text
+PREMIUM_TESTER_EMAILS=you@example.com,teammate@example.com
+```
+
+**Clear this Secret before the production launch.** Removing it (or setting it to an empty string) silently falls through to the database path and no access is granted.
+
+### Option B — admin dashboard record
+
 In the Base44 data dashboard, create one `PremiumEntitlement` record:
 
 ```text
@@ -39,13 +51,16 @@ Test the following states before launch:
 
 Before the production launch:
 
-1. Revoke or expire every `source: tester` record that should not survive launch.
+1. Clear `PREMIUM_TESTER_EMAILS` from Base44 app Secrets and revoke or expire every `source: tester` DB record that should not survive launch.
 2. Keep the current server and client checks in place. Do not replace them with a build-time flag or client-only unlock.
 3. Create Google Play products whose stable IDs match the product IDs above.
-4. Add a trusted purchase-verification path that validates Google Play purchase state on the server before creating or refreshing a `source: google_play`, `status: active` entitlement.
-5. Revoke or expire the entitlement when a purchase is refunded, canceled, expires, or otherwise loses access.
-6. Test purchase, pending, cancellation, restore, refund, reinstall, account switch, offline, and service-failure states with Play license testers.
-7. Update the Play listing, Terms, Privacy Policy, and Data Safety answers before advertising Premium.
+4. Wire up the `verifyGooglePlayPurchase` backend function (already scaffolded at `base44/functions/verifyGooglePlayPurchase/entry.ts`):
+   - Set the `PLAY_PACKAGE_NAME` Secret to your Android package name.
+   - Create a Google service account with the Android Publisher API scope, download the JSON key, and store it as the `GOOGLE_PLAY_SA_JSON` Secret.
+   - In the native Android layer, call `base44.functions.invoke("verifyGooglePlayPurchase", { purchaseToken, productId })` after a successful Google Play Billing purchase. This validates the token server-side and writes a `source: google_play` entitlement.
+   - After a refund, cancellation, or expiry Google Play sends a Real-Time Developer Notification (RTDN). Add a webhook handler that calls the Android Publisher API to confirm the cancellation and then updates the entitlement `status` to `"revoked"` or `"expired"`.
+5. Test purchase, pending, cancellation, restore, refund, reinstall, account switch, offline, and service-failure states with Play license testers.
+6. Update the Play listing, Terms, Privacy Policy, and Data Safety answers before advertising Premium.
 
 Recommended first commercial shape: one all-in-one Premium product. The individual IDs should remain available in the domain model, but launching a single bundle gives users a simpler promise and creates fewer billing and support edge cases. Add-on pricing can be introduced after real usage shows that users understand and value a feature independently.
 

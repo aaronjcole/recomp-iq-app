@@ -1,10 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
-import { resolvePremiumAccess } from "../../shared/premiumDomain.js";
+import { resolvePremiumAccess, PREMIUM_PRODUCTS } from "../../shared/premiumDomain.js";
 
 const ENTITLEMENT_PAGE_SIZE = 500;
 const MAX_ENTITLEMENT_RECORDS = 1_000;
 const BODY_COMPOSITION_SCAN_ENABLED =
   Deno.env.get("ENABLE_BODY_COMPOSITION_SCAN") === "true";
+
+// Server-side testing bypass. Set PREMIUM_TESTER_EMAILS in Base44 app Secrets to a
+// comma-separated list of account emails. Matching users get full bundle tester access
+// without requiring a PremiumEntitlement DB record. Clear this before production launch.
+const TESTER_EMAIL_SET = (() => {
+  const raw = Deno.env.get("PREMIUM_TESTER_EMAILS") ?? "";
+  return new Set(raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+})();
+
+const TESTER_BUNDLE_RECORD = Object.freeze({
+  product_id: PREMIUM_PRODUCTS.BUNDLE,
+  source: "tester",
+  status: "active",
+  expires_at: null
+});
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -62,6 +77,14 @@ export default async function(req) {
     return json({ error: "Could not verify the account" }, { status: 500 });
   }
   if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
+
+  if (TESTER_EMAIL_SET.size > 0 && user.email &&
+      TESTER_EMAIL_SET.has(String(user.email).trim().toLowerCase())) {
+    return json({
+      ...resolvePremiumAccess([TESTER_BUNDLE_RECORD]),
+      releaseFlags: { bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED }
+    });
+  }
 
   try {
     const records = await listAllEntitlements(base44, user.id);
