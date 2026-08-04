@@ -10,8 +10,13 @@ import {
   normalizeCoachReplyResult,
   normalizeCoachRequest
 } from "../../shared/coachDomain.js";
+import {
+  COACH_DAILY_LIMIT,
+  evaluateCoachQuota
+} from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 24_000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -36,6 +41,35 @@ async function ownedRecords(base44, entityName, userId, sort, limit) {
     sort,
     limit
   );
+}
+
+async function reserveCoachRequest(base44, ownerId) {
+  const now = Date.now();
+  const requestedAt = new Date(now).toISOString();
+  const dayCutoff = new Date(now - DAY_MS).toISOString();
+  const requestId = crypto.randomUUID();
+  const usage = base44.asServiceRole.entities.CoachRequestUsage;
+
+  await usage.deleteMany({
+    owner_id: ownerId,
+    requested_at: { $lt: dayCutoff }
+  });
+  const reservation = await usage.create({
+    owner_id: ownerId,
+    request_id: requestId,
+    requested_at: requestedAt
+  });
+  const recent = await usage.filter(
+    {
+      owner_id: ownerId,
+      requested_at: { $gte: dayCutoff, $lte: requestedAt }
+    },
+    "requested_at",
+    COACH_DAILY_LIMIT + 1
+  );
+  const quota = evaluateCoachQuota(recent, requestId, now);
+  if (!quota.allowed) await usage.delete(reservation.id);
+  return quota;
 }
 
 export default async function(req) {
@@ -108,6 +142,17 @@ export default async function(req) {
         actionable: false,
         reply: buildSafetyGuidanceReply()
       });
+    }
+
+    const quota = await reserveCoachRequest(base44, ownerId);
+    if (!quota.allowed) {
+      return json(
+        { error: "Coach request limit reached. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": quota.reason === "daily" ? "86400" : "3600" }
+        }
+      );
     }
 
     const [dailyLogs, sessions, checkIns] = await Promise.all([
