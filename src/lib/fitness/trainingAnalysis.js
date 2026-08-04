@@ -1,7 +1,7 @@
 // Ported 1:1 from RecompOne src/lib/fitness/trainingAnalysis.ts. Pure functions.
 
-import { estimateOneRepMax } from "./calculators";
-import { average, sortLogs } from "./trends";
+import { estimateOneRepMax } from "./calculators.js";
+import { average, sortLogs } from "./trends.js";
 
 export function summarizeTrainingLoad(sessions, targetLiftingDays, targetCardioDays) {
   const recent = sortLogs(sessions).slice(-7);
