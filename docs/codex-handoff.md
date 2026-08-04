@@ -24,6 +24,9 @@ Every change lands as a GitHub PR against `main`; merging auto-syncs to Base44. 
 | #47 | **Adaptive training blocks** — equipment-, history-, and recovery-aware 4–6 week programming. |
 | #48 | **Weekly Autopilot Review** — five-signal scorecard with one prioritized next move. |
 | #49 | **Visual Progress Check** — Premium on-device comparison with no upload or biometric estimate. |
+| #50 | **Premium testing + launch runbook** — tester provisioning, route matrix, production cutover, and billing guardrails. |
+| #51 | **AI body-composition range** — Premium-gated private uploads, server authorization, bounded educational results, and accepted deletion-limit disclosures. |
+| #52 | **Hero Premium positioning** — public beta messaging for adaptive meal plans, training blocks, Weekly Autopilot, and visual progress tools. |
 
 ### In flight
 - None. Start every new change from the latest `main`; do not reuse any merged branch.
