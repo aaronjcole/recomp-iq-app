@@ -126,3 +126,29 @@ export const PREMIUM_TESTER_ACCESS = {
   products: ["recompone_premium"],
   sources: ["tester"],
 };
+
+export const ADAPTIVE_MEAL_PLAN = {
+  weekStart: isoDaysAgo(0),
+  dietStyle: "omnivore",
+  dailyTargets: { calories: 2200, proteinG: 170, carbsG: 210, fatG: 70 },
+  adaptation: {
+    mode: "balanced_variety",
+    summary: "Portions use the targets from your latest weekly review while keeping a balanced meal rotation.",
+  },
+  days: Array.from({ length: 7 }, (_, index) => ({
+    date: isoDaysAgo(-index),
+    totals: { calories: 2200, proteinG: 168, carbsG: 214, fatG: 69 },
+    meals: [
+      { id: "oats", slot: "breakfast", title: "Overnight protein oats", servingScale: 1.05, calories: 500, proteinG: 40, carbsG: 60, fatG: 12, ingredients: [] },
+      { id: "chicken-bowl", slot: "lunch", title: "Chicken rice power bowl", servingScale: 1.05, calories: 620, proteinG: 53, carbsG: 65, fatG: 16, ingredients: [] },
+      { id: "salmon-plate", slot: "dinner", title: "Salmon, potatoes, and greens", servingScale: 1.05, calories: 690, proteinG: 49, carbsG: 57, fatG: 28, ingredients: [] },
+      { id: "yogurt", slot: "snack", title: "Yogurt berry crunch", servingScale: 1.05, calories: 390, proteinG: 26, carbsG: 32, fatG: 13, ingredients: [] },
+    ],
+  })),
+  groceryList: [
+    { name: "berries", quantity: 7, unit: "cup" },
+    { name: "chicken breast", quantity: 42, unit: "oz" },
+  ],
+  allergyNotice: "Review every ingredient for allergies, intolerances, medication interactions, and dietary restrictions before using this plan.",
+  nutritionNotice: "Calories and macros are estimates for planning—not medical advice. Confirm portions and labels when logging.",
+};
