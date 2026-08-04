@@ -188,3 +188,32 @@ export const ADAPTIVE_TRAINING_BLOCK = {
     instruction: index === 4 ? "Reduce sets by about one-third." : "Progress while form and recovery remain solid.",
   })),
 };
+
+export const WEEKLY_AUTOPILOT_REVIEW = {
+  weekStart: isoDaysAgo(6),
+  weekEnd: isoDaysAgo(0),
+  confidence: {
+    level: "high",
+    loggedDays: 7,
+    detail: "Six or more daily logs and a usable progress trend support this review.",
+  },
+  primaryAction: {
+    key: "hold_steady",
+    title: "Hold the plan steady",
+    detail: "The strongest move is another consistent week—not a new target.",
+    route: "/today",
+  },
+  scorecard: [
+    { key: "nutrition", label: "Nutrition consistency", status: "on_track", value: "86% target consistency", detail: "Seven intake days reviewed.", score: 0.86 },
+    { key: "training", label: "Training follow-through", status: "on_track", value: "3 of 4 strength days", detail: "Calendar days count once.", score: 0.75 },
+    { key: "recovery", label: "Recovery", status: "on_track", value: "7.4h sleep · 4/5 energy", detail: "Recovery supports the current direction.", score: 1 },
+    { key: "habits", label: "Habit follow-through", status: "on_track", value: "82% completed", detail: "Daily habit opportunities reviewed.", score: 0.82 },
+    { key: "progress", label: "Weight trend", status: "on_track", value: "-0.4 lb observed", detail: "Direction is descriptive, not a stand-alone target change.", score: 1 },
+  ],
+  supportingActions: [],
+  adjustmentsAllowed: true,
+  latestDecision: "keep_plan",
+  mealPlanImpact: "Keep current nutrition targets and carry the same meal structure into next week.",
+  trainingBlockImpact: "Progress the current training direction while keeping the planned deload.",
+  notice: "Weekly Autopilot summarizes logged patterns. It does not diagnose conditions or replace qualified medical, nutrition, or training care.",
+};

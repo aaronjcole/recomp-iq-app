@@ -69,6 +69,11 @@ const ROUTE_METADATA = Object.freeze({
     announcement: "Today",
     description: "See today's RecompOne signal, priorities, habits, and quick log."
   },
+  "/today/autopilot": {
+    title: "Weekly Autopilot | RecompOne",
+    announcement: "Weekly Autopilot review",
+    description: "Connect nutrition, training, recovery, habits, and progress into one weekly next move."
+  },
   "/nutrition": {
     title: "Fuel | RecompOne",
     announcement: "Fuel",

@@ -5,7 +5,8 @@ import {
   ADAPTIVE_TRAINING_BLOCK,
   ENTITY_FIXTURES,
   PREMIUM_TESTER_ACCESS,
-  PUBLIC_SETTINGS
+  PUBLIC_SETTINGS,
+  WEEKLY_AUTOPILOT_REVIEW
 } from "./fixtures.js";
 
 /**
@@ -69,7 +70,7 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object, mealPlan?: object, trainingBlock?: object }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
@@ -77,6 +78,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
   const premiumAccess = options.premiumAccess ?? PREMIUM_TESTER_ACCESS;
   const mealPlan = options.mealPlan ?? ADAPTIVE_MEAL_PLAN;
   const trainingBlock = options.trainingBlock ?? ADAPTIVE_TRAINING_BLOCK;
+  const autopilotReview = options.autopilotReview ?? WEEKLY_AUTOPILOT_REVIEW;
 
   await page.addInitScript(() => {
     try {
@@ -126,6 +128,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
       if (url.includes("/functions/generateAdaptiveTrainingBlock")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
         return json(trainingBlock);
+      }
+      if (url.includes("/functions/generateWeeklyAutopilot")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(autopilotReview);
       }
       // Mirror upsertTrackingRecord: the saved record has the request's
       // `fields` flattened onto it (value/done for a habit, macros for a log),

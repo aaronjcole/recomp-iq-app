@@ -26,7 +26,8 @@ const FEATURES = [
     key: PREMIUM_FEATURES.WEEKLY_AUTOPILOT,
     icon: Sparkles,
     title: "Weekly Autopilot Review",
-    description: "One clear weekly review connecting your nutrition, training, habits, and progress signals."
+    description: "One clear weekly review connecting your nutrition, training, habits, and progress signals.",
+    to: "/today/autopilot"
   },
   {
     key: PREMIUM_FEATURES.VISUAL_PROGRESS,
