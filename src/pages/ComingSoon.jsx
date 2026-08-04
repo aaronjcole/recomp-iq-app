@@ -135,13 +135,21 @@ export default function ComingSoon() {
             <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="text-lg font-semibold">RecompOne</span>
           </Link>
-          <a
-            href="#how-it-works"
-            className="hidden min-h-11 items-center px-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
-            onClick={() => setExplainerViewed(true)}
-          >
-            How it works
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href="#how-it-works"
+              className="hidden min-h-11 items-center px-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
+              onClick={() => setExplainerViewed(true)}
+            >
+              How it works
+            </a>
+            <Link
+              to="/hero"
+              className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-teal hover:underline"
+            >
+              Beta tester sign in
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -149,10 +157,10 @@ export default function ComingSoon() {
         <section className="mx-auto grid max-w-5xl items-center gap-12 px-5 pb-16 pt-12 md:grid-cols-[1.1fr_0.9fr] md:pt-16">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1 font-mono text-xs uppercase tracking-wider text-gold">
-              <Activity className="h-3.5 w-3.5" aria-hidden="true" /> Adaptive recomposition guidance
+              <Activity className="h-3.5 w-3.5" aria-hidden="true" /> Adaptive body recomposition app
             </span>
             <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-              Stop guessing whether to hold, adjust, or push.
+              Know when to hold, adjust, or push your body recomposition plan.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
               RecompOne turns nutrition, training, recovery, and body-trend data into one evidence-backed next move—then shows which signals influenced it.

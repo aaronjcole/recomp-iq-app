@@ -13,7 +13,12 @@ test("landing page exposes the core public navigation", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page).toHaveTitle("RecompOne — Adaptive Recomposition");
+  await expect(page).toHaveTitle("RecompOne: Adaptive Body Recomposition");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index,follow");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://fitnesstrackerapps.com/"
+  );
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await expect(skipLink).toHaveAttribute(
     "href",
@@ -28,12 +33,12 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Train and eat for the body you're actually building.",
+      name: "Know when to hold, adjust, or push your body recomposition plan.",
     }),
   ).toBeVisible();
-  await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toHaveAttribute(
+  await expect(page.getByRole("banner").getByRole("link", { name: "Beta tester sign in" })).toHaveAttribute(
     "href",
-    "/login",
+    "/hero",
   );
   await expect(page.getByRole("link", { name: "Privacy" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms" })).toBeVisible();
@@ -49,12 +54,12 @@ test("landing page exposes the core public navigation", async ({ page }) => {
 test("coming-soon page explains the decision system and exposes the Android beta CTA", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
-  await page.goto("/coming-soon?utm_source=playwright");
+  await page.goto("/?utm_source=playwright");
 
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Stop guessing whether to hold, adjust, or push."
+      name: "Know when to hold, adjust, or push your body recomposition plan."
     })
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Join the Android beta" })).toBeVisible();
@@ -74,6 +79,43 @@ test("coming-soon page explains the decision system and exposes the Android beta
   await expect(page.getByRole("link", { name: "Join the Android beta" })).toHaveAttribute(
     "href",
     "#waitlist-email"
+  );
+  assertNoPageErrors();
+});
+
+test("legacy coming-soon route redirects to the canonical homepage", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/coming-soon");
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://fitnesstrackerapps.com/"
+  );
+  assertNoPageErrors();
+});
+
+test("beta gateway remains accessible but stays out of search", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/hero");
+
+  await expect(page).toHaveTitle("Beta Access | RecompOne");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://fitnesstrackerapps.com/hero"
+  );
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Train and eat for the body you're actually building."
+    })
+  ).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toHaveAttribute(
+    "href",
+    "/login"
   );
   assertNoPageErrors();
 });
@@ -107,6 +149,7 @@ test("authentication entry points render and link together", async ({ page }) =>
 
   await page.goto("/login");
   await expect(page).toHaveTitle("Sign In | RecompOne");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     "content",
     "Sign in to your RecompOne account.",
