@@ -112,3 +112,17 @@ export const ENTITY_FIXTURES = {
 };
 
 export const PUBLIC_SETTINGS = { id: "playwright-local", public_settings: {} };
+
+export const PREMIUM_TESTER_ACCESS = {
+  hasAnyAccess: true,
+  hasBundleAccess: true,
+  testerAccess: true,
+  features: {
+    meal_planning: true,
+    training_planning: true,
+    weekly_autopilot: true,
+    visual_progress: true,
+  },
+  products: ["recompone_premium"],
+  sources: ["tester"],
+};

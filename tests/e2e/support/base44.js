@@ -1,5 +1,10 @@
 import { expect } from "@playwright/test";
-import { AUTH_USER, ENTITY_FIXTURES, PUBLIC_SETTINGS } from "./fixtures.js";
+import {
+  AUTH_USER,
+  ENTITY_FIXTURES,
+  PREMIUM_TESTER_ACCESS,
+  PUBLIC_SETTINGS
+} from "./fixtures.js";
 
 /**
  * Fulfil the single Base44 request made before public routes render. This keeps
@@ -62,11 +67,12 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]> }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
   const entities = options.entities ?? ENTITY_FIXTURES;
+  const premiumAccess = options.premiumAccess ?? PREMIUM_TESTER_ACCESS;
 
   await page.addInitScript(() => {
     try {
@@ -105,6 +111,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
     }
 
     if (url.includes("/functions/")) {
+      if (url.includes("/functions/getPremiumAccess")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(premiumAccess);
+      }
       // Mirror upsertTrackingRecord: the saved record has the request's
       // `fields` flattened onto it (value/done for a habit, macros for a log),
       // so an optimistic write reconciles instead of reverting.

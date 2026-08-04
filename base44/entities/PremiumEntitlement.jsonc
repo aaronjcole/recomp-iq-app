@@ -1,0 +1,43 @@
+{
+  "name": "PremiumEntitlement",
+  "type": "object",
+  "description": "Server-owned premium access records. Stores product authorization only; no profile, health, or purchase payload data.",
+  "properties": {
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Authenticated account identifier set only by trusted backend or admin workflows."
+    },
+    "product_id": {
+      "type": "string",
+      "enum": [
+        "recompone_premium",
+        "adaptive_meal_plans",
+        "adaptive_training_blocks",
+        "weekly_autopilot",
+        "visual_progress_checks"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": ["tester", "google_play", "admin"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "revoked", "expired"]
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional access expiry. Omit for access that remains active until revoked."
+    }
+  },
+  "required": ["owner_id", "product_id", "source", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

@@ -128,6 +128,11 @@ const ROUTE_METADATA = Object.freeze({
     title: "Profile | RecompOne",
     announcement: "Profile",
     description: "Review and update your RecompOne profile."
+  },
+  "/more/premium": {
+    title: "Premium Features | RecompOne",
+    announcement: "Premium features",
+    description: "Review RecompOne Premium features and testing access."
   }
 });
 
