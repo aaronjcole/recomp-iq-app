@@ -3,6 +3,12 @@ import { Input } from "@/components/ui/input";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { NumField, StepHeader, Why } from "./Fields";
 
+function inRange(v, min, max) {
+  if (v === "" || v == null) return false;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min && n <= max;
+}
+
 const kgToLbs = (kg) => kg / 0.45359237;
 const lbsToKg = (lbs) => lbs * 0.45359237;
 const cmToIn = (cm) => cm / 2.54;
@@ -47,20 +53,24 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <NumField id="age" label="Age" value={p.age} onChange={(v) => set("age", v)} unit="yrs" min={18} max={120} step={1} />
+        <div className={showErrors && !inRange(p.age, 18, 120) ? "ring-1 ring-destructive rounded-lg" : ""}>
+          <NumField id="age" label="Age" value={p.age} onChange={(v) => set("age", v)} unit="yrs" min={18} max={120} step={1} />
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="sex">Sex</Label>
-          <AdaptiveSelect
-            id="sex"
-            value={p.sex}
-            onValueChange={(v) => set("sex", v)}
-            drawerTitle="Sex"
-            options={[
-              { value: "male", label: "Male" },
-              { value: "female", label: "Female" },
-              { value: "unspecified", label: "Unspecified" }
-            ]}
-          />
+          <div className={showErrors && !p.sex ? "ring-1 ring-destructive rounded-lg" : ""}>
+            <AdaptiveSelect
+              id="sex"
+              value={p.sex}
+              onValueChange={(v) => set("sex", v)}
+              drawerTitle="Sex"
+              options={[
+                { value: "male", label: "Male" },
+                { value: "female", label: "Female" },
+                { value: "unspecified", label: "Unspecified" }
+              ]}
+            />
+          </div>
           {p.sex === "unspecified" && (
             <Why>We average the Mifflin-St Jeor constants; targets stay slightly less precise.</Why>
           )}
@@ -79,6 +89,7 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
             onChange={(e) =>
               set("height_in", e.target.value === "" ? "" : String(Math.round(cmToIn(Number(e.target.value)))))
             }
+            className={showErrors && !inRange(p.height_in, 36, 108) ? "ring-1 ring-destructive border-destructive" : ""}
           />
         ) : (
           <div className="flex gap-2">
@@ -99,15 +110,17 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <NumField
-          id="cw"
-          label="Current weight"
-          value={weightDisplay(p.current_weight_lbs)}
-          onChange={(v) => weightChange(v, "current_weight_lbs")}
-          unit={metric ? "kg" : "lb"}
-          min={metric ? 18 : 40}
-          max={metric ? 544 : 1200}
-        />
+        <div className={showErrors && !inRange(p.current_weight_lbs, 40, 1200) ? "ring-1 ring-destructive rounded-lg" : ""}>
+          <NumField
+            id="cw"
+            label="Current weight"
+            value={weightDisplay(p.current_weight_lbs)}
+            onChange={(v) => weightChange(v, "current_weight_lbs")}
+            unit={metric ? "kg" : "lb"}
+            min={metric ? 18 : 40}
+            max={metric ? 544 : 1200}
+          />
+        </div>
         <NumField
           id="gw"
           label="Goal weight"

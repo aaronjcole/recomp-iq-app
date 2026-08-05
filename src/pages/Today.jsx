@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRecomp } from "@/lib/RecompContext";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import ProgressRing from "@/components/common/ProgressRing";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import HabitsCard from "@/components/today/HabitsCard";
@@ -23,6 +23,12 @@ function greeting() {
 export default function Today() {
   const { preferences, signal, strategy, trend, quests, todayLog, reload } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
+  const { state } = useLocation();
+  useEffect(() => {
+    if (!state?.scrollTo) return;
+    const el = document.getElementById(state.scrollTo);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [state?.scrollTo]);
 
   if (!strategy) return (
     <div className="space-y-5 animate-pulse">

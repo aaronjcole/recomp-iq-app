@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function Nutrition() {
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
   const [searchParams] = useSearchParams();
+  const { state } = useLocation();
   const detailsRef = useRef(null);
   const requestedPanel = searchParams.get("panel");
   const [targetsExpanded, setTargetsExpanded] = useState(
@@ -47,6 +48,12 @@ export default function Nutrition() {
     }, 80);
     return () => window.clearTimeout(timer);
   }, [requestedPanel, strategy]);
+
+  useEffect(() => {
+    if (!state?.scrollTo) return;
+    const el = document.getElementById(state.scrollTo);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [state?.scrollTo]);
 
   const handleScannedFood = async (food, addToToday) => {
     await addFood(food);
