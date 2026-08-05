@@ -23,6 +23,11 @@ import { LogOut, Trash2, Pencil, Loader2 } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import { deletePhotosForUser } from "@/lib/progressPhotos";
 import { planCacheKeysForUser } from "@/lib/planCache";
+import {
+  BIOMETRIC_RANGES,
+  inBiometricRange,
+  optionalInBiometricRange
+} from "@/lib/biometricRanges";
 
 // The five targets a user can author by hand in CustomTargetsCard. While
 // strategy.manual_override is on they belong to the user, so recalculating from
@@ -83,7 +88,28 @@ export default function Profile() {
 
   const setDraftField = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
 
+  // Every field the biometrics editor can write, checked against the same bounds
+  // onboarding enforces. Without this a cleared input saved as 0 and silently
+  // recomputed the user's targets from it (0 lb bodyweight => 0 g protein).
+  const bioInvalid = draft
+    ? {
+        age: !inBiometricRange("age", draft.age),
+        height_in: !inBiometricRange("height_in", draft.height_in),
+        current_weight_lbs: !inBiometricRange("current_weight_lbs", draft.current_weight_lbs),
+        goal_weight_lbs: !optionalInBiometricRange("goal_weight_lbs", draft.goal_weight_lbs),
+        average_steps: !inBiometricRange("average_steps", draft.average_steps),
+        training_days_per_week: !inBiometricRange(
+          "training_days_per_week",
+          draft.training_days_per_week
+        ),
+        cardio_days_per_week: !inBiometricRange("cardio_days_per_week", draft.cardio_days_per_week)
+      }
+    : {};
+  const bioHasErrors = Object.values(bioInvalid).some(Boolean);
+  const ringIf = (invalid) => (invalid ? "ring-1 ring-destructive border-destructive" : "");
+
   const saveEdits = async () => {
+    if (bioHasErrors) return;
     setBioSaving(true);
     try {
       const profileData = {
@@ -212,10 +238,11 @@ export default function Profile() {
                     id="edit-age"
                     type="number"
                     inputMode="numeric"
-                    min={18}
-                    max={120}
+                    min={BIOMETRIC_RANGES.age[0]}
+                    max={BIOMETRIC_RANGES.age[1]}
                     value={draft.age}
                     onChange={(e) => setDraftField("age", e.target.value)}
+                    className={ringIf(bioInvalid.age)}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -236,10 +263,11 @@ export default function Profile() {
                   id="edit-height"
                   type="number"
                   inputMode="decimal"
-                  min={36}
-                  max={108}
+                  min={BIOMETRIC_RANGES.height_in[0]}
+                  max={BIOMETRIC_RANGES.height_in[1]}
                   value={draft.height_in}
                   onChange={(e) => setDraftField("height_in", e.target.value)}
+                  className={ringIf(bioInvalid.height_in)}
                 />
               </div>
 
@@ -250,10 +278,11 @@ export default function Profile() {
                     id="edit-cw"
                     type="number"
                     inputMode="decimal"
-                    min={40}
-                    max={1200}
+                    min={BIOMETRIC_RANGES.current_weight_lbs[0]}
+                    max={BIOMETRIC_RANGES.current_weight_lbs[1]}
                     value={draft.current_weight_lbs}
                     onChange={(e) => setDraftField("current_weight_lbs", e.target.value)}
+                    className={ringIf(bioInvalid.current_weight_lbs)}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -262,11 +291,12 @@ export default function Profile() {
                     id="edit-gw"
                     type="number"
                     inputMode="decimal"
-                    min={40}
-                    max={1200}
+                    min={BIOMETRIC_RANGES.goal_weight_lbs[0]}
+                    max={BIOMETRIC_RANGES.goal_weight_lbs[1]}
                     placeholder="Optional"
                     value={draft.goal_weight_lbs}
                     onChange={(e) => setDraftField("goal_weight_lbs", e.target.value)}
+                    className={ringIf(bioInvalid.goal_weight_lbs)}
                   />
                 </div>
               </div>
@@ -288,10 +318,11 @@ export default function Profile() {
                   id="edit-steps"
                   type="number"
                   inputMode="numeric"
-                  min={0}
-                  max={200000}
+                  min={BIOMETRIC_RANGES.average_steps[0]}
+                  max={BIOMETRIC_RANGES.average_steps[1]}
                   value={draft.average_steps}
                   onChange={(e) => setDraftField("average_steps", e.target.value)}
+                  className={ringIf(bioInvalid.average_steps)}
                 />
               </div>
 
@@ -302,10 +333,11 @@ export default function Profile() {
                     id="edit-lift"
                     type="number"
                     inputMode="numeric"
-                    min={0}
-                    max={7}
+                    min={BIOMETRIC_RANGES.training_days_per_week[0]}
+                    max={BIOMETRIC_RANGES.training_days_per_week[1]}
                     value={draft.training_days_per_week}
                     onChange={(e) => setDraftField("training_days_per_week", e.target.value)}
+                    className={ringIf(bioInvalid.training_days_per_week)}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -314,10 +346,11 @@ export default function Profile() {
                     id="edit-cardio"
                     type="number"
                     inputMode="numeric"
-                    min={0}
-                    max={7}
+                    min={BIOMETRIC_RANGES.cardio_days_per_week[0]}
+                    max={BIOMETRIC_RANGES.cardio_days_per_week[1]}
                     value={draft.cardio_days_per_week}
                     onChange={(e) => setDraftField("cardio_days_per_week", e.target.value)}
+                    className={ringIf(bioInvalid.cardio_days_per_week)}
                   />
                 </div>
               </div>
@@ -333,10 +366,16 @@ export default function Profile() {
                 />
               </div>
 
+              {bioHasErrors && (
+                <p className="text-xs text-red">
+                  Check the highlighted fields — one is missing or out of range.
+                </p>
+              )}
+
               <div className="flex gap-2 pt-1">
                 <Button
-                  className="flex-1 bg-teal text-buttonText hover:opacity-90 min-h-11"
-                  disabled={bioSaving}
+                  className="flex-1 bg-teal text-buttonText hover:opacity-90 min-h-11 disabled:cursor-not-allowed"
+                  disabled={bioSaving || bioHasErrors}
                   onClick={saveEdits}
                 >
                   {bioSaving ? (
