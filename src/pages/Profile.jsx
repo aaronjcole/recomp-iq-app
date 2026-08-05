@@ -22,8 +22,20 @@ import { useToast } from "@/components/ui/use-toast";
 import { LogOut, Trash2, Pencil, Loader2 } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import { deletePhotosForUser } from "@/lib/progressPhotos";
+import { planCacheKeysForUser } from "@/lib/planCache";
 
-const GOAL_ORDER = ["fat_loss", "aggressive_fat_loss", "fat_loss_biased_recomp", "body_recomposition", "strength_retention_cut", "maintenance", "lean_bulk", "muscle_gain", "aggressive_gain"];
+// The five targets a user can author by hand in CustomTargetsCard. While
+// strategy.manual_override is on they belong to the user, so recalculating from
+// biometrics must leave them alone.
+const MANUAL_TARGET_KEYS = [
+  "calorie_target",
+  "protein_target_g",
+  "carb_target_g",
+  "fat_target_g",
+  "step_target"
+];
+
+const GOAL_ORDER =["fat_loss", "aggressive_fat_loss", "fat_loss_biased_recomp", "body_recomposition", "strength_retention_cut", "maintenance", "lean_bulk", "muscle_gain", "aggressive_gain"];
 
 const SEX_OPTIONS = [
   { value: "male", label: "Male" },
@@ -87,11 +99,24 @@ export default function Profile() {
         experience_level: draft.experience_level
       };
       const updated = await updateProfile(profile.id, profileData);
+      const manual = Boolean(strategy?.manual_override);
       if (strategy?.id) {
         const strat = recalculateTargets({ ...updated, goal: profile.goal }, preferences ?? {});
-        await updateStrategy(strategy.id, { ...strat, goal_type: profile.goal }, "Biometrics updated.");
+        // In manual mode the user's own calorie/macro/step numbers must survive a
+        // biometrics edit — the same invariant the weekly check-in enforces.
+        if (manual) {
+          for (const key of MANUAL_TARGET_KEYS) delete strat[key];
+        }
+        await updateStrategy(
+          strategy.id,
+          { ...strat, goal_type: profile.goal },
+          manual ? "Biometrics updated. Custom targets kept." : "Biometrics updated."
+        );
       }
-      toast({ title: "Biometrics saved" });
+      toast({
+        title: "Biometrics saved",
+        description: manual ? "Your custom targets were kept." : undefined
+      });
       setEditMode(false);
       setDraft(null);
     } catch {
@@ -135,6 +160,7 @@ export default function Profile() {
         for (const key of [
           `recompiq_bf_scan_${me.id}`,
           `recomp-grocery-checked-${me.id}`,
+          ...planCacheKeysForUser(me.id),
           "recompiq_onboarding_v1",
           "recomp-demo-ids"
         ]) {

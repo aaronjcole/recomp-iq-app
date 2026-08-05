@@ -121,37 +121,43 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
             max={metric ? 544 : 1200}
           />
         </div>
-        <NumField
-          id="gw"
-          label="Goal weight"
-          value={weightDisplay(p.goal_weight_lbs)}
-          onChange={(v) => weightChange(v, "goal_weight_lbs")}
-          unit={metric ? "kg" : "lb"}
-          min={metric ? 18 : 40}
-          max={metric ? 544 : 1200}
-          hint="Optional"
-        />
+        {/* Optional, but an out-of-range value still blocks the step, so it
+            needs a ring too — otherwise Continue refuses with nothing marked. */}
+        <div className={showErrors && p.goal_weight_lbs && !inRange(p.goal_weight_lbs, 40, 1200) ? "ring-1 ring-destructive rounded-lg" : ""}>
+          <NumField
+            id="gw"
+            label="Goal weight"
+            value={weightDisplay(p.goal_weight_lbs)}
+            onChange={(v) => weightChange(v, "goal_weight_lbs")}
+            unit={metric ? "kg" : "lb"}
+            min={metric ? 18 : 40}
+            max={metric ? 544 : 1200}
+            hint="Optional"
+          />
+        </div>
       </div>
 
       <div className="space-y-1.5">
-        <NumField
-          id="waist"
-          label="Baseline waist"
-          value={
-            metric
-              ? p.waist_in
-                ? +(inToCm(Number(p.waist_in)).toFixed(1))
-                : ""
-              : p.waist_in ?? ""
-          }
-          onChange={(v) =>
-            set("waist_in", v === "" ? "" : metric ? String(+(cmToIn(Number(v)).toFixed(1))) : v)
-          }
-          unit={metric ? "cm" : "in"}
-          min={metric ? 25 : 10}
-          max={metric ? 381 : 150}
-          hint="Optional — seeds your trend"
-        />
+        <div className={showErrors && p.waist_in && !inRange(p.waist_in, 10, 150) ? "ring-1 ring-destructive rounded-lg" : ""}>
+          <NumField
+            id="waist"
+            label="Baseline waist"
+            value={
+              metric
+                ? p.waist_in
+                  ? +(inToCm(Number(p.waist_in)).toFixed(1))
+                  : ""
+                : p.waist_in ?? ""
+            }
+            onChange={(v) =>
+              set("waist_in", v === "" ? "" : metric ? String(+(cmToIn(Number(v)).toFixed(1))) : v)
+            }
+            unit={metric ? "cm" : "in"}
+            min={metric ? 25 : 10}
+            max={metric ? 381 : 150}
+            hint="Optional — seeds your trend"
+          />
+        </div>
         <Why>
           A starting waist measurement gives the Recomp Signal a baseline to judge
           fat loss vs. scale noise. Skip if you&apos;d rather log it later.

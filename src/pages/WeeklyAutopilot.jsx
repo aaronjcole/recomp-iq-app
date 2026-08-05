@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -17,6 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  AUTOPILOT_CACHE,
+  dropLegacyPlanCache,
+  readPlanCache,
+  writePlanCache
+} from "@/lib/planCache";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
 
 const SIGNAL_ICONS = {
@@ -57,31 +64,33 @@ function errorMessage(error) {
     ?? "Weekly Autopilot could not run right now.";
 }
 
+const isCachedReview = (value) =>
+  Boolean(value) && Array.isArray(value.scorecard) && Boolean(value.primaryAction);
+
 export default function WeeklyAutopilot() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const allowed = canAccess(PREMIUM_FEATURES.WEEKLY_AUTOPILOT);
   const weekEnd = useMemo(todayString, []);
-  const [review, setReview] = useState(() => {
-    try {
-      const stored = localStorage.getItem("recompiq_autopilot_v1");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && Array.isArray(parsed.scorecard) && parsed.primaryAction) {
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
-    return null;
-  });
+  const [review, setReview] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(dropLegacyPlanCache, []);
+
+  // Hydrate only once the signed-in id is known, so a cached review can never be
+  // read into the wrong account on a shared device.
+  useEffect(() => {
+    if (!userId) return;
+    setReview(readPlanCache(AUTOPILOT_CACHE, userId, isCachedReview));
+  }, [userId]);
 
   const generate = async () => {
     setIsGenerating(true);
     setError("");
-    setReview(null);
+    // The previous review stays on screen: a failed refresh should surface an
+    // error, not erase the review the user was reading.
     try {
       const result = await base44.functions.invoke("generateWeeklyAutopilot", { weekEnd });
       const nextReview = result?.data ?? result;
@@ -89,7 +98,7 @@ export default function WeeklyAutopilot() {
         throw new Error("Weekly Autopilot returned an incomplete review.");
       }
       setReview(nextReview);
-      try { localStorage.setItem("recompiq_autopilot_v1", JSON.stringify(nextReview)); } catch {}
+      writePlanCache(AUTOPILOT_CACHE, userId, nextReview);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {

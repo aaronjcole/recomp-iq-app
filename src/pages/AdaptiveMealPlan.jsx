@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, ChevronDown, RefreshCw, ShoppingCart } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -10,6 +10,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  GROCERY_CACHE,
+  MEAL_PLAN_CACHE,
+  dropLegacyPlanCache,
+  readPlanCache,
+  removePlanCache,
+  writePlanCache
+} from "@/lib/planCache";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
 
 function currentWeekStart() {
@@ -35,40 +44,31 @@ function errorMessage(error) {
     ?? "The meal plan could not be created right now.";
 }
 
+const isCachedPlan = (value) =>
+  Boolean(value) && Array.isArray(value.days) && Array.isArray(value.groceryList);
+const isCachedTicks = (value) =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
 export default function AdaptiveMealPlan() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const allowed = canAccess(PREMIUM_FEATURES.MEAL_PLANNING);
-  const [plan, setPlan] = useState(() => {
-    try {
-      const stored = localStorage.getItem("recompiq_mealplan_v1");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && Array.isArray(parsed.days) && Array.isArray(parsed.groceryList)) {
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
-    return null;
-  });
+  const [plan, setPlan] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
-  const [checked, setChecked] = useState(() => {
-    try {
-      const stored = localStorage.getItem("recompiq_groceries_v1");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
-    return {};
-  });
+  const [checked, setChecked] = useState({});
   const weekStart = useMemo(currentWeekStart, []);
+
+  useEffect(dropLegacyPlanCache, []);
+
+  // Hydrate only once the signed-in id is known, so a cached plan can never be
+  // read into the wrong account on a shared device.
+  useEffect(() => {
+    if (!userId) return;
+    setPlan(readPlanCache(MEAL_PLAN_CACHE, userId, isCachedPlan));
+    setChecked(readPlanCache(GROCERY_CACHE, userId, isCachedTicks) ?? {});
+  }, [userId]);
 
   const generate = async () => {
     setIsGenerating(true);
@@ -80,9 +80,9 @@ export default function AdaptiveMealPlan() {
         throw new Error("The meal planner returned an incomplete plan.");
       }
       setPlan(nextPlan);
-      try { localStorage.setItem("recompiq_mealplan_v1", JSON.stringify(nextPlan)); } catch {}
+      writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
       setChecked({});
-      try { localStorage.removeItem("recompiq_groceries_v1"); } catch {}
+      removePlanCache(GROCERY_CACHE, userId);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -93,7 +93,7 @@ export default function AdaptiveMealPlan() {
   const toggleGrocery = (key, done) => {
     const next = { ...checked, [key]: !done };
     setChecked(next);
-    try { localStorage.setItem("recompiq_groceries_v1", JSON.stringify(next)); } catch {}
+    writePlanCache(GROCERY_CACHE, userId, next);
   };
 
   return (
