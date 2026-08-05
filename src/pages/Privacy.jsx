@@ -21,12 +21,10 @@ export default function Privacy() {
         signed link for analysis.
       </p>
       <p>
-        We no longer collect beta signups. While the landing page offered an Android beta waitlist,
-        we stored the email submitted and, where present, sanitized campaign labels from the link
-        used and whether the explainer was opened beforehand. That form has been removed, so no new
-        entries are created. Entries stored earlier are retained until deleted, and deleting your
-        account removes any entry matching your email address. The landing page does not use
-        advertising cookies or cross-site identifiers.
+        If you join the Android beta, we store your email and may store sanitized campaign labels
+        from the link you used, plus whether you opened the landing-page explainer before signup.
+        These details are captured only when you submit the form and help us compare launch
+        messages. The landing page does not use advertising cookies or cross-site identifiers.
       </p>
       <p>
         When you use AI Coach, your message, recent conversation, and relevant RecompOne profile,
@@ -43,8 +41,8 @@ export default function Privacy() {
         We use your data to compute your adaptive nutrition and training targets, calculate your
         Recomp Signal and trends, generate weekly check-in summaries and AI coach guidance, and
         display your progress. Reported AI replies are used to investigate safety, quality, and
-        policy concerns. Waitlist campaign labels, where any remain stored, were used only to
-        understand which launch sources produced completed signups. We do not sell your data.
+        policy concerns. Waitlist campaign labels are used only to understand which launch sources
+        produce completed signups. We do not sell your data.
       </p>
 
       <H2>3. Storage &amp; retention</H2>

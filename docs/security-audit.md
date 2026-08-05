@@ -50,13 +50,9 @@ below pass in Base44.
    function instance and reconcile all duplicates they observe into a stable record. Test two
    simultaneous deployed instances and confirm follow-up writes remove any transient duplicate.
    Weekly check-ins still need the prepare/apply state machine in the v2 specification.
-6. **Public waitlist abuse controls — closed by removal:** the `joinWaitlist` function has been
-   deleted along with the signup form, so there is no longer a public write endpoint to rate limit.
-   The `WaitlistEntry` entity is retained for addresses captured before removal; it is admin-only on
-   every operation and account deletion still purges a user's row. If a waitlist is ever revived,
-   the original finding applies again: an in-memory limiter keyed on client-controlled forwarding
-   headers is not a distributed control, and normalized-email idempotency must live outside process
-   memory.
+6. **Public waitlist abuse controls:** the function's in-memory limiter is per instance and forwarded
+   IP headers are not a trustworthy distributed control. Configure a Base44 gateway/shared limiter
+   or CAPTCHA and enforce normalized-email idempotency outside process memory.
 ## GitHub controls
 
 Completed August 1, 2026 and verified through the GitHub API:
