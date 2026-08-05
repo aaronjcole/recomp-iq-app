@@ -83,13 +83,10 @@ test("coming-soon page explains the decision system and exposes the Android beta
   assertNoPageErrors();
 });
 
-test("unauthenticated root visit redirects to login while coming-soon stays accessible", async ({ page }) => {
+test("unauthenticated root visit lands on the marketing page", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/");
-  await expect(page).toHaveURL(/\/login$/);
-
-  await page.goto("/coming-soon");
   await expect(page).toHaveURL(/\/coming-soon/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",

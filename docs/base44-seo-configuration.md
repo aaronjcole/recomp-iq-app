@@ -19,7 +19,7 @@ Console can reject. With generation disabled, Base44 serves the repository's val
 
 | Route | Search setting | Purpose |
 |---|---|---|
-| `/` | Index | Auth-aware root redirect (authenticated → /today, unauthenticated → /login) |
+| `/` | Index | Auth-aware root redirect (authenticated → /today, unauthenticated → /coming-soon) |
 | `/coming-soon` | Index | Marketing homepage — canonical URL is `https://fitnesstrackerapps.com/` |
 | `/privacy` | Index | Public privacy policy |
 | `/terms` | Index | Public terms and health disclaimer |
