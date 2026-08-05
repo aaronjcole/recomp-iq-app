@@ -8,7 +8,7 @@ const lbsToKg = (lbs) => lbs * 0.45359237;
 const cmToIn = (cm) => cm / 2.54;
 const inToCm = (inches) => inches * 2.54;
 
-export default function StepAbout({ p, set, units, setUnits }) {
+export default function StepAbout({ p, set, units, setUnits, showErrors }) {
   const metric = units === "metric";
 
   const weightDisplay = (stored) => {

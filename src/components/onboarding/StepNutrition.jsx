@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField, StepHeader, Why, ChipGroup } from "./Fields";
 import { DIET_STYLES, PREFERRED_TRAINING, DISLIKED_STRATEGIES, KNOWN_BARRIERS } from "./constants";
 
-export default function StepNutrition({ pref, setPref }) {
+export default function StepNutrition({ pref, setPref, showErrors }) {
   const toggle = (key) => (v) =>
     setPref(key, pref[key].includes(v) ? pref[key].filter((x) => x !== v) : [...pref[key], v]);
 

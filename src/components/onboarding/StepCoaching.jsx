@@ -4,7 +4,7 @@ import { COACH_TONES } from "@/lib/fitness";
 import { SAFETY_FLAGS, toneLabel } from "./constants";
 import { Check, AlertTriangle } from "lucide-react";
 
-export default function StepCoaching({ pref, setPref }) {
+export default function StepCoaching({ pref, setPref, showErrors }) {
   const toggleSafety = (id) =>
     setPref(
       "safety_flags",
