@@ -141,6 +141,7 @@ export function RecompProvider({ children }) {
   const [mealTemplates, setMealTemplates] = useState([]);
   const [habits, setHabits] = useState([]);
   const [habitEntries, setHabitEntries] = useState([]);
+  const [activeBlock, setActiveBlock] = useState(null);
 
   const profileRef = useRef(profile);
   const preferencesRef = useRef(preferences);
@@ -148,6 +149,7 @@ export function RecompProvider({ children }) {
   const logsRef = useRef(logs);
   const sessionsRef = useRef(sessions);
   const habitEntriesRef = useRef(habitEntries);
+  const activeBlockRef = useRef(null);
   const dailyQueues = useRef(new Map());
   const habitQueues = useRef(new Map());
 
@@ -169,6 +171,9 @@ export function RecompProvider({ children }) {
   useEffect(() => {
     habitEntriesRef.current = habitEntries;
   }, [habitEntries]);
+  useEffect(() => {
+    activeBlockRef.current = activeBlock;
+  }, [activeBlock]);
 
   const setLogsCurrent = useCallback((nextOrUpdater) => {
     const next = typeof nextOrUpdater === "function"
@@ -218,13 +223,15 @@ export function RecompProvider({ children }) {
         base44.entities.DecisionLedger.list("-date", 100),
         base44.entities.MealTemplate.list("-created_date", 200),
         base44.entities.Habit.list("-sort_order", 200),
-        base44.entities.HabitEntry.list("-date", 500)
+        base44.entities.HabitEntry.list("-date", 500),
+        base44.entities.TrainingBlock.filter({ status: "active" }, "-created_date", 1).catch(() => [])
       ]);
       const loadedProfile = results[0][0] ?? null;
       const loadedPreferences = results[1][0] ?? null;
       const loadedStrategy = results[2][0] ?? null;
       const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
       const loadedHabitEntries = newestByKey(results[12], (item) => `${item.habit_id}:${item.date}`);
+      const loadedActiveBlock = results[13]?.[0] ?? null;
       profileRef.current = loadedProfile;
       preferencesRef.current = loadedPreferences;
       strategyRef.current = loadedStrategy;
@@ -241,6 +248,8 @@ export function RecompProvider({ children }) {
       setMealTemplates(results[10]);
       const habitList = results[11];
       setHabitEntriesCurrent(loadedHabitEntries);
+      activeBlockRef.current = loadedActiveBlock;
+      setActiveBlock(loadedActiveBlock);
       if (habitList.length > 0) {
         setHabits(habitList);
       } else {
@@ -536,6 +545,39 @@ export function RecompProvider({ children }) {
     return created;
   }, [setSessionsCurrent]);
 
+  const saveTrainingBlock = useCallback(async (plan, equipment, blockLengthWeeks, weekStart) => {
+    const current = activeBlockRef.current;
+    if (current?.id) {
+      await base44.entities.TrainingBlock.update(current.id, { status: "archived" }).catch(() => undefined);
+    }
+    const created = await base44.entities.TrainingBlock.create({
+      week_start: weekStart,
+      equipment,
+      block_length_weeks: blockLengthWeeks,
+      status: "active",
+      plan_json: JSON.stringify(plan),
+      completed_sessions: JSON.stringify([])
+    });
+    activeBlockRef.current = created;
+    setActiveBlock(created);
+    return created;
+  }, []);
+
+  const completeBlockSession = useCallback(async (blockId, dayIndex, sessionId) => {
+    const block = activeBlockRef.current;
+    if (!block?.id || block.id !== blockId) return;
+    let existing = [];
+    try { existing = JSON.parse(block.completed_sessions ?? "[]"); } catch { existing = []; }
+    if (existing.some((s) => s.day_index === dayIndex)) return;
+    const next = [...existing, { day_index: dayIndex, session_id: sessionId, completed_date: todayStr() }];
+    const updated = await base44.entities.TrainingBlock.update(blockId, {
+      completed_sessions: JSON.stringify(next)
+    });
+    activeBlockRef.current = updated;
+    setActiveBlock(updated);
+    return updated;
+  }, []);
+
   const saveTrainingSession = useCallback(
     async ({ session, strengthEntries = [], markDaily = false }) => {
       let createdSession;
@@ -699,6 +741,8 @@ export function RecompProvider({ children }) {
       addSession,
       saveTrainingSession,
       deleteSession,
+      saveTrainingBlock,
+      completeBlockSession,
       addFood,
       addStrengthLog,
       saveMealTemplate,
@@ -720,6 +764,8 @@ export function RecompProvider({ children }) {
       addSession,
       saveTrainingSession,
       deleteSession,
+      saveTrainingBlock,
+      completeBlockSession,
       addFood,
       addStrengthLog,
       saveMealTemplate,
@@ -745,7 +791,8 @@ export function RecompProvider({ children }) {
       recipes,
       decisionLedger,
       mealTemplates,
-      onboarded
+      onboarded,
+      activeBlock
     }),
     [
       loading,
@@ -760,7 +807,8 @@ export function RecompProvider({ children }) {
       recipes,
       decisionLedger,
       mealTemplates,
-      onboarded
+      onboarded,
+      activeBlock
     ]
   );
 
