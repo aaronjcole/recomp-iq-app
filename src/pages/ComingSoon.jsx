@@ -143,12 +143,9 @@ export default function ComingSoon() {
             >
               How it works
             </a>
-            <Link
-              to="/hero"
-              className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-teal hover:underline"
-            >
-              Beta tester sign in
-            </Link>
+            {/* No beta sign-in entry point here by design: testers are sent the
+                /hero link directly or added to the app, so the marketing page
+                keeps a single call to action. /hero itself stays reachable. */}
           </div>
         </div>
       </header>
