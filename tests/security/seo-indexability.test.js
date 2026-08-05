@@ -14,9 +14,9 @@ test("the canonical homepage is indexable while beta and app routes stay out of 
   assert.equal(home.canonicalUrl, `${siteUrl}/`);
   assert.equal(home.robots, "index,follow");
 
-  const legacyComingSoon = getRouteMetadata("/coming-soon");
-  assert.equal(legacyComingSoon.canonicalUrl, `${siteUrl}/`);
-  assert.equal(legacyComingSoon.robots, "noindex,follow");
+  const comingSoon = getRouteMetadata("/coming-soon");
+  assert.equal(comingSoon.canonicalUrl, `${siteUrl}/`);
+  assert.equal(comingSoon.robots, "index,follow");
 
   for (const path of [
     "/hero",
@@ -70,12 +70,11 @@ test("static crawler files define the public index when Base44 generation is dis
   assert.ok(robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`));
 
   const checklist = readFileSync(resolve(repoRoot, "docs/base44-seo-configuration.md"), "utf8");
-  for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {
+  for (const path of ["/", "/coming-soon", "/privacy", "/terms", "/support", "/delete-account"]) {
     assert.ok(checklist.includes(`| \`${path}\` | Index |`));
   }
   for (const path of [
     "/hero",
-    "/coming-soon",
     "/login",
     "/register",
     "/forgot-password",
