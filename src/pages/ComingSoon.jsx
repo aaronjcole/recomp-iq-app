@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
 import BrandMark from "@/components/BrandMark";
 import DeviceMockup from "@/components/hero/DeviceMockup";
 import PremiumBadge from "@/components/premium/PremiumBadge";
+import { buildWaitlistAttribution } from "@/lib/marketingAttribution";
 import {
   Activity,
   ArrowRight,
@@ -11,6 +14,8 @@ import {
   ChevronDown,
   ClipboardList,
   Dumbbell,
+  Loader2,
+  Mail,
   ScanLine,
   ShieldCheck,
   Sparkles,
@@ -95,10 +100,33 @@ const FAQS = [
   }
 ];
 
-// The page collects nothing: there is no beta waitlist form and no sign-in entry
-// point. Testers are given the /hero link directly or added to the app, so this
-// is purely informational and the explainer is its only call to action.
 export default function ComingSoon() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | loading | done | error
+  const [message, setMessage] = useState("");
+  const [explainerViewed, setExplainerViewed] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    setMessage("");
+
+    try {
+      const search = typeof window === "undefined" ? "" : window.location.search;
+      const response = await base44.functions.invoke("joinWaitlist", {
+        email,
+        source: "coming_soon_page",
+        attribution: buildWaitlistAttribution(search, { explainerViewed })
+      });
+      if (response.data?.error) throw new Error(response.data.error);
+      setStatus("done");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error?.message || "Something went wrong. Try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bg text-foreground">
       <header className="sticky top-0 z-40 border-b border-lineSoft bg-bg/85 backdrop-blur">
@@ -111,6 +139,7 @@ export default function ComingSoon() {
             <a
               href="#how-it-works"
               className="hidden min-h-11 items-center px-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
+              onClick={() => setExplainerViewed(true)}
             >
               How it works
             </a>
@@ -134,22 +163,63 @@ export default function ComingSoon() {
               RecompOne turns nutrition, training, recovery, and body-trend data into one evidence-backed next move—then shows which signals influenced it.
             </p>
 
-            <div className="mt-7 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+            {status === "done" ? (
+              <div role="status" className="mt-7 flex items-center gap-3 rounded-2xl border border-teal/40 bg-teal/10 px-5 py-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal">
+                  <Check className="h-5 w-5 text-buttonText" aria-hidden="true" />
+                </span>
+                <div>
+                  <div className="font-semibold">You&apos;re on the beta list.</div>
+                  <div className="text-sm text-muted-foreground">We&apos;ll email you when Android testing opens.</div>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={submit} className="mt-7 max-w-xl" aria-label="Join the RecompOne Android beta">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="relative flex-1">
+                    <label htmlFor="waitlist-email" className="sr-only">Email address</label>
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <input
+                      id="waitlist-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(event) => { setEmail(event.target.value); setStatus("idle"); }}
+                      placeholder="you@email.com"
+                      className="h-14 w-full rounded-2xl border border-line bg-panel pl-10 pr-4 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    data-marketing-event="waitlist-submit"
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-teal px-6 font-medium text-buttonText transition-opacity hover:opacity-90 disabled:opacity-60"
+                  >
+                    {status === "loading" ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-5 w-5" aria-hidden="true" />}
+                    {status === "loading" ? "Joining…" : "Join the Android beta"}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Beta invitations and launch updates only. No advertising cookies or cross-site tracking.
+                </p>
+              </form>
+            )}
+
+            {status === "error" && <p role="alert" className="mt-2 text-sm text-red">{message}</p>}
+
+            <div className="mt-5 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <a
                 href="#how-it-works"
                 data-marketing-event="explainer-open"
+                onClick={() => setExplainerViewed(true)}
                 className="inline-flex min-h-11 items-center gap-2 font-medium text-teal hover:underline"
               >
                 See how RecompOne decides <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <span className="text-xs text-muted-foreground">For adults 18+ · Educational guidance, not medical advice</span>
             </div>
-
-            {/* Kept after the signup form was removed: the page still loads
-                analytics, so the no-tracking claim continues to apply. */}
-            <p className="mt-3 text-xs text-muted-foreground">
-              No advertising cookies or cross-site tracking.
-            </p>
 
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 border-t border-lineSoft pt-5 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-teal" aria-hidden="true" /> No silent log changes</span>
@@ -225,12 +295,16 @@ export default function ComingSoon() {
               ))}
             </div>
 
-            {/* The "Join the Android beta" button that lived here anchored to the
-                signup field, which no longer exists. */}
-            <div className="border-t border-lineSoft p-6 sm:px-9">
+            <div className="flex flex-col gap-3 border-t border-lineSoft p-6 sm:flex-row sm:items-center sm:justify-between sm:px-9">
               <p className="text-xs text-muted-foreground">
                 AI-assisted estimates are educational, optional, and never medical measurements.
               </p>
+              <a
+                href="#waitlist-email"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-buttonText hover:opacity-90"
+              >
+                Join the Android beta <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
             </div>
           </div>
         </section>

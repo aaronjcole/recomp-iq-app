@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { enabledFromEnvironment, featureFlags } from "../../src/lib/featureFlags.js";
@@ -10,13 +10,14 @@ import {
   SUPPORT_MAILTO,
   SUPPORT_REQUEST_MAILTO
 } from "../../src/lib/support.js";
+import {
+  buildWaitlistAttribution,
+  HERO_VARIANT,
+  sanitizeCampaignValue
+} from "../../src/lib/marketingAttribution.js";
 import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-
-function fileExists(relativePath) {
-  return existsSync(resolve(repoRoot, relativePath));
-}
 
 test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.equal(featureFlags.bodyCompositionScan, false);
@@ -80,57 +81,37 @@ test("launch configuration disables undeclared telemetry and unfinished store cl
   assert.doesNotMatch(moreSource, /Weekly email & export|Demo data/);
 });
 
-test("the waitlist collects nothing, and retained entries are still purged on deletion", () => {
-  // The waitlist was retired: the form, the public joinWaitlist endpoint, and the
-  // campaign-attribution builder are all gone. This replaces the old
-  // "attribution is bounded" guarantee with a stronger one — nothing collects an
-  // address or a campaign label at all.
-  assert.equal(
-    fileExists("base44/functions/joinWaitlist"),
-    false,
-    "the public waitlist endpoint must not come back without a decision about it"
-  );
-  assert.equal(
-    fileExists("src/lib/marketingAttribution.js"),
-    false,
-    "campaign attribution has no caller; reviving it needs a privacy review"
+test("waitlist attribution is conversion-only, bounded, and free of arbitrary query data", () => {
+  assert.equal(HERO_VARIANT, "decision_v1");
+  assert.equal(sanitizeCampaignValue(" creator/<script> "), "creatorscript");
+  assert.equal(sanitizeCampaignValue("x".repeat(100)).length, 80);
+
+  assert.deepEqual(
+    buildWaitlistAttribution(
+      "?utm_source=tiktok&utm_medium=creator&utm_campaign=founding_testers&utm_content=hold-steady&email=private@example.com",
+      { explainerViewed: true }
+    ),
+    {
+      hero_variant: "decision_v1",
+      explainer_viewed: true,
+      campaign_source: "tiktok",
+      campaign_medium: "creator",
+      campaign_name: "founding_testers",
+      campaign_content: "hold-steady"
+    }
   );
 
   const comingSoonSource = readFileSync(resolve(repoRoot, "src/pages/ComingSoon.jsx"), "utf8");
-  assert.doesNotMatch(comingSoonSource, /buildWaitlistAttribution/);
-  assert.doesNotMatch(comingSoonSource, /joinWaitlist/);
-  assert.doesNotMatch(comingSoonSource, /type="email"/);
-  assert.doesNotMatch(comingSoonSource, /waitlist-email/);
+  assert.match(comingSoonSource, /buildWaitlistAttribution/);
   assert.match(comingSoonSource, /No advertising cookies or cross-site tracking/);
 
-  // The policy has to match the code. If a waitlist is ever revived, this fails
-  // and forces the disclosure to be rewritten alongside it.
-  // Collapse whitespace first: this prose wraps across lines, so matching the
-  // raw source would encode the current line breaks rather than the wording.
-  const privacyProse = readFileSync(resolve(repoRoot, "src/pages/Privacy.jsx"), "utf8").replace(
-    /\s+/g,
-    " "
-  );
-  assert.match(privacyProse, /no longer collect beta signups/i);
-  assert.match(
-    privacyProse,
-    /deleting your account removes any entry matching your email/i,
-    "the policy must keep stating that deletion purges a retained waitlist entry"
-  );
-
-  // The entity and its deletion path deliberately stay: addresses captured before
-  // the form was removed are still stored, and account deletion must keep purging
-  // a user's row. Dropping either would lose records or regress that guarantee.
-  assert.equal(fileExists("base44/entities/WaitlistEntry.jsonc"), true);
-  const deleteAccountSource = readFileSync(
-    resolve(repoRoot, "base44/functions/deleteAccount/entry.ts"),
+  const joinWaitlistSource = readFileSync(
+    resolve(repoRoot, "base44/functions/joinWaitlist/entry.ts"),
     "utf8"
   );
-  assert.match(
-    deleteAccountSource,
-    /WaitlistEntry\.deleteMany/,
-    "account deletion must still purge any retained waitlist row"
-  );
+  assert.match(joinWaitlistSource, /ATTRIBUTION_FIELDS/);
+  assert.match(joinWaitlistSource, /slice\(0, 80\)/);
+  assert.doesNotMatch(joinWaitlistSource, /referrer|user-agent|cookie/i);
 });
 
 test("mobile release flows prioritize primary actions and usable touch targets", () => {

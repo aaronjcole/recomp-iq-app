@@ -56,7 +56,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   assertNoPageErrors();
 });
 
-test("coming-soon page explains the decision system and collects nothing", async ({ page }) => {
+test("coming-soon page explains the decision system and exposes the Android beta CTA", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/coming-soon?utm_source=playwright");
@@ -67,13 +67,7 @@ test("coming-soon page explains the decision system and collects nothing", async
       name: "Know when to hold, adjust, or push your body recomposition plan."
     })
   ).toBeVisible();
-  // The page captures nothing: no waitlist form, no email field, no beta CTA.
-  // Assert the field and the routes, not just labels, so a renamed control
-  // cannot quietly reintroduce collection.
-  await expect(page.locator("#waitlist-email")).toHaveCount(0);
-  await expect(page.locator('input[type="email"], form')).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /join the android beta/i })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /join the android beta/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Join the Android beta" })).toBeVisible();
   await expect(page.getByText("Hold targets steady")).toBeVisible();
 
   await page.getByRole("link", { name: "See how RecompOne decides" }).click();
@@ -87,6 +81,10 @@ test("coming-soon page explains the decision system and collects nothing", async
   await expect(page.getByRole("heading", { name: "Weekly Autopilot" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Visual progress tools" })).toBeVisible();
   await expect(page.getByText("Premium features are available to approved testers during beta.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Join the Android beta" })).toHaveAttribute(
+    "href",
+    "#waitlist-email"
+  );
   assertNoPageErrors();
 });
 

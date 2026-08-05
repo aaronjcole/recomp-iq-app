@@ -99,7 +99,7 @@ Grouped by risk and dependency. Full per-item detail (files, line refs, approach
 ### A. Low-risk parallel batch — complete
 PRs #35–#44 shipped the Progress optimization, engine correctness fixes, missing fitness suites, accessibility pass, reduced motion, touch targets, scalable metadata token, vendor split, shared Coach quota, and live frame-protection verification.
 
-That audit follow-up is closed: the waitlist limiter no longer exists, because the `joinWaitlist` endpoint and the signup form were removed. The `WaitlistEntry` entity stays for addresses captured beforehand — admin-only, and still purged by account deletion. If a waitlist returns, the limiter problem returns with it: an in-memory map keyed on client-controlled forwarding headers is not a distributed rate limiter.
+One audit follow-up remains: move the waitlist limiter away from client-controlled forwarding headers if Base44 exposes a trustworthy shared request identity/store. Treat that as platform-dependent; do not claim an in-memory map is a distributed rate limiter.
 
 ### B. framer-motion → CSS transitions (M, subagent-deployable)
 Replace the one `AnimatePresence` route transition in `AppLayout` with a GPU-composited CSS keyframe, then `npm rm framer-motion` (~39KB gz off every session). Independent of A's reduced-motion item.
