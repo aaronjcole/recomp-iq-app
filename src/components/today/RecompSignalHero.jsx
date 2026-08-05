@@ -25,7 +25,13 @@ export default function RecompSignalHero() {
     return { label: "STRENGTH", value, unit: "% e1RM", status };
   }, [strength]);
 
-  if (!signal || !trend) return null;
+  if (!signal || !trend) return (
+    <div className="rounded-xl border border-line p-5 space-y-4">
+      <div className="h-5 w-36 rounded-lg animate-pulse bg-panel2" />
+      <div className="h-28 rounded-xl animate-pulse bg-panel2" />
+      <div className="h-16 rounded-xl animate-pulse bg-panel2" />
+    </div>
+  );
 
   const isEarly = signal.label === "Early read";
 

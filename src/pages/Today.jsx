@@ -24,7 +24,20 @@ export default function Today() {
   const { preferences, signal, strategy, trend, quests, todayLog, reload } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
 
-  if (!strategy) return null;
+  if (!strategy) return (
+    <div className="space-y-5 animate-pulse">
+      <div className="space-y-1">
+        <div className="h-4 w-32 rounded bg-panel2" />
+        <div className="h-7 w-20 rounded bg-panel2" />
+      </div>
+      <div className="h-48 rounded-xl bg-panel2" />
+      <div className="h-20 rounded-xl bg-panel2" />
+      <div className="h-28 rounded-xl bg-panel2" />
+      <div className="h-16 rounded-xl bg-panel2" />
+      <div className="h-32 rounded-xl bg-panel2" />
+      <div className="h-32 rounded-xl bg-panel2" />
+    </div>
+  );
 
   const consumedCalories = todayLog?.calories ?? 0;
   const remaining = Math.max(0, strategy.calorie_target - consumedCalories);
@@ -82,11 +95,14 @@ export default function Today() {
         </Card>
       </Link>
 
-      <HabitsCard />
+      <div id="habits-section"><HabitsCard /></div>
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
           <h2 className="font-medium">This week's quests</h2>
+          {quests.length === 0 && (
+            <p className="text-sm text-muted-foreground">No quests this week — check back after your next check-in.</p>
+          )}
           {quests.map((q) => (
             <div key={q.id} className="flex items-center gap-3">
               <div className={`w-5 h-5 rounded-full flex items-center justify-center ${q.complete ? "bg-teal" : "bg-panel2 border border-line"}`}>
