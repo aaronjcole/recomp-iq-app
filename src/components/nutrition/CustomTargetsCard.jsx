@@ -49,7 +49,9 @@ export default function CustomTargetsCard({ embedded = false }) {
   });
   const validTargets = FIELDS.every(({ key, max }) => {
     const value = num(form[key]);
-    return Number.isFinite(value) && value >= 0 && value <= max;
+    if (!Number.isFinite(value) || value > max) return false;
+    if (key === "calorie_target") return value > 0;
+    return value >= 0;
   });
 
   let bmr = null;

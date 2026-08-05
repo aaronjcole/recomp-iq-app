@@ -27,6 +27,47 @@ export default function CheckInSheet({ open, onOpenChange, result, lastCheckIn }
               </div>
               <p className="text-sm text-muted-foreground">{result.adjustment.reason}</p>
               <p className="text-xs text-muted-foreground">{result.checkIn.ai_summary}</p>
+              {result.trend && (
+                <div className="space-y-1 pt-2 border-t border-line">
+                  <p className="text-xs font-medium text-muted-foreground">Signals used</p>
+                  {result.trend.days_logged != null && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Days logged</span>
+                      <span>{result.trend.days_logged}</span>
+                    </div>
+                  )}
+                  {result.trend.weight_change_lbs != null && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Weight change</span>
+                      <span>{result.trend.weight_change_lbs > 0 ? "+" : ""}{result.trend.weight_change_lbs} lb vs last week</span>
+                    </div>
+                  )}
+                  {result.trend.calorie_adherence != null && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Calorie adherence</span>
+                      <span>{Math.round(result.trend.calorie_adherence * 100)}%</span>
+                    </div>
+                  )}
+                  {result.trend.protein_adherence != null && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Protein adherence</span>
+                      <span>{Math.round(result.trend.protein_adherence * 100)}%</span>
+                    </div>
+                  )}
+                  {result.trend.step_adherence != null && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Step adherence</span>
+                      <span>{Math.round(result.trend.step_adherence * 100)}%</span>
+                    </div>
+                  )}
+                  {result.trend.workout_adherence != null && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Workout adherence</span>
+                      <span>{Math.round(result.trend.workout_adherence * 100)}%</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {result.manual && (
                 <div className="flex items-start gap-2 text-xs text-gold bg-questComplete rounded-md p-2">
                   <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
