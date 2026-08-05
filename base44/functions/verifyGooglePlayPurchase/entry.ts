@@ -54,11 +54,11 @@ async function getGoogleAccessToken(serviceAccountJson) {
 
   const signingInput = `${encode(header)}.${encode(claim)}`;
 
-  // Import the PEM private key for RSA signing.
+  // Import the PEM private key for RSA signing. Strip header/footer lines and whitespace.
   const pemBody = sa.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\s/g, "");
+    .split("\n")
+    .filter((line) => !line.startsWith("-----"))
+    .join("");
   const keyBytes = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
   const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
