@@ -97,10 +97,9 @@ export default function AdaptiveTrainingBlock() {
       if (!nextPlan || !Array.isArray(nextPlan.schedule) || !Array.isArray(nextPlan.weeks)) {
         throw new Error("The training planner returned an incomplete block.");
       }
-      setPlan(nextPlan);
-      // Persist automatically
       setIsSaving(true);
       await saveTrainingBlock(nextPlan, equipment, Number(blockLength), weekStart);
+      setPlan(nextPlan);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -110,7 +109,7 @@ export default function AdaptiveTrainingBlock() {
   };
 
   const handleStartSession = (dayIndex, session) => {
-    if (!activeBlock) return;
+    if (!activeBlock || isSaving) return;
     const prefill = {
       blockId: activeBlock.id,
       dayIndex,
@@ -263,6 +262,7 @@ export default function AdaptiveTrainingBlock() {
                         variant="outline"
                         className="w-full border-teal/30 text-teal hover:bg-teal/10"
                         onClick={() => handleStartSession(index, session)}
+                        disabled={isSaving}
                       >
                         <PlayCircle className="mr-2 h-4 w-4" aria-hidden="true" />
                         Start this session

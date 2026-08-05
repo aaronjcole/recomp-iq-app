@@ -124,7 +124,11 @@ export default function SessionBuilder({ prefill = null }) {
         markDaily: date === todayStr()
       });
       if (prefill?.blockId != null) {
-        await completeBlockSession(prefill.blockId, prefill.dayIndex, prefill.sessionId).catch(() => undefined);
+        try {
+          await completeBlockSession(prefill.blockId, prefill.dayIndex, prefill.sessionId);
+        } catch {
+          toast({ title: "Session logged — block progress not updated", description: "The session was saved. Tap to retry marking this session complete.", variant: "destructive" });
+        }
       }
       toast({ title: "Session logged", description: `${data.title} saved for ${date}.` });
       reset();
