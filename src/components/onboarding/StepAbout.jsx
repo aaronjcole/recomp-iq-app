@@ -2,6 +2,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { NumField, StepHeader, Why } from "./Fields";
+import {
+  cmToStoredInches,
+  feetInchesToStored,
+  splitFeetInches,
+  storedInchesToCm
+} from "@/lib/heightConversion";
 
 function inRange(v, min, max) {
   if (v === "" || v == null) return false;
@@ -26,9 +32,8 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
     set(key, metric ? +(kgToLbs(Number(v)).toFixed(1)) : v);
   };
 
-  const ft = p.height_in ? Math.floor(Number(p.height_in) / 12) : 5;
-  const inch = p.height_in ? Math.round(Number(p.height_in) % 12) : 8;
-  const cmDisplay = p.height_in ? Math.round(inToCm(Number(p.height_in))) : "";
+  const { ft, inch } = splitFeetInches(p.height_in || 68);
+  const cmDisplay = p.height_in ? storedInchesToCm(p.height_in) : "";
 
   return (
     <div className="space-y-4">
@@ -87,7 +92,10 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
             max={274}
             value={cmDisplay}
             onChange={(e) =>
-              set("height_in", e.target.value === "" ? "" : String(Math.round(cmToIn(Number(e.target.value)))))
+              set(
+                "height_in",
+                e.target.value === "" ? "" : String(cmToStoredInches(e.target.value))
+              )
             }
             className={showErrors && !inRange(p.height_in, 36, 108) ? "ring-1 ring-destructive border-destructive" : ""}
           />
@@ -95,13 +103,13 @@ export default function StepAbout({ p, set, units, setUnits, showErrors }) {
           <div className="flex gap-2">
             <AdaptiveSelect
               value={String(ft)}
-              onValueChange={(v) => set("height_in", String(Number(v) * 12 + inch))}
+              onValueChange={(v) => set("height_in", String(feetInchesToStored(v, inch)))}
               drawerTitle="Height in feet"
               options={[4, 5, 6, 7].map((f) => ({ value: String(f), label: `${f} ft` }))}
             />
             <AdaptiveSelect
               value={String(inch)}
-              onValueChange={(v) => set("height_in", String(ft * 12 + Number(v)))}
+              onValueChange={(v) => set("height_in", String(feetInchesToStored(ft, v)))}
               drawerTitle="Additional inches"
               options={Array.from({ length: 12 }, (_, i) => ({ value: String(i), label: `${i} in` }))}
             />

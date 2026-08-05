@@ -265,6 +265,8 @@ export default function Profile() {
                   inputMode="decimal"
                   min={BIOMETRIC_RANGES.height_in[0]}
                   max={BIOMETRIC_RANGES.height_in[1]}
+                  // Tenths are legitimate here — metric onboarding stores them.
+                  step={0.1}
                   value={draft.height_in}
                   onChange={(e) => setDraftField("height_in", e.target.value)}
                   className={ringIf(bioInvalid.height_in)}
@@ -401,7 +403,8 @@ export default function Profile() {
             <>
               <Row label="Age" value={profile.age} />
               <Row label="Sex" value={profile.sex} />
-              <Row label="Height" value={`${profile.height_in} in`} />
+              {/* Number() drops a trailing ".0" so whole inches still read "70 in". */}
+              <Row label="Height" value={`${Number(profile.height_in)} in`} />
               <Row label="Current weight" value={`${profile.current_weight_lbs} lb`} />
               {profile.goal_weight_lbs && <Row label="Goal weight" value={`${profile.goal_weight_lbs} lb`} />}
               <Row label="Activity" value={profile.job_activity.replace(/_/g, " ")} />
