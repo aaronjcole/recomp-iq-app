@@ -302,11 +302,14 @@ test("a Premium tester sees the deploy-enabled AI body-composition range in Prog
   const response = await analyzeResponse;
   expect(response.request().method()).toBe("POST");
   expect(response.status()).toBe(200);
+  // The mock echoes each uploaded filename, so this asserts the pose -> file
+  // association rather than the order three concurrent uploads happened to land
+  // in. pose-0 went into the front slot, pose-1 into side, pose-2 into back.
   expect(response.request().postDataJSON()).toEqual({
     photoRefs: {
-      front: "private/user-test/body-scan-1.png",
-      side: "private/user-test/body-scan-2.png",
-      back: "private/user-test/body-scan-3.png"
+      front: "private/user-test/pose-0.png",
+      side: "private/user-test/pose-1.png",
+      back: "private/user-test/pose-2.png"
     }
   });
   expect(uploadResponses).toHaveLength(3);
