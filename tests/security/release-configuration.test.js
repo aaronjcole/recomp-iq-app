@@ -103,6 +103,21 @@ test("the waitlist collects nothing, and retained entries are still purged on de
   assert.doesNotMatch(comingSoonSource, /waitlist-email/);
   assert.match(comingSoonSource, /No advertising cookies or cross-site tracking/);
 
+  // The policy has to match the code. If a waitlist is ever revived, this fails
+  // and forces the disclosure to be rewritten alongside it.
+  // Collapse whitespace first: this prose wraps across lines, so matching the
+  // raw source would encode the current line breaks rather than the wording.
+  const privacyProse = readFileSync(resolve(repoRoot, "src/pages/Privacy.jsx"), "utf8").replace(
+    /\s+/g,
+    " "
+  );
+  assert.match(privacyProse, /no longer collect beta signups/i);
+  assert.match(
+    privacyProse,
+    /deleting your account removes any entry matching your email/i,
+    "the policy must keep stating that deletion purges a retained waitlist entry"
+  );
+
   // The entity and its deletion path deliberately stay: addresses captured before
   // the form was removed are still stored, and account deletion must keep purging
   // a user's row. Dropping either would lose records or regress that guarantee.
