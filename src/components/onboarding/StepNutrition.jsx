@@ -12,13 +12,15 @@ export default function StepNutrition({ pref, setPref, showErrors }) {
         title="Nutrition & lifestyle"
         why="Personalizes meal suggestions and the coach's framing — not the calorie math."
       />
-      <SelectField
-        id="diet"
-        label="Diet style"
-        value={pref.diet_style}
-        onChange={(v) => setPref("diet_style", v)}
-        options={DIET_STYLES.map((s) => ({ value: s, label: s }))}
-      />
+      <div className={showErrors && !pref.diet_style ? "ring-1 ring-destructive rounded-lg" : ""}>
+        <SelectField
+          id="diet"
+          label="Diet style"
+          value={pref.diet_style}
+          onChange={(v) => setPref("diet_style", v)}
+          options={DIET_STYLES.map((s) => ({ value: s, label: s }))}
+        />
+      </div>
       <SelectField
         id="train"
         label="Preferred training"

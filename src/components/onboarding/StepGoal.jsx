@@ -9,7 +9,7 @@ export default function StepGoal({ p, set, showErrors }) {
         title="What's your main goal?"
         why="Sets your calorie direction. Refinable as data arrives."
       />
-      <fieldset className="space-y-2">
+      <fieldset className={`space-y-2 ${showErrors && !p.goal ? "ring-1 ring-destructive rounded-lg" : ""}`}>
         <legend className="sr-only">Goal</legend>
         {GOAL_ORDER.map((g) => {
           const selected = p.goal === g;

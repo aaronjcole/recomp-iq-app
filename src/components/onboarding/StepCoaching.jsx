@@ -19,13 +19,15 @@ export default function StepCoaching({ pref, setPref, showErrors }) {
         title="Coaching & safety"
         why="Tone and safety shape how the coach talks and how aggressive targets get."
       />
-      <SelectField
-        id="tone"
-        label="Coach tone"
-        value={pref.tone}
-        onChange={(v) => setPref("tone", v)}
-        options={COACH_TONES.map((t) => ({ value: t, label: toneLabel(t) }))}
-      />
+      <div className={showErrors && !pref.tone ? "ring-1 ring-destructive rounded-lg" : ""}>
+        <SelectField
+          id="tone"
+          label="Coach tone"
+          value={pref.tone}
+          onChange={(v) => setPref("tone", v)}
+          options={COACH_TONES.map((t) => ({ value: t, label: toneLabel(t) }))}
+        />
+      </div>
 
       <div className="space-y-2">
         <Label>Safety flags (optional)</Label>
