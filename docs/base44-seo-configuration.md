@@ -25,7 +25,7 @@ Console can reject. With generation disabled, Base44 serves the repository's val
 | `/terms` | Index | Public terms and health disclaimer |
 | `/support` | Index | Public support information |
 | `/delete-account` | Index | Public account-deletion instructions |
-| `/hero` | No index | Accessible web-beta sign-in gateway |
+| `/hero` | No index | Web-beta sign-in gateway; reachable by direct link only, not linked from `/coming-soon` |
 | `/login` | No index | Authentication utility route |
 | `/register` | No index | Authentication utility route |
 | `/forgot-password` | No index | Authentication utility route |

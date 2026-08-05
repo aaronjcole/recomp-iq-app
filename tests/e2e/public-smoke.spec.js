@@ -36,10 +36,11 @@ test("landing page exposes the core public navigation", async ({ page }) => {
       name: "Know when to hold, adjust, or push your body recomposition plan.",
     }),
   ).toBeVisible();
-  await expect(page.getByRole("banner").getByRole("link", { name: "Beta tester sign in" })).toHaveAttribute(
-    "href",
-    "/hero",
-  );
+  // The marketing page deliberately exposes no beta sign-in: testers are given
+  // the /hero link directly or added to the app. /hero stays reachable on its
+  // own, which the "beta gateway remains accessible" test covers.
+  await expect(page.getByRole("banner").getByRole("link", { name: /beta tester sign in/i })).toHaveCount(0);
+  await expect(page.getByRole("banner").getByRole("link", { name: /sign in/i })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Privacy" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Premium plans that adapt with you." })).toBeVisible();
