@@ -131,8 +131,8 @@ export default function More() {
     {
       title: "Nutrition tools",
       items: [
-        { icon: BookMarked, label: "Meal templates", to: "/nutrition", subtitle: `${mealTemplates.length} saved` },
-        { icon: ShoppingCart, label: "Grocery list", to: "/nutrition" }
+        { icon: BookMarked, label: "Meal templates", to: "/nutrition", state: { scrollTo: "meal-templates-section" }, subtitle: `${mealTemplates.length} saved` },
+        { icon: ShoppingCart, label: "Grocery list", to: "/nutrition", state: { scrollTo: "grocery-list-section" } }
       ]
     },
     {
@@ -144,7 +144,7 @@ export default function More() {
     },
     {
       title: "Habits",
-      items: [{ icon: CheckCircle, label: "Manage habits", to: "/today" }]
+      items: [{ icon: CheckCircle, label: "Manage habits", to: "/today", state: { scrollTo: "habits-section" } }]
     },
     {
       title: "App & account",
@@ -167,7 +167,7 @@ export default function More() {
   ];
 
   const handleItem = (item) => {
-    if (item.to) navigate(item.to);
+    if (item.to) navigate(item.to, item.state ? { state: item.state } : undefined);
     else if (item.action && handlers[item.action]) handlers[item.action]();
   };
 
