@@ -247,19 +247,22 @@ export default function Coach() {
 
       <div className="pt-2 border-t border-line">
         {messages.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2 pt-3 -mx-1 px-1 no-scrollbar">
-            {QUICK_ACTIONS.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                onClick={() => send(action.prompt, { preparedAction: action.preparedAction })}
-                disabled={loading}
-                aria-label={action.prompt}
-                className="shrink-0 text-xs whitespace-nowrap rounded-full border border-line bg-panel px-3 py-2 min-h-11 text-muted-foreground hover:text-foreground hover:bg-panel2 disabled:opacity-50"
-              >
-                {action.label}
-              </button>
-            ))}
+          <div className="relative">
+            <div className="flex gap-2 overflow-x-auto pb-2 pt-3 -mx-1 px-1 no-scrollbar">
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => send(action.prompt, { preparedAction: action.preparedAction })}
+                  disabled={loading}
+                  aria-label={action.prompt}
+                  className="shrink-0 text-xs whitespace-nowrap rounded-full border border-line bg-panel px-3 py-2 min-h-11 text-muted-foreground hover:text-foreground hover:bg-panel2 disabled:opacity-50"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg to-transparent" />
           </div>
         )}
         <form onSubmit={(event) => { event.preventDefault(); send(input); }} className="flex gap-2">
