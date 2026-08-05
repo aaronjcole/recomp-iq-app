@@ -99,7 +99,7 @@ test("routing keeps the marketing homepage and beta gateway intentionally separa
   const app = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
   const publicHome = readFileSync(resolve(repoRoot, "src/components/PublicHome.jsx"), "utf8");
 
-  // Root redirects authenticated users to /today and unauthenticated users to /login.
+  // Root redirects authenticated users to /today and unauthenticated users to /coming-soon.
   assert.match(app, /path="\/" element=\{<RootRedirect \/>\}/);
   // Marketing page is accessible at /coming-soon; /hero is the landing page.
   assert.match(app, /path="\/coming-soon" element=\{<PublicHome \/>\}/);

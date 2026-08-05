@@ -38,10 +38,36 @@ function errorMessage(error) {
 export default function AdaptiveMealPlan() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
   const allowed = canAccess(PREMIUM_FEATURES.MEAL_PLANNING);
-  const [plan, setPlan] = useState(null);
+  const [plan, setPlan] = useState(() => {
+    try {
+      const stored = localStorage.getItem("recompiq_mealplan_v1");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && Array.isArray(parsed.days) && Array.isArray(parsed.groceryList)) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return null;
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
-  const [checked, setChecked] = useState({});
+  const [checked, setChecked] = useState(() => {
+    try {
+      const stored = localStorage.getItem("recompiq_groceries_v1");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return {};
+  });
   const weekStart = useMemo(currentWeekStart, []);
 
   const generate = async () => {
@@ -54,12 +80,20 @@ export default function AdaptiveMealPlan() {
         throw new Error("The meal planner returned an incomplete plan.");
       }
       setPlan(nextPlan);
+      try { localStorage.setItem("recompiq_mealplan_v1", JSON.stringify(nextPlan)); } catch {}
       setChecked({});
+      try { localStorage.removeItem("recompiq_groceries_v1"); } catch {}
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const toggleGrocery = (key, done) => {
+    const next = { ...checked, [key]: !done };
+    setChecked(next);
+    try { localStorage.setItem("recompiq_groceries_v1", JSON.stringify(next)); } catch {}
   };
 
   return (
@@ -127,7 +161,10 @@ export default function AdaptiveMealPlan() {
           </Card>
 
           <section className="space-y-3" aria-labelledby="meal-plan-days">
-            <h2 id="meal-plan-days" className="font-semibold">Your seven-day plan</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="meal-plan-days" className="font-semibold">Your seven-day plan</h2>
+              <span className="text-xs text-muted-foreground">Saved locally</span>
+            </div>
             {plan.days.map((day, index) => (
               <Card key={day.date} className="border-line bg-panel">
                 <details open={index === 0} className="group">
@@ -175,7 +212,7 @@ export default function AdaptiveMealPlan() {
                       <Checkbox
                         id={`meal-plan-${key.replace(/[^a-z0-9]/gi, "-")}`}
                         checked={done}
-                        onCheckedChange={() => setChecked((current) => ({ ...current, [key]: !done }))}
+                        onCheckedChange={() => toggleGrocery(key, done)}
                       />
                       <Label
                         htmlFor={`meal-plan-${key.replace(/[^a-z0-9]/gi, "-")}`}

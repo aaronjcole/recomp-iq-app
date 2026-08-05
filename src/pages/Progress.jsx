@@ -90,7 +90,14 @@ export default function Progress() {
     [dedupedLogs, isActive, profile, strategy, tdee]
   );
 
-  if (!profile || !strategy) return null;
+  if (!profile || !strategy) return (
+    <div className="space-y-5">
+      <div className="h-8 w-40 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-64 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-40 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-32 animate-pulse rounded-xl bg-panel2" />
+    </div>
+  );
 
   return (
     <PullToRefresh onRefresh={reload}>
@@ -150,20 +157,24 @@ export default function Progress() {
         </CardContent>
       </Card>
 
-      {trend && (
-        <Card className="bg-panel border-line">
-          <CardContent className="p-5 space-y-2 text-sm">
-            <h2 className="font-medium mb-1">Latest read</h2>
-            <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
-            <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
-            <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
-            <Row label="Calorie adherence" value={pct(trend.calorie_adherence)} />
-            <Row label="Protein adherence" value={pct(trend.protein_adherence)} />
-            <Row label="Step adherence" value={pct(trend.step_adherence)} />
-            <Row label="Workout adherence" value={pct(trend.workout_adherence)} />
-          </CardContent>
-        </Card>
-      )}
+      <Card className="bg-panel border-line">
+        <CardContent className="p-5 space-y-2 text-sm">
+          <h2 className="font-medium mb-1">Latest read</h2>
+          {trend ? (
+            <>
+              <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
+              <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
+              <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
+              <Row label="Calorie adherence" value={pct(trend.calorie_adherence)} />
+              <Row label="Protein adherence" value={pct(trend.protein_adherence)} />
+              <Row label="Step adherence" value={pct(trend.step_adherence)} />
+              <Row label="Workout adherence" value={pct(trend.workout_adherence)} />
+            </>
+          ) : (
+            <p className="text-muted-foreground">Trend data unavailable — log a few more weigh-ins to unlock your trend read.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {projection && (
         <Card className="bg-panel border-line">
@@ -183,7 +194,7 @@ export default function Progress() {
       )}
 
       {(featureFlags.bodyCompositionScan || releaseFlags.bodyCompositionScan) && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="h-16 animate-pulse rounded-xl bg-panel2" />}>
           <BodyCompositionScan />
         </Suspense>
       )}

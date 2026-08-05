@@ -10,13 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Plus, Trash2 } from "lucide-react";
 import { ICON_KEYS, iconFor } from "@/lib/habitIcons";
 
@@ -67,15 +61,16 @@ export default function HabitEditor({ open, onOpenChange }) {
 
           <div className="space-y-1.5">
             <Label>Kind</Label>
-            <Select value={form.kind} onValueChange={(v) => set("kind", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="check">Check</SelectItem>
-                <SelectItem value="count">Count</SelectItem>
-              </SelectContent>
-            </Select>
+            <AdaptiveSelect
+              value={form.kind}
+              onValueChange={(v) => set("kind", v)}
+              options={[
+                { value: "check", label: "Check" },
+                { value: "count", label: "Count" }
+              ]}
+              drawerTitle="Habit kind"
+              drawerDescription="Choose how this habit is tracked."
+            />
           </div>
 
           {form.kind === "count" && (

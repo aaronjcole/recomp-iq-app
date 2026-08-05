@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
-import { recalculateTargets, GOAL_LABELS, COACH_TONES } from "@/lib/fitness";
+import { recalculateTargets, GOAL_LABELS, COACH_TONES, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Label } from "@/components/ui/label";
@@ -18,19 +19,87 @@ import {
   AlertDialogAction
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { LogOut, Trash2 } from "lucide-react";
+import { LogOut, Trash2, Pencil, Loader2 } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import { deletePhotosForUser } from "@/lib/progressPhotos";
 
 const GOAL_ORDER = ["fat_loss", "aggressive_fat_loss", "fat_loss_biased_recomp", "body_recomposition", "strength_retention_cut", "maintenance", "lean_bulk", "muscle_gain", "aggressive_gain"];
+
+const SEX_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "unspecified", label: "Unspecified" }
+];
+
+const EXPERIENCE_OPTIONS = [
+  { value: "beginner", label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "advanced", label: "Advanced" }
+];
 
 export default function Profile() {
   const { profile, preferences, strategy, updateProfile, updatePreferences, updateStrategy } = useRecomp();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState(null);
+  const [bioSaving, setBioSaving] = useState(false);
 
   if (!profile) return null;
+
+  const startEdit = () => {
+    setDraft({
+      age: String(profile.age ?? ""),
+      sex: profile.sex ?? "male",
+      height_in: String(profile.height_in ?? ""),
+      current_weight_lbs: String(profile.current_weight_lbs ?? ""),
+      goal_weight_lbs: String(profile.goal_weight_lbs ?? ""),
+      job_activity: profile.job_activity ?? "sedentary",
+      average_steps: String(profile.average_steps ?? ""),
+      training_days_per_week: String(profile.training_days_per_week ?? ""),
+      cardio_days_per_week: String(profile.cardio_days_per_week ?? ""),
+      experience_level: profile.experience_level ?? "beginner"
+    });
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setEditMode(false);
+    setDraft(null);
+  };
+
+  const setDraftField = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+
+  const saveEdits = async () => {
+    setBioSaving(true);
+    try {
+      const profileData = {
+        age: Number(draft.age),
+        sex: draft.sex,
+        height_in: Number(draft.height_in),
+        current_weight_lbs: Number(draft.current_weight_lbs),
+        goal_weight_lbs: draft.goal_weight_lbs ? Number(draft.goal_weight_lbs) : undefined,
+        job_activity: draft.job_activity,
+        average_steps: Number(draft.average_steps),
+        training_days_per_week: Number(draft.training_days_per_week),
+        cardio_days_per_week: Number(draft.cardio_days_per_week),
+        experience_level: draft.experience_level
+      };
+      const updated = await updateProfile(profile.id, profileData);
+      if (strategy?.id) {
+        const strat = recalculateTargets({ ...updated, goal: profile.goal }, preferences ?? {});
+        await updateStrategy(strategy.id, { ...strat, goal_type: profile.goal }, "Biometrics updated.");
+      }
+      toast({ title: "Biometrics saved" });
+      setEditMode(false);
+      setDraft(null);
+    } catch {
+      toast({ title: "Could not save biometrics", description: "Please try again." });
+    } finally {
+      setBioSaving(false);
+    }
+  };
 
   const changeGoal = async (newGoal) => {
     setSaving(true);
@@ -93,16 +162,189 @@ export default function Profile() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-2 text-sm">
-          <div className="font-medium mb-1">You</div>
-          <Row label="Age" value={profile.age} />
-          <Row label="Sex" value={profile.sex} />
-          <Row label="Height" value={`${profile.height_in} in`} />
-          <Row label="Current weight" value={`${profile.current_weight_lbs} lb`} />
-          {profile.goal_weight_lbs && <Row label="Goal weight" value={`${profile.goal_weight_lbs} lb`} />}
-          <Row label="Activity" value={profile.job_activity.replace(/_/g, " ")} />
-          <Row label="Avg steps" value={profile.average_steps} />
-          <Row label="Training" value={`${profile.training_days_per_week} lift / ${profile.cardio_days_per_week} cardio`} />
-          <Row label="Experience" value={profile.experience_level} />
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-medium">You</div>
+            {!editMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                onClick={startEdit}
+              >
+                <Pencil className="w-3.5 h-3.5 mr-1" />
+                Edit biometrics
+              </Button>
+            )}
+          </div>
+
+          {editMode && draft ? (
+            <div className="space-y-3 pt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-age">Age</Label>
+                  <Input
+                    id="edit-age"
+                    type="number"
+                    inputMode="numeric"
+                    min={18}
+                    max={120}
+                    value={draft.age}
+                    onChange={(e) => setDraftField("age", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-sex">Sex</Label>
+                  <AdaptiveSelect
+                    id="edit-sex"
+                    value={draft.sex}
+                    onValueChange={(v) => setDraftField("sex", v)}
+                    drawerTitle="Sex"
+                    options={SEX_OPTIONS}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-height">Height (inches)</Label>
+                <Input
+                  id="edit-height"
+                  type="number"
+                  inputMode="decimal"
+                  min={36}
+                  max={108}
+                  value={draft.height_in}
+                  onChange={(e) => setDraftField("height_in", e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-cw">Current weight (lb)</Label>
+                  <Input
+                    id="edit-cw"
+                    type="number"
+                    inputMode="decimal"
+                    min={40}
+                    max={1200}
+                    value={draft.current_weight_lbs}
+                    onChange={(e) => setDraftField("current_weight_lbs", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-gw">Goal weight (lb)</Label>
+                  <Input
+                    id="edit-gw"
+                    type="number"
+                    inputMode="decimal"
+                    min={40}
+                    max={1200}
+                    placeholder="Optional"
+                    value={draft.goal_weight_lbs}
+                    onChange={(e) => setDraftField("goal_weight_lbs", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-activity">Daily job activity</Label>
+                <AdaptiveSelect
+                  id="edit-activity"
+                  value={draft.job_activity}
+                  onValueChange={(v) => setDraftField("job_activity", v)}
+                  drawerTitle="Daily job activity"
+                  options={Object.entries(JOB_ACTIVITY_LABELS).map(([k, label]) => ({ value: k, label }))}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-steps">Avg daily steps</Label>
+                <Input
+                  id="edit-steps"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={200000}
+                  value={draft.average_steps}
+                  onChange={(e) => setDraftField("average_steps", e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-lift">Lifting days / wk</Label>
+                  <Input
+                    id="edit-lift"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={7}
+                    value={draft.training_days_per_week}
+                    onChange={(e) => setDraftField("training_days_per_week", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-cardio">Cardio days / wk</Label>
+                  <Input
+                    id="edit-cardio"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={7}
+                    value={draft.cardio_days_per_week}
+                    onChange={(e) => setDraftField("cardio_days_per_week", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-exp">Experience</Label>
+                <AdaptiveSelect
+                  id="edit-exp"
+                  value={draft.experience_level}
+                  onValueChange={(v) => setDraftField("experience_level", v)}
+                  drawerTitle="Experience"
+                  options={EXPERIENCE_OPTIONS}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  className="flex-1 bg-teal text-buttonText hover:opacity-90 min-h-11"
+                  disabled={bioSaving}
+                  onClick={saveEdits}
+                >
+                  {bioSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-line min-h-11"
+                  disabled={bioSaving}
+                  onClick={cancelEdit}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Row label="Age" value={profile.age} />
+              <Row label="Sex" value={profile.sex} />
+              <Row label="Height" value={`${profile.height_in} in`} />
+              <Row label="Current weight" value={`${profile.current_weight_lbs} lb`} />
+              {profile.goal_weight_lbs && <Row label="Goal weight" value={`${profile.goal_weight_lbs} lb`} />}
+              <Row label="Activity" value={profile.job_activity.replace(/_/g, " ")} />
+              <Row label="Avg steps" value={profile.average_steps} />
+              <Row label="Training" value={`${profile.training_days_per_week} lift / ${profile.cardio_days_per_week} cardio`} />
+              <Row label="Experience" value={profile.experience_level} />
+            </>
+          )}
         </CardContent>
       </Card>
 

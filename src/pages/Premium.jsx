@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+import { SUPPORT_REQUEST_MAILTO } from "@/lib/support";
 
 const FEATURES = [
   {
@@ -81,11 +82,16 @@ export default function Premium() {
                   </div>
                   <p className="text-sm text-muted-foreground">{description}</p>
                   <p className={`text-xs font-medium ${available ? "text-teal" : "text-muted-foreground"}`}>
-                    {available && to ? "Access granted · available now" : available ? "Access granted · rollout in progress" : "Locked until Premium launches"}
+                    {available && to ? "Access granted · available now" : available ? "Access granted · rollout in progress" : "Available to approved testers — contact us to request access"}
                   </p>
                   {available && to && (
                     <Button asChild variant="outline" size="sm" className="mt-2 w-full border-line">
                       <Link to={to}>Open feature <ArrowRight aria-hidden="true" /></Link>
+                    </Button>
+                  )}
+                  {!available && (
+                    <Button asChild variant="outline" size="sm" className="mt-2 w-full border-line">
+                      <a href={SUPPORT_REQUEST_MAILTO}>Request access <ArrowRight aria-hidden="true" /></a>
                     </Button>
                   )}
                 </div>

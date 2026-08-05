@@ -63,7 +63,16 @@ export default function Nutrition() {
     setShowPhotoScan(false);
   };
 
-  if (!strategy) return null;
+  const [showAllFoods, setShowAllFoods] = useState(false);
+
+  if (!strategy) return (
+    <div className="space-y-5">
+      <div className="h-8 w-40 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-36 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-72 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-48 animate-pulse rounded-xl bg-panel2" />
+    </div>
+  );
 
   const consumed = {
     calories: todayLog?.calories ?? 0,
@@ -159,7 +168,7 @@ export default function Nutrition() {
         <CardContent className="p-5 space-y-3">
           <h2 className="font-medium">Food library</h2>
           {foods.length === 0 && <p className="text-sm text-muted-foreground">No foods saved yet.</p>}
-          {foods.slice(0, 12).map((f) => {
+          {(showAllFoods ? foods : foods.slice(0, 12)).map((f) => {
             const q = scoreNutritionQuality(f);
             return (
               <div key={f.id} className="flex items-center justify-between gap-3 py-2 border-b border-lineSoft last:border-0">
@@ -171,6 +180,16 @@ export default function Nutrition() {
               </div>
             );
           })}
+          {foods.length > 12 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-line min-h-11"
+              onClick={() => setShowAllFoods((v) => !v)}
+            >
+              {showAllFoods ? "Show less" : `Show all ${foods.length} items`}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -246,9 +265,13 @@ export default function Nutrition() {
         </CardContent>
       </Card>
 
-      <MealTemplatesCard />
+      <div id="meal-templates-section">
+        <MealTemplatesCard />
+      </div>
 
-      <GroceryListCard />
+      <div id="grocery-list-section">
+        <GroceryListCard />
+      </div>
       <AddRecipeCard />
 
       {showScanner && (

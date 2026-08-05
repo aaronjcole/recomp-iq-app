@@ -2,7 +2,7 @@ import { GOAL_LABELS } from "@/lib/fitness";
 import { GOAL_ORDER } from "./constants";
 import { StepHeader } from "./Fields";
 
-export default function StepGoal({ p, set }) {
+export default function StepGoal({ p, set, showErrors }) {
   return (
     <div className="space-y-4">
       <StepHeader

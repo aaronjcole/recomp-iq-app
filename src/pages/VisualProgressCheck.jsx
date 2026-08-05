@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { buildVisualComparison, VisualComparisonError } from "@/lib/fitness/visualProgress";
@@ -215,18 +216,24 @@ export default function VisualProgressCheck() {
                 <h2 className="font-semibold">Choose your comparison</h2>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <AdaptiveSelect
-                  value={firstId}
-                  onValueChange={setFirstId}
-                  options={options.map((option) => ({ ...option, disabled: option.value === secondId }))}
-                  drawerTitle="Earlier progress photo"
-                />
-                <AdaptiveSelect
-                  value={secondId}
-                  onValueChange={setSecondId}
-                  options={options.map((option) => ({ ...option, disabled: option.value === firstId }))}
-                  drawerTitle="Later progress photo"
-                />
+                <div className="space-y-1.5">
+                  <Label>Before</Label>
+                  <AdaptiveSelect
+                    value={firstId}
+                    onValueChange={setFirstId}
+                    options={options.map((option) => ({ ...option, disabled: option.value === secondId }))}
+                    drawerTitle="Earlier progress photo"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>After</Label>
+                  <AdaptiveSelect
+                    value={secondId}
+                    onValueChange={setSecondId}
+                    options={options.map((option) => ({ ...option, disabled: option.value === firstId }))}
+                    drawerTitle="Later progress photo"
+                  />
+                </div>
               </div>
 
               <ComparisonCanvas

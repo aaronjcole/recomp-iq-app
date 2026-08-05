@@ -2,7 +2,7 @@ import { JOB_ACTIVITY_LABELS } from "@/lib/fitness";
 import { SelectField, NumField, StepHeader, Why } from "./Fields";
 import { EXPERIENCE_LABELS } from "./constants";
 
-export default function StepActivity({ p, set }) {
+export default function StepActivity({ p, set, showErrors }) {
   return (
     <div className="space-y-4">
       <StepHeader

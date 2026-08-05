@@ -52,7 +52,7 @@ const RequireOnboarding = lazyWithRetry(() =>
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
-  return <Navigate to={isAuthenticated ? "/today" : "/login"} replace />;
+  return <Navigate to={isAuthenticated ? "/today" : "/coming-soon"} replace />;
 }
 
 const AuthenticatedApp = () => {

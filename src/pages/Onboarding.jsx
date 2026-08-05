@@ -14,7 +14,30 @@ import StepReview from "@/components/onboarding/StepReview";
 
 // Keep the legacy key so existing users retain onboarding progress through the rebrand.
 const STORAGE_KEY = "recompiq_onboarding_v1";
-const STEPS = 7;
+
+// Fix 1: STEPS is now an array of objects so each step has a human-readable label.
+const STEPS = [
+  { label: "Welcome" },
+  { label: "Goal" },
+  { label: "About you" },
+  { label: "Activity & training" },
+  { label: "Nutrition & lifestyle" },
+  { label: "Coaching" },
+  { label: "Review" },
+];
+
+// Fix 4: Derive primary_concern from goal. Values mirror the enum used by the backend.
+const PRIMARY_CONCERN_MAP = {
+  fat_loss: "fat_loss",
+  aggressive_fat_loss: "fat_loss",
+  strength_retention_cut: "fat_loss",
+  fat_loss_biased_recomp: "body_recomp",
+  body_recomposition: "body_recomp",
+  maintenance: "maintenance",
+  lean_bulk: "muscle_gain",
+  muscle_gain: "muscle_gain",
+  aggressive_gain: "muscle_gain",
+};
 
 const DEFAULTS = {
   p: {
@@ -84,7 +107,7 @@ export default function Onboarding() {
   const saved = useMemo(() => loadState(), []);
   const [searchParams, setSearchParams] = useSearchParams();
   const step = Math.min(
-    STEPS - 1,
+    STEPS.length - 1,
     Math.max(0, Number(searchParams.get("step") ?? saved?.step ?? 0) || 0)
   );
   const [p, setP] = useState(saved?.p ?? DEFAULTS.p);
@@ -93,6 +116,8 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [errorStep, setErrorStep] = useState(null);
   const [saveError, setSaveError] = useState("");
+  // Fix 2: showErrors triggers per-field highlight classes in step components.
+  const [showErrors, setShowErrors] = useState(false);
   const restoredPartialSetup = useRef(false);
 
   useEffect(() => {
@@ -182,14 +207,18 @@ export default function Onboarding() {
 
   const goTo = (n) => {
     setErrorStep(null);
+    setShowErrors(false);
     setSearchParams({ step: String(n) });
   };
   const next = () => {
     if (!stepValid) {
+      // Fix 2: surface the validation error and arm showErrors so step
+      // components can highlight the specific empty/invalid inputs.
       setErrorStep(step);
+      setShowErrors(true);
       return;
     }
-    goTo(Math.min(STEPS - 1, step + 1));
+    goTo(Math.min(STEPS.length - 1, step + 1));
   };
   const back = () => goTo(Math.max(0, step - 1));
 
@@ -197,6 +226,11 @@ export default function Onboarding() {
     setSaving(true);
     setSaveError("");
     try {
+      // Fix 4: derive primary_concern from goal; fall back to any manually
+      // stored value in case the goal key is somehow unrecognised.
+      const derivedPrimaryConcern = p.goal
+        ? (PRIMARY_CONCERN_MAP[p.goal] ?? p.primary_concern ?? "")
+        : (p.primary_concern || "");
       const profileData = {
         age: Number(p.age),
         sex: p.sex,
@@ -209,7 +243,7 @@ export default function Onboarding() {
         job_activity: p.job_activity,
         average_steps: Number(p.average_steps),
         experience_level: p.experience_level,
-        primary_concern: p.primary_concern || undefined
+        primary_concern: derivedPrimaryConcern || undefined
       };
       const prefData = {
         tone: pref.tone,
@@ -273,29 +307,46 @@ export default function Onboarding() {
         <span className="font-semibold text-lg">RecompOne</span>
       </div>
 
-      <div className="flex gap-1.5 mb-6">
-        {Array.from({ length: STEPS }, (_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-teal" : "bg-panel2"}`}
-          />
-        ))}
+      {/* Fix 1: progress bar + step label so users know where they are */}
+      <div className="flex flex-col gap-2 mb-6">
+        <div className="flex gap-1.5">
+          {STEPS.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? "bg-teal" : "bg-panel2"}`}
+            />
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {STEPS[step]?.label ?? ""} · Step {step + 1} of {STEPS.length}
+        </p>
       </div>
 
       {step === 0 && <StepWelcome />}
-      {step === 1 && <StepGoal p={p} set={set} />}
-      {step === 2 && <StepAbout p={p} set={set} units={units} setUnits={setUnits} />}
-      {step === 3 && <StepActivity p={p} set={set} />}
-      {step === 4 && <StepNutrition pref={pref} setPref={setPref} />}
-      {step === 5 && <StepCoaching pref={pref} setPref={setPref} />}
+      {/* Fix 2: pass showErrors so step components can highlight invalid fields */}
+      {step === 1 && <StepGoal p={p} set={set} showErrors={showErrors} />}
+      {step === 2 && <StepAbout p={p} set={set} units={units} setUnits={setUnits} showErrors={showErrors} />}
+      {step === 3 && <StepActivity p={p} set={set} showErrors={showErrors} />}
+      {step === 4 && <StepNutrition pref={pref} setPref={setPref} showErrors={showErrors} />}
+      {step === 5 && <StepCoaching pref={pref} setPref={setPref} showErrors={showErrors} />}
       {step === 6 && (
-        <StepReview
-          p={p}
-          pref={pref}
-          units={units}
-          onEdit={goTo}
-          profilePreview={profilePreview}
-        />
+        <>
+          <StepReview
+            p={p}
+            pref={pref}
+            units={units}
+            onEdit={goTo}
+            profilePreview={profilePreview}
+          />
+          {/* Fix 4: read-only primary_concern display derived from goal */}
+          {p.goal && (
+            <div className="mt-4 rounded-xl border border-line bg-panel px-4 py-3 space-y-1">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Primary concern</p>
+              <p className="text-sm font-medium">{PRIMARY_CONCERN_MAP[p.goal] ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">Automatically set based on your goal.</p>
+            </div>
+          )}
+        </>
       )}
 
       {errorStep === step && !stepValid && (
@@ -313,10 +364,11 @@ export default function Onboarding() {
             Back
           </Button>
         )}
-        {step < STEPS - 1 ? (
+        {/* Fix 2: button is always clickable so the error message + field
+            highlights can fire; next() still guards forward navigation. */}
+        {step < STEPS.length - 1 ? (
           <Button
             className="flex-1 bg-teal text-buttonText hover:opacity-90"
-            disabled={!stepValid}
             onClick={next}
           >
             Continue <ChevronRight className="w-4 h-4" />
