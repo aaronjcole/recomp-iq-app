@@ -69,7 +69,9 @@ const DEFAULTS = {
 const STEP_MESSAGES = [
   "",
   "Pick a goal to continue.",
-  "Add your age, height, and current weight.",
+  // Every field this step gates on now carries an error ring, so point at those
+  // rather than naming three fields that may not be the blocker.
+  "Complete the highlighted fields to continue.",
   "Complete the activity fields.",
   "Pick a diet style to continue.",
   "Pick a coach tone to continue.",
