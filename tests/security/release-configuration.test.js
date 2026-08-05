@@ -101,8 +101,16 @@ test("waitlist attribution is conversion-only, bounded, and free of arbitrary qu
     }
   );
 
+  // The marketing page no longer enrols anyone: the waitlist form was removed,
+  // so it must not reference the attribution builder, invoke joinWaitlist, or
+  // render an email field. The bounded-attribution guarantees above still cover
+  // the pure builder and the backend function, which remain for the existing
+  // WaitlistEntry records and the account-deletion path that purges them.
   const comingSoonSource = readFileSync(resolve(repoRoot, "src/pages/ComingSoon.jsx"), "utf8");
-  assert.match(comingSoonSource, /buildWaitlistAttribution/);
+  assert.doesNotMatch(comingSoonSource, /buildWaitlistAttribution/);
+  assert.doesNotMatch(comingSoonSource, /joinWaitlist/);
+  assert.doesNotMatch(comingSoonSource, /type="email"/);
+  assert.doesNotMatch(comingSoonSource, /waitlist-email/);
   assert.match(comingSoonSource, /No advertising cookies or cross-site tracking/);
 
   const joinWaitlistSource = readFileSync(
