@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 test("landing page exposes the core public navigation", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
-  await page.goto("/");
+  await page.goto("/coming-soon");
 
   await expect(page).toHaveTitle("RecompOne: Adaptive Body Recomposition");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index,follow");
@@ -54,7 +54,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
 test("coming-soon page explains the decision system and exposes the Android beta CTA", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
-  await page.goto("/?utm_source=playwright");
+  await page.goto("/coming-soon?utm_source=playwright");
 
   await expect(
     page.getByRole("heading", {
@@ -83,12 +83,14 @@ test("coming-soon page explains the decision system and exposes the Android beta
   assertNoPageErrors();
 });
 
-test("legacy coming-soon route redirects to the canonical homepage", async ({ page }) => {
+test("unauthenticated root visit redirects to login while coming-soon stays accessible", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
-  await page.goto("/coming-soon");
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/login$/);
 
-  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/coming-soon");
+  await expect(page).toHaveURL(/\/coming-soon/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
     "https://fitnesstrackerapps.com/"

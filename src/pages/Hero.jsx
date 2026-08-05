@@ -59,7 +59,7 @@ export default function Hero({ preview }) {
     <div className="min-h-screen bg-bg text-foreground">
       <header className="sticky top-0 z-40 backdrop-blur bg-bg/80 border-b border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/coming-soon" className="flex items-center gap-2">
             <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold text-lg">RecompOne</span>
           </Link>

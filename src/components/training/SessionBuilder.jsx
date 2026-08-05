@@ -30,18 +30,23 @@ const TYPE_OPTIONS = [
   { value: "sport", label: "Sport" }
 ];
 
-export default function SessionBuilder() {
-  const { saveTrainingSession } = useRecompActions();
+export default function SessionBuilder({ prefill = null }) {
+  const { saveTrainingSession, completeBlockSession } = useRecompActions();
   const { toast } = useToast();
+
+  const initLifts = () =>
+    prefill?.lifts?.length
+      ? prefill.lifts.map((l) => ({ id: uid(), name: l.name ?? "", weight: l.weight ?? "", reps: l.reps ?? "", sets: l.sets ?? "1" }))
+      : [];
 
   const [date, setDate] = useState(todayStr());
   const [type, setType] = useState("strength");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(prefill?.title ?? "");
   const [duration, setDuration] = useState("");
   const [rpe, setRpe] = useState("");
-  const [muscleGroups, setMuscleGroups] = useState([]);
+  const [muscleGroups, setMuscleGroups] = useState(prefill?.muscleGroups ?? []);
   const [muscleInput, setMuscleInput] = useState("");
-  const [lifts, setLifts] = useState([]);
+  const [lifts, setLifts] = useState(initLifts);
   const [cardio, setCardio] = useState({ distance: "", hr: "" });
   const [saving, setSaving] = useState(false);
 
@@ -118,6 +123,13 @@ export default function SessionBuilder() {
         strengthEntries,
         markDaily: date === todayStr()
       });
+      if (prefill?.blockId != null) {
+        try {
+          await completeBlockSession(prefill.blockId, prefill.dayIndex, prefill.sessionId);
+        } catch {
+          toast({ title: "Session logged — block progress not updated", description: "The session was saved. Tap to retry marking this session complete.", variant: "destructive" });
+        }
+      }
       toast({ title: "Session logged", description: `${data.title} saved for ${date}.` });
       reset();
     } catch (e) {

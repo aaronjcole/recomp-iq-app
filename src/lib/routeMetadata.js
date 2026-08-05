@@ -1,7 +1,7 @@
 const DEFAULT_DESCRIPTION =
   "RecompOne turns daily nutrition, training, and recovery signals into a plan that adapts to real progress.";
 const SITE_URL = "https://fitnesstrackerapps.com";
-const INDEXABLE_ROUTES = new Set(["/", "/privacy", "/terms", "/support", "/delete-account"]);
+const INDEXABLE_ROUTES = new Set(["/", "/coming-soon", "/privacy", "/terms", "/support", "/delete-account"]);
 const CANONICAL_OVERRIDES = Object.freeze({
   "/coming-soon": "/"
 });

@@ -7,6 +7,7 @@ const OWNED_ENTITIES = [
   "WeeklyCheckIn",
   "StrengthLog",
   "ExerciseSession",
+  "TrainingBlock",
   "DailyLog",
   "MealTemplate",
   "Recipe",

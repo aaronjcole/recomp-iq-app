@@ -19,13 +19,13 @@ Console can reject. With generation disabled, Base44 serves the repository's val
 
 | Route | Search setting | Purpose |
 |---|---|---|
-| `/` | Index | Canonical Coming Soon marketing homepage |
+| `/` | Index | Auth-aware root redirect (authenticated → /today, unauthenticated → /login) |
+| `/coming-soon` | Index | Marketing homepage — canonical URL is `https://fitnesstrackerapps.com/` |
 | `/privacy` | Index | Public privacy policy |
 | `/terms` | Index | Public terms and health disclaimer |
 | `/support` | Index | Public support information |
 | `/delete-account` | Index | Public account-deletion instructions |
 | `/hero` | No index | Accessible web-beta sign-in gateway |
-| `/coming-soon` | No index | Legacy client redirect to `/` |
 | `/login` | No index | Authentication utility route |
 | `/register` | No index | Authentication utility route |
 | `/forgot-password` | No index | Authentication utility route |
@@ -59,9 +59,8 @@ Use `https://fitnesstrackerapps.com/brand/recompone-feature-1024x500.png` for th
 ## Known hosting constraint
 
 Base44 hosting supports static SPAs and does not expose repository-configurable, path-level HTTP
-redirects or response headers. `/coming-soon` therefore performs a React Router replacement to
-`/`; its platform indexing toggle must remain off. A true 301/308 requires moving the frontend to
-hosting that supports path rules or a future Base44 platform capability.
+redirects or response headers. A true 301/308 from a vanity path to the canonical root would
+require hosting that supports path rules or a future Base44 platform capability.
 
 ## Post-publish verification
 
@@ -72,7 +71,7 @@ hosting that supports path rules or a future Base44 platform capability.
    indexable public routes above. `text/html` is a failure.
 4. Confirm `/robots.txt` returns `text/plain` (an optional charset is allowed) and references the
    canonical sitemap URL. `text/html` is a failure.
-5. Confirm `/coming-soon` reaches `/` in the browser and remains absent from the sitemap.
+5. Confirm `/coming-soon` renders the marketing page with `index,follow` and a canonical pointing to the root URL; it should remain absent from the sitemap because its canonical is `https://fitnesstrackerapps.com/`.
 6. Submit the sitemap in Google Search Console and request indexing for `/`.
 
 ## Platform references

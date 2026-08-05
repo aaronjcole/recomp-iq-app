@@ -14,9 +14,9 @@ test("the canonical homepage is indexable while beta and app routes stay out of 
   assert.equal(home.canonicalUrl, `${siteUrl}/`);
   assert.equal(home.robots, "index,follow");
 
-  const legacyComingSoon = getRouteMetadata("/coming-soon");
-  assert.equal(legacyComingSoon.canonicalUrl, `${siteUrl}/`);
-  assert.equal(legacyComingSoon.robots, "noindex,follow");
+  const comingSoon = getRouteMetadata("/coming-soon");
+  assert.equal(comingSoon.canonicalUrl, `${siteUrl}/`);
+  assert.equal(comingSoon.robots, "index,follow");
 
   for (const path of [
     "/hero",
@@ -70,12 +70,11 @@ test("static crawler files define the public index when Base44 generation is dis
   assert.ok(robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`));
 
   const checklist = readFileSync(resolve(repoRoot, "docs/base44-seo-configuration.md"), "utf8");
-  for (const path of ["/", "/privacy", "/terms", "/support", "/delete-account"]) {
+  for (const path of ["/", "/coming-soon", "/privacy", "/terms", "/support", "/delete-account"]) {
     assert.ok(checklist.includes(`| \`${path}\` | Index |`));
   }
   for (const path of [
     "/hero",
-    "/coming-soon",
     "/login",
     "/register",
     "/forgot-password",
@@ -100,9 +99,11 @@ test("routing keeps the marketing homepage and beta gateway intentionally separa
   const app = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
   const publicHome = readFileSync(resolve(repoRoot, "src/components/PublicHome.jsx"), "utf8");
 
-  assert.match(app, /path="\/" element=\{<PublicHome \/>\}/);
+  // Root redirects authenticated users to /today and unauthenticated users to /login.
+  assert.match(app, /path="\/" element=\{<RootRedirect \/>\}/);
+  // Marketing page is accessible at /coming-soon; /hero is the landing page.
+  assert.match(app, /path="\/coming-soon" element=\{<PublicHome \/>\}/);
   assert.match(app, /path="\/hero" element=\{<Hero \/>\}/);
-  assert.match(app, /path="\/coming-soon" element=\{<Navigate to="\/" replace \/>\}/);
   assert.match(publicHome, /return <ComingSoon \/>/);
   assert.doesNotMatch(publicHome, /location\.hostname|isPromoDomain/);
 });

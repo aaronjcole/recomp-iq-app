@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { CalendarRange, ChevronDown, Dumbbell, RefreshCw, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { CalendarRange, ChevronDown, Dumbbell, PlayCircle, RefreshCw, TrendingUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
 
 const EQUIPMENT_OPTIONS = [
@@ -43,15 +44,45 @@ function readable(value) {
   return String(value ?? "").replaceAll("_", " ");
 }
 
+function repsLowerBound(repsStr) {
+  const str = String(repsStr ?? "");
+  const match = str.match(/^(\d+)/);
+  return match ? Number(match[1]) : 8;
+}
+
 export default function AdaptiveTrainingBlock() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
   const allowed = canAccess(PREMIUM_FEATURES.TRAINING_PLANNING);
   const weekStart = useMemo(currentWeekStart, []);
-  const [equipment, setEquipment] = useState("full_gym");
-  const [blockLength, setBlockLength] = useState("5");
-  const [plan, setPlan] = useState(null);
+  const navigate = useNavigate();
+
+  const { activeBlock } = useRecompRef();
+  const { saveTrainingBlock } = useRecompActions();
+
+  // Derive existing plan from the active block if present
+  const existingPlan = useMemo(() => {
+    if (!activeBlock?.plan_json) return null;
+    try { return JSON.parse(activeBlock.plan_json); } catch { return null; }
+  }, [activeBlock]);
+
+  const [equipment, setEquipment] = useState(activeBlock?.equipment ?? "full_gym");
+  const [blockLength, setBlockLength] = useState(String(activeBlock?.block_length_weeks ?? "5"));
+  const [plan, setPlan] = useState(existingPlan);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // If a block loads after initial render (async context), populate the UI
+  useEffect(() => {
+    if (activeBlock && !plan) {
+      const loaded = existingPlan;
+      if (loaded) {
+        setPlan(loaded);
+        setEquipment(activeBlock.equipment ?? "full_gym");
+        setBlockLength(String(activeBlock.block_length_weeks ?? "5"));
+      }
+    }
+  }, [activeBlock, existingPlan, plan]);
 
   const generate = async () => {
     setIsGenerating(true);
@@ -66,12 +97,37 @@ export default function AdaptiveTrainingBlock() {
       if (!nextPlan || !Array.isArray(nextPlan.schedule) || !Array.isArray(nextPlan.weeks)) {
         throw new Error("The training planner returned an incomplete block.");
       }
+      setIsSaving(true);
+      await saveTrainingBlock(nextPlan, equipment, Number(blockLength), weekStart);
       setPlan(nextPlan);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
       setIsGenerating(false);
+      setIsSaving(false);
     }
+  };
+
+  const handleStartSession = (dayIndex, session) => {
+    if (!activeBlock || isSaving) return;
+    const prefill = {
+      blockId: activeBlock.id,
+      dayIndex,
+      sessionId: session.id ?? `day-${dayIndex}`,
+      prefill: {
+        title: session.title,
+        muscleGroups: [session.focus],
+        lifts: session.exercises
+          .filter((ex) => ex.movement !== "mobility" && ex.movement !== "cardio")
+          .map((ex) => ({
+            name: ex.name,
+            sets: String(ex.sets),
+            reps: String(repsLowerBound(ex.reps)),
+            weight: ""
+          }))
+      }
+    };
+    navigate("/training", { state: { planSession: prefill } });
   };
 
   return (
@@ -133,10 +189,12 @@ export default function AdaptiveTrainingBlock() {
               <Button
                 className="w-full bg-teal text-buttonText hover:opacity-90"
                 onClick={generate}
-                disabled={isGenerating}
+                disabled={isGenerating || isSaving}
               >
                 {isGenerating ? (
                   <><RefreshCw className="animate-spin" aria-hidden="true" /> Building your block…</>
+                ) : isSaving ? (
+                  <><RefreshCw className="animate-spin" aria-hidden="true" /> Saving…</>
                 ) : plan ? (
                   <><RefreshCw aria-hidden="true" /> Rebuild training block</>
                 ) : (
@@ -199,6 +257,17 @@ export default function AdaptiveTrainingBlock() {
                         )}
                       </div>
                     ))}
+                    {activeBlock && (
+                      <Button
+                        variant="outline"
+                        className="w-full border-teal/30 text-teal hover:bg-teal/10"
+                        onClick={() => handleStartSession(index, session)}
+                        disabled={isSaving}
+                      >
+                        <PlayCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Start this session
+                      </Button>
+                    )}
                   </CardContent>
                 </details>
               </Card>
