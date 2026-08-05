@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import {
   chromiumCandidates,
+  headlessShellExecutable,
+  isLaunchable,
   pinnedInstallLooksComplete,
   resolveChromiumExecutable
 } from "../../scripts/resolve-chromium.mjs";
@@ -12,88 +14,142 @@ import {
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (relativePath) => readFileSync(resolve(repoRoot, relativePath), "utf8");
 
-const PINNED = "/opt/pw-browsers/chromium-1234/chrome-linux64/chrome";
-const PINNED_SHELL_DIR = "/opt/pw-browsers/chromium_headless_shell-1234";
-const noEnv = {};
-const noDirs = () => [];
+const ROOT = "/opt/pw-browsers";
+const PINNED = `${ROOT}/chromium-1234/chrome-linux64/chrome`;
+const PINNED_SHELL_DIR = `${ROOT}/chromium_headless_shell-1234`;
+const PINNED_SHELL_BIN = `${PINNED_SHELL_DIR}/chrome-headless-shell-linux64/chrome-headless-shell`;
+const OLDER = `${ROOT}/chromium-1194/chrome-linux/chrome`;
 
-// A complete `playwright install chromium`: headed build plus headless shell.
-const fullInstall = (path) => path === PINNED || path === PINNED_SHELL_DIR;
+/**
+ * Fake stat: `files` are launchable regular files, `dirs` are directories, and
+ * `stubs` are regular files with no execute bit. Anything else does not exist.
+ */
+const fakeStat = ({ files = [], dirs = [], stubs = [] } = {}) => (path) => {
+  if (files.includes(path)) return { isFile: () => true, mode: 0o755 };
+  if (stubs.includes(path)) return { isFile: () => true, mode: 0o644 };
+  if (dirs.includes(path)) return { isFile: () => false, mode: 0o755 };
+  throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+};
+
+// A complete `playwright install chromium`: headed binary plus a real shell binary.
+const completeInstall = fakeStat({
+  files: [PINNED, PINNED_SHELL_BIN],
+  dirs: [ROOT, PINNED_SHELL_DIR, `${PINNED_SHELL_DIR}/chrome-headless-shell-linux64`]
+});
+const completeDirs = (dir) =>
+  dir === PINNED_SHELL_DIR ? ["chrome-headless-shell-linux64"] : [];
+
+test("a launchable path must be a regular file with an execute bit", () => {
+  assert.equal(isLaunchable("/a/chrome", { stat: fakeStat({ files: ["/a/chrome"] }) }), true);
+  assert.equal(isLaunchable("/a/dir", { stat: fakeStat({ dirs: ["/a/dir"] }) }), false);
+  assert.equal(isLaunchable("/a/stub", { stat: fakeStat({ stubs: ["/a/stub"] }) }), false);
+  assert.equal(isLaunchable("/a/missing", { stat: fakeStat() }), false);
+  // Windows has no execute bit, so a regular file is enough there.
+  assert.equal(
+    isLaunchable("/a/stub", { stat: fakeStat({ stubs: ["/a/stub"] }), platform: "win32" }),
+    true
+  );
+});
 
 test("the pinned browser is used untouched when it is fully installed", () => {
-  // This is the CI path: `playwright install` puts both builds in place, so the
-  // resolver must not redirect the run to some other Chromium.
+  // The CI path: both builds present, so the resolver must not redirect the run.
   const result = resolveChromiumExecutable({
     expectedPath: PINNED,
-    env: { PLAYWRIGHT_BROWSERS_PATH: "/opt/pw-browsers" },
-    exists: fullInstall,
-    readDir: () => ["chromium-1234", "chromium_headless_shell-1234", "chromium-1194"]
+    env: { PLAYWRIGHT_BROWSERS_PATH: ROOT },
+    stat: completeInstall,
+    readDir: completeDirs
   });
   assert.equal(result, undefined, "must defer to Playwright when the pinned build is complete");
 });
 
-test("a headed build without its headless shell is not treated as installed", () => {
-  // The suite runs headless, which launches the separate shell build. Deferring
-  // here fails with "Executable doesn't exist at .../chromium_headless_shell-...".
-  assert.equal(pinnedInstallLooksComplete(PINNED, (path) => path === PINNED), false);
-  assert.equal(pinnedInstallLooksComplete(PINNED, fullInstall), true);
+test("an empty headless-shell directory is not a complete install", () => {
+  // What an interrupted `playwright install` leaves behind. Checking only that the
+  // directory exists made this look complete, and the run then died with
+  // "Executable doesn't exist at .../chromium_headless_shell-1234/...".
+  const emptyShell = fakeStat({ files: [PINNED, OLDER], dirs: [ROOT, PINNED_SHELL_DIR] });
+  assert.equal(
+    pinnedInstallLooksComplete(PINNED, { stat: emptyShell, readDir: () => [] }),
+    false
+  );
 
-  // Passing an executablePath launches that binary directly, so the headed build
-  // is itself a valid answer here — and being the newest, it is the right one.
-  const older = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  // …and the run is rescued by falling back to a real binary.
   const result = resolveChromiumExecutable({
     expectedPath: PINNED,
-    env: { PLAYWRIGHT_BROWSERS_PATH: "/opt/pw-browsers" },
-    exists: (path) => path === PINNED || path === older,
-    readDir: () => ["chromium-1234", "chromium-1194"]
+    env: { PLAYWRIGHT_BROWSERS_PATH: ROOT },
+    stat: emptyShell,
+    readDir: (dir) => (dir === ROOT ? ["chromium-1234", "chromium-1194"] : [])
   });
   assert.equal(result, PINNED, "must launch a concrete binary rather than defer");
-
-  // With the pinned build absent entirely, the older one is used.
-  const withoutPinned = resolveChromiumExecutable({
-    expectedPath: PINNED,
-    env: { PLAYWRIGHT_BROWSERS_PATH: "/opt/pw-browsers" },
-    exists: (path) => path === older,
-    readDir: () => ["chromium-1234", "chromium-1194"]
-  });
-  assert.equal(withoutPinned, older);
 });
 
-test("an unrecognised browser layout trusts the headed binary", () => {
-  // Custom install roots should not be forced through the shell heuristic.
-  assert.equal(pinnedInstallLooksComplete("/custom/chrome", (path) => path === "/custom/chrome"), true);
-  assert.equal(pinnedInstallLooksComplete(undefined, () => true), false);
+test("a headless shell present but not executable is not a complete install", () => {
+  const stubShell = fakeStat({
+    files: [PINNED],
+    stubs: [PINNED_SHELL_BIN],
+    dirs: [ROOT, PINNED_SHELL_DIR, `${PINNED_SHELL_DIR}/chrome-headless-shell-linux64`]
+  });
+  assert.equal(pinnedInstallLooksComplete(PINNED, { stat: stubShell, readDir: completeDirs }), false);
+});
+
+test("a headed build without any headless shell is not a complete install", () => {
+  const headedOnly = fakeStat({ files: [PINNED], dirs: [ROOT] });
+  assert.equal(pinnedInstallLooksComplete(PINNED, { stat: headedOnly, readDir: () => [] }), false);
+  assert.equal(pinnedInstallLooksComplete(PINNED, { stat: completeInstall, readDir: completeDirs }), true);
+});
+
+test("the shell binary is found whatever the platform directory is named", () => {
+  for (const inner of [
+    "chrome-headless-shell-linux64",
+    "chrome-headless-shell-mac-arm64",
+    "chrome-headless-shell-win64"
+  ]) {
+    const bin = `${PINNED_SHELL_DIR}/${inner}/chrome-headless-shell`;
+    const found = headlessShellExecutable(PINNED_SHELL_DIR, {
+      stat: fakeStat({ files: [bin], dirs: [PINNED_SHELL_DIR, `${PINNED_SHELL_DIR}/${inner}`] }),
+      readDir: () => [inner]
+    });
+    assert.equal(found, bin, `${inner} layout must be discovered`);
+  }
+});
+
+test("an unlaunchable candidate does not mask a working browser behind it", () => {
+  // A directory named `chromium` under the browsers path is the realistic case:
+  // existsSync() is true for it, which previously short-circuited the search.
+  const result = resolveChromiumExecutable({
+    expectedPath: PINNED,
+    env: { PLAYWRIGHT_BROWSERS_PATH: ROOT },
+    stat: fakeStat({ files: [OLDER], dirs: [ROOT, `${ROOT}/chromium`] }),
+    readDir: (dir) => (dir === ROOT ? ["chromium-1194"] : [])
+  });
+  assert.equal(result, OLDER, "the directory must be skipped, not returned");
 });
 
 test("an explicit override wins even over a fully installed pinned browser", () => {
   const result = resolveChromiumExecutable({
     expectedPath: PINNED,
     env: { PLAYWRIGHT_CHROMIUM_EXECUTABLE: "/custom/chrome" },
-    exists: () => true,
-    readDir: noDirs
+    stat: completeInstall,
+    readDir: completeDirs
   });
   assert.equal(result, "/custom/chrome");
 });
 
-test("a missing pinned browser falls back to another build on the machine", () => {
-  const available = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-  const result = resolveChromiumExecutable({
-    expectedPath: PINNED,
-    env: { PLAYWRIGHT_BROWSERS_PATH: "/opt/pw-browsers" },
-    exists: (path) => path === available,
-    readDir: () => ["chromium-1194", "chromium_headless_shell-1194", "ffmpeg-1011"]
-  });
-  assert.equal(result, available);
+test("an unrecognised browser layout trusts the headed binary", () => {
+  assert.equal(
+    pinnedInstallLooksComplete("/custom/chrome", { stat: fakeStat({ files: ["/custom/chrome"] }) }),
+    true
+  );
+  assert.equal(pinnedInstallLooksComplete(undefined, { stat: fakeStat() }), false);
 });
 
 test("nothing is returned when no browser exists anywhere", () => {
   // Playwright should raise its own "run playwright install" error rather than
-  // being handed a path that does not work.
+  // being handed a path that cannot launch.
   const result = resolveChromiumExecutable({
     expectedPath: PINNED,
-    env: noEnv,
-    exists: () => false,
-    readDir: noDirs
+    env: {},
+    stat: fakeStat(),
+    readDir: () => []
   });
   assert.equal(result, undefined);
 });
@@ -101,9 +157,9 @@ test("nothing is returned when no browser exists anywhere", () => {
 test("a system Chrome is used when no Playwright build is present", () => {
   const result = resolveChromiumExecutable({
     expectedPath: PINNED,
-    env: noEnv,
-    exists: (path) => path === "/usr/bin/google-chrome",
-    readDir: noDirs
+    env: {},
+    stat: fakeStat({ files: ["/usr/bin/google-chrome"] }),
+    readDir: () => []
   });
   assert.equal(result, "/usr/bin/google-chrome");
 });
@@ -134,7 +190,7 @@ test("the headless shell is never offered as a browser", () => {
 });
 
 test("no candidates are invented when the browsers path is unset", () => {
-  const candidates = chromiumCandidates({ env: noEnv, readDir: noDirs });
+  const candidates = chromiumCandidates({ env: {}, readDir: () => [] });
   assert.ok(
     candidates.every((path) => !path.includes("pw-browsers")),
     "must not guess at a Playwright browsers directory"
@@ -143,14 +199,13 @@ test("no candidates are invented when the browsers path is unset", () => {
 });
 
 test("an unreadable browsers directory does not throw", () => {
+  const boom = () => {
+    throw new Error("EACCES");
+  };
   assert.doesNotThrow(() =>
-    chromiumCandidates({
-      env: { PLAYWRIGHT_BROWSERS_PATH: "/does/not/exist" },
-      readDir: () => {
-        throw new Error("ENOENT");
-      }
-    })
+    chromiumCandidates({ env: { PLAYWRIGHT_BROWSERS_PATH: "/nope" }, readDir: boom })
   );
+  assert.doesNotThrow(() => headlessShellExecutable("/nope", { readDir: boom, stat: fakeStat() }));
 });
 
 test("the config applies the fallback to the chromium project", () => {
