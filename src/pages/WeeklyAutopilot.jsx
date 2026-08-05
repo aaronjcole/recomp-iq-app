@@ -61,13 +61,27 @@ export default function WeeklyAutopilot() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
   const allowed = canAccess(PREMIUM_FEATURES.WEEKLY_AUTOPILOT);
   const weekEnd = useMemo(todayString, []);
-  const [review, setReview] = useState(null);
+  const [review, setReview] = useState(() => {
+    try {
+      const stored = localStorage.getItem("recompiq_autopilot_v1");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && Array.isArray(parsed.scorecard) && parsed.primaryAction) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return null;
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
 
   const generate = async () => {
     setIsGenerating(true);
     setError("");
+    setReview(null);
     try {
       const result = await base44.functions.invoke("generateWeeklyAutopilot", { weekEnd });
       const nextReview = result?.data ?? result;
@@ -75,6 +89,7 @@ export default function WeeklyAutopilot() {
         throw new Error("Weekly Autopilot returned an incomplete review.");
       }
       setReview(nextReview);
+      try { localStorage.setItem("recompiq_autopilot_v1", JSON.stringify(nextReview)); } catch {}
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -157,7 +172,10 @@ export default function WeeklyAutopilot() {
           </Card>
 
           <section className="space-y-3" aria-labelledby="weekly-scorecard">
-            <h2 id="weekly-scorecard" className="font-semibold">Weekly scorecard</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="weekly-scorecard" className="font-semibold">Weekly scorecard</h2>
+              <span className="text-xs text-muted-foreground">Saved locally</span>
+            </div>
             {review.scorecard.map((signal) => {
               const Icon = SIGNAL_ICONS[signal.key] ?? CheckCircle2;
               return (
