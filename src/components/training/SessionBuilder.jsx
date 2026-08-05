@@ -235,7 +235,7 @@ export default function SessionBuilder({ prefill = null }) {
                     </button>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    <NumField compact label="Weight" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
+                    <NumField compact label="Weight (lb)" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
                     <NumField compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} min={1} max={1000} />
                     <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
                     <div className="space-y-1">
@@ -251,7 +251,7 @@ export default function SessionBuilder({ prefill = null }) {
           </div>
         )}
 
-        <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90 disabled:bg-panel2 disabled:text-muted-foreground disabled:opacity-100" onClick={save} disabled={!canSave || saving}>
+        <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90 disabled:bg-panel2 disabled:text-muted-foreground disabled:cursor-not-allowed" onClick={save} disabled={!canSave || saving}>
           {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
           {saving ? "Saving…" : "Save session"}
         </Button>
