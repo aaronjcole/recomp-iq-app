@@ -2,7 +2,8 @@ export const PREMIUM_FEATURES = Object.freeze({
   MEAL_PLANNING: "meal_planning",
   TRAINING_PLANNING: "training_planning",
   WEEKLY_AUTOPILOT: "weekly_autopilot",
-  VISUAL_PROGRESS: "visual_progress"
+  VISUAL_PROGRESS: "visual_progress",
+  AI_LIFESTYLE_COACH: "ai_lifestyle_coach"
 });
 
 export const PREMIUM_PRODUCTS = Object.freeze({
@@ -10,16 +11,24 @@ export const PREMIUM_PRODUCTS = Object.freeze({
   MEAL_PLANNING: "adaptive_meal_plans",
   TRAINING_PLANNING: "adaptive_training_blocks",
   WEEKLY_AUTOPILOT: "weekly_autopilot",
-  VISUAL_PROGRESS: "visual_progress_checks"
+  VISUAL_PROGRESS: "visual_progress_checks",
+  AI_LIFESTYLE_COACH: "ai_lifestyle_coach_premium"
 });
 
+const BUNDLE_FEATURES = Object.freeze([
+  "meal_planning",
+  "training_planning",
+  "weekly_autopilot",
+  "visual_progress"
+]);
 const ALL_FEATURES = Object.freeze(Object.values(PREMIUM_FEATURES));
 const PRODUCT_FEATURES = Object.freeze({
-  [PREMIUM_PRODUCTS.BUNDLE]: ALL_FEATURES,
+  [PREMIUM_PRODUCTS.BUNDLE]: BUNDLE_FEATURES,
   [PREMIUM_PRODUCTS.MEAL_PLANNING]: Object.freeze([PREMIUM_FEATURES.MEAL_PLANNING]),
   [PREMIUM_PRODUCTS.TRAINING_PLANNING]: Object.freeze([PREMIUM_FEATURES.TRAINING_PLANNING]),
   [PREMIUM_PRODUCTS.WEEKLY_AUTOPILOT]: Object.freeze([PREMIUM_FEATURES.WEEKLY_AUTOPILOT]),
-  [PREMIUM_PRODUCTS.VISUAL_PROGRESS]: Object.freeze([PREMIUM_FEATURES.VISUAL_PROGRESS])
+  [PREMIUM_PRODUCTS.VISUAL_PROGRESS]: Object.freeze([PREMIUM_FEATURES.VISUAL_PROGRESS]),
+  [PREMIUM_PRODUCTS.AI_LIFESTYLE_COACH]: ALL_FEATURES
 });
 
 const lockedFeatures = Object.freeze(
