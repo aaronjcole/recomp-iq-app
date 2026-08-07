@@ -45,7 +45,7 @@ export default function Plan() {
               key={w}
               size="sm"
               variant={weeks === w ? "default" : "outline"}
-              className={weeks === w ? "bg-teal text-buttonText hover:opacity-90 h-8 px-3" : "border-line h-8 px-3"}
+              className={weeks === w ? "bg-teal text-buttonText hover:opacity-90 min-h-11 px-3" : "border-line min-h-11 px-3"}
               onClick={() => setWeeks(w)}
             >
               {w}w

@@ -52,9 +52,9 @@ export default function MacroDonut({ protein = 0, carbs = 0, fat = 0 }) {
         {segs.map((m) => (
           <div key={m.label} className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: m.color }} />
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground flex-1">{m.label}</span>
+            <span className="font-mono text-label uppercase tracking-wider text-muted-foreground flex-1">{m.label}</span>
             <span className="font-mono text-xs tabular-nums">{Math.round(m.grams)}g</span>
-            <span className="font-mono text-[10px] tabular-nums text-muted-foreground w-9 text-right">
+            <span className="font-mono text-label tabular-nums text-muted-foreground w-9 text-right">
               {total > 0 ? Math.round((m.cals / total) * 100) : 0}%
             </span>
           </div>

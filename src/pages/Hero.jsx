@@ -3,8 +3,20 @@ import { useAuth } from "@/lib/AuthContext";
 import AppSplash from "@/components/AppSplash";
 import BrandMark from "@/components/BrandMark";
 import DeviceMockup from "@/components/hero/DeviceMockup";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import {
-  Brain, Activity, LineChart, RefreshCw, ShieldCheck, ArrowRight, UserPlus, LogIn
+  Brain,
+  Activity,
+  LineChart,
+  RefreshCw,
+  ShieldCheck,
+  ArrowRight,
+  UserPlus,
+  LogIn,
+  CalendarDays,
+  Dumbbell,
+  Sparkles,
+  ScanLine
 } from "lucide-react";
 
 const FEATURES = [
@@ -12,6 +24,29 @@ const FEATURES = [
   { icon: Activity, title: "Recomp signal", body: "A confidence-scored read on whether you're building muscle, losing fat, or stalling — with plain-English countermove guidance." },
   { icon: LineChart, title: "Progress you can see", body: "Weight trend, strength 1RM sparklines, waist tracking, and progress photos on one instrument-panel dashboard." },
   { icon: RefreshCw, title: "Your data, wherever you train", body: "When you're online, signed-in data stays available across your devices." }
+];
+
+const PREMIUM_FEATURES = [
+  {
+    icon: CalendarDays,
+    title: "Adaptive meal planning",
+    body: "Builds seven target-scaled days and one consolidated grocery list from your goals, preferences, and last week's adherence."
+  },
+  {
+    icon: Dumbbell,
+    title: "Adaptive training blocks",
+    body: "Builds a 4–6 week block around recent sessions, schedule, equipment, and recovery—without inventing loads."
+  },
+  {
+    icon: Sparkles,
+    title: "Weekly Autopilot",
+    body: "Connects nutrition, training, weight, habits, and recovery into one confidence-aware next move."
+  },
+  {
+    icon: ScanLine,
+    title: "Visual progress tools",
+    body: "Compare photos privately on your device, with an optional AI-assisted body-composition range for eligible testers."
+  }
 ];
 
 export default function Hero({ preview }) {
@@ -24,7 +59,7 @@ export default function Hero({ preview }) {
     <div className="min-h-screen bg-bg text-foreground">
       <header className="sticky top-0 z-40 backdrop-blur bg-bg/80 border-b border-lineSoft">
         <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/coming-soon" className="flex items-center gap-2">
             <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold text-lg">RecompOne</span>
           </Link>
@@ -81,12 +116,61 @@ export default function Hero({ preview }) {
         </div>
         </section>
 
+        <section className="max-w-5xl mx-auto px-5 pb-16" aria-labelledby="premium-heading">
+          <div className="overflow-hidden rounded-3xl border border-teal/20 bg-panel shadow-sm">
+            <div className="border-b border-lineSoft bg-gradient-to-br from-teal/10 via-panel to-panel p-6 sm:p-9">
+              <PremiumBadge label="Premium beta" />
+              <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.7fr)] md:items-end">
+                <div>
+                  <h2 id="premium-heading" className="text-2xl sm:text-3xl font-bold tracking-tight">
+                    Premium plans that adapt with you.
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
+                    Turn the same signals you already track into a practical week of food, a progressive training block, and one clear adjustment at a time.
+                  </p>
+                </div>
+                <p className="rounded-2xl border border-lineSoft bg-bg/60 px-4 py-3 text-sm text-muted-foreground md:text-right">
+                  Premium features are available to approved testers during beta.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-px bg-lineSoft sm:grid-cols-2">
+              {PREMIUM_FEATURES.map((feature) => (
+                <article key={feature.title} className="bg-panel p-6 sm:p-7">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal/10">
+                      <feature.icon className="h-5 w-5 text-teal" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{feature.title}</h3>
+                      <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{feature.body}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-lineSoft p-6 sm:flex-row sm:items-center sm:justify-between sm:px-9">
+              <p className="text-xs text-muted-foreground">
+                AI-assisted estimates are educational, optional, and never medical measurements.
+              </p>
+              <Link
+                to="/register"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-buttonText hover:opacity-90"
+              >
+                Join the beta <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <section className="max-w-5xl mx-auto px-5 pb-16">
         <div className="rounded-3xl bg-teal text-buttonText p-8 sm:p-12 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold">Your recomposition, instrumented.</h2>
           <p className="mt-2 opacity-90 max-w-xl mx-auto">Create an account and let the adaptive engine build your first week.</p>
           <div className="mt-6 flex justify-center">
-            <Link to="/register" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-buttonText text-[#07211b] px-5 py-3 text-sm font-semibold hover:opacity-90">
+            <Link to="/register" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-bg px-5 py-3 text-sm font-semibold text-foreground hover:opacity-90">
               <UserPlus className="w-4 h-4" /> Get started
             </Link>
           </div>

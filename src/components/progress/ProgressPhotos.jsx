@@ -117,7 +117,7 @@ export default function ProgressPhotos() {
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="font-medium">Progress photos</div>
+          <h2 className="font-medium">Progress photos</h2>
           <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">On-device</span>
         </div>
         <p className="text-xs text-muted-foreground">Stored only on this device — never uploaded.</p>

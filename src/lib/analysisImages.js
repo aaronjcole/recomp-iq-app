@@ -20,11 +20,16 @@ export function validateAnalysisImage(file) {
   }
 }
 
-export async function createPrivateAnalysisUrl(core, file) {
+export async function uploadPrivateAnalysisImage(core, file) {
   validateAnalysisImage(file);
 
   const { file_uri: fileUri } = await core.UploadPrivateFile({ file });
   if (!fileUri) throw new Error("Private image upload did not return a file reference.");
+  return fileUri;
+}
+
+export async function createPrivateAnalysisUrl(core, file) {
+  const fileUri = await uploadPrivateAnalysisImage(core, file);
 
   const { signed_url: signedUrl } = await core.CreateFileSignedUrl({
     file_uri: fileUri,

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
-import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal } from "lucide-react";
+import PremiumBadge from "@/components/premium/PremiumBadge";
+import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight } from "lucide-react";
 // Loaded on demand so the ~110KB @zxing barcode decoder (and the flag-gated AI
 // food-photo scanner) stay out of the Fuel tab's initial chunk and only download
 // when the user actually opens a scanner.
@@ -32,6 +33,7 @@ export default function Nutrition() {
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
   const [searchParams] = useSearchParams();
+  const { state } = useLocation();
   const detailsRef = useRef(null);
   const requestedPanel = searchParams.get("panel");
   const [targetsExpanded, setTargetsExpanded] = useState(
@@ -46,6 +48,12 @@ export default function Nutrition() {
     }, 80);
     return () => window.clearTimeout(timer);
   }, [requestedPanel, strategy]);
+
+  useEffect(() => {
+    if (!state?.scrollTo) return;
+    const el = document.getElementById(state.scrollTo);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [state?.scrollTo]);
 
   const handleScannedFood = async (food, addToToday) => {
     await addFood(food);
@@ -62,7 +70,16 @@ export default function Nutrition() {
     setShowPhotoScan(false);
   };
 
-  if (!strategy) return null;
+  const [showAllFoods, setShowAllFoods] = useState(false);
+
+  if (!strategy) return (
+    <div className="space-y-5">
+      <div className="h-8 w-40 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-36 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-72 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-48 animate-pulse rounded-xl bg-panel2" />
+    </div>
+  );
 
   const consumed = {
     calories: todayLog?.calories ?? 0,
@@ -114,7 +131,7 @@ export default function Nutrition() {
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="font-medium">Quick add food</div>
+            <h2 className="font-medium">Quick add food</h2>
             <div className="flex items-center gap-2">
               {featureFlags.foodPhotoScan && (
                 <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
@@ -145,9 +162,9 @@ export default function Nutrition() {
             <Field label="Fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
             <Field label="Fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
           </div>
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="min-h-11 flex-1" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
-            <Button className="min-h-11 flex-1 bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
+          <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
+            <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
+            <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
               <Plus className="w-4 h-4 mr-1" /> Add to today
             </Button>
           </div>
@@ -156,9 +173,9 @@ export default function Nutrition() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
-          <div className="font-medium">Food library</div>
+          <h2 className="font-medium">Food library</h2>
           {foods.length === 0 && <p className="text-sm text-muted-foreground">No foods saved yet.</p>}
-          {foods.slice(0, 12).map((f) => {
+          {(showAllFoods ? foods : foods.slice(0, 12)).map((f) => {
             const q = scoreNutritionQuality(f);
             return (
               <div key={f.id} className="flex items-center justify-between gap-3 py-2 border-b border-lineSoft last:border-0">
@@ -170,6 +187,16 @@ export default function Nutrition() {
               </div>
             );
           })}
+          {foods.length > 12 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-line min-h-11"
+              onClick={() => setShowAllFoods((v) => !v)}
+            >
+              {showAllFoods ? "Show less" : `Show all ${foods.length} items`}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -221,9 +248,37 @@ export default function Nutrition() {
         </CardContent>
       </Card>
 
-      <MealTemplatesCard />
+      <Card className="border-line bg-panel">
+        <CardContent className="space-y-3 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+              <CalendarDays className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-medium">Adaptive weekly meal plan</h2>
+                <PremiumBadge />
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Turn your targets and last check-in into seven days of meals and one grocery list.
+              </p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="w-full border-line">
+            <Link to="/nutrition/meal-plan">
+              Open meal planner <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
-      <GroceryListCard />
+      <div id="meal-templates-section">
+        <MealTemplatesCard />
+      </div>
+
+      <div id="grocery-list-section">
+        <GroceryListCard />
+      </div>
       <AddRecipeCard />
 
       {showScanner && (

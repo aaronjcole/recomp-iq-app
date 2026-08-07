@@ -1,7 +1,36 @@
-import { defineConfig, devices } from "@playwright/test";
+import { chromium, defineConfig, devices } from "@playwright/test";
+import { resolveChromiumExecutable } from "./scripts/resolve-chromium.mjs";
 
 const deployedBaseURL = process.env.E2E_BASE_URL?.replace(/\/$/, "");
 const localBaseURL = "http://127.0.0.1:4173";
+
+// CI installs the pinned browser, so this returns {} there. It only supplies an
+// executablePath when that build is missing and another Chromium is available —
+// which is what makes `npm run test:e2e` runnable in a sandboxed container.
+// Wrapped end to end: a resolver problem must never be the reason a suite fails.
+function chromiumLaunchOptions() {
+  try {
+    let expectedPath;
+    try {
+      expectedPath = chromium.executablePath();
+    } catch {
+      // No registry entry for this build; treat it as missing.
+    }
+
+    const executablePath = resolveChromiumExecutable({ expectedPath });
+    if (!executablePath) return {};
+
+    console.warn(
+      `[playwright] pinned browser unavailable (expected ${expectedPath ?? "unknown"}, ` +
+        `plus its headless shell); falling back to ${executablePath}. ` +
+        `Set PLAYWRIGHT_CHROMIUM_EXECUTABLE to override.`
+    );
+    return { executablePath };
+  } catch (error) {
+    console.warn(`[playwright] browser fallback skipped: ${error.message}`);
+    return {};
+  }
+}
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -21,7 +50,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], launchOptions: chromiumLaunchOptions() },
     },
   ],
   webServer: deployedBaseURL

@@ -1,0 +1,61 @@
+{
+  "name": "TrainingBlock",
+  "type": "object",
+  "description": "Persisted adaptive training block. Stores the full generated plan and tracks session completions so the Training tab can show live progress.",
+  "properties": {
+    "week_start": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO date of the Monday the block was generated from."
+    },
+    "equipment": {
+      "type": "string",
+      "enum": ["bodyweight_home", "dumbbells", "full_gym"]
+    },
+    "block_length_weeks": {
+      "type": "number",
+      "minimum": 4,
+      "maximum": 6
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "completed", "archived"],
+      "description": "Only one active block should exist per user at a time."
+    },
+    "plan_json": {
+      "type": "string",
+      "description": "Full plan object from generateAdaptiveTrainingBlock, serialized as JSON."
+    },
+    "completed_sessions": {
+      "type": "string",
+      "description": "JSON array of { day_index, session_id, completed_date } records, one per logged session tied to this block."
+    }
+  },
+  "required": ["week_start", "equipment", "block_length_weeks", "status", "plan_json"],
+  "rls": {
+    "create": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    },
+    "read": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    },
+    "update": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    },
+    "delete": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    }
+  }
+}

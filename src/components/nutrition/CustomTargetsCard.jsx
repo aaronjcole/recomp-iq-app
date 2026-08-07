@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { calculateBMR } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,8 @@ const FIELDS = [
 ];
 
 export default function CustomTargetsCard({ embedded = false }) {
-  const { strategy, profile, updateStrategy } = useRecomp();
+  const { strategy, profile } = useRecompRef();
+  const { updateStrategy } = useRecompActions();
   const { toast } = useToast();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -48,7 +49,9 @@ export default function CustomTargetsCard({ embedded = false }) {
   });
   const validTargets = FIELDS.every(({ key, max }) => {
     const value = num(form[key]);
-    return Number.isFinite(value) && value >= 0 && value <= max;
+    if (!Number.isFinite(value) || value > max) return false;
+    if (key === "calorie_target") return value > 0;
+    return value >= 0;
   });
 
   let bmr = null;
@@ -102,7 +105,7 @@ export default function CustomTargetsCard({ embedded = false }) {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Custom targets</div>
+          <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Custom targets</div>
           <div className="text-sm font-medium">Use my own targets</div>
         </div>
         <Switch checked={!!strategy.manual_override} onCheckedChange={toggleOverride} aria-label="Toggle custom targets" />
@@ -112,7 +115,7 @@ export default function CustomTargetsCard({ embedded = false }) {
         <div className="grid grid-cols-2 gap-3">
           {FIELDS.map((f) => (
             <div key={f.key} className="space-y-1.5">
-              <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</Label>
+              <Label className="font-mono text-label uppercase tracking-wider text-muted-foreground">{f.label}</Label>
               <Input
                 className="h-11"
                 type="number"
