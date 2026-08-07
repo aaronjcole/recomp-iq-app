@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   BrainCircuit,
-  ChevronRight,
   Crown,
   Loader2,
   RotateCcw,
