@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
   Camera, CheckCircle, Moon, Sun, LogOut, User, Crown,
-  ChevronRight, Loader2, ShieldCheck, FileText, History, LifeBuoy, Trash2
+  ChevronRight, Loader2, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit
 } from "lucide-react";
 import CheckInSheet from "@/components/more/CheckInSheet";
 import { SUPPORT_EMAIL } from "@/lib/support";
@@ -113,6 +113,7 @@ export default function More() {
       items: [
         { icon: Crown, label: "Premium features", to: "/more/premium", badge: "Premium" },
         { icon: MessageCircle, label: "AI Coach", to: "/more/coach" },
+        { icon: BrainCircuit, label: "AI Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Tier 3" },
         {
           icon: RefreshCw,
           label: "Weekly check-in",

@@ -22,19 +22,34 @@ function entitlement(overrides = {}) {
   };
 }
 
-test("the premium bundle grants every feature and identifies tester access", () => {
+test("the premium bundle grants tier-2 features and identifies tester access", () => {
   const paid = resolvePremiumAccess([entitlement()], NOW);
   assert.equal(paid.hasAnyAccess, true);
   assert.equal(paid.hasBundleAccess, true);
   assert.equal(paid.testerAccess, false);
-  assert.deepEqual(
-    Object.fromEntries(Object.values(PREMIUM_FEATURES).map((feature) => [feature, paid.features[feature]])),
-    Object.fromEntries(Object.values(PREMIUM_FEATURES).map((feature) => [feature, true]))
-  );
+  // The bundle covers tier-2 features; ai_lifestyle_coach is a standalone tier-3 product.
+  assert.equal(paid.features[PREMIUM_FEATURES.MEAL_PLANNING], true);
+  assert.equal(paid.features[PREMIUM_FEATURES.TRAINING_PLANNING], true);
+  assert.equal(paid.features[PREMIUM_FEATURES.WEEKLY_AUTOPILOT], true);
+  assert.equal(paid.features[PREMIUM_FEATURES.VISUAL_PROGRESS], true);
+  assert.equal(paid.features[PREMIUM_FEATURES.AI_LIFESTYLE_COACH], false);
 
   const tester = resolvePremiumAccess([entitlement({ source: "tester" })], NOW);
   assert.equal(tester.testerAccess, true);
   assert.deepEqual(tester.sources, ["tester"]);
+});
+
+test("the lifestyle coach product grants all features including bundle features", () => {
+  const coach = resolvePremiumAccess(
+    [entitlement({ product_id: PREMIUM_PRODUCTS.AI_LIFESTYLE_COACH })],
+    NOW
+  );
+  assert.equal(coach.hasAnyAccess, true);
+  assert.equal(coach.features[PREMIUM_FEATURES.AI_LIFESTYLE_COACH], true);
+  assert.equal(coach.features[PREMIUM_FEATURES.MEAL_PLANNING], true);
+  assert.equal(coach.features[PREMIUM_FEATURES.TRAINING_PLANNING], true);
+  assert.equal(coach.features[PREMIUM_FEATURES.WEEKLY_AUTOPILOT], true);
+  assert.equal(coach.features[PREMIUM_FEATURES.VISUAL_PROGRESS], true);
 });
 
 test("individual products unlock only their mapped premium capability", () => {

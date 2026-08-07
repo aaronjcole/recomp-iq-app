@@ -14,8 +14,9 @@ const TESTER_EMAIL_SET = (() => {
   return new Set(raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
 })();
 
-const TESTER_BUNDLE_RECORD = Object.freeze({
-  product_id: PREMIUM_PRODUCTS.BUNDLE,
+// Testers get tier-3 (AI_LIFESTYLE_COACH) which grants all features including the bundle.
+const TESTER_FULL_RECORD = Object.freeze({
+  product_id: PREMIUM_PRODUCTS.AI_LIFESTYLE_COACH,
   source: "tester",
   status: "active",
   expires_at: null
@@ -81,7 +82,7 @@ export default async function(req) {
   if (TESTER_EMAIL_SET.size > 0 && user.email &&
       TESTER_EMAIL_SET.has(String(user.email).trim().toLowerCase())) {
     return json({
-      ...resolvePremiumAccess([TESTER_BUNDLE_RECORD]),
+      ...resolvePremiumAccess([TESTER_FULL_RECORD]),
       releaseFlags: { bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED }
     });
   }
@@ -92,6 +93,7 @@ export default async function(req) {
       ...resolvePremiumAccess(records),
       releaseFlags: { bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED }
     });
+
   } catch (error) {
     console.error("getPremiumAccess failed", safeErrorDetails(error));
     return json({ error: "Premium access could not be verified" }, { status: 502 });
