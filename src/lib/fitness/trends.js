@@ -21,6 +21,10 @@ function dateKey(value) {
   return `${year}-${month}-${day}`;
 }
 
+export function normalizeDateKey(value) {
+  return dateKey(value);
+}
+
 function dayNumber(value) {
   const key = dateKey(value);
   if (!key) return null;
@@ -85,12 +89,40 @@ export function average(values) {
   return nums.reduce((sum, value) => sum + value, 0) / nums.length;
 }
 
-export function calculateMovingAverage(points, windowDays) {
-  const sorted = dedupeLogsByDate(points);
-  return sorted.map((point) => {
-    const window = logsInCalendarWindow(sorted, point.date, windowDays);
-    const value = average(window.map((item) => item.value));
-    return { date: point.date, value: value === null ? null : Number(value.toFixed(2)) };
+export function calculateMovingAverage(points, windowDays, options = {}) {
+  const sorted = options.deduped && Array.isArray(points)
+    ? points
+    : dedupeLogsByDate(points);
+  if (!Number.isFinite(windowDays) || windowDays <= 0) {
+    return sorted.map((point) => ({ date: point.date, value: null }));
+  }
+
+  let windowStart = 0;
+  let windowSum = 0;
+  let windowCount = 0;
+
+  return sorted.map((point, index) => {
+    const value = point.value;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      windowSum += value;
+      windowCount += 1;
+    }
+
+    const currentDay = dayNumber(point.date);
+    const firstIncludedDay = currentDay - windowDays + 1;
+    while (windowStart <= index && dayNumber(sorted[windowStart].date) < firstIncludedDay) {
+      const expiredValue = sorted[windowStart].value;
+      if (typeof expiredValue === "number" && Number.isFinite(expiredValue)) {
+        windowSum -= expiredValue;
+        windowCount -= 1;
+      }
+      windowStart += 1;
+    }
+
+    return {
+      date: point.date,
+      value: windowCount === 0 ? null : Number((windowSum / windowCount).toFixed(2))
+    };
   });
 }
 
@@ -157,7 +189,7 @@ export function analyzeTrends(logs, strategy, options = {}) {
       weightChange === null ? "insufficient_data" : weightChange < -0.3 ? "losing" : weightChange > 0.3 ? "gaining" : "flat",
     waist_label: waistChange === null ? "unavailable" : waistChange < -0.2 ? "down" : waistChange > 0.2 ? "up" : "flat",
     recovery_label:
-      sleep === null && energy === null
+      sleep === null && energy === null && soreness === null
         ? "unknown"
         : (sleep ?? 8) >= 7 && (energy ?? 3) >= 3 && (soreness ?? 3) <= 3
           ? "good"

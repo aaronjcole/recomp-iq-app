@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { NavLink, useLocation, useOutlet } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { getTabRootPath, isTabRootPath, ROOT_TAB_PATHS } from "@/lib/tabNavigation";
@@ -55,19 +55,21 @@ export default function AppLayout() {
             {cache.current[p]}
           </div>
         ))}
-        <AnimatePresence mode="wait">
-          {!isTabRoot && (
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              {outlet}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <MotionConfig reducedMotion="user">
+          <AnimatePresence mode="wait">
+            {!isTabRoot && (
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                {outlet}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </MotionConfig>
       </main>
       {isTabRoute && (
         <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">

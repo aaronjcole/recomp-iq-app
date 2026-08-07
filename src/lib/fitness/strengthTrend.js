@@ -1,7 +1,7 @@
 // Pure strength-trend analysis for the Recomp Signal hero. Follows the engine
 // conventions: pure functions, imported from ./trends helpers, exported via index.js.
 
-import { sortLogs } from "./trends";
+import { sortLogs } from "./trends.js";
 
 const WINDOW_DAYS = 28;
 const MIN_SPAN_DAYS = 10;

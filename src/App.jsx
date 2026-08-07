@@ -1,47 +1,60 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { PremiumAccessProvider } from '@/lib/PremiumAccessContext';
 import ScrollToTop from './components/ScrollToTop';
 import AndroidBackHandler from '@/components/AndroidBackHandler';
 import { Navigate } from 'react-router-dom';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppSplash from '@/components/AppSplash';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import RouteErrorBoundary from '@/components/RouteErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 import RouteAccessibility from '@/components/RouteAccessibility';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
-const PageNotFound = lazy(() => import('./lib/PageNotFound'));
-const AppLayout = lazy(() => import('@/components/AppLayout'));
-const Login = lazy(() => import('@/pages/Login'));
-const Register = lazy(() => import('@/pages/Register'));
-const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
-const Onboarding = lazy(() => import('@/pages/Onboarding'));
-const Today = lazy(() => import('@/pages/Today'));
-const Nutrition = lazy(() => import('@/pages/Nutrition'));
-const Training = lazy(() => import('@/pages/Training'));
-const Progress = lazy(() => import('@/pages/Progress'));
-const More = lazy(() => import('@/pages/More'));
-const Plan = lazy(() => import('@/pages/Plan'));
-const DecisionHistory = lazy(() => import('@/pages/DecisionHistory'));
-const Coach = lazy(() => import('@/pages/Coach'));
-const Profile = lazy(() => import('@/pages/Profile'));
-const Hero = lazy(() => import('@/pages/Hero'));
-const ComingSoon = lazy(() => import('@/pages/ComingSoon'));
-const PublicHome = lazy(() => import('@/components/PublicHome'));
-const Privacy = lazy(() => import('@/pages/Privacy'));
-const Terms = lazy(() => import('@/pages/Terms'));
-const Support = lazy(() => import('@/pages/Support'));
-const DeleteAccount = lazy(() => import('@/pages/DeleteAccount'));
-const RecompGate = lazy(() =>
+const PageNotFound = lazyWithRetry(() => import('./lib/PageNotFound'));
+const AppLayout = lazyWithRetry(() => import('@/components/AppLayout'));
+const Login = lazyWithRetry(() => import('@/pages/Login'));
+const Register = lazyWithRetry(() => import('@/pages/Register'));
+const ForgotPassword = lazyWithRetry(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazyWithRetry(() => import('@/pages/ResetPassword'));
+const Onboarding = lazyWithRetry(() => import('@/pages/Onboarding'));
+const Today = lazyWithRetry(() => import('@/pages/Today'));
+const WeeklyAutopilot = lazyWithRetry(() => import('@/pages/WeeklyAutopilot'));
+const Nutrition = lazyWithRetry(() => import('@/pages/Nutrition'));
+const AdaptiveMealPlan = lazyWithRetry(() => import('@/pages/AdaptiveMealPlan'));
+const Training = lazyWithRetry(() => import('@/pages/Training'));
+const AdaptiveTrainingBlock = lazyWithRetry(() => import('@/pages/AdaptiveTrainingBlock'));
+const Progress = lazyWithRetry(() => import('@/pages/Progress'));
+const VisualProgressCheck = lazyWithRetry(() => import('@/pages/VisualProgressCheck'));
+const More = lazyWithRetry(() => import('@/pages/More'));
+const Plan = lazyWithRetry(() => import('@/pages/Plan'));
+const DecisionHistory = lazyWithRetry(() => import('@/pages/DecisionHistory'));
+const Coach = lazyWithRetry(() => import('@/pages/Coach'));
+const LifestyleCoach = lazyWithRetry(() => import('@/pages/LifestyleCoach'));
+const Profile = lazyWithRetry(() => import('@/pages/Profile'));
+const Premium = lazyWithRetry(() => import('@/pages/Premium'));
+const Hero = lazyWithRetry(() => import('@/pages/Hero'));
+const PublicHome = lazyWithRetry(() => import('@/components/PublicHome'));
+const Privacy = lazyWithRetry(() => import('@/pages/Privacy'));
+const Terms = lazyWithRetry(() => import('@/pages/Terms'));
+const Support = lazyWithRetry(() => import('@/pages/Support'));
+const DeleteAccount = lazyWithRetry(() => import('@/pages/DeleteAccount'));
+const RecompGate = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
 );
-const RequireOnboarding = lazy(() =>
+const RequireOnboarding = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RequireOnboarding }))
 );
+
+function RootRedirect() {
+  const { isAuthenticated } = useAuth();
+  return <Navigate to={isAuthenticated ? "/today" : "/coming-soon"} replace />;
+}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
@@ -55,9 +68,9 @@ const AuthenticatedApp = () => {
   // authentication is required. ProtectedRoute owns auth errors for app data.
   return (
     <Routes>
-      <Route path="/" element={<PublicHome />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/hero" element={<Hero />} />
-      <Route path="/coming-soon" element={<ComingSoon />} />
+      <Route path="/coming-soon" element={<PublicHome />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />
@@ -72,14 +85,20 @@ const AuthenticatedApp = () => {
           <Route element={<RequireOnboarding />}>
             <Route element={<AppLayout />}>
               <Route path="/today" element={<Today />} />
+              <Route path="/today/autopilot" element={<WeeklyAutopilot />} />
               <Route path="/nutrition" element={<Nutrition />} />
+              <Route path="/nutrition/meal-plan" element={<AdaptiveMealPlan />} />
               <Route path="/training" element={<Training />} />
+              <Route path="/training/plan" element={<AdaptiveTrainingBlock />} />
               <Route path="/progress" element={<Progress />} />
+              <Route path="/progress/visual-check" element={<VisualProgressCheck />} />
               <Route path="/more" element={<More />} />
               <Route path="/more/plan" element={<Plan />} />
               <Route path="/more/decisions" element={<DecisionHistory />} />
               <Route path="/more/coach" element={<Coach />} />
+              <Route path="/more/coach/lifestyle" element={<LifestyleCoach />} />
               <Route path="/more/profile" element={<Profile />} />
+              <Route path="/more/premium" element={<Premium />} />
               {/* Preserve established deep links while using tab-owned routes internally. */}
               <Route path="/plan" element={<Navigate to="/more/plan" replace />} />
               <Route path="/decisions" element={<Navigate to="/more/decisions" replace />} />
@@ -100,20 +119,24 @@ function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
-        <ErrorBoundary>
-          <Router>
-            <RouteAccessibility />
-            <ScrollToTop />
-            <AndroidBackHandler />
-            <OfflineBanner />
-            <div id="app-content" tabIndex={-1}>
-              <Suspense fallback={<AppSplash />}>
-                <AuthenticatedApp />
-              </Suspense>
-            </div>
-          </Router>
-        </ErrorBoundary>
-        <Toaster />
+        <PremiumAccessProvider>
+          <ErrorBoundary>
+            <Router>
+              <RouteAccessibility />
+              <ScrollToTop />
+              <AndroidBackHandler />
+              <OfflineBanner />
+              <div id="app-content" tabIndex={-1}>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<AppSplash />}>
+                    <AuthenticatedApp />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </div>
+            </Router>
+          </ErrorBoundary>
+          <Toaster />
+        </PremiumAccessProvider>
       </QueryClientProvider>
     </AuthProvider>
   )

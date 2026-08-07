@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompHabits, useRecompActions } from "@/lib/RecompContext";
 import {
   Dialog,
   DialogContent,
@@ -10,20 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Plus, Trash2 } from "lucide-react";
 import { ICON_KEYS, iconFor } from "@/lib/habitIcons";
 
 const blank = { id: null, name: "", kind: "check", target_value: "", unit: "", icon: "" };
 
 export default function HabitEditor({ open, onOpenChange }) {
-  const { habits, addHabit, updateHabit, archiveHabit } = useRecomp();
+  const { habits } = useRecompHabits();
+  const { addHabit, updateHabit, archiveHabit } = useRecompActions();
   const [form, setForm] = useState(blank);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -66,15 +61,16 @@ export default function HabitEditor({ open, onOpenChange }) {
 
           <div className="space-y-1.5">
             <Label>Kind</Label>
-            <Select value={form.kind} onValueChange={(v) => set("kind", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="check">Check</SelectItem>
-                <SelectItem value="count">Count</SelectItem>
-              </SelectContent>
-            </Select>
+            <AdaptiveSelect
+              value={form.kind}
+              onValueChange={(v) => set("kind", v)}
+              options={[
+                { value: "check", label: "Check" },
+                { value: "count", label: "Count" }
+              ]}
+              drawerTitle="Habit kind"
+              drawerDescription="Choose how this habit is tracked."
+            />
           </div>
 
           {form.kind === "count" && (
@@ -122,7 +118,7 @@ export default function HabitEditor({ open, onOpenChange }) {
 
         {habits.length > 0 && (
           <div className="pt-3 border-t border-lineSoft space-y-1">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground pt-2">Your habits</div>
+            <div className="font-mono text-label uppercase tracking-wider text-muted-foreground pt-2">Your habits</div>
             {habits.map((h) => (
               <div key={h.id} className="flex items-center gap-2 py-1.5">
                 <span className="flex-1 text-sm truncate">{h.name}{h.archived ? " (archived)" : ""}</span>

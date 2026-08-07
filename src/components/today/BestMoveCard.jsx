@@ -33,11 +33,11 @@ export default function BestMoveCard({ move, onLog, compact = false }) {
 
   const header = (
     <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-teal">
+      <div className="flex items-center gap-2 font-mono text-label uppercase tracking-wider text-teal">
         <Target className="h-4 w-4" aria-hidden="true" />
         Today&apos;s best move
       </div>
-      <span className={`shrink-0 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-wide ${CONFIDENCE_CLASS[move.confidence.label]}`}>
+      <span className={`shrink-0 rounded-full border px-2 py-1 font-mono text-label uppercase tracking-wide ${CONFIDENCE_CLASS[move.confidence.label]}`}>
         {move.confidence.label}
       </span>
     </div>
@@ -60,7 +60,7 @@ export default function BestMoveCard({ move, onLog, compact = false }) {
         </div>
 
         <div className="space-y-2 border-t border-lineSoft pt-4">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Why not the alternatives</div>
+          <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Why not the alternatives</div>
           {move.alternatives.map((alternative) => (
             <div key={alternative.label} className="flex items-start gap-2 text-sm">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal" aria-hidden="true" />

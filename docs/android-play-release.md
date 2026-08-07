@@ -17,6 +17,11 @@ association and owns the wrapper's upload-key workflow.
 - Support: `https://recomp-iq.base44.app/support`
 - Account deletion: `https://recomp-iq.base44.app/delete-account`
 
+`npm run verify:android:live` also checks that the production origin blocks
+third-party framing with a restrictive `Content-Security-Policy: frame-ancestors`
+directive or `X-Frame-Options: DENY|SAMEORIGIN`. Base44 currently provides the
+legacy header; request the CSP directive from Base44 as defense in depth.
+
 The production origin intentionally retains its legacy Base44 slug. A display-name rebrand must not
 create a second Android package or break the existing origin association.
 

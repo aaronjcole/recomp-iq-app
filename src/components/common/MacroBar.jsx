@@ -13,7 +13,7 @@ export default function MacroBar({ label, value, target, unit = "", colorClass =
         </span>
       </div>
       <div className="h-2 rounded-full bg-panel2 overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all duration-500", colorClass)} style={{ width: pct + "%" }} />
+        <div className={cn("h-full rounded-full transition-all duration-500", colorClass)} style={{ width: pct + "%" }} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} />
       </div>
     </div>
   );
