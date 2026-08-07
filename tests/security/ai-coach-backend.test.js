@@ -241,7 +241,10 @@ test("coach and report functions are authenticated and narrowly owner-scoped", (
     assert.match(source, /user = await base44\.auth\.me\(\)/);
     assert.match(source, /Cache-Control", "no-store"/);
   }
-  assert.doesNotMatch(coach, /asServiceRole/);
+  assert.deepEqual(
+    coach.match(/asServiceRole\.entities\.[A-Za-z]+/g),
+    ["asServiceRole.entities.CoachRequestUsage"]
+  );
   assert.match(coach, /\{ created_by_id: userId \}/);
   assert.match(coach, /hasActiveSafetyFlags\(preferences\)/);
   assert.ok((coach.match(/actionable: false/g) ?? []).length >= 2);

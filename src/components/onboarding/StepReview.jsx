@@ -4,6 +4,7 @@ import { Sparkles, Pencil } from "lucide-react";
 import { GOAL_LABELS, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
 import { StepHeader } from "./Fields";
 import { SAFETY_FLAGS, toneLabel } from "./constants";
+import { splitFeetInches, storedInchesToCm } from "@/lib/heightConversion";
 
 const lbsToKg = (lbs) => lbs * 0.45359237;
 const inToCm = (inches) => inches * 2.54;
@@ -13,7 +14,7 @@ function ReviewSection({ step, title, rows, onEdit }) {
     <Card className="bg-panel border-line">
       <CardContent className="p-4 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="font-mono text-label uppercase tracking-wider text-muted-foreground">
             {title}
           </span>
           <Button
@@ -38,12 +39,11 @@ function ReviewSection({ step, title, rows, onEdit }) {
 
 export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
   const metric = units === "metric";
-  const ft = Math.floor(Number(p.height_in) / 12);
-  const inch = Math.round(Number(p.height_in) % 12);
+  const { ft, inch } = splitFeetInches(p.height_in);
   const w = (lbs) =>
     lbs ? (metric ? `${+(lbsToKg(Number(lbs))).toFixed(1)} kg` : `${lbs} lb`) : "—";
   const heightStr = metric
-    ? `${Math.round(inToCm(Number(p.height_in)))} cm`
+    ? `${storedInchesToCm(p.height_in)} cm`
     : `${ft}'${inch}"`;
   const sexLabel = p.sex.charAt(0).toUpperCase() + p.sex.slice(1);
   const safetyLabel = (id) => SAFETY_FLAGS.find((f) => f.id === id)?.label ?? id;

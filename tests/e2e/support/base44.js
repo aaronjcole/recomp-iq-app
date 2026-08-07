@@ -1,5 +1,14 @@
 import { expect } from "@playwright/test";
-import { AUTH_USER, ENTITY_FIXTURES, PUBLIC_SETTINGS } from "./fixtures.js";
+import {
+  AUTH_USER,
+  ADAPTIVE_MEAL_PLAN,
+  ADAPTIVE_TRAINING_BLOCK,
+  BODY_COMPOSITION_RESULT,
+  ENTITY_FIXTURES,
+  PREMIUM_TESTER_ACCESS,
+  PUBLIC_SETTINGS,
+  WEEKLY_AUTOPILOT_REVIEW
+} from "./fixtures.js";
 
 /**
  * Fulfil the single Base44 request made before public routes render. This keeps
@@ -62,11 +71,17 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]> }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
   const entities = options.entities ?? ENTITY_FIXTURES;
+  const premiumAccess = options.premiumAccess ?? PREMIUM_TESTER_ACCESS;
+  const mealPlan = options.mealPlan ?? ADAPTIVE_MEAL_PLAN;
+  const trainingBlock = options.trainingBlock ?? ADAPTIVE_TRAINING_BLOCK;
+  const autopilotReview = options.autopilotReview ?? WEEKLY_AUTOPILOT_REVIEW;
+  const bodyCompositionResult = options.bodyCompositionResult ?? BODY_COMPOSITION_RESULT;
+  let privateUploadCount = 0;
 
   await page.addInitScript(() => {
     try {
@@ -92,6 +107,22 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (url.includes("/analytics/")) return route.fulfill({ status: 204, body: "" });
     if (/\/entities\/User\/me\b/.test(url)) return json(user);
 
+    if (url.includes("/integration-endpoints/Core/UploadPrivateFile")) {
+      if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+      privateUploadCount += 1;
+      // Derive the reference from the uploaded filename rather than from arrival
+      // order. BodyCompositionScan uploads all three poses concurrently through
+      // Promise.all, so a counter handed out refs in whatever order the requests
+      // happened to land, and the caller's pose -> ref assertion flaked under
+      // load. Echoing the filename also makes that assertion meaningful: it now
+      // proves each pose sent the file that was put in its own slot.
+      const uploadedName = /filename="([^"]+)"/.exec(request.postData() ?? "")?.[1];
+      const slug = uploadedName
+        ? uploadedName.replace(/\.[^.]+$/, "")
+        : `upload-${privateUploadCount}`;
+      return json({ file_uri: `private/user-test/${slug}.png` });
+    }
+
     const entityMatch = url.match(/\/entities\/([A-Za-z0-9_]+)/);
     if (entityMatch) {
       const name = entityMatch[1];
@@ -105,7 +136,34 @@ export async function installAuthenticatedBase44(page, options = {}) {
     }
 
     if (url.includes("/functions/")) {
-      return json({ data: { record: { id: "record-e2e", ...readBody(request) } } });
+      if (url.includes("/functions/getPremiumAccess")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(premiumAccess);
+      }
+      if (url.includes("/functions/generateAdaptiveMealPlan")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(mealPlan);
+      }
+      if (url.includes("/functions/generateAdaptiveTrainingBlock")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(trainingBlock);
+      }
+      if (url.includes("/functions/generateWeeklyAutopilot")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(autopilotReview);
+      }
+      if (url.includes("/functions/analyzeBodyComposition")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(bodyCompositionResult);
+      }
+      // Mirror upsertTrackingRecord: the saved record has the request's
+      // `fields` flattened onto it (value/done for a habit, macros for a log),
+      // so an optimistic write reconciles instead of reverting.
+      const body = readBody(request);
+      const record = { id: "record-e2e", habit_id: body.habit_id, date: body.date, ...(body.fields || {}) };
+      // The function's HTTP body is { record }; the SDK's invoke() wraps it as
+      // { data: <body> }, which is why callers read result.data.record.
+      return json({ record });
     }
 
     // Fail loudly: an unmatched /api/apps/** call likely means a route or entity

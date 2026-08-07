@@ -66,6 +66,11 @@ VITE_ENABLE_FOOD_PHOTO_SCAN=false
 feature. It is disabled by default and should only be set to `true` in an environment where private
 file retention, deletion, and AI-processing behavior have been accepted.
 
+Hosted Base44 releases use the backend runtime gate instead: add the app Secret
+`ENABLE_BODY_COMPOSITION_SCAN=true`. The authenticated Premium-access function exposes only the
+resulting boolean to the client, and the analysis function independently enforces the same Secret.
+This avoids treating a backend Secret as a Vite build variable while keeping the source default off.
+
 `VITE_ENABLE_FOOD_PHOTO_SCAN` independently gates food-photo analysis. Keep it disabled until the
 same private-upload, deletion, provider-retention, consent, and Play Data Safety review is complete.
 

@@ -112,3 +112,122 @@ export const ENTITY_FIXTURES = {
 };
 
 export const PUBLIC_SETTINGS = { id: "playwright-local", public_settings: {} };
+
+export const PREMIUM_TESTER_ACCESS = {
+  hasAnyAccess: true,
+  hasBundleAccess: true,
+  testerAccess: true,
+  releaseFlags: { bodyCompositionScan: true },
+  features: {
+    meal_planning: true,
+    training_planning: true,
+    weekly_autopilot: true,
+    visual_progress: true,
+  },
+  products: ["recompone_premium"],
+  sources: ["tester"],
+};
+
+export const BODY_COMPOSITION_RESULT = {
+  bodyFatRangeLowPct: 18,
+  bodyFatRangeHighPct: 22,
+  leanMassRangeLowLbs: 141.2,
+  leanMassRangeHighLbs: 148.4,
+  confidence: "moderate",
+  summary: "The three views support a broad visual estimate while lighting and pose still limit precision.",
+  tips: [
+    "Keep protein near the current target.",
+    "Use the weekly weight trend before changing calories."
+  ]
+};
+
+export const ADAPTIVE_MEAL_PLAN = {
+  weekStart: isoDaysAgo(0),
+  dietStyle: "omnivore",
+  dailyTargets: { calories: 2200, proteinG: 170, carbsG: 210, fatG: 70 },
+  adaptation: {
+    mode: "balanced_variety",
+    summary: "Portions use the targets from your latest weekly review while keeping a balanced meal rotation.",
+  },
+  days: Array.from({ length: 7 }, (_, index) => ({
+    date: isoDaysAgo(-index),
+    totals: { calories: 2200, proteinG: 168, carbsG: 214, fatG: 69 },
+    meals: [
+      { id: "oats", slot: "breakfast", title: "Overnight protein oats", servingScale: 1.05, calories: 500, proteinG: 40, carbsG: 60, fatG: 12, ingredients: [] },
+      { id: "chicken-bowl", slot: "lunch", title: "Chicken rice power bowl", servingScale: 1.05, calories: 620, proteinG: 53, carbsG: 65, fatG: 16, ingredients: [] },
+      { id: "salmon-plate", slot: "dinner", title: "Salmon, potatoes, and greens", servingScale: 1.05, calories: 690, proteinG: 49, carbsG: 57, fatG: 28, ingredients: [] },
+      { id: "yogurt", slot: "snack", title: "Yogurt berry crunch", servingScale: 1.05, calories: 390, proteinG: 26, carbsG: 32, fatG: 13, ingredients: [] },
+    ],
+  })),
+  groceryList: [
+    { name: "berries", quantity: 7, unit: "cup" },
+    { name: "chicken breast", quantity: 42, unit: "oz" },
+  ],
+  allergyNotice: "Review every ingredient for allergies, intolerances, medication interactions, and dietary restrictions before using this plan.",
+  nutritionNotice: "Calories and macros are estimates for planning—not medical advice. Confirm portions and labels when logging.",
+};
+
+export const ADAPTIVE_TRAINING_BLOCK = {
+  weekStart: isoDaysAgo(0),
+  blockLengthWeeks: 5,
+  equipment: "full_gym",
+  split: "upper_lower",
+  adaptation: {
+    mode: "progressive_build",
+    consistency: 0.8,
+    averageRpe: 7,
+    summary: "Recent training supports a progressive block with planned rep, load, and volume steps.",
+  },
+  trackedLifts: ["Back Squat", "Barbell Bench Press"],
+  preferredTraining: "strength",
+  progressionRule: "Stay inside the listed rep range. Add reps first; only add the smallest practical load after every set reaches the top of the range with clean form and the target RPE.",
+  safetyNotice: "Stop for sharp pain, dizziness, or unusual symptoms. Exercise selection and progression are educational and are not medical care.",
+  schedule: ["Upper A", "Lower A", "Upper B", "Lower B"].map((title, index) => ({
+    day: index + 1,
+    title,
+    focus: index % 2 === 0 ? "Upper body" : "Lower body",
+    estimatedMinutes: 55,
+    exercises: [
+      { name: index % 2 === 0 ? "Barbell Bench Press" : "Back Squat", movement: index % 2 === 0 ? "horizontal_push" : "squat", sets: 3, reps: "6–10", targetRpe: 7, alternatives: ["Machine press"] },
+      { name: index % 2 === 0 ? "Chest-supported row" : "Romanian deadlift", movement: index % 2 === 0 ? "horizontal_pull" : "hinge", sets: 3, reps: "6–10", targetRpe: 7, alternatives: ["Cable row"] },
+      { name: "Accessory movement", movement: "accessory", sets: 3, reps: "10–15", targetRpe: 7, alternatives: [] },
+      { name: "Core movement", movement: "core", sets: 3, reps: "10–15", targetRpe: 7, alternatives: [] },
+    ],
+  })),
+  weeks: Array.from({ length: 5 }, (_, index) => ({
+    week: index + 1,
+    phase: index === 4 ? "deload" : index === 0 ? "baseline" : "progress_load",
+    targetRpe: index === 4 ? 6 : index === 0 ? 7 : 8,
+    setMultiplier: index === 4 ? 0.67 : 1,
+    instruction: index === 4 ? "Reduce sets by about one-third." : "Progress while form and recovery remain solid.",
+  })),
+};
+
+export const WEEKLY_AUTOPILOT_REVIEW = {
+  weekStart: isoDaysAgo(6),
+  weekEnd: isoDaysAgo(0),
+  confidence: {
+    level: "high",
+    loggedDays: 7,
+    detail: "Six or more daily logs and a usable progress trend support this review.",
+  },
+  primaryAction: {
+    key: "hold_steady",
+    title: "Hold the plan steady",
+    detail: "The strongest move is another consistent week—not a new target.",
+    route: "/today",
+  },
+  scorecard: [
+    { key: "nutrition", label: "Nutrition consistency", status: "on_track", value: "86% target consistency", detail: "Seven intake days reviewed.", score: 0.86 },
+    { key: "training", label: "Training follow-through", status: "on_track", value: "3 of 4 strength days", detail: "Calendar days count once.", score: 0.75 },
+    { key: "recovery", label: "Recovery", status: "on_track", value: "7.4h sleep · 4/5 energy", detail: "Recovery supports the current direction.", score: 1 },
+    { key: "habits", label: "Habit follow-through", status: "on_track", value: "82% completed", detail: "Daily habit opportunities reviewed.", score: 0.82 },
+    { key: "progress", label: "Weight trend", status: "on_track", value: "-0.4 lb observed", detail: "Direction is descriptive, not a stand-alone target change.", score: 1 },
+  ],
+  supportingActions: [],
+  adjustmentsAllowed: true,
+  latestDecision: "keep_plan",
+  mealPlanImpact: "Keep current nutrition targets and carry the same meal structure into next week.",
+  trainingBlockImpact: "Progress the current training direction while keeping the planned deload.",
+  notice: "Weekly Autopilot summarizes logged patterns. It does not diagnose conditions or replace qualified medical, nutrition, or training care.",
+};

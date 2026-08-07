@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef } from "@/lib/RecompContext";
 import { summarizeStrengthProgress } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -98,7 +98,7 @@ function LiftRow({ name, summary, series }) {
 }
 
 export default function StrengthProgressionCard() {
-  const { strengthLogs } = useRecomp();
+  const { strengthLogs } = useRecompRef();
 
   const rows = useMemo(() => {
     if (!strengthLogs || strengthLogs.length === 0) return [];
@@ -113,7 +113,7 @@ export default function StrengthProgressionCard() {
     return (
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-1">
-          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Strength progression</div>
+          <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Strength progression</h2>
           <p className="text-sm text-muted-foreground">Log a few lifts to see your 1RM trend.</p>
         </CardContent>
       </Card>
@@ -123,7 +123,7 @@ export default function StrengthProgressionCard() {
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-1">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1">Strength progression</div>
+        <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1">Strength progression</h2>
         {rows.map((r) => (
           <LiftRow key={r.name} name={r.name} summary={r.summary} series={r.series} />
         ))}

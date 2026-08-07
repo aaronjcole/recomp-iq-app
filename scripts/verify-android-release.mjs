@@ -134,6 +134,32 @@ for (const requirement of [
 }
 
 async function verifyLiveDeployment() {
+  const rootUrl = new URL("/", config.webOrigin);
+  const rootResponse = await fetch(rootUrl, { redirect: "manual" });
+  check(rootResponse.status === 200, `${rootUrl} must return 200 to verify response headers`);
+  const contentSecurityPolicy = rootResponse.headers.get("content-security-policy") || "";
+  const frameAncestors = contentSecurityPolicy.match(
+    /(?:^|;)\s*frame-ancestors\s+([^;]+)/i,
+  )?.[1]?.trim();
+  const xFrameOptions = (rootResponse.headers.get("x-frame-options") || "")
+    .trim()
+    .toUpperCase();
+  const protectedByCsp = Boolean(
+    frameAncestors
+    && !/(?:^|\s)\*(?:\s|$)/.test(frameAncestors)
+    && !/\bhttps?:\s*(?:;|$)/i.test(frameAncestors),
+  );
+  const protectedByLegacyHeader = ["DENY", "SAMEORIGIN"].includes(xFrameOptions);
+  check(
+    protectedByCsp || protectedByLegacyHeader,
+    `${rootUrl} must block third-party framing with CSP frame-ancestors or X-Frame-Options`,
+  );
+  if (!protectedByCsp && protectedByLegacyHeader) {
+    notes.push(
+      `Production framing is blocked by X-Frame-Options: ${xFrameOptions}; ask Base44 to also emit a restrictive CSP frame-ancestors directive.`,
+    );
+  }
+
   const manifestUrl = new URL(config.manifestPath, config.webOrigin);
   const manifestResponse = await fetch(manifestUrl);
   check(manifestResponse.ok, `${manifestUrl} returned ${manifestResponse.status}`);

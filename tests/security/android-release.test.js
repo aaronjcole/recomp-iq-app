@@ -68,6 +68,17 @@ test("Android release config rejects undeclared sensitive native capabilities", 
   ]);
 });
 
+test("live release verification rejects a frameable production origin", () => {
+  const verifier = readFileSync(
+    resolve(repoRoot, "scripts/verify-android-release.mjs"),
+    "utf8",
+  );
+  assert.match(verifier, /content-security-policy/i);
+  assert.match(verifier, /frame-ancestors/i);
+  assert.match(verifier, /x-frame-options/i);
+  assert.match(verifier, /DENY|SAMEORIGIN/);
+});
+
 test("Play submission routes remain public and machine-listed", () => {
   assert.deepEqual(release.requiredPublicPaths, [
     "/privacy",

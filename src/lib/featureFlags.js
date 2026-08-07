@@ -13,5 +13,9 @@ export const featureFlags = Object.freeze({
   // paid entitlement should replace this build-time gate without weakening it.
   bodyCompositionScan: enabledFromEnvironment(
     import.meta.env?.VITE_ENABLE_BODY_COMPOSITION_SCAN
-  )
+  ),
+  // Crash + minimal funnel telemetry. Off by default; network delivery also
+  // requires VITE_TELEMETRY_ENDPOINT, so nothing leaves the device until the
+  // deployment has opted in and declared it (Play Data Safety).
+  telemetry: enabledFromEnvironment(import.meta.env?.VITE_ENABLE_TELEMETRY)
 });

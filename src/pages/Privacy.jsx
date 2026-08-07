@@ -53,6 +53,9 @@ export default function Privacy() {
         copies of AI requests and responses—including Coach messages, relevant account context,
         generated replies, and files submitted for optional AI analysis—may remain temporarily in
         provider backups or security logs under the provider&apos;s limited retention process. Support
+        cannot currently request immediate deletion of a private file uploaded for optional photo
+        analysis, so that file remains subject to Base44 and the inference provider&apos;s retention
+        controls. This limitation is disclosed before each body-composition scan. Support
         will identify any retention that applies to a deletion request and its applicable period;
         retained data is not used to continue providing a deleted account. We normally complete verified
         deletion requests within 30 days and notify the requester when complete or when a disclosed
@@ -66,6 +69,13 @@ export default function Privacy() {
         We share data only with service providers that help us operate (e.g., hosting, AI inference)
         under appropriate confidentiality obligations, or when required by law. Aggregated,
         de-identified analytics may be used to improve the product.
+      </p>
+      <p>
+        If enabled for a build, the app may send de-identified diagnostics to help us fix crashes
+        and understand which screens are used: error details, the screen path, app version, and
+        basic milestones such as opening the app or completing onboarding. These reports never
+        include your name, email, account identifiers, photos, or your health and body metrics, and
+        are not used to identify you. Diagnostics are off unless the deployed build turns them on.
       </p>
 
       <H2>5. Your rights &amp; choices</H2>
