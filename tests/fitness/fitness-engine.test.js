@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { summarizeAdherence } from "../../src/lib/fitness/adherence.js";
 import { decideWeeklyAdjustment } from "../../src/lib/fitness/adjustments.js";
+import { estimateObservedTdee } from "../../src/lib/fitness/adaptiveGoalEngine.js";
 import { calculateInitialStrategy } from "../../src/lib/fitness/calculators.js";
 import {
   calculateProjectionConfidence,
@@ -27,6 +28,18 @@ const strategy = {
 
 function isoDate(day) {
   return `2026-01-${String(day).padStart(2, "0")}`;
+}
+
+function localTodayKey() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function offsetDate(date, offsetDays) {
+  return new Date(Date.parse(`${date}T12:00:00Z`) + offsetDays * 86400000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 function dailyLogs(count, overrides = {}) {
@@ -260,6 +273,70 @@ test("weekly check-in derives consecutive flat weeks and activates a plateau lev
 
   assert.equal(result.adjustment.decision, "increase_steps");
   assert.equal(result.adjustment.nextStrategy.step_target, 7500);
+});
+
+test("weekly check-in uses one reference date for trends and plateau detection", () => {
+  const today = localTodayKey();
+  const weightOffsets = new Set([-24, -23, -22, -13, -12, -11, -6, -5, -4]);
+  const logs = Array.from({ length: 25 }, (_, index) => {
+    const offset = index - 24;
+    return {
+      date: offsetDate(today, offset),
+      calories: strategy.calorie_target,
+      protein_g: strategy.protein_target_g,
+      steps: strategy.step_target,
+      ...(weightOffsets.has(offset) ? { weight_lbs: 200 } : {})
+    };
+  });
+  const args = {
+    logs,
+    profile: { goal: "fat_loss", job_activity: "sedentary" },
+    preferences: {},
+    strategy
+  };
+
+  const expected = runWeeklyCheckIn({ ...args, referenceDate: today });
+  assert.deepEqual(runWeeklyCheckIn(args), expected);
+  assert.deepEqual(runWeeklyCheckIn({ ...args, referenceDate: "not-a-date" }), expected);
+});
+
+test("soreness-only recovery data can trigger fatigue protection", () => {
+  const trend = analyzeTrends(
+    [{ date: "2026-01-14", soreness_rating: 5 }],
+    strategy,
+    { referenceDate: "2026-01-14" }
+  );
+
+  assert.equal(trend.recovery_label, "poor");
+});
+
+test("observed TDEE uses non-overlapping averaged weight samples", () => {
+  const dayOffsets = [0, 1, 3, 6, 7, 10, 12];
+  const logs = dayOffsets.map((dayOffset, index) => ({
+    date: offsetDate("2026-01-01", dayOffset),
+    calories: 2000,
+    weight_lbs: 200 - dayOffset * 0.2 + (index === 1 ? 1 : 0)
+  }));
+
+  const result = estimateObservedTdee(logs);
+
+  assert.equal(result.weekly_weight_rate_lbs, -1.68);
+  assert.equal(result.observed_tdee, 2840);
+});
+
+test("observed TDEE fails closed when too few finite dated weights remain", () => {
+  const logs = Array.from({ length: 7 }, (_, index) => ({
+    date: isoDate(index + 1),
+    calories: 2000,
+    weight_lbs: index === 5 ? Number.POSITIVE_INFINITY : 200 - index * 0.2
+  }));
+  logs[6].date = "not-a-date";
+
+  const result = estimateObservedTdee(logs);
+
+  assert.equal(result.weight_days_used, 5);
+  assert.equal(result.weekly_weight_rate_lbs, null);
+  assert.equal(result.observed_tdee, null);
 });
 
 test("safety flags constrain aggressive starting targets and halt weekly changes", () => {

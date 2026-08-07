@@ -42,9 +42,9 @@ export default function AddRecipeCard() {
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-3">
-        <div className="flex items-center gap-2 font-medium">
+        <h2 className="flex items-center gap-2 font-medium">
           <ChefHat className="w-4 h-4 text-teal" /> Add recipe
-        </div>
+        </h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 space-y-1.5">
             <Label>Title</Label>

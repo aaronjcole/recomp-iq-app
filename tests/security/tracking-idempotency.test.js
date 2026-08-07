@@ -108,6 +108,39 @@ test("duplicate tracking records reconcile into the stable oldest record", () =>
   assert.deepEqual(result.unsetFields, []);
 });
 
+test("duplicate tracking records use the latest update for overlapping fields", () => {
+  const result = reconcileTrackingRecords(
+    [
+      {
+        id: "record-old",
+        created_date: "2026-08-01T10:00:00.000Z",
+        updated_date: "2026-08-01T12:00:00.000Z",
+        weight_lbs: 190,
+        calories: 1800
+      },
+      {
+        id: "record-new",
+        created_date: "2026-08-01T11:00:00.000Z",
+        weight_lbs: 195,
+        protein_g: 150
+      }
+    ],
+    {},
+    DAILY_LOG_FIELDS
+  );
+
+  assert.equal(result.canonical.id, "record-old");
+  assert.deepEqual(
+    result.duplicates.map((record) => record.id),
+    ["record-new"]
+  );
+  assert.deepEqual(result.fields, {
+    weight_lbs: 190,
+    calories: 1800,
+    protein_g: 150
+  });
+});
+
 test("tracking writes stay behind an authenticated user-scoped backend function", () => {
   const backend = readFileSync(
     resolve(repoRoot, "base44/functions/upsertTrackingRecord/entry.ts"),

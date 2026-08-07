@@ -4,7 +4,12 @@ export default function ConfidenceRing({ value, size = 120, stroke = 12, label }
   const mask = `radial-gradient(circle, transparent ${ringInner}px, #000 ${ringInner + 0.5}px)`;
 
   return (
-    <div className="inline-flex flex-col items-center" style={{ width: size }}>
+    <div
+      className="inline-flex flex-col items-center"
+      style={{ width: size }}
+      role="img"
+      aria-label={`${label || "Confidence"}: ${Math.round(v)} out of 100`}
+    >
       <div className="relative" style={{ width: size, height: size }}>
         <div
           className="absolute inset-0 rounded-full"
@@ -19,7 +24,7 @@ export default function ConfidenceRing({ value, size = 120, stroke = 12, label }
         </div>
       </div>
       {label && (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mt-2">{label}</span>
+        <span className="font-mono text-label uppercase tracking-wider text-muted-foreground mt-2">{label}</span>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dumbbell, Trash2 } from "lucide-react";
 
@@ -25,6 +25,8 @@ const TYPE_LABEL = {
   sport: "Sport"
 };
 
+const INITIAL_DAY_LIMIT = 20;
+
 function summarizeSets(sets) {
   const map = new Map();
   for (const s of sets || []) {
@@ -37,8 +39,10 @@ function summarizeSets(sets) {
 }
 
 export default function SessionHistory() {
-  const { sessions, deleteSession } = useRecomp();
+  const { sessions } = useRecompRef();
+  const { deleteSession } = useRecompActions();
   const [confirmId, setConfirmId] = useState(null);
+  const [visibleDayCount, setVisibleDayCount] = useState(INITIAL_DAY_LIMIT);
 
   const days = useMemo(() => {
     const map = new Map();
@@ -50,74 +54,95 @@ export default function SessionHistory() {
     return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [sessions]);
 
+  const visibleDays = days.slice(0, visibleDayCount);
+  const remainingDays = Math.max(0, days.length - visibleDays.length);
+
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5">
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Training history</div>
+        <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground mb-3">Training history</h2>
         {sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No sessions logged yet.</p>
         ) : (
           <div className="space-y-5">
-            {days.map(([dateStr, items]) => (
-              <div key={dateStr}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-foreground">{dayLabel(parseDate(dateStr))}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{items.length} {items.length === 1 ? "session" : "sessions"}</span>
-                </div>
-                <div className="space-y-2">
-                  {items.map((s) => {
-                    const lifts = summarizeSets(s.sets);
-                    const meta = [
-                      s.duration_minutes ? `${s.duration_minutes}m` : null,
-                      s.perceived_exertion ? `RPE ${s.perceived_exertion}` : null,
-                      s.cardio_distance_miles || s.cardio_avg_heart_rate
-                        ? [s.cardio_distance_miles ? `${s.cardio_distance_miles}mi` : null, s.cardio_avg_heart_rate ? `${s.cardio_avg_heart_rate}bpm` : null].filter(Boolean).join(" · ")
-                        : null
-                    ].filter(Boolean).join(" · ");
-                    return (
-                      <div key={s.id} className="rounded-lg border border-lineSoft p-3">
-                        <div className="flex items-start gap-2.5">
-                          <Dumbbell className="w-4 h-4 text-teal mt-0.5 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium truncate">{s.title}</span>
-                              <span className="shrink-0 rounded-full bg-panel2 text-muted-foreground px-1.5 py-0.5 text-[10px]">{TYPE_LABEL[s.type] ?? s.type}</span>
+            <div id="training-history-days" className="space-y-5">
+              {visibleDays.map(([dateStr, items]) => (
+                <div key={dateStr}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <h3 className="font-mono text-label uppercase tracking-wider text-foreground">{dayLabel(parseDate(dateStr))}</h3>
+                    <span className="font-mono text-label text-muted-foreground">{items.length} {items.length === 1 ? "session" : "sessions"}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {items.map((s) => {
+                      const lifts = summarizeSets(s.sets);
+                      const meta = [
+                        s.duration_minutes ? `${s.duration_minutes}m` : null,
+                        s.perceived_exertion ? `RPE ${s.perceived_exertion}` : null,
+                        s.cardio_distance_miles || s.cardio_avg_heart_rate
+                          ? [s.cardio_distance_miles ? `${s.cardio_distance_miles}mi` : null, s.cardio_avg_heart_rate ? `${s.cardio_avg_heart_rate}bpm` : null].filter(Boolean).join(" · ")
+                          : null
+                      ].filter(Boolean).join(" · ");
+                      return (
+                        <div key={s.id} className="rounded-lg border border-lineSoft p-3">
+                          <div className="flex items-start gap-2.5">
+                            <Dumbbell className="w-4 h-4 text-teal mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">{s.title}</span>
+                                <span className="shrink-0 rounded-full bg-panel2 text-muted-foreground px-1.5 py-0.5 text-label">{TYPE_LABEL[s.type] ?? s.type}</span>
+                              </div>
+                              {meta && <div className="text-xs text-muted-foreground font-mono tabular-nums">{meta}</div>}
+                              {s.muscle_groups?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {s.muscle_groups.map((mg) => (
+                                    <span key={mg} className="rounded-full border border-line text-muted-foreground px-1.5 py-0.5 text-label">{mg}</span>
+                                  ))}
+                                </div>
+                              )}
+                              {lifts.length > 0 && (
+                                <div className="mt-1.5 space-y-0.5">
+                                  {lifts.map((l) => (
+                                    <div key={l.name} className="text-xs font-mono tabular-nums text-foreground">
+                                      {l.name} — {l.weight} lb × {l.reps}{l.sets > 1 ? ` (${l.sets} sets)` : ""}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                            {meta && <div className="text-xs text-muted-foreground font-mono tabular-nums">{meta}</div>}
-                            {s.muscle_groups?.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {s.muscle_groups.map((mg) => (
-                                  <span key={mg} className="rounded-full border border-line text-muted-foreground px-1.5 py-0.5 text-[10px]">{mg}</span>
-                                ))}
+                            {confirmId === s.id ? (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => deleteSession(s.id)} className="text-xs text-red font-medium px-2 py-1 min-h-[36px]">Delete</button>
+                                <button onClick={() => setConfirmId(null)} className="text-xs text-muted-foreground px-1 py-1 min-h-[36px]">Cancel</button>
                               </div>
-                            )}
-                            {lifts.length > 0 && (
-                              <div className="mt-1.5 space-y-0.5">
-                                {lifts.map((l) => (
-                                  <div key={l.name} className="text-xs font-mono tabular-nums text-foreground">
-                                    {l.name} — {l.weight} lb × {l.reps}{l.sets > 1 ? ` (${l.sets} sets)` : ""}
-                                  </div>
-                                ))}
-                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmId(s.id)}
+                                className="text-muted-foreground hover:text-red shrink-0 p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                aria-label={`Delete ${s.title || TYPE_LABEL[s.type] || "session"}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
-                          {confirmId === s.id ? (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => deleteSession(s.id)} className="text-xs text-red font-medium px-2 py-1 min-h-[36px]">Delete</button>
-                              <button onClick={() => setConfirmId(null)} className="text-xs text-muted-foreground px-1 py-1 min-h-[36px]">Cancel</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmId(s.id)} className="text-muted-foreground hover:text-red shrink-0 p-1 min-w-[36px] min-h-[36px] flex items-center justify-center">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {remainingDays > 0 && (
+              <button
+                type="button"
+                className="flex min-h-11 w-full items-center justify-center rounded-lg border border-line text-sm font-medium text-foreground hover:bg-panel2"
+                onClick={() => setVisibleDayCount((count) => count + INITIAL_DAY_LIMIT)}
+                aria-expanded={visibleDayCount > INITIAL_DAY_LIMIT}
+                aria-controls="training-history-days"
+              >
+                {`Show ${Math.min(INITIAL_DAY_LIMIT, remainingDays)} more days`}
+              </button>
+            )}
           </div>
         )}
       </CardContent>

@@ -295,7 +295,7 @@ function Macro({ label, value, unit = "" }) {
     <div className="rounded-lg bg-panel2 py-2">
       <div className="font-mono text-sm font-semibold tabular-nums">
         {value ?? "—"}
-        {unit && value != null ? <span className="text-[10px]">{unit}</span> : null}
+        {unit && value != null ? <span className="text-label">{unit}</span> : null}
       </div>
       <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
