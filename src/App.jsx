@@ -35,6 +35,7 @@ const More = lazyWithRetry(() => import('@/pages/More'));
 const Plan = lazyWithRetry(() => import('@/pages/Plan'));
 const DecisionHistory = lazyWithRetry(() => import('@/pages/DecisionHistory'));
 const Coach = lazyWithRetry(() => import('@/pages/Coach'));
+const LifestyleCoach = lazyWithRetry(() => import('@/pages/LifestyleCoach'));
 const Profile = lazyWithRetry(() => import('@/pages/Profile'));
 const Premium = lazyWithRetry(() => import('@/pages/Premium'));
 const Hero = lazyWithRetry(() => import('@/pages/Hero'));
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
               <Route path="/more/plan" element={<Plan />} />
               <Route path="/more/decisions" element={<DecisionHistory />} />
               <Route path="/more/coach" element={<Coach />} />
+              <Route path="/more/coach/lifestyle" element={<LifestyleCoach />} />
               <Route path="/more/profile" element={<Profile />} />
               <Route path="/more/premium" element={<Premium />} />
               {/* Preserve established deep links while using tab-owned routes internally. */}
