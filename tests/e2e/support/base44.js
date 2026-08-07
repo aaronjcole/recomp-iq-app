@@ -110,7 +110,17 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (url.includes("/integration-endpoints/Core/UploadPrivateFile")) {
       if (method !== "POST") return json({ error: "Method not allowed" }, 405);
       privateUploadCount += 1;
-      return json({ file_uri: `private/user-test/body-scan-${privateUploadCount}.png` });
+      // Derive the reference from the uploaded filename rather than from arrival
+      // order. BodyCompositionScan uploads all three poses concurrently through
+      // Promise.all, so a counter handed out refs in whatever order the requests
+      // happened to land, and the caller's pose -> ref assertion flaked under
+      // load. Echoing the filename also makes that assertion meaningful: it now
+      // proves each pose sent the file that was put in its own slot.
+      const uploadedName = /filename="([^"]+)"/.exec(request.postData() ?? "")?.[1];
+      const slug = uploadedName
+        ? uploadedName.replace(/\.[^.]+$/, "")
+        : `upload-${privateUploadCount}`;
+      return json({ file_uri: `private/user-test/${slug}.png` });
     }
 
     const entityMatch = url.match(/\/entities\/([A-Za-z0-9_]+)/);

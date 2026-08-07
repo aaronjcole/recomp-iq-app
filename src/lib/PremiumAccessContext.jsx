@@ -25,6 +25,7 @@ function normalizeResponse(result) {
     hasAnyAccess: access.hasAnyAccess === true,
     hasBundleAccess: access.hasBundleAccess === true,
     testerAccess: access.testerAccess === true,
+    hasLifestyleCoach: access.features?.[PREMIUM_FEATURES.AI_LIFESTYLE_COACH] === true,
     features: Object.fromEntries(
       Object.values(PREMIUM_FEATURES).map((feature) => [feature, access.features[feature] === true])
     ),
