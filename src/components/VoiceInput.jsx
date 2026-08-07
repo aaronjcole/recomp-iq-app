@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square } from "lucide-react";
 
-const SpeechRecognition = typeof window !== "undefined"
-  ? (window.SpeechRecognition || window.webkitSpeechRecognition)
-  : null;
+const w = /** @type {any} */ (typeof window !== "undefined" ? window : null);
+const SpeechRecognition = w ? (w.SpeechRecognition || w.webkitSpeechRecognition) : null;
 
 export const isSpeechSupported = () => Boolean(SpeechRecognition);
 
