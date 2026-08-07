@@ -25,7 +25,13 @@ export default function RecompSignalHero() {
     return { label: "STRENGTH", value, unit: "% e1RM", status };
   }, [strength]);
 
-  if (!signal || !trend) return null;
+  if (!signal || !trend) return (
+    <div className="rounded-xl border border-line p-5 space-y-4">
+      <div className="h-5 w-36 rounded-lg animate-pulse bg-panel2" />
+      <div className="h-28 rounded-xl animate-pulse bg-panel2" />
+      <div className="h-16 rounded-xl animate-pulse bg-panel2" />
+    </div>
+  );
 
   const isEarly = signal.label === "Early read";
 
@@ -71,8 +77,8 @@ export default function RecompSignalHero() {
   return (
     <div className="rounded-xl bg-panel border border-line shadow p-5 space-y-5">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Recomp Signal</span>
-        <span className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border ${chipClass}`}>
+        <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground">Recomp Signal</h2>
+        <span className={`font-mono text-label uppercase tracking-wider px-2 py-0.5 rounded-full border ${chipClass}`}>
           {signal.label}
         </span>
       </div>

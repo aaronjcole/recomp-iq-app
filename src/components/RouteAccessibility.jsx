@@ -2,16 +2,41 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { getRouteMetadata } from "@/lib/routeMetadata";
 
+function upsertMeta(attribute, name, content) {
+  let element = document.head.querySelector(`meta[${attribute}="${name}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute(attribute, name);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("content", content);
+}
+
+function upsertCanonical(href) {
+  let element = document.head.querySelector('link[rel="canonical"]');
+  if (!element) {
+    element = document.createElement("link");
+    element.setAttribute("rel", "canonical");
+    document.head.appendChild(element);
+  }
+  element.setAttribute("href", href);
+}
+
 export default function RouteAccessibility() {
   const { pathname } = useLocation();
   const metadata = getRouteMetadata(pathname);
 
   useEffect(() => {
     document.title = metadata.title;
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute("content", metadata.description);
-  }, [metadata.description, metadata.title]);
+    upsertMeta("name", "description", metadata.description);
+    upsertMeta("name", "robots", metadata.robots);
+    upsertMeta("property", "og:title", metadata.title);
+    upsertMeta("property", "og:description", metadata.description);
+    upsertMeta("property", "og:url", metadata.canonicalUrl);
+    upsertMeta("name", "twitter:title", metadata.title);
+    upsertMeta("name", "twitter:description", metadata.description);
+    upsertCanonical(metadata.canonicalUrl);
+  }, [metadata.canonicalUrl, metadata.description, metadata.robots, metadata.title]);
 
   return (
     <>

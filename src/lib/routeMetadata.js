@@ -1,23 +1,29 @@
 const DEFAULT_DESCRIPTION =
   "RecompOne turns daily nutrition, training, and recovery signals into a plan that adapts to real progress.";
+const SITE_URL = "https://fitnesstrackerapps.com";
+const INDEXABLE_ROUTES = new Set(["/", "/coming-soon", "/privacy", "/terms", "/support", "/delete-account"]);
+const CANONICAL_OVERRIDES = Object.freeze({
+  "/coming-soon": "/"
+});
 
 const ROUTE_METADATA = Object.freeze({
   "/": {
-    title: "RecompOne — Adaptive Recomposition",
+    title: "RecompOne: Adaptive Body Recomposition",
     announcement: "RecompOne home",
     description:
-      "Turn nutrition, training, recovery, and body-trend data into one evidence-backed next move."
+      "RecompOne turns nutrition, training, recovery, weight, and waist trends into adaptive meal plans, workout blocks, and one clear next move."
   },
   "/hero": {
-    title: "RecompOne — Adaptive Recomposition",
-    announcement: "RecompOne overview",
+    title: "Beta Access | RecompOne",
+    announcement: "RecompOne beta access",
     description:
-      "Build a personalized nutrition and training plan that adapts to your real recomposition progress."
+      "Sign in to the RecompOne web beta or create an approved tester account."
   },
   "/coming-soon": {
-    title: "Coming Soon | RecompOne",
-    announcement: "Coming soon",
-    description: "Join the RecompOne Android beta and see how your fitness signals become one clear next move."
+    title: "RecompOne: Adaptive Body Recomposition",
+    announcement: "RecompOne home",
+    description:
+      "RecompOne turns nutrition, training, recovery, weight, and waist trends into adaptive meal plans, workout blocks, and one clear next move."
   },
   "/privacy": {
     title: "Privacy Policy | RecompOne",
@@ -69,20 +75,40 @@ const ROUTE_METADATA = Object.freeze({
     announcement: "Today",
     description: "See today's RecompOne signal, priorities, habits, and quick log."
   },
+  "/today/autopilot": {
+    title: "Weekly Autopilot | RecompOne",
+    announcement: "Weekly Autopilot review",
+    description: "Connect nutrition, training, recovery, habits, and progress into one weekly next move."
+  },
   "/nutrition": {
     title: "Fuel | RecompOne",
     announcement: "Fuel",
     description: "Review nutrition targets, meals, recipes, and food logs."
+  },
+  "/nutrition/meal-plan": {
+    title: "Adaptive Meal Plan | RecompOne",
+    announcement: "Adaptive meal plan",
+    description: "Build a seven-day meal plan and grocery list from your targets and weekly progress."
   },
   "/training": {
     title: "Training | RecompOne",
     announcement: "Training",
     description: "Plan and log training sessions with RecompOne."
   },
+  "/training/plan": {
+    title: "Adaptive Training Block | RecompOne",
+    announcement: "Adaptive training block",
+    description: "Build a progressive 4–6 week training block from your schedule, history, and recovery signals."
+  },
   "/progress": {
     title: "Progress | RecompOne",
     announcement: "Progress",
     description: "Review weight, measurements, strength, and recomposition trends."
+  },
+  "/progress/visual-check": {
+    title: "Visual Progress Check | RecompOne",
+    announcement: "Visual Progress Check",
+    description: "Compare private progress photos on your device without uploads or body-fat estimates."
   },
   "/plan": {
     title: "Plan | RecompOne",
@@ -128,6 +154,11 @@ const ROUTE_METADATA = Object.freeze({
     title: "Profile | RecompOne",
     announcement: "Profile",
     description: "Review and update your RecompOne profile."
+  },
+  "/more/premium": {
+    title: "Premium Features | RecompOne",
+    announcement: "Premium features",
+    description: "Review RecompOne Premium features and testing access."
   }
 });
 
@@ -139,5 +170,12 @@ const NOT_FOUND_METADATA = Object.freeze({
 
 export function getRouteMetadata(pathname) {
   const normalizedPath = pathname !== "/" ? pathname.replace(/\/+$/, "") : pathname;
-  return ROUTE_METADATA[normalizedPath] ?? NOT_FOUND_METADATA;
+  const route = ROUTE_METADATA[normalizedPath] ?? NOT_FOUND_METADATA;
+  const canonicalPath = CANONICAL_OVERRIDES[normalizedPath] ?? normalizedPath;
+
+  return {
+    ...route,
+    canonicalUrl: new URL(canonicalPath || "/", SITE_URL).href,
+    robots: INDEXABLE_ROUTES.has(normalizedPath) ? "index,follow" : "noindex,follow"
+  };
 }

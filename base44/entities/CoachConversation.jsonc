@@ -1,0 +1,51 @@
+{
+  "name": "CoachConversation",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "messages": {
+      "type": "array",
+      "description": "Array of {role, content, actions?, safetyNote?, messageId?, timestamp} objects"
+    },
+    "last_message_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "context_snapshot": {
+      "type": "object",
+      "description": "Most recent pre-computed analytics snapshot sent to the LLM"
+    }
+  },
+  "required": [
+    "messages"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    },
+    "read": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    },
+    "update": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    },
+    "delete": {
+      "$or": [
+        { "created_by_id": "{{user.id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    }
+  }
+}

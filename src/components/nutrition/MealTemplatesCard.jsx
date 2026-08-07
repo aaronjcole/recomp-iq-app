@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,8 @@ const emptyItem = { name: "", serving_description: "1 serving", calories: "", pr
 const n = (v) => Number(v) || 0;
 
 export default function MealTemplatesCard() {
-  const { mealTemplates, foods, saveMealTemplate, logMealTemplate } = useRecomp();
+  const { mealTemplates, foods } = useRecompRef();
+  const { saveMealTemplate, logMealTemplate } = useRecompActions();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [items, setItems] = useState([]);
@@ -83,9 +84,9 @@ export default function MealTemplatesCard() {
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-4">
-        <div className="flex items-center gap-2 font-medium">
+        <h2 className="flex items-center gap-2 font-medium">
           <Utensils className="w-4 h-4 text-teal" /> Meal templates
-        </div>
+        </h2>
 
         {mealTemplates.length === 0 && (
           <p className="text-sm text-muted-foreground">No templates yet — build one below for one-tap logging.</p>
@@ -106,7 +107,7 @@ export default function MealTemplatesCard() {
         ))}
 
         <div className="space-y-3 rounded-lg bg-panel2 p-3">
-          <div className="text-xs font-medium text-muted-foreground">Save as meal template</div>
+          <h3 className="text-xs font-medium text-muted-foreground">Save as meal template</h3>
 
           <div className="space-y-1.5">
             <Label>Template name</Label>

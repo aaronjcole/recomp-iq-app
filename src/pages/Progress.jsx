@@ -1,18 +1,29 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
-import { calculateInitialStrategy, generateWeightProjection, calculateMovingAverage } from "@/lib/fitness";
+import {
+  calculateInitialStrategy,
+  calculateMovingAverage,
+  dedupeLogsByDate,
+  generateWeightProjection
+} from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
-import { Scale } from "lucide-react";
+import { ArrowRight, Scale, ScanLine } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
-import BodyCompositionScan from "@/components/progress/BodyCompositionScan";
+import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
+import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+
+const BodyCompositionScan = lazy(() => import("@/components/progress/BodyCompositionScan"));
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
+const EMPTY_LOGS = [];
 const RANGES = [
   { value: "35d", label: "35d" },
   { value: "90d", label: "90d" },
@@ -28,19 +39,32 @@ function daysAgoStr(n) {
 
 export default function Progress() {
   const { profile, strategy, logs, trend, reload } = useRecomp();
+  const { canAccess, releaseFlags } = usePremiumAccess();
+  const location = useLocation();
+  const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
   const [range, setRange] = useState("35d");
 
+  const dedupedLogs = useMemo(
+    () => (isActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
+    [isActive, logs]
+  );
+
   const chartData = useMemo(() => {
-    const weights = logs
+    if (!isActive) return [];
+    const weights = dedupedLogs
       .filter((l) => typeof l.weight_lbs === "number")
-      .sort((a, b) => a.date.localeCompare(b.date))
       .map((l) => ({ date: l.date, weight: l.weight_lbs }));
     const ma = calculateMovingAverage(
       weights.map((w) => ({ date: w.date, value: w.weight })),
-      7
+      7,
+      { deduped: true }
     );
-    return weights.map((w) => ({ ...w, ma: ma.find((m) => m.date === w.date)?.value ?? null }));
-  }, [logs]);
+    const maByDate = new Map(ma.map((point) => [point.date, point.value]));
+    return weights.map((weight) => ({
+      ...weight,
+      ma: maByDate.get(weight.date) ?? null
+    }));
+  }, [dedupedLogs, isActive]);
 
   const rangeDays = range === "all" ? null : range === "90d" ? 90 : 35;
   const visibleData = useMemo(
@@ -51,9 +75,10 @@ export default function Progress() {
   const tdee = useMemo(() => (profile ? calculateInitialStrategy(profile).tdee_estimate : null), [profile]);
   const projection = useMemo(
     () =>
-      profile && strategy
+      isActive && profile && strategy
         ? generateWeightProjection({
-            logs,
+            logs: dedupedLogs,
+            logsAreDeduped: true,
             mode: "current_plan",
             weeks: 12,
             calorieTarget: strategy.calorie_target,
@@ -62,10 +87,17 @@ export default function Progress() {
             currentWeight: profile.current_weight_lbs
           })
         : null,
-    [profile, strategy, logs, tdee]
+    [dedupedLogs, isActive, profile, strategy, tdee]
   );
 
-  if (!profile || !strategy) return null;
+  if (!profile || !strategy) return (
+    <div className="space-y-5">
+      <div className="h-8 w-40 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-64 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-40 animate-pulse rounded-xl bg-panel2" />
+      <div className="h-32 animate-pulse rounded-xl bg-panel2" />
+    </div>
+  );
 
   return (
     <PullToRefresh onRefresh={reload}>
@@ -75,7 +107,7 @@ export default function Progress() {
       <Card className="bg-panel border-line">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="font-medium">Weight trend</div>
+            <h2 className="font-medium">Weight trend</h2>
             <div className="flex gap-1">
               {RANGES.map(({ value, label }) => (
                 <Button
@@ -125,26 +157,30 @@ export default function Progress() {
         </CardContent>
       </Card>
 
-      {trend && (
-        <Card className="bg-panel border-line">
-          <CardContent className="p-5 space-y-2 text-sm">
-            <div className="font-medium mb-1">Latest read</div>
-            <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
-            <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
-            <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
-            <Row label="Calorie adherence" value={pct(trend.calorie_adherence)} />
-            <Row label="Protein adherence" value={pct(trend.protein_adherence)} />
-            <Row label="Step adherence" value={pct(trend.step_adherence)} />
-            <Row label="Workout adherence" value={pct(trend.workout_adherence)} />
-          </CardContent>
-        </Card>
-      )}
+      <Card className="bg-panel border-line">
+        <CardContent className="p-5 space-y-2 text-sm">
+          <h2 className="font-medium mb-1">Latest read</h2>
+          {trend ? (
+            <>
+              <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
+              <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
+              <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
+              <Row label="Calorie adherence" value={pct(trend.calorie_adherence)} />
+              <Row label="Protein adherence" value={pct(trend.protein_adherence)} />
+              <Row label="Step adherence" value={pct(trend.step_adherence)} />
+              <Row label="Workout adherence" value={pct(trend.workout_adherence)} />
+            </>
+          ) : (
+            <p className="text-muted-foreground">Trend data unavailable — log a few more weigh-ins to unlock your trend read.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {projection && (
         <Card className="bg-panel border-line">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="font-medium">12-week projection</div>
+              <h2 className="font-medium">12-week projection</h2>
               <Badge variant="outline" className="capitalize">{projection.confidence} confidence</Badge>
             </div>
             <div className="grid grid-cols-3 text-center">
@@ -157,7 +193,31 @@ export default function Progress() {
         </Card>
       )}
 
-      {featureFlags.bodyCompositionScan && <BodyCompositionScan />}
+      {(featureFlags.bodyCompositionScan || releaseFlags.bodyCompositionScan) && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
+        <Suspense fallback={<div className="h-16 animate-pulse rounded-xl bg-panel2" />}>
+          <BodyCompositionScan />
+        </Suspense>
+      )}
+
+      <Card className="border-line bg-panel">
+        <CardContent className="flex gap-3 p-5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+            <ScanLine className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-medium">Visual Progress Check</h2>
+              <PremiumBadge />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Compare two private photos with an on-device reveal—no upload or body-fat estimate.
+            </p>
+            <Button asChild variant="outline" className="mt-3 w-full justify-between border-line">
+              <Link to="/progress/visual-check">Open visual check <ArrowRight aria-hidden="true" /></Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <ProgressPhotos />
     </div>

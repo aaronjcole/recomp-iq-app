@@ -30,18 +30,23 @@ const TYPE_OPTIONS = [
   { value: "sport", label: "Sport" }
 ];
 
-export default function SessionBuilder() {
-  const { saveTrainingSession } = useRecompActions();
+export default function SessionBuilder({ prefill = null }) {
+  const { saveTrainingSession, completeBlockSession } = useRecompActions();
   const { toast } = useToast();
+
+  const initLifts = () =>
+    prefill?.lifts?.length
+      ? prefill.lifts.map((l) => ({ id: uid(), name: l.name ?? "", weight: l.weight ?? "", reps: l.reps ?? "", sets: l.sets ?? "1" }))
+      : [];
 
   const [date, setDate] = useState(todayStr());
   const [type, setType] = useState("strength");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(prefill?.title ?? "");
   const [duration, setDuration] = useState("");
   const [rpe, setRpe] = useState("");
-  const [muscleGroups, setMuscleGroups] = useState([]);
+  const [muscleGroups, setMuscleGroups] = useState(prefill?.muscleGroups ?? []);
   const [muscleInput, setMuscleInput] = useState("");
-  const [lifts, setLifts] = useState([]);
+  const [lifts, setLifts] = useState(initLifts);
   const [cardio, setCardio] = useState({ distance: "", hr: "" });
   const [saving, setSaving] = useState(false);
 
@@ -118,6 +123,13 @@ export default function SessionBuilder() {
         strengthEntries,
         markDaily: date === todayStr()
       });
+      if (prefill?.blockId != null) {
+        try {
+          await completeBlockSession(prefill.blockId, prefill.dayIndex, prefill.sessionId);
+        } catch {
+          toast({ title: "Session logged — block progress not updated", description: "The session was saved. Tap to retry marking this session complete.", variant: "destructive" });
+        }
+      }
       toast({ title: "Session logged", description: `${data.title} saved for ${date}.` });
       reset();
     } catch (e) {
@@ -132,7 +144,7 @@ export default function SessionBuilder() {
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Dumbbell className="w-4 h-4 text-teal" />
-          <span className="font-medium">Log a session</span>
+          <h2 className="font-medium">Log a session</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -223,11 +235,11 @@ export default function SessionBuilder() {
                     </button>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    <NumField compact label="Weight" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
+                    <NumField compact label="Weight (lb)" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
                     <NumField compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} min={1} max={1000} />
                     <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
                     <div className="space-y-1">
-                      <Label className="text-[10px]">1RM</Label>
+                      <Label className="text-label">1RM</Label>
                       <div className="flex h-11 items-center font-mono text-xs tabular-nums text-muted-foreground">
                         {e1rm != null ? `${e1rm}` : "—"}
                       </div>
@@ -239,7 +251,7 @@ export default function SessionBuilder() {
           </div>
         )}
 
-        <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90 disabled:bg-panel2 disabled:text-muted-foreground disabled:opacity-100" onClick={save} disabled={!canSave || saving}>
+        <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90 disabled:bg-panel2 disabled:text-muted-foreground disabled:cursor-not-allowed" onClick={save} disabled={!canSave || saving}>
           {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
           {saving ? "Saving…" : "Save session"}
         </Button>
@@ -254,7 +266,7 @@ export default function SessionBuilder() {
 function NumField({ label, v, on, compact = false, min, max }) {
   return (
     <div className="space-y-1">
-      <Label className={compact ? "text-[10px]" : ""}>{label}</Label>
+      <Label className={compact ? "text-label" : ""}>{label}</Label>
       <Input type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-11 text-sm" : "h-11"} />
     </div>
   );
