@@ -27,12 +27,12 @@ test("the premium bundle grants tier-2 features and identifies tester access", (
   assert.equal(paid.hasAnyAccess, true);
   assert.equal(paid.hasBundleAccess, true);
   assert.equal(paid.testerAccess, false);
-  // The bundle covers tier-2 features; ai_lifestyle_coach is a standalone tier-3 product.
+  // The bundle covers all premium features including ai_lifestyle_coach.
   assert.equal(paid.features[PREMIUM_FEATURES.MEAL_PLANNING], true);
   assert.equal(paid.features[PREMIUM_FEATURES.TRAINING_PLANNING], true);
   assert.equal(paid.features[PREMIUM_FEATURES.WEEKLY_AUTOPILOT], true);
   assert.equal(paid.features[PREMIUM_FEATURES.VISUAL_PROGRESS], true);
-  assert.equal(paid.features[PREMIUM_FEATURES.AI_LIFESTYLE_COACH], false);
+  assert.equal(paid.features[PREMIUM_FEATURES.AI_LIFESTYLE_COACH], true);
 
   const tester = resolvePremiumAccess([entitlement({ source: "tester" })], NOW);
   assert.equal(tester.testerAccess, true);
