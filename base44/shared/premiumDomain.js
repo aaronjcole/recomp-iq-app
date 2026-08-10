@@ -19,7 +19,8 @@ const BUNDLE_FEATURES = Object.freeze([
   "meal_planning",
   "training_planning",
   "weekly_autopilot",
-  "visual_progress"
+  "visual_progress",
+  "ai_lifestyle_coach"
 ]);
 const ALL_FEATURES = Object.freeze(Object.values(PREMIUM_FEATURES));
 const PRODUCT_FEATURES = Object.freeze({

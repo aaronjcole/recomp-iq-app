@@ -5,6 +5,7 @@ import StrengthProgressionCard from "@/components/training/StrengthProgressionCa
 import SessionBuilder from "@/components/training/SessionBuilder";
 import SessionHistory from "@/components/training/SessionHistory";
 import ActiveBlockCard from "@/components/training/ActiveBlockCard";
+import WorkoutTracker from "@/components/training/WorkoutTracker";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ export default function Training() {
         )}
 
         <StrengthProgressionCard />
+        <WorkoutTracker />
         <SessionBuilder key={prefillKey.current} prefill={prefill} />
         <SessionHistory />
       </div>

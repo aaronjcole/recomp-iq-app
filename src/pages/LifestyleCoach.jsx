@@ -117,7 +117,7 @@ function PremiumGate({ onNavigate }) {
         </div>
         <Button onClick={() => onNavigate("/more/premium")} className="min-h-11 w-full max-w-xs bg-teal text-buttonText hover:opacity-90">
           <Crown className="w-4 h-4 mr-2" />
-          Upgrade to Lifestyle Coach
+          Upgrade to Premium
         </Button>
       </div>
     </div>
