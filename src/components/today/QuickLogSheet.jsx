@@ -105,23 +105,35 @@ export default function QuickLogSheet({ open, onOpenChange }) {
           <SheetTitle>Log today</SheetTitle>
           <SheetDescription>Add the signals you have. Empty fields stay unlogged.</SheetDescription>
         </SheetHeader>
-        <div className="grid grid-cols-2 gap-4 px-4 py-4">
-          <Field label="Weight (lb)" value={form.weight_lbs} onChange={(v) => set("weight_lbs", v)} type="number" min={40} max={1200} />
-          <Field label="Waist (in)" value={form.waist_in} onChange={(v) => set("waist_in", v)} type="number" min={10} max={150} />
-          <Field label="Calories" value={form.calories} onChange={(v) => set("calories", v)} type="number" min={0} max={20000} />
-          <Field label="Steps" value={form.steps} onChange={(v) => set("steps", v)} type="number" min={0} max={200000} />
-          <Field label="Protein (g)" value={form.protein_g} onChange={(v) => set("protein_g", v)} type="number" min={0} max={2000} />
-          <Field label="Carbs (g)" value={form.carbs_g} onChange={(v) => set("carbs_g", v)} type="number" min={0} max={3000} />
-          <Field label="Fat (g)" value={form.fat_g} onChange={(v) => set("fat_g", v)} type="number" min={0} max={2000} />
-          <Field label="Sleep (h)" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" min={0} max={24} />
-          <RatingDrawer label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
-          <RatingDrawer label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
-          <RatingDrawer label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
-          <div className="col-span-2 flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
-            <Label htmlFor="wc">Workout completed</Label>
-            <Switch id="wc" checked={!!form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
-          </div>
-          <div className="col-span-2">
+        <div className="space-y-5 px-4 py-4">
+          <Section label="Body">
+            <Field label="Weight (lb)" value={form.weight_lbs} onChange={(v) => set("weight_lbs", v)} type="number" min={40} max={1200} />
+            <Field label="Waist (in)" value={form.waist_in} onChange={(v) => set("waist_in", v)} type="number" min={10} max={150} />
+          </Section>
+
+          <Section label="Nutrition">
+            <Field label="Calories" value={form.calories} onChange={(v) => set("calories", v)} type="number" min={0} max={20000} />
+            <Field label="Protein (g)" value={form.protein_g} onChange={(v) => set("protein_g", v)} type="number" min={0} max={2000} />
+            <Field label="Carbs (g)" value={form.carbs_g} onChange={(v) => set("carbs_g", v)} type="number" min={0} max={3000} />
+            <Field label="Fat (g)" value={form.fat_g} onChange={(v) => set("fat_g", v)} type="number" min={0} max={2000} />
+          </Section>
+
+          <Section label="Activity">
+            <Field label="Steps" value={form.steps} onChange={(v) => set("steps", v)} type="number" min={0} max={200000} />
+            <Field label="Sleep (h)" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" min={0} max={24} />
+            <div className="col-span-2 flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
+              <Label htmlFor="wc">Workout completed</Label>
+              <Switch id="wc" checked={!!form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
+            </div>
+          </Section>
+
+          <Section label="How you felt">
+            <RatingDrawer label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
+            <RatingDrawer label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
+            <RatingDrawer label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
+          </Section>
+
+          <div className="space-y-1.5">
             <Label>Notes</Label>
             <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
           </div>
@@ -133,6 +145,15 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function Section({ label, children }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="grid grid-cols-2 gap-3">{children}</div>
+    </div>
   );
 }
 
