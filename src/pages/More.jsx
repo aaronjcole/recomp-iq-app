@@ -113,7 +113,7 @@ export default function More() {
       items: [
         { icon: Crown, label: "Premium features", to: "/more/premium", badge: "Premium" },
         { icon: MessageCircle, label: "AI Coach", to: "/more/coach" },
-        { icon: BrainCircuit, label: "AI Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Tier 3" },
+        { icon: BrainCircuit, label: "AI Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Premium" },
         {
           icon: RefreshCw,
           label: "Weekly check-in",
