@@ -646,6 +646,21 @@ export function RecompProvider({ children }) {
     }
   }, [loadAll, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
+  const updateSession = useCallback(async ({ id, session, strengthEntries = [] }) => {
+    const updated = await base44.entities.ExerciseSession.update(id, session);
+    const oldLogs = await base44.entities.StrengthLog.filter({ session_id: id }, "-date", 500);
+    await Promise.all(oldLogs.map((e) => base44.entities.StrengthLog.delete(e.id)));
+    const newLogs = [];
+    for (const entry of strengthEntries) {
+      const created = await base44.entities.StrengthLog.create({ ...entry, session_id: id });
+      newLogs.push(created);
+    }
+    setSessionsCurrent((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    const oldLogIds = new Set(oldLogs.map((e) => e.id));
+    setStrengthLogsCurrent((prev) => [...newLogs, ...prev.filter((e) => !oldLogIds.has(e.id))]);
+    return { session: updated, strengthLogs: newLogs };
+  }, [setSessionsCurrent, setStrengthLogsCurrent]);
+
   const addFood = useCallback(async (data) => {
     const created = await base44.entities.FoodItem.create(data);
     setFoods((prev) => [created, ...prev]);
@@ -741,6 +756,7 @@ export function RecompProvider({ children }) {
       addSession,
       saveTrainingSession,
       deleteSession,
+      updateSession,
       saveTrainingBlock,
       completeBlockSession,
       addFood,
@@ -764,6 +780,7 @@ export function RecompProvider({ children }) {
       addSession,
       saveTrainingSession,
       deleteSession,
+      updateSession,
       saveTrainingBlock,
       completeBlockSession,
       addFood,

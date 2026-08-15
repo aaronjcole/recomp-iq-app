@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dumbbell, Trash2 } from "lucide-react";
+import { Dumbbell, Pencil, Trash2 } from "lucide-react";
+import SessionEditSheet from "./SessionEditSheet";
 
 function parseDate(s) {
   const [y, m, d] = s.split("-").map(Number);
@@ -42,6 +43,7 @@ export default function SessionHistory() {
   const { sessions } = useRecompRef();
   const { deleteSession } = useRecompActions();
   const [confirmId, setConfirmId] = useState(null);
+  const [editSession, setEditSession] = useState(null);
   const [visibleDayCount, setVisibleDayCount] = useState(INITIAL_DAY_LIMIT);
 
   const days = useMemo(() => {
@@ -58,6 +60,7 @@ export default function SessionHistory() {
   const remainingDays = Math.max(0, days.length - visibleDays.length);
 
   return (
+    <>
     <Card className="bg-panel border-line">
       <CardContent className="p-5">
         <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground mb-3">Training history</h2>
@@ -115,14 +118,24 @@ export default function SessionHistory() {
                                 <button onClick={() => setConfirmId(null)} className="text-xs text-muted-foreground px-1 py-1 min-h-[36px]">Cancel</button>
                               </div>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => setConfirmId(s.id)}
-                                className="text-muted-foreground hover:text-red shrink-0 p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
-                                aria-label={`Delete ${s.title || TYPE_LABEL[s.type] || "session"}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditSession(s)}
+                                  className="text-muted-foreground hover:text-teal p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                  aria-label={`Edit ${s.title || TYPE_LABEL[s.type] || "session"}`}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmId(s.id)}
+                                  className="text-muted-foreground hover:text-red p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                  aria-label={`Delete ${s.title || TYPE_LABEL[s.type] || "session"}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -147,5 +160,14 @@ export default function SessionHistory() {
         )}
       </CardContent>
     </Card>
+
+    {editSession && (
+      <SessionEditSheet
+        session={editSession}
+        open={!!editSession}
+        onOpenChange={(o) => { if (!o) setEditSession(null); }}
+      />
+    )}
+  </>
   );
 }
