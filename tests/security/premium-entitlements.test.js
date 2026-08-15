@@ -39,17 +39,18 @@ test("the premium bundle grants tier-2 features and identifies tester access", (
   assert.deepEqual(tester.sources, ["tester"]);
 });
 
-test("the lifestyle coach product grants all features including bundle features", () => {
+test("the lifestyle coach product unlocks only its own feature, not bundle features", () => {
   const coach = resolvePremiumAccess(
     [entitlement({ product_id: PREMIUM_PRODUCTS.AI_LIFESTYLE_COACH })],
     NOW
   );
   assert.equal(coach.hasAnyAccess, true);
+  assert.equal(coach.hasBundleAccess, false);
   assert.equal(coach.features[PREMIUM_FEATURES.AI_LIFESTYLE_COACH], true);
-  assert.equal(coach.features[PREMIUM_FEATURES.MEAL_PLANNING], true);
-  assert.equal(coach.features[PREMIUM_FEATURES.TRAINING_PLANNING], true);
-  assert.equal(coach.features[PREMIUM_FEATURES.WEEKLY_AUTOPILOT], true);
-  assert.equal(coach.features[PREMIUM_FEATURES.VISUAL_PROGRESS], true);
+  assert.equal(coach.features[PREMIUM_FEATURES.MEAL_PLANNING], false);
+  assert.equal(coach.features[PREMIUM_FEATURES.TRAINING_PLANNING], false);
+  assert.equal(coach.features[PREMIUM_FEATURES.WEEKLY_AUTOPILOT], false);
+  assert.equal(coach.features[PREMIUM_FEATURES.VISUAL_PROGRESS], false);
 });
 
 test("individual products unlock only their mapped premium capability", () => {

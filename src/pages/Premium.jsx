@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarDays, Dumbbell, ScanLine, Sparkles } from "lucide-react";
+import { ArrowRight, Bot, CalendarDays, Dumbbell, ScanLine, Sparkles } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +36,13 @@ const FEATURES = [
     title: "Visual progress tools",
     description: "Private, on-device comparisons plus an optional AI-assisted body-composition range—not a medical measurement.",
     to: "/progress"
+  },
+  {
+    key: PREMIUM_FEATURES.AI_LIFESTYLE_COACH,
+    icon: Bot,
+    title: "AI lifestyle coach",
+    description: "A conversational coach that draws on your logs, habits, and progress to give context-aware guidance.",
+    to: "/coach"
   }
 ];
 
