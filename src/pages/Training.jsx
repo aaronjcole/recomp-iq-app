@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
 import StrengthProgressionCard from "@/components/training/StrengthProgressionCard";
+import PlateauAlertCard from "@/components/training/PlateauAlertCard";
 import SessionBuilder from "@/components/training/SessionBuilder";
 import SessionHistory from "@/components/training/SessionHistory";
 import ActiveBlockCard from "@/components/training/ActiveBlockCard";
@@ -61,6 +62,7 @@ export default function Training() {
         )}
 
         <StrengthProgressionCard />
+        <PlateauAlertCard />
         <WorkoutTracker />
         <SessionBuilder key={prefillKey.current} prefill={prefill} />
         <SessionHistory />
