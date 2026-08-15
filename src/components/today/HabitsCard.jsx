@@ -39,6 +39,30 @@ function computeStreak(entries, habit) {
   return streak;
 }
 
+const HABIT_FORMATION_DAYS = 21;
+
+function StreakHint({ streak }) {
+  if (streak <= 0) return null;
+  if (streak >= HABIT_FORMATION_DAYS) {
+    return (
+      <div className="font-mono text-xs text-teal">
+        Habit formed · {streak} days
+      </div>
+    );
+  }
+  const pct = Math.round((streak / HABIT_FORMATION_DAYS) * 100);
+  return (
+    <div className="space-y-0.5">
+      <div className="font-mono text-xs text-muted-foreground">
+        Day {streak} of {HABIT_FORMATION_DAYS}
+      </div>
+      <div className="h-1 w-16 rounded-full bg-line overflow-hidden">
+        <div className="h-full rounded-full bg-teal transition-all" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function HabitsCard() {
   const { habits, habitEntries } = useRecompHabits();
   const { upsertHabitEntry } = useRecompActions();
@@ -98,9 +122,7 @@ export default function HabitsCard() {
                     <Icon className="w-4 h-4 text-teal shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{h.name}</div>
-                      {streak > 0 && (
-                        <div className="font-mono text-xs text-muted-foreground">{streak} day streak</div>
-                      )}
+                      <StreakHint streak={streak} />
                     </div>
                     <button
                       onClick={() => toggle(h)}
@@ -124,8 +146,8 @@ export default function HabitsCard() {
                     <div className="text-sm font-medium truncate">{h.name}</div>
                     <div className="font-mono text-xs text-muted-foreground tabular-nums">
                       {Math.round(value)}/{target} {h.unit || ""}
-                      {streak > 0 ? ` · ${streak}d streak` : ""}
                     </div>
+                    <StreakHint streak={streak} />
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Button
