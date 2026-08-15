@@ -3,12 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 function initialTheme() {
   try {
     const stored = localStorage.getItem("recomp-theme");
-    if (stored === "dark" || stored === "light") return stored;
+    if (stored === "light") return "light";
   } catch (e) {}
-  if (typeof window !== "undefined" && window.matchMedia) {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return "dark";
+  return "light";
 }
 
 export function useTheme() {
