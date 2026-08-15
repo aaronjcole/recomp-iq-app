@@ -42,7 +42,7 @@ const FEATURES = [
     icon: Bot,
     title: "AI lifestyle coach",
     description: "A conversational coach that draws on your logs, habits, and progress to give context-aware guidance.",
-    to: "/coach"
+    to: "/more/coach/lifestyle"
   }
 ];
 
