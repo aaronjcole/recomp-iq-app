@@ -14,9 +14,8 @@ const TESTER_EMAIL_SET = (() => {
   return new Set(raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
 })();
 
-// Testers get tier-3 (AI_LIFESTYLE_COACH) which grants all features including the bundle.
 const TESTER_FULL_RECORD = Object.freeze({
-  product_id: PREMIUM_PRODUCTS.AI_LIFESTYLE_COACH,
+  product_id: PREMIUM_PRODUCTS.BUNDLE,
   source: "tester",
   status: "active",
   expires_at: null
