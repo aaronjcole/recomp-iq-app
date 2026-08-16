@@ -190,7 +190,7 @@ export default function Progress() {
       </Card>
 
       {showShare && trend && (
-        <ShareCard trend={trend} signal={null} onClose={() => setShowShare(false)} />
+        <ShareCard trend={trend} onClose={() => setShowShare(false)} />
       )}
 
       {projection && (
