@@ -72,6 +72,16 @@ export default function Nutrition() {
 
   const [showAllFoods, setShowAllFoods] = useState(false);
 
+  const quickAddFood = async (f) => {
+    await upsertDailyLog(todayStr(), (current) => ({
+      calories: (current?.calories ?? 0) + (f.calories ?? 0),
+      protein_g: (current?.protein_g ?? 0) + (f.protein_g ?? 0),
+      carbs_g: (current?.carbs_g ?? 0) + (f.carbs_g ?? 0),
+      fat_g: (current?.fat_g ?? 0) + (f.fat_g ?? 0)
+    }));
+    toast({ title: `${f.name} added` });
+  };
+
   if (!strategy) return (
     <div className="space-y-5">
       <div className="h-8 w-40 animate-pulse rounded-xl bg-panel2" />
@@ -132,6 +142,26 @@ export default function Nutrition() {
         <CardContent className="p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-medium">Quick add food</h2>
+          </div>
+          {foods.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Recent</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: "none" }}>
+                {foods.slice(0, 6).map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => quickAddFood(f)}
+                    className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity"
+                  >
+                    <div className="text-sm font-medium truncate">{f.name}</div>
+                    <div className="text-xs text-muted-foreground">{f.calories} kcal</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-muted-foreground">Or add manually</span>
             <div className="flex items-center gap-2">
               {featureFlags.foodPhotoScan && (
                 <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowPhotoScan(true)}>

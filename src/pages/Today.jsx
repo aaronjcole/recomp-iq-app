@@ -128,8 +128,8 @@ export default function Today() {
           <CardContent className="p-4 flex items-center gap-3">
             <Bot className="w-5 h-5 text-teal" />
             <div className="flex-1">
-              <h2 className="text-sm font-medium">Ask your AI coach</h2>
-              <div className="text-xs text-muted-foreground">Specific guidance from your data</div>
+              <h2 className="text-sm font-medium">Get personalized guidance</h2>
+              <div className="text-xs text-muted-foreground">Advice drawn from your actual data</div>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </CardContent>

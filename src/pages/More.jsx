@@ -112,8 +112,8 @@ export default function More() {
       title: "Coaching & plan",
       items: [
         { icon: Crown, label: "Premium features", to: "/more/premium", badge: "Premium" },
-        { icon: MessageCircle, label: "AI Coach", to: "/more/coach" },
-        { icon: BrainCircuit, label: "AI Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Premium" },
+        { icon: MessageCircle, label: "Coach", to: "/more/coach" },
+        { icon: BrainCircuit, label: "Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Premium" },
         {
           icon: RefreshCw,
           label: "Weekly check-in",

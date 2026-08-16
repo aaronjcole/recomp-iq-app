@@ -4,25 +4,18 @@ import { Button } from "@/components/ui/button";
 import { ChevronRight, Target } from "lucide-react";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { calculateInitialStrategy } from "@/lib/fitness";
-import StepWelcome from "@/components/onboarding/StepWelcome";
 import StepGoal from "@/components/onboarding/StepGoal";
-import StepAbout from "@/components/onboarding/StepAbout";
-import StepActivity from "@/components/onboarding/StepActivity";
+import StepAboutActivity from "@/components/onboarding/StepAboutActivity";
 import StepNutrition from "@/components/onboarding/StepNutrition";
-import StepCoaching from "@/components/onboarding/StepCoaching";
 import StepReview from "@/components/onboarding/StepReview";
 
 // Keep the legacy key so existing users retain onboarding progress through the rebrand.
 const STORAGE_KEY = "recompiq_onboarding_v1";
 
-// Fix 1: STEPS is now an array of objects so each step has a human-readable label.
 const STEPS = [
-  { label: "Welcome" },
   { label: "Goal" },
   { label: "About you" },
-  { label: "Activity & training" },
-  { label: "Nutrition & lifestyle" },
-  { label: "Coaching" },
+  { label: "Preferences" },
   { label: "Review" },
 ];
 
@@ -67,14 +60,9 @@ const DEFAULTS = {
 };
 
 const STEP_MESSAGES = [
-  "",
   "Pick a goal to continue.",
-  // Every field this step gates on now carries an error ring, so point at those
-  // rather than naming three fields that may not be the blocker.
   "Complete the highlighted fields to continue.",
-  "Complete the activity fields.",
   "Pick a diet style to continue.",
-  "Pick a coach tone to continue.",
   ""
 ];
 
@@ -167,21 +155,19 @@ export default function Onboarding() {
   const setPref = (k, v) => setPrefRaw((s) => ({ ...s, [k]: v }));
 
   const validations = [
-    true,
     !!p.goal,
     inRange(p.age, 18, 120) &&
       !!p.sex &&
       inRange(p.height_in, 36, 108) &&
       inRange(p.current_weight_lbs, 40, 1200) &&
       (!p.goal_weight_lbs || inRange(p.goal_weight_lbs, 40, 1200)) &&
-      (!p.waist_in || inRange(p.waist_in, 10, 150)),
-    !!p.job_activity &&
+      (!p.waist_in || inRange(p.waist_in, 10, 150)) &&
+      !!p.job_activity &&
       inRange(p.average_steps, 0, 200000) &&
       inRange(p.training_days_per_week, 0, 7) &&
       inRange(p.cardio_days_per_week, 0, 7) &&
       !!p.experience_level,
     !!pref.diet_style,
-    !!pref.tone,
     true
   ];
   const stepValid = validations[step];
@@ -309,7 +295,6 @@ export default function Onboarding() {
         <span className="font-semibold text-lg">RecompOne</span>
       </div>
 
-      {/* Fix 1: progress bar + step label so users know where they are */}
       <div className="flex flex-col gap-2 mb-6">
         <div className="flex gap-1.5">
           {STEPS.map((_, i) => (
@@ -324,31 +309,17 @@ export default function Onboarding() {
         </p>
       </div>
 
-      {step === 0 && <StepWelcome />}
-      {/* Fix 2: pass showErrors so step components can highlight invalid fields */}
-      {step === 1 && <StepGoal p={p} set={set} showErrors={showErrors} />}
-      {step === 2 && <StepAbout p={p} set={set} units={units} setUnits={setUnits} showErrors={showErrors} />}
-      {step === 3 && <StepActivity p={p} set={set} showErrors={showErrors} />}
-      {step === 4 && <StepNutrition pref={pref} setPref={setPref} showErrors={showErrors} />}
-      {step === 5 && <StepCoaching pref={pref} setPref={setPref} showErrors={showErrors} />}
-      {step === 6 && (
-        <>
-          <StepReview
-            p={p}
-            pref={pref}
-            units={units}
-            onEdit={goTo}
-            profilePreview={profilePreview}
-          />
-          {/* Fix 4: read-only primary_concern display derived from goal */}
-          {p.goal && (
-            <div className="mt-4 rounded-xl border border-line bg-panel px-4 py-3 space-y-1">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Primary concern</p>
-              <p className="text-sm font-medium">{PRIMARY_CONCERN_MAP[p.goal] ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">Automatically set based on your goal.</p>
-            </div>
-          )}
-        </>
+      {step === 0 && <StepGoal p={p} set={set} showErrors={showErrors} />}
+      {step === 1 && <StepAboutActivity p={p} set={set} units={units} setUnits={setUnits} showErrors={showErrors} />}
+      {step === 2 && <StepNutrition pref={pref} setPref={setPref} showErrors={showErrors} />}
+      {step === 3 && (
+        <StepReview
+          p={p}
+          pref={pref}
+          units={units}
+          onEdit={goTo}
+          profilePreview={profilePreview}
+        />
       )}
 
       {errorStep === step && !stepValid && (
