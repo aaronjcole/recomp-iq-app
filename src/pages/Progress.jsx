@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
-import { ArrowRight, Scale, ScanLine } from "lucide-react";
+import { ArrowRight, Scale, ScanLine, Share2, Target } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
@@ -43,6 +43,7 @@ export default function Progress() {
   const location = useLocation();
   const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
   const [range, setRange] = useState("35d");
+  const [showShare, setShowShare] = useState(false);
 
   const dedupedLogs = useMemo(
     () => (isActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
@@ -159,7 +160,19 @@ export default function Progress() {
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-2 text-sm">
-          <h2 className="font-medium mb-1">Latest read</h2>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="font-medium">Latest read</h2>
+            {trend && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-teal hover:text-teal"
+                onClick={() => setShowShare(true)}
+              >
+                <Share2 className="w-4 h-4 mr-1" /> Share
+              </Button>
+            )}
+          </div>
           {trend ? (
             <>
               <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
@@ -175,6 +188,10 @@ export default function Progress() {
           )}
         </CardContent>
       </Card>
+
+      {showShare && trend && (
+        <ShareCard trend={trend} onClose={() => setShowShare(false)} />
+      )}
 
       {projection && (
         <Card className="bg-panel border-line">
@@ -241,6 +258,76 @@ function Stat({ label, value, highlight = false }) {
         {value}<span className="ml-1 text-xs font-normal text-muted-foreground">lb</span>
       </div>
       <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function ShareCard({ trend, onClose }) {
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const weeklyChange = trend.weight_change_lbs !== null
+    ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb`
+    : "—";
+
+  const stats = [
+    { label: "Weekly change", value: weeklyChange },
+    { label: "Calorie adherence", value: pct(trend.calorie_adherence) },
+    { label: "Protein adherence", value: pct(trend.protein_adherence) },
+    { label: "Workout adherence", value: pct(trend.workout_adherence) }
+  ];
+
+  const handleShare = () => {
+    const text = [
+      "My RecompOne progress this week:",
+      ...stats.map((s) => `${s.label}: ${s.value}`)
+    ].join("\n");
+    navigator.share({ title: "RecompOne Progress", text }).catch(() => {});
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center p-4 pb-8 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xs rounded-2xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-[#07110f] px-6 py-8 space-y-5">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-[#2fc4a7] flex items-center justify-center">
+              <Target className="w-4 h-4 text-[#07110f]" />
+            </div>
+            <span className="font-semibold text-[#2fc4a7]">RecompOne</span>
+          </div>
+          <div className="space-y-2">
+            {stats.map((s) => (
+              <div key={s.label} className="flex justify-between">
+                <span className="text-sm text-white/50">{s.label}</span>
+                <span className="text-sm font-semibold text-white">{s.value}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-white/30 text-center">recompone.app</p>
+        </div>
+        <div className="bg-panel p-4 space-y-2">
+          {canShare ? (
+            <Button
+              className="w-full bg-teal text-buttonText hover:opacity-90"
+              onClick={handleShare}
+            >
+              <Share2 className="w-4 h-4 mr-2" /> Share
+            </Button>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground">
+              Screenshot the card above to share your progress
+            </p>
+          )}
+          <Button variant="outline" className="w-full border-line" onClick={onClose}>
+            Done
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

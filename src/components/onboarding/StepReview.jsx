@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Pencil } from "lucide-react";
 import { GOAL_LABELS, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
 import { StepHeader } from "./Fields";
-import { SAFETY_FLAGS, toneLabel } from "./constants";
+import { SAFETY_FLAGS } from "./constants";
 import { splitFeetInches, storedInchesToCm } from "@/lib/heightConversion";
 
 const lbsToKg = (lbs) => lbs * 0.45359237;
@@ -55,13 +55,13 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
         why="Confirm the details, then we'll build your starting targets."
       />
       <ReviewSection
-        step={1}
+        step={0}
         title="Goal"
         onEdit={onEdit}
         rows={[{ label: "Goal", value: GOAL_LABELS[p.goal]?.label ?? "—" }]}
       />
       <ReviewSection
-        step={2}
+        step={1}
         title="About you"
         onEdit={onEdit}
         rows={[
@@ -81,7 +81,7 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
         ]}
       />
       <ReviewSection
-        step={3}
+        step={1}
         title="Activity"
         onEdit={onEdit}
         rows={[
@@ -96,8 +96,8 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
         ]}
       />
       <ReviewSection
-        step={4}
-        title="Nutrition & lifestyle"
+        step={2}
+        title="Preferences"
         onEdit={onEdit}
         rows={[
           { label: "Diet style", value: pref.diet_style || "—" },
@@ -109,17 +109,9 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
           {
             label: "Known barriers",
             value: pref.known_barriers.length ? pref.known_barriers.join(", ") : "None"
-          }
-        ]}
-      />
-      <ReviewSection
-        step={5}
-        title="Coaching & safety"
-        onEdit={onEdit}
-        rows={[
-          { label: "Tone", value: toneLabel(pref.tone) },
+          },
           {
-            label: "Safety flags",
+            label: "Health flags",
             value: pref.safety_flags.length
               ? pref.safety_flags.map(safetyLabel).join(", ")
               : "None"
