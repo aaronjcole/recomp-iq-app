@@ -8,7 +8,7 @@ function changeCalories(strategy, delta) {
   return Math.max(1500, Math.min(20000, Math.round((strategy.calorie_target + delta) / 10) * 10));
 }
 
-function useFatLossPlateauLever(profile, strategy) {
+function fatLossPlateauLever(profile, strategy) {
   if (profile.job_activity === "sedentary" && strategy.step_target < 8000) {
     return {
       decision: "increase_steps",
@@ -100,7 +100,7 @@ export function decideWeeklyAdjustment(input) {
       reason = "Weight is rising beyond the selected recomposition range without a lower-waist signal, so a small calorie reduction is warranted.";
       nextStrategy.calorie_target = changeCalories(strategy, -150);
     } else if ((input.consecutiveFlatWeeks ?? 0) >= 2 && trend.waist_label !== "down") {
-      const plateau = useFatLossPlateauLever(profile, strategy);
+      const plateau = fatLossPlateauLever(profile, strategy);
       decision = plateau.decision;
       reason = plateau.reason;
       nextStrategy = { ...nextStrategy, ...plateau.updates };
@@ -127,7 +127,7 @@ export function decideWeeklyAdjustment(input) {
       reason = "Weight is rising beyond the selected fat-loss range without a lower-waist signal, so a small calorie reduction is warranted.";
       nextStrategy.calorie_target = changeCalories(strategy, -150);
     } else if ((input.consecutiveFlatWeeks ?? 0) >= 2 && trend.waist_label !== "down") {
-      const plateau = useFatLossPlateauLever(profile, strategy);
+      const plateau = fatLossPlateauLever(profile, strategy);
       decision = plateau.decision;
       reason = plateau.reason;
       nextStrategy = { ...nextStrategy, ...plateau.updates };

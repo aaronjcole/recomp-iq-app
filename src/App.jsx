@@ -44,6 +44,12 @@ const Privacy = lazyWithRetry(() => import('@/pages/Privacy'));
 const Terms = lazyWithRetry(() => import('@/pages/Terms'));
 const Support = lazyWithRetry(() => import('@/pages/Support'));
 const DeleteAccount = lazyWithRetry(() => import('@/pages/DeleteAccount'));
+const TdeeCalculator = lazyWithRetry(() => import('@/pages/seo/TdeeCalculator'));
+const MacroCalculator = lazyWithRetry(() => import('@/pages/seo/MacroCalculator'));
+const LearnIndex = lazyWithRetry(() => import('@/pages/seo/LearnIndex'));
+const RecompGuide = lazyWithRetry(() => import('@/pages/seo/RecompGuide'));
+const LocationsIndex = lazyWithRetry(() => import('@/pages/seo/LocationsIndex'));
+const LocationPage = lazyWithRetry(() => import('@/pages/seo/LocationPage'));
 const RecompGate = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
 );
@@ -75,6 +81,12 @@ const AuthenticatedApp = () => {
       <Route path="/terms" element={<Terms />} />
       <Route path="/support" element={<Support />} />
       <Route path="/delete-account" element={<DeleteAccount />} />
+      <Route path="/tools/tdee-calculator" element={<TdeeCalculator />} />
+      <Route path="/tools/macro-calculator" element={<MacroCalculator />} />
+      <Route path="/learn" element={<LearnIndex />} />
+      <Route path="/learn/body-recomposition-guide" element={<RecompGuide />} />
+      <Route path="/locations" element={<LocationsIndex />} />
+      <Route path="/locations/:slug" element={<LocationPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -142,4 +154,4 @@ function App() {
   )
 }
 
-export default App 
+export default App
