@@ -1,25 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { verifyAppleNotificationJws, verifyInnerJws } from "../../shared/appleJwsVerify.js";
 
 // App Store Server Notifications V2 webhook.
 // Configure in App Store Connect to POST to:
 //   https://recomp-iq.base44.app/functions/appleStoreNotification
 //
-// SECURITY: This scaffold decodes the JWS payload but does NOT yet verify the
-// JWS signature or the x5c certificate chain against Apple Root CA G3. Add
-// signature verification before relying on this in production — without it,
-// any caller reaching the endpoint could revoke entitlements.
+// The notification body and signedTransactionInfo are JWS signed by Apple
+// with an x5c certificate chain that terminates at Apple Root CA G3.  Both
+// the signature and the full certificate chain are verified before any
+// entitlement update is applied — without this, any caller could craft a
+// payload and revoke user entitlements.
 
 function json(body, init = {}) {
   const headers = new Headers(init.headers);
   headers.set("Cache-Control", "no-store");
   return Response.json(body, { ...init, headers });
-}
-
-function decodeJwsPayload(jws) {
-  const parts = String(jws).split(".");
-  if (parts.length < 2) throw new Error("Invalid JWS");
-  const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(atob(b64));
 }
 
 const REVOKE_TYPES = new Set(["REFUND", "REVOKE"]);
@@ -39,23 +34,27 @@ export default async function(req) {
     return json({ error: "Could not read request body" }, { status: 400 });
   }
 
+  // Verify the JWS signature and certificate chain before trusting the payload.
   let notification;
+  let leafKey;
   try {
-    notification = decodeJwsPayload(raw);
+    const verified = await verifyAppleNotificationJws(raw);
+    notification = verified.payload;
+    leafKey = verified.leafKey;
   } catch {
-    return json({ error: "Invalid notification payload" }, { status: 400 });
+    return json({ error: "Notification signature verification failed" }, { status: 401 });
   }
 
   const notificationType = notification?.notificationType;
   const data = notification?.data || {};
 
   let transactionInfo = null;
-  try {
-    if (data.signedTransactionInfo) {
-      transactionInfo = decodeJwsPayload(data.signedTransactionInfo);
+  if (data.signedTransactionInfo) {
+    try {
+      transactionInfo = await verifyInnerJws(data.signedTransactionInfo, leafKey);
+    } catch {
+      return json({ error: "Transaction info signature verification failed" }, { status: 401 });
     }
-  } catch {
-    transactionInfo = null;
   }
 
   // Nothing actionable without a transaction; acknowledge so Apple doesn't retry.
