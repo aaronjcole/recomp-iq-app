@@ -1,0 +1,64 @@
+{
+  "name": "PushDevice",
+  "type": "object",
+  "description": "Server-owned push notification device tokens. Stores only the token and platform; no profile or health data.",
+  "properties": {
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Authenticated account identifier set only by trusted backend workflows."
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Platform-specific push token (APNs device token or FCM registration token)."
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "ios",
+        "android"
+      ]
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "False when the token has been unregistered or deliveries repeatedly fail."
+    },
+    "last_registered": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp of the most recent registration/refresh."
+    }
+  },
+  "required": [
+    "owner_id",
+    "token",
+    "platform",
+    "active"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

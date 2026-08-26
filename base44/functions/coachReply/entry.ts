@@ -14,26 +14,10 @@ import {
   COACH_DAILY_LIMIT,
   evaluateCoachQuota
 } from "../../shared/coachRateLimitDomain.js";
+import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 const MAX_REQUEST_BYTES = 24_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function statusOf(error) {
-  return error?.status ?? error?.response?.status;
-}
-
-function json(body, init = {}) {
-  const headers = new Headers(init.headers);
-  headers.set("Cache-Control", "no-store");
-  return Response.json(body, { ...init, headers });
-}
-
-function safeErrorDetails(error) {
-  return {
-    status: statusOf(error) ?? null,
-    name: typeof error?.name === "string" ? error.name.slice(0, 80) : "Error"
-  };
-}
 
 async function ownedRecords(base44, entityName, userId, sort, limit) {
   return await base44.entities[entityName].filter(

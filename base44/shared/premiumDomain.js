@@ -47,7 +47,7 @@ export const EMPTY_PREMIUM_ACCESS = Object.freeze({
   sources: Object.freeze([])
 });
 
-const VALID_SOURCES = new Set(["tester", "google_play", "admin"]);
+const VALID_SOURCES = new Set(["tester", "google_play", "apple_store", "admin"]);
 
 function isActiveEntitlement(record, nowMs) {
   if (!record || record.status !== "active") return false;

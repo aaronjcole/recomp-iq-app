@@ -22,23 +22,59 @@
     },
     "source": {
       "type": "string",
-      "enum": ["tester", "google_play", "admin"]
+      "enum": [
+        "tester",
+        "google_play",
+        "apple_store",
+        "admin"
+      ]
     },
     "status": {
       "type": "string",
-      "enum": ["active", "revoked", "expired"]
+      "enum": [
+        "active",
+        "revoked",
+        "expired"
+      ]
     },
     "expires_at": {
       "type": "string",
       "format": "date-time",
       "description": "Optional access expiry. Omit for access that remains active until revoked."
+    },
+    "external_transaction_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Store-side transaction identifier (e.g. Apple originalTransactionId) used to map refund/cancellation webhooks back to the entitlement."
     }
   },
-  "required": ["owner_id", "product_id", "source", "status"],
+  "required": [
+    "owner_id",
+    "product_id",
+    "source",
+    "status"
+  ],
   "rls": {
-    "create": { "user_condition": { "role": "admin" } },
-    "read": { "user_condition": { "role": "admin" } },
-    "update": { "user_condition": { "role": "admin" } },
-    "delete": { "user_condition": { "role": "admin" } }
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
   }
 }
