@@ -34,6 +34,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 
 const STORAGE_KEY = "recomp_active_workout";
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -169,6 +170,7 @@ export default function WorkoutTracker() {
   };
 
   const addSet = (exerciseId) => {
+    triggerHaptic(HAPTIC_TRIGGERS.SET_COMPLETED);
     updateSession((s) => ({
       ...s,
       exercises: s.exercises.map((e) =>
@@ -353,6 +355,7 @@ export default function WorkoutTracker() {
       setStored(null);
       setReviewing(false);
       setElapsed(0);
+      triggerHaptic(HAPTIC_TRIGGERS.WORKOUT_SAVED);
       toast({ title: "Workout saved", description: `${sessionData.title} logged.` });
     } catch {
       toast({ title: "Couldn't save workout", variant: "destructive" });

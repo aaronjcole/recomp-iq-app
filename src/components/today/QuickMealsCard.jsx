@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Utensils, ChevronRight, Plus } from "lucide-react";
+import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 
 /**
  * Compact one-tap logging for saved meal templates. Sits on the Today page
@@ -17,6 +18,7 @@ export default function QuickMealsCard() {
   const log = async (tpl) => {
     try {
       await logMealTemplate(tpl);
+      triggerHaptic(HAPTIC_TRIGGERS.MEAL_LOGGED);
       toast({ title: "Logged", description: `${tpl.name} added to today.` });
     } catch {
       toast({ title: "Could not log", description: "Please try again.", variant: "destructive" });
