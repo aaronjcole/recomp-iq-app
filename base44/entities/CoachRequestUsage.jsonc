@@ -3,6 +3,10 @@
   "type": "object",
   "description": "Minimal server-only reservations used to enforce shared AI coach quotas. No prompts or health data are stored.",
   "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
     "owner_id": {
       "type": "string",
       "minLength": 1,

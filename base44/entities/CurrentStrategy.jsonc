@@ -2,6 +2,10 @@
   "name": "CurrentStrategy",
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
     "calorie_target": {
       "type": "number",
       "minimum": 0,

@@ -2,6 +2,10 @@
   "name": "UserProfile",
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
     "age": {
       "type": "number",
       "minimum": 18,

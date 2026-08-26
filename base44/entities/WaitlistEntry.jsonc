@@ -2,6 +2,10 @@
   "name": "WaitlistEntry",
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
     "email": {
       "type": "string",
       "description": "Visitor email captured from the coming-soon landing page."

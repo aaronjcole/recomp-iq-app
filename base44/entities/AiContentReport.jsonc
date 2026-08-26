@@ -2,6 +2,10 @@
   "name": "AiContentReport",
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
     "owner_id": {
       "type": "string",
       "minLength": 1,
