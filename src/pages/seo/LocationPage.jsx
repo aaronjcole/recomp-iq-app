@@ -2,6 +2,7 @@ import SeoShell, { SITE_URL } from "@/components/seo/SeoShell";
 import { Link, useParams } from "react-router-dom";
 import { MapPin, ArrowLeft } from "lucide-react";
 import { findLocation, locations } from "@/lib/seo/locationsData";
+import { tips } from "@/lib/seo/tipsData";
 
 export default function LocationPage() {
   const { slug } = useParams();
@@ -106,6 +107,18 @@ export default function LocationPage() {
         Ready to start? <Link to="/coming-soon" className="font-semibold text-teal hover:underline">Get RecompOne</Link>{" "}
         and turn your {loc.city} training and nutrition data into adaptive guidance.
       </p>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold">Fitness tips</h2>
+        <div className="mt-3 grid gap-3">
+          {tips.slice(0, 3).map((t) => (
+            <Link key={t.slug} to={`/tips/${t.slug}`} className="block rounded-2xl border border-line bg-panel p-4 hover:border-teal/40">
+              <h3 className="text-sm font-semibold">{t.title}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t.summary}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Other locations</h2>

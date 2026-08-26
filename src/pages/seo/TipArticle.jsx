@@ -1,7 +1,7 @@
 import SeoShell, { SITE_URL } from "@/components/seo/SeoShell";
 import { Link, useParams } from "react-router-dom";
 import { Clock } from "lucide-react";
-import { findTip } from "@/lib/seo/tipsData";
+import { findTip, tips } from "@/lib/seo/tipsData";
 
 export default function TipArticle() {
   const { slug } = useParams();
@@ -25,6 +25,8 @@ export default function TipArticle() {
   }
 
   const canonicalPath = `/tips/${tip.slug}`;
+  const tipIndex = tips.findIndex((t) => t.slug === tip.slug);
+  const related = [...tips.slice(tipIndex + 1), ...tips.slice(0, tipIndex)].slice(0, 3);
   const jsonLd = [
     {
       "@context": "https://schema.org",
@@ -105,6 +107,18 @@ export default function TipArticle() {
           move — so the tips you read here become a plan you can actually follow.{" "}
           <Link to="/coming-soon" className="font-semibold text-teal hover:underline">See how it works</Link>.
         </p>
+
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Related tips</h2>
+          <div className="mt-3 grid gap-3">
+            {related.map((r) => (
+              <Link key={r.slug} to={`/tips/${r.slug}`} className="block rounded-2xl border border-line bg-panel p-4 hover:border-teal/40">
+                <h3 className="text-sm font-semibold">{r.title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{r.summary}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         <p>
           <Link to="/tips" className="font-medium text-teal hover:underline">← Browse all fitness tips</Link>
