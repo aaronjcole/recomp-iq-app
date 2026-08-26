@@ -4,6 +4,8 @@ import { Link, useLocation } from "react-router-dom";
 import ProgressRing from "@/components/common/ProgressRing";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import HabitsCard from "@/components/today/HabitsCard";
+import QuickMealsCard from "@/components/today/QuickMealsCard";
+import TodayProgressCard from "@/components/today/TodayProgressCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
 import BestMoveCard from "@/components/today/BestMoveCard";
 import PullToRefresh from "@/components/common/PullToRefresh";
@@ -82,6 +84,10 @@ export default function Today() {
           </div>
         </CardContent>
       </Card>
+
+      <QuickMealsCard />
+
+      <TodayProgressCard />
 
       <Link to="/today/autopilot" className="block">
         <Card className="border-teal/30 bg-teal/10">
