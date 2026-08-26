@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import CheckInSheet from "@/components/more/CheckInSheet";
 import { SUPPORT_EMAIL } from "@/lib/support";
+import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 
 const APP_VERSION = "0.1.0";
 
@@ -91,6 +92,7 @@ export default function More() {
     try {
       const r = await runCheckIn();
       setCheckinResult(r);
+      triggerHaptic(HAPTIC_TRIGGERS.WEEKLY_CHECK_IN_SUBMITTED);
       setCheckinOpen(true);
     } finally {
       setRunning(false);

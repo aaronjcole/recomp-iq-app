@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
 import { strengthTrend } from "@/lib/fitness";
 import ConfidenceRing from "@/components/common/ConfidenceRing";
 import SignalStat from "@/components/common/SignalStat";
+import ScoreDriversSheet from "@/components/today/ScoreDriversSheet";
 
 const CHIP = {
   "High confidence": "border-teal text-teal",
@@ -16,6 +17,7 @@ const signed = (n, unit) => `${n > 0 ? "+" : ""}${n} ${unit}`;
 
 export default function RecompSignalHero() {
   const { signal, recompSignal, boss, trend, strengthLogs } = useRecomp();
+  const [driversOpen, setDriversOpen] = useState(false);
 
   const strength = useMemo(() => strengthTrend(strengthLogs), [strengthLogs]);
   const strengthCell = useMemo(() => {
@@ -84,7 +86,14 @@ export default function RecompSignalHero() {
       </div>
 
       <div className="flex items-center gap-5">
-        <ConfidenceRing value={signal.score} size={120} stroke={12} label="Signal" />
+        <button
+          type="button"
+          className="min-h-11 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          onClick={() => setDriversOpen(true)}
+          aria-label={`Signal score ${Math.round(signal.score)}. Show what is driving this score.`}
+        >
+          <ConfidenceRing value={signal.score} size={120} stroke={12} label="Signal" />
+        </button>
         <div className="flex-1 space-y-1.5 min-w-0">
           <div className="font-semibold text-lg leading-tight">{recompSignal?.label ?? "—"}</div>
           <p className="text-sm text-muted-foreground leading-snug">{recompSignal?.copy ?? "—"}</p>
@@ -107,6 +116,7 @@ export default function RecompSignalHero() {
           </p>
         </div>
       )}
+      <ScoreDriversSheet open={driversOpen} onOpenChange={setDriversOpen} drivers={cells} />
     </div>
   );
 }

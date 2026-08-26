@@ -16,6 +16,7 @@ import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import ConfidenceRing from "@/components/common/ConfidenceRing";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -76,6 +77,10 @@ export default function WeeklyAutopilot() {
   const [review, setReview] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
+  const reviewScore = review
+    ? Math.round(review.scorecard.reduce((sum, item) => sum + (Number.isFinite(item.score) ? item.score : 0), 0)
+      / Math.max(1, review.scorecard.filter((item) => Number.isFinite(item.score)).length) * 100)
+    : 0;
 
   useEffect(dropLegacyPlanCache, []);
 
@@ -168,10 +173,13 @@ export default function WeeklyAutopilot() {
                   {shortDate(review.weekStart)}–{shortDate(review.weekEnd)}
                 </span>
               </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-teal">Your one move</p>
-                <h2 className="mt-1 text-xl font-semibold">{review.primaryAction.title}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{review.primaryAction.detail}</p>
+              <div className="flex items-center gap-4">
+                <ConfidenceRing value={reviewScore} size={84} stroke={9} label="Week" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-teal">Your one move</p>
+                  <h2 className="mt-1 text-xl font-semibold">{review.primaryAction.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{review.primaryAction.detail}</p>
+                </div>
               </div>
               <Button asChild className="w-full bg-teal text-buttonText hover:opacity-90">
                 <Link to={review.primaryAction.route}>Take this step <ArrowRight aria-hidden="true" /></Link>

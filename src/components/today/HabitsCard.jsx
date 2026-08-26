@@ -6,6 +6,7 @@ import { Plus, Minus, Check, Pencil } from "lucide-react";
 import ProgressRing from "@/components/common/ProgressRing";
 import HabitEditor from "@/components/today/HabitEditor";
 import { iconFor } from "@/lib/habitIcons";
+import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 
 function toStr(d) {
   const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
@@ -83,15 +84,21 @@ export default function HabitsCard() {
     return m;
   }, [habitEntries]);
 
-  const toggle = (habit) => {
-    upsertHabitEntry(habit.id, today, (current) => ({ done: !current?.done }));
+  const toggle = async (habit) => {
+    const current = entriesByHabit.get(habit.id)?.find((entry) => entry.date === today);
+    const completing = !current?.done;
+    await upsertHabitEntry(habit.id, today, { done: completing });
+    if (completing) triggerHaptic(HAPTIC_TRIGGERS.HABIT_COMPLETED);
   };
 
-  const step = (habit, delta) => {
-    upsertHabitEntry(habit.id, today, (current) => {
-      const next = Math.max(0, (current?.value ?? 0) + delta);
-      return { value: next, done: next >= (habit.target_value || 1) };
-    });
+  const step = async (habit, delta) => {
+    const current = entriesByHabit.get(habit.id)?.find((entry) => entry.date === today);
+    const target = habit.target_value || 1;
+    const next = Math.max(0, (current?.value ?? 0) + delta);
+    await upsertHabitEntry(habit.id, today, { value: next, done: next >= target });
+    if ((current?.value ?? 0) < target && next >= target) {
+      triggerHaptic(HAPTIC_TRIGGERS.HABIT_COMPLETED);
+    }
   };
 
   return (

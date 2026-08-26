@@ -48,8 +48,8 @@ export default function AppLayout() {
   }, [isTabRoot, tabRootPath]);
 
   return (
-    <div className="min-h-screen bg-bg text-foreground flex flex-col">
-      <main id="main-content" tabIndex={-1} className={`mx-auto w-full max-w-md flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] ${isTabRoute ? "pb-28" : "pb-6"}`}>
+    <div className="min-h-screen bg-bg text-foreground flex flex-col lg:bg-gradient-to-b lg:from-teal/10 lg:via-bg lg:to-panel2/60">
+      <main id="main-content" tabIndex={-1} className={`mx-auto w-full max-w-md flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] lg:my-8 lg:min-h-[calc(100vh-4rem)] lg:flex-none lg:rounded-3xl lg:border lg:border-lineSoft lg:bg-bg lg:px-6 lg:pt-6 lg:shadow-xl ${isTabRoute ? "pb-28" : "pb-6"}`}>
         {ROOT_TAB_PATHS.filter((p) => cache.current[p]).map((p) => (
           <div key={p} className={isTabRoot && p === tabRootPath ? "" : "hidden"}>
             {cache.current[p]}
@@ -72,7 +72,7 @@ export default function AppLayout() {
         </MotionConfig>
       </main>
       {isTabRoute && (
-        <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
+        <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)] lg:bottom-6 lg:overflow-hidden lg:rounded-2xl lg:border lg:shadow-lg">
           <div className="flex">
             {tabs.map(({ to, icon: Icon, label, end }) => (
               <NavLink

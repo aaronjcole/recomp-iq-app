@@ -1,7 +1,11 @@
+import { motion, useReducedMotion } from "framer-motion";
+
 export default function ConfidenceRing({ value, size = 120, stroke = 12, label }) {
+  const reduceMotion = useReducedMotion();
   const v = Math.max(0, Math.min(100, Number(value) || 0));
-  const ringInner = (size - stroke * 2) / 2;
-  const mask = `radial-gradient(circle, transparent ${ringInner}px, #000 ${ringInner + 0.5}px)`;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - v / 100);
 
   return (
     <div
@@ -11,20 +15,28 @@ export default function ConfidenceRing({ value, size = 120, stroke = 12, label }
       aria-label={`${label || "Confidence"}: ${Math.round(v)} out of 100`}
     >
       <div className="relative" style={{ width: size, height: size }}>
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: `conic-gradient(var(--teal) ${v * 3.6}deg, var(--panel2) ${v * 3.6}deg 360deg)`,
-            WebkitMask: mask,
-            mask
-          }}
-        />
+        <svg className="-rotate-90" width={size} height={size} aria-hidden="true">
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--panel2)" strokeWidth={stroke} />
+          <motion.circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="var(--teal)"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: reduceMotion ? offset : circumference }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: reduceMotion ? 0 : 0.38, ease: "easeOut" }}
+          />
+        </svg>
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-2xl font-bold leading-none tabular-nums">{Math.round(v)}</span>
         </div>
       </div>
       {label && (
-        <span className="font-mono text-label uppercase tracking-wider text-muted-foreground mt-2">{label}</span>
+        <span className="mt-2 font-mono text-label uppercase tracking-wider text-muted-foreground">{label}</span>
       )}
     </div>
   );

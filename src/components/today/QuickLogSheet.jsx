@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import RatingDrawer from "@/components/today/RatingDrawer";
 import { useToast } from "@/components/ui/use-toast";
+import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
@@ -91,6 +92,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         sleep_hours: num(form.sleep_hours),
         notes: form.notes || undefined
       });
+      triggerHaptic(HAPTIC_TRIGGERS.LOG_SAVED);
       toast({ title: "Logged", description: "Today's numbers are saved." });
       onOpenChange(false);
     } finally {
