@@ -43,7 +43,16 @@ export default function LocationPage() {
         { "@type": "ListItem", position: 1, name: "Locations", item: `${SITE_URL}/locations` },
         { "@type": "ListItem", position: 2, name: `${loc.city}, ${loc.state}`, item: `${SITE_URL}/locations/${loc.slug}` }
       ]
-    }
+    },
+    ...(loc.faq?.length ? [{
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: loc.faq.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: { "@type": "Answer", text: item.a }
+      }))
+    }] : [])
   ];
 
   return (
@@ -83,6 +92,15 @@ export default function LocationPage() {
           training load, and recovery — are the same everywhere.
         </p>
 
+        <h2 className="pt-2 text-xl font-bold text-foreground">Training and staying active in {loc.city}</h2>
+        <p>{loc.climate}</p>
+        <p>Popular ways {loc.city} residents build activity into their week include:</p>
+        <ul className="list-disc space-y-1 pl-5">
+          {loc.activities.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+
         <h2 className="pt-2 text-xl font-bold text-foreground">Getting started in {loc.city}</h2>
         <ol className="list-decimal space-y-2 pl-5">
           <li>Calculate your starting calorie and macro targets with our free <Link to="/tools/tdee-calculator" className="font-medium text-teal hover:underline">TDEE calculator</Link>.</li>
@@ -102,6 +120,18 @@ export default function LocationPage() {
           ))}
         </ul>
       </section>
+
+      {loc.faq?.length > 0 && (
+        <section className="mt-10 space-y-4 text-sm leading-relaxed text-muted-foreground">
+          <h2 className="text-xl font-bold text-foreground">{loc.city} body recomposition FAQ</h2>
+          {loc.faq.map((item) => (
+            <details key={item.q} className="rounded-lg border border-line bg-panel p-4">
+              <summary className="min-h-11 cursor-pointer font-medium">{item.q}</summary>
+              <p className="mt-2">{item.a}</p>
+            </details>
+          ))}
+        </section>
+      )}
 
       <p className="mt-8 rounded-xl border border-teal/20 bg-teal/5 p-4 text-sm">
         Ready to start? <Link to="/coming-soon" className="font-semibold text-teal hover:underline">Get RecompOne</Link>{" "}
