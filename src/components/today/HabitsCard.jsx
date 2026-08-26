@@ -84,18 +84,21 @@ export default function HabitsCard() {
     return m;
   }, [habitEntries]);
 
-  const toggle = async (habit) => {
+  const toggle = (habit) => {
     const current = entriesByHabit.get(habit.id)?.find((entry) => entry.date === today);
     const completing = !current?.done;
-    await upsertHabitEntry(habit.id, today, { done: completing });
+    upsertHabitEntry(habit.id, today, (entry) => ({ done: !entry?.done }));
     if (completing) triggerHaptic(HAPTIC_TRIGGERS.HABIT_COMPLETED);
   };
 
-  const step = async (habit, delta) => {
+  const step = (habit, delta) => {
     const current = entriesByHabit.get(habit.id)?.find((entry) => entry.date === today);
     const target = habit.target_value || 1;
     const next = Math.max(0, (current?.value ?? 0) + delta);
-    await upsertHabitEntry(habit.id, today, { value: next, done: next >= target });
+    upsertHabitEntry(habit.id, today, (entry) => {
+      const updated = Math.max(0, (entry?.value ?? 0) + delta);
+      return { value: updated, done: updated >= target };
+    });
     if ((current?.value ?? 0) < target && next >= target) {
       triggerHaptic(HAPTIC_TRIGGERS.HABIT_COMPLETED);
     }
