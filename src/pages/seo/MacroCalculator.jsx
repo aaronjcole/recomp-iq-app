@@ -46,6 +46,22 @@ export default function MacroCalculator() {
             "@type": "Answer",
             text: "Start from your calorie target, set protein based on your body weight (around 0.8–1.0g per pound), allocate fat at roughly 0.3g per pound or 23% of calories, then fill the remainder with carbohydrates."
           }
+        },
+        {
+          "@type": "Question",
+          name: "What if I don't hit my macros exactly?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Consistency over the week matters more than any single day. Hitting protein and total calories within a reasonable range most days produces steady progress."
+          }
+        },
+        {
+          "@type": "Question",
+          name: "Are these macros right for cutting or bulking?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "The split adapts to whatever calorie target you enter. Lower the calories for a cut and protein stays high to preserve muscle; raise them for a lean bulk and carbs increase to support training."
+          }
         }
       ]
     }

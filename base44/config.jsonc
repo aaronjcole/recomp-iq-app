@@ -1,5 +1,5 @@
 {
-  "name": "RecompOne",
+  "name": "RecompOne - Adaptive Body Recomposition",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",

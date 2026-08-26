@@ -12,7 +12,12 @@ function H2({ children }) {
 
 export default function Support() {
   return (
-    <LegalShell title="RecompOne Support" updated="August 2026">
+    <LegalShell
+      title="RecompOne Support"
+      description="How to contact RecompOne support, what to include in your request, and how to request account or data deletion."
+      canonicalPath="/support"
+      updated="August 2026"
+    >
       <div className="rounded-xl border border-line bg-panel p-4 flex items-start gap-3">
         <LifeBuoy className="w-5 h-5 text-teal shrink-0 mt-0.5" aria-hidden="true" />
         <div className="space-y-1">

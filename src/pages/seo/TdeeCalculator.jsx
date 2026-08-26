@@ -89,6 +89,22 @@ export default function TdeeCalculator() {
             "@type": "Answer",
             text: "This calculator uses the Mifflin-St Jeor equation for BMR, then applies an activity multiplier between 1.2 (sedentary) and 1.9 (extremely active) to estimate TDEE."
           }
+        },
+        {
+          "@type": "Question",
+          name: "Should I eat my exact TDEE to maintain?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "For maintenance, yes — but day-to-day variation is normal. A weekly average near your TDEE is a better target than hitting an exact number every single day."
+          }
+        },
+        {
+          "@type": "Question",
+          name: "How accurate is this calculator?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Mifflin-St Jeor is among the most accurate predictive equations, but every formula is still an estimate. Track your real weight and waist trends for two to three weeks, then adjust based on observed change."
+          }
         }
       ]
     }

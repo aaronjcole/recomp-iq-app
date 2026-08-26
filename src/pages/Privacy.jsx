@@ -8,7 +8,12 @@ function H2({ children }) {
 
 export default function Privacy() {
   return (
-    <LegalShell title="Privacy Policy" updated="August 2026">
+    <LegalShell
+      title="Privacy Policy"
+      description="How RecompOne collects, uses, stores, and protects your personal data, health logs, and progress photos, plus your rights and account-deletion options."
+      canonicalPath="/privacy"
+      updated="August 2026"
+    >
       <H2>1. What we collect</H2>
       <p>
         When you create an account and complete onboarding, you provide profile details: age, sex,

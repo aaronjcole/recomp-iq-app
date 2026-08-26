@@ -6,7 +6,12 @@ function H2({ children }) {
 
 export default function Terms() {
   return (
-    <LegalShell title="Terms of Service" updated="July 2026">
+    <LegalShell
+      title="Terms of Service"
+      description="RecompOne's Terms of Service: eligibility, acceptable use, health disclaimer, data ownership, disclaimers, and limitation of liability."
+      canonicalPath="/terms"
+      updated="July 2026"
+    >
       <H2>1. Acceptance</H2>
       <p>By creating an account or using RecompOne, you agree to these Terms. If you don't agree, don't use the app.</p>
 

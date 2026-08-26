@@ -1,7 +1,46 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Target } from "lucide-react";
 
-export default function LegalShell({ title, updated, children }) {
+const SITE_URL = "https://fitnesstrackerapps.com";
+
+function upsertMeta(attr, key, content) {
+  if (!content) return;
+  let el = document.head.querySelector(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function upsertLink(rel, href) {
+  if (!href) return;
+  let el = document.head.querySelector(`link[rel="${rel}"]`);
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", rel);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+}
+
+export default function LegalShell({ title, description, canonicalPath, updated, children }) {
+  useEffect(() => {
+    const fullTitle = `${title} | RecompOne`;
+    const fullUrl = `${SITE_URL}${canonicalPath}`;
+    document.title = fullTitle;
+    upsertMeta("name", "description", description);
+    upsertMeta("property", "og:title", fullTitle);
+    upsertMeta("property", "og:description", description);
+    upsertMeta("property", "og:url", fullUrl);
+    upsertMeta("property", "og:type", "website");
+    upsertMeta("name", "twitter:title", fullTitle);
+    upsertMeta("name", "twitter:description", description);
+    upsertLink("canonical", fullUrl);
+  }, [title, description, canonicalPath]);
+
   return (
     <div className="min-h-screen bg-bg text-foreground">
       <header className="sticky top-0 z-40 backdrop-blur bg-bg/80 border-b border-lineSoft">

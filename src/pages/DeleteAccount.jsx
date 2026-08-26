@@ -12,7 +12,12 @@ function H2({ children }) {
 
 export default function DeleteAccount() {
   return (
-    <LegalShell title="Delete your RecompOne account" updated="August 2026">
+    <LegalShell
+      title="Delete your RecompOne account"
+      description="Step-by-step instructions to delete your RecompOne account from the app or by email request, plus what happens to your data after deletion."
+      canonicalPath="/delete-account"
+      updated="August 2026"
+    >
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
         <Trash2 className="w-5 h-5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
         <p>
