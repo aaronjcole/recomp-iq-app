@@ -10,6 +10,10 @@ const ARTICLES = [
   }
 ];
 
+const TIPS = [
+  { to: "/tips", title: "Health & Fitness Tips", summary: "Short, actionable guides on calorie deficits, protein, steps, strength training, and meal prep." }
+];
+
 const TOOLS = [
   { to: "/tools/tdee-calculator", title: "TDEE Calculator", summary: "Estimate your daily calorie burn with the Mifflin-St Jeor equation." },
   { to: "/tools/macro-calculator", title: "Macro Calculator", summary: "Turn your calorie target into a balanced protein, carb, and fat split." }
@@ -62,6 +66,23 @@ export default function LearnIndex() {
             <Link key={t.to} to={t.to} className="block rounded-2xl border border-line bg-panel p-5 hover:border-teal/40">
               <h3 className="font-semibold">{t.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{t.summary}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookOpen className="h-5 w-5 text-teal" aria-hidden="true" /> Fitness tips</h2>
+        <div className="mt-3 grid gap-3">
+          {TIPS.map((t) => (
+            <Link key={t.to} to={t.to} className="block rounded-2xl border border-line bg-panel p-5 hover:border-teal/40">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold">{t.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t.summary}</p>
+                </div>
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </div>
             </Link>
           ))}
         </div>

@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://fitnesstrackerapps.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/coming-soon</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/hero</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/tools/tdee-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/tools/macro-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tools/tdee-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tools/macro-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://fitnesstrackerapps.com/learn</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/learn/body-recomposition-guide</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/locations</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/learn/body-recomposition-guide</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips/start-calorie-deficit-without-losing-muscle</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips/high-protein-breakfast-ideas-fat-loss</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips/how-many-steps-a-day-for-fat-loss</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips/beginner-strength-training-where-to-start</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips/track-progress-beyond-the-scale</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/tips/meal-prep-for-body-recomposition</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/locations</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://fitnesstrackerapps.com/locations/austin-tx</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://fitnesstrackerapps.com/locations/dallas-tx</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://fitnesstrackerapps.com/locations/houston-tx</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
@@ -16,7 +21,8 @@
   <url><loc>https://fitnesstrackerapps.com/locations/los-angeles-ca</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://fitnesstrackerapps.com/locations/chicago-il</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://fitnesstrackerapps.com/locations/atlanta-ga</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
-  <url><loc>https://fitnesstrackerapps.com/support</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/privacy</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/terms</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/support</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://fitnesstrackerapps.com/delete-account</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>

@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { to: "/tools/tdee-calculator", label: "TDEE Calculator" },
   { to: "/tools/macro-calculator", label: "Macro Calculator" },
   { to: "/learn", label: "Learn" },
+  { to: "/tips", label: "Tips" },
   { to: "/locations", label: "Locations" }
 ];
 

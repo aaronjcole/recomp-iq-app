@@ -50,6 +50,8 @@ const LearnIndex = lazyWithRetry(() => import('@/pages/seo/LearnIndex'));
 const RecompGuide = lazyWithRetry(() => import('@/pages/seo/RecompGuide'));
 const LocationsIndex = lazyWithRetry(() => import('@/pages/seo/LocationsIndex'));
 const LocationPage = lazyWithRetry(() => import('@/pages/seo/LocationPage'));
+const TipsIndex = lazyWithRetry(() => import('@/pages/seo/TipsIndex'));
+const TipArticle = lazyWithRetry(() => import('@/pages/seo/TipArticle'));
 const RecompGate = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
 );
@@ -87,6 +89,8 @@ const AuthenticatedApp = () => {
       <Route path="/learn/body-recomposition-guide" element={<RecompGuide />} />
       <Route path="/locations" element={<LocationsIndex />} />
       <Route path="/locations/:slug" element={<LocationPage />} />
+      <Route path="/tips" element={<TipsIndex />} />
+      <Route path="/tips/:slug" element={<TipArticle />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
