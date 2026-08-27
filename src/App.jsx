@@ -32,6 +32,7 @@ const AdaptiveTrainingBlock = lazyWithRetry(() => import('@/pages/AdaptiveTraini
 const Progress = lazyWithRetry(() => import('@/pages/Progress'));
 const VisualProgressCheck = lazyWithRetry(() => import('@/pages/VisualProgressCheck'));
 const More = lazyWithRetry(() => import('@/pages/More'));
+const Referrals = lazyWithRetry(() => import('@/pages/Referrals'));
 const Plan = lazyWithRetry(() => import('@/pages/Plan'));
 const DecisionHistory = lazyWithRetry(() => import('@/pages/DecisionHistory'));
 const Coach = lazyWithRetry(() => import('@/pages/Coach'));
@@ -119,6 +120,7 @@ const AuthenticatedApp = () => {
               <Route path="/more/coach/lifestyle" element={<LifestyleCoach />} />
               <Route path="/more/profile" element={<Profile />} />
               <Route path="/more/premium" element={<Premium />} />
+              <Route path="/more/referrals" element={<Referrals />} />
               {/* Preserve established deep links while using tab-owned routes internally. */}
               <Route path="/plan" element={<Navigate to="/more/plan" replace />} />
               <Route path="/decisions" element={<Navigate to="/more/decisions" replace />} />

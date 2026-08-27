@@ -4,6 +4,7 @@ import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { getTabRootPath, isTabRootPath, ROOT_TAB_PATHS } from "@/lib/tabNavigation";
+import { attributePendingReferral } from "@/lib/referralAttribution";
 
 const tabs = [
   { to: "/today", icon: LayoutDashboard, label: "Today", end: true },
@@ -46,6 +47,12 @@ export default function AppLayout() {
       );
     }
   }, [isTabRoot, tabRootPath]);
+
+  // Record any pending referral code once the user is authenticated and inside
+  // the app. Covers both email and Google sign-up paths. Best-effort + idempotent.
+  useEffect(() => {
+    attributePendingReferral();
+  }, []);
 
   return (
     <div className="min-h-screen bg-bg text-foreground flex flex-col lg:bg-gradient-to-b lg:from-teal/10 lg:via-bg lg:to-panel2/60">

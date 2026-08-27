@@ -1,0 +1,49 @@
+{
+  "name": "ReferralCode",
+  "type": "object",
+  "description": "A user's unique referral code used to build their shareable referral link. Server-owned; accessed only through backend functions.",
+  "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Authenticated user who owns this referral code. Set only by the backend function."
+    },
+    "code": {
+      "type": "string",
+      "minLength": 4,
+      "maxLength": 32,
+      "description": "Unique shareable referral code."
+    }
+  },
+  "required": [
+    "owner_id",
+    "code"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

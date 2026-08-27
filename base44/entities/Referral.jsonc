@@ -1,0 +1,77 @@
+{
+  "name": "Referral",
+  "type": "object",
+  "description": "Tracks a referral relationship from signup through conversion to reward. Server-owned; accessed only through backend functions.",
+  "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "referrer_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "User whose referral link was used. Set only by the backend function."
+    },
+    "referee_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "User who signed up using the referral link. Set only by the backend function."
+    },
+    "code": {
+      "type": "string",
+      "maxLength": 32,
+      "description": "Referral code used at signup."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "converted",
+        "rewarded",
+        "void"
+      ],
+      "default": "pending",
+      "description": "pending = signed up; converted = completed first paid month; rewarded = referrer's free month granted; void = disqualified."
+    },
+    "converted_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the referee completed their first paid month."
+    },
+    "rewarded_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the referrer's free month was granted."
+    }
+  },
+  "required": [
+    "referrer_id",
+    "referee_id",
+    "code",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
