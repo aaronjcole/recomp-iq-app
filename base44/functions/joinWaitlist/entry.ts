@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { waitUntil } from 'base44:runtime';
 
 const RATE_WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 5;
@@ -68,6 +69,69 @@ async function registerEmail(base44, email, attribution) {
       source: "coming_soon_page",
       ...attribution
     });
+    return true;
+  }
+  return false;
+}
+
+const WELCOME_SUBJECT = "Welcome to RecompOne — you're on the list";
+// ASCII-only body so the raw RFC 2822 message needs no transfer encoding.
+const WELCOME_BODY = [
+  "Thanks for joining the RecompOne early-access list!",
+  "",
+  "You're now signed up for web early access plus launch and feature",
+  "announcements. We'll reach out the moment your access opens up.",
+  "",
+  "A few things to know:",
+  "- RecompOne turns your nutrition, training, recovery, and body-trend",
+  "  data into one evidence-backed next move.",
+  "- The web version is open for early access now.",
+  "- Native Android and iOS apps are coming soon.",
+  "",
+  "Talk soon,",
+  "The RecompOne Team",
+  "https://recomp-iq.base44.app"
+].join("\r\n");
+
+function base64urlEncode(text) {
+  return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function sendWelcomeEmail(base44, toEmail) {
+  try {
+    const { accessToken } = await base44.asServiceRole.connectors.getConnection("gmail");
+    const authHeader = { Authorization: `Bearer ${accessToken}` };
+
+    const profileRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+      headers: authHeader
+    });
+    if (!profileRes.ok) {
+      console.warn("welcomeEmail: could not load Gmail profile", await profileRes.text());
+      return;
+    }
+    const fromAddress = (await profileRes.json()).emailAddress;
+
+    const rawMessage = [
+      `From: RecompOne <${fromAddress}>`,
+      `To: <${toEmail}>`,
+      `Subject: ${WELCOME_SUBJECT}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=us-ascii",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      WELCOME_BODY
+    ].join("\r\n");
+
+    const sendRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: { ...authHeader, "Content-Type": "application/json" },
+      body: JSON.stringify({ raw: base64urlEncode(rawMessage) })
+    });
+    if (!sendRes.ok) {
+      console.warn("welcomeEmail: Gmail send failed", await sendRes.text());
+    }
+  } catch (error) {
+    console.warn("welcomeEmail: error", error?.message || error);
   }
 }
 
@@ -106,7 +170,10 @@ export default async function(req) {
       pending = registerEmail(base44, email, attribution).finally(() => inFlightEmails.delete(email));
       inFlightEmails.set(email, pending);
     }
-    await pending;
+    const created = await pending;
+    if (created) {
+      waitUntil(sendWelcomeEmail(base44, email));
+    }
 
     // Keep the response identical for new and existing addresses.
     return Response.json({ ok: true });
