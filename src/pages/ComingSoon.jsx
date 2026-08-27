@@ -162,6 +162,10 @@ export default function ComingSoon() {
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
               RecompOne turns nutrition, training, recovery, and body-trend data into one evidence-backed next move—then shows which signals influenced it.
             </p>
+            <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-lineSoft bg-panel px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <span className="flex h-2 w-2 rounded-full bg-teal" aria-hidden="true" />
+              Web early access open now · Android &amp; iOS coming soon
+            </p>
 
             {status === "done" ? (
               <div role="status" className="mt-7 flex items-center gap-3 rounded-2xl border border-teal/40 bg-teal/10 px-5 py-4">
@@ -169,12 +173,12 @@ export default function ComingSoon() {
                   <Check className="h-5 w-5 text-buttonText" aria-hidden="true" />
                 </span>
                 <div>
-                  <div className="font-semibold">You&apos;re on the beta list.</div>
-                  <div className="text-sm text-muted-foreground">We&apos;ll email you when Android testing opens.</div>
+                  <div className="font-semibold">You&apos;re on the list.</div>
+                  <div className="text-sm text-muted-foreground">Watch your inbox for web access and launch updates. Android &amp; iOS apps are coming soon.</div>
                 </div>
               </div>
             ) : (
-              <form onSubmit={submit} className="mt-7 max-w-xl" aria-label="Join the RecompOne Android beta">
+              <form onSubmit={submit} className="mt-7 max-w-xl" aria-label="Join the RecompOne early-access list">
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <div className="relative flex-1">
                     <label htmlFor="waitlist-email" className="sr-only">Email address</label>
@@ -198,11 +202,11 @@ export default function ComingSoon() {
                     className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-teal px-6 font-medium text-buttonText transition-opacity hover:opacity-90 disabled:opacity-60"
                   >
                     {status === "loading" ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-5 w-5" aria-hidden="true" />}
-                    {status === "loading" ? "Joining…" : "Join the Android beta"}
+                    {status === "loading" ? "Joining…" : "Get early access"}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Beta invitations and launch updates only. No advertising cookies or cross-site tracking.
+                  You&apos;ll get web access plus launch and feature announcements. No advertising cookies or cross-site tracking.
                 </p>
               </form>
             )}
@@ -303,7 +307,7 @@ export default function ComingSoon() {
                 href="#waitlist-email"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-buttonText hover:opacity-90"
               >
-                Join the Android beta <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                Get early access <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
           </div>
