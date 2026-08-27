@@ -325,6 +325,251 @@ export const comparisons = [
       { q: "Does RecompOne adjust my plan as often as a trainer would?", a: "RecompOne adjusts weekly automatically and lets you message an AI coach anytime. A Future trainer adjusts on their own cadence based on your check-ins." }
     ],
     relatedSlugs: ["recompone-vs-rp-strength-app", "recompone-vs-1st-phorm"]
+  },
+  {
+    slug: "recompone-vs-cronometer",
+    competitor: "Cronometer",
+    category: "macro_tracking",
+    title: "RecompOne vs Cronometer",
+    summary:
+      "A neutral comparison of RecompOne and Cronometer — adaptive recomp coaching versus the most detailed micronutrient tracker available.",
+    readTime: "7 min read",
+    updated: "2026",
+    intro:
+      "Cronometer is prized for exceptionally detailed nutrient tracking, including vitamins and minerals, with a verified database. RecompOne tracks calories and macros and uses them to adapt a full recomp plan. Cronometer goes deep on what's in your food; RecompOne decides what to do with that data.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive body recomposition across nutrition, training, recovery", competitor: "Detailed macro and micronutrient tracking", notes: "Cronometer's micronutrient depth is a core strength." },
+      { feature: "Nutrient detail", recompone: "Calories, macros, fiber", competitor: "Calories, macros, vitamins, minerals, full micronutrients", notes: "Cronometer tracks far more nutrients than RecompOne." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Static targets; no auto-adjustment", notes: "RecompOne adapts the plan; Cronometer tracks it." },
+      { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "No built-in training programs", notes: "RecompOne covers training; Cronometer does not." },
+      { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No AI coach", notes: "RecompOne adds conversational coaching." },
+      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS, Android, and web", notes: "Cronometer is cross-platform today." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "Free; Gold about $9.99/month",
+      notes: "Cronometer's free tier is strong for nutrient logging; RecompOne is a paid coaching service."
+    },
+    bestFor: {
+      recompone: "People who want their logged data to drive an adaptive plan, not just a nutrient diary.",
+      competitor: "People who care deeply about micronutrients and nutrient accuracy."
+    },
+    faqs: [
+      { q: "Does RecompOne track micronutrients like Cronometer?", a: "RecompOne tracks calories, macros, and fiber — enough to adapt your plan — but not the full vitamin and mineral detail Cronometer is known for." },
+      { q: "Is RecompOne a good Cronometer alternative?", a: "If you want adaptive coaching across nutrition, training, and recovery, RecompOne covers more ground. If micronutrient accuracy is your priority, Cronometer is excellent." },
+      { q: "Does Cronometer adjust your plan?", a: "No. Cronometer tracks against targets you set. RecompOne adjusts your calories, macros, steps, and training weekly from your progress." }
+    ],
+    relatedSlugs: ["recompone-vs-macrofactor", "recompone-vs-myfitnesspal"]
+  },
+  {
+    slug: "recompone-vs-fitbit",
+    competitor: "Fitbit",
+    category: "macro_tracking",
+    title: "RecompOne vs Fitbit",
+    summary:
+      "A neutral comparison of RecompOne and Fitbit — adaptive recomp coaching versus a wearable-driven health and activity ecosystem.",
+    readTime: "7 min read",
+    updated: "2026",
+    intro:
+      "Fitbit is a wearable-first ecosystem that tracks steps, heart rate, sleep, and (in its app) food and macros. RecompOne is an adaptive recomp coach that uses your steps, weight, and training to adjust a full plan. Fitbit collects the signals; RecompOne acts on them.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive recomp coaching from your data", competitor: "Wearable activity, sleep, and health tracking", notes: "Fitbit is device-led; RecompOne is plan-led." },
+      { feature: "Step & activity tracking", recompone: "Logs steps manually or from your device", competitor: "Automatic, continuous from the wrist", notes: "Fitbit's passive tracking is a core advantage." },
+      { feature: "Nutrition logging", recompone: "Calories and macros with adjustments", competitor: "Food logging with a decent database", notes: "Both log nutrition; RecompOne adapts targets from it." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Static goals; some insights in premium", notes: "RecompOne adapts the plan; Fitbit mostly displays it." },
+      { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "Workout logging and guided sessions", notes: "RecompOne generates plans; Fitbit guides sessions." },
+      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS, Android, and web with a wearable", notes: "Fitbit is hardware-dependent; RecompOne is software-only." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "Free app; device cost varies; Premium about $9.99/month",
+      notes: "Fitbit requires hardware; RecompOne is a standalone subscription."
+    },
+    bestFor: {
+      recompone: "People who want their activity and nutrition data turned into an adaptive plan.",
+      competitor: "People who want passive, all-day tracking from a wearable."
+    },
+    faqs: [
+      { q: "Does RecompOne work with Fitbit?", a: "RecompOne can use the steps and weight you log (manually or from a device) to adapt your plan. It doesn't require a Fitbit, but you can feed Fitbit's step data in." },
+      { q: "Does Fitbit adjust your nutrition plan?", a: "Fitbit shows your activity and lets you log food, but it doesn't auto-adjust your calories, macros, and training weekly. RecompOne does." },
+      { q: "Do I need a wearable for RecompOne?", a: "No. RecompOne is software-only and works with whatever you log. Fitbit's value comes from its hardware." }
+    ],
+    relatedSlugs: ["recompone-vs-whoop", "recompone-vs-myfitnesspal"]
+  },
+  {
+    slug: "recompone-vs-whoop",
+    competitor: "Whoop",
+    category: "macro_tracking",
+    summary:
+      "A neutral comparison of RecompOne and Whoop — adaptive recomp coaching versus a recovery- and strain-focused wearable.",
+    readTime: "7 min read",
+    updated: "2026",
+    title: "RecompOne vs Whoop",
+    intro:
+      "Whoop is a wearable built around recovery, strain, and sleep, with a nutrition journal and coach feature. RecompOne is an adaptive recomp coach that uses recovery and adherence signals to adjust a full plan. Whoop measures how your body responds; RecompOne decides what to do next.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive recomp coaching across nutrition, training, recovery", competitor: "Recovery, strain, and sleep optimization", notes: "Whoop is recovery-led; RecompOne is plan-led." },
+      { feature: "Recovery tracking", recompone: "Uses sleep and soreness ratings you log", competitor: "Continuous HRV-based recovery score", notes: "Whoop's passive recovery measurement is a strength." },
+      { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Nutrition journal within the coach feature", notes: "RecompOne tracks and adapts macros directly." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Strain targets based on recovery, not nutrition", notes: "RecompOne adjusts the full plan; Whoop adjusts exertion targets." },
+      { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "No generated training programs", notes: "RecompOne writes plans; Whoop measures them." },
+      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android with a wearable", notes: "Whoop is hardware-dependent; RecompOne is software-only." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "About $30/month (includes device with membership)",
+      notes: "Whoop bundles hardware; RecompOne is a standalone subscription."
+    },
+    bestFor: {
+      recompone: "People who want recovery signals turned into an adaptive nutrition and training plan.",
+      competitor: "People who want deep, passive recovery and strain measurement from a wearable."
+    },
+    faqs: [
+      { q: "Does RecompOne use recovery data like Whoop?", a: "RecompOne uses the sleep and soreness ratings you log to inform weekly adjustments. Whoop measures recovery passively and continuously via HRV." },
+      { q: "Does Whoop adjust your nutrition?", a: "Whoop's coach feature can guide nutrition, but it doesn't auto-adjust your calories, macros, and training weekly the way RecompOne does." },
+      { q: "Do I need a wearable for RecompOne?", a: "No. RecompOne works from what you log. Whoop's value comes from its hardware." }
+    ],
+    relatedSlugs: ["recompone-vs-fitbit", "recompone-vs-future"]
+  },
+  {
+    slug: "recompone-vs-fitbod",
+    competitor: "Fitbod",
+    category: "training",
+    title: "RecompOne vs Fitbod",
+    summary:
+      "A neutral comparison of RecompOne and Fitbod — adaptive recomp coaching versus an AI workout generator that auto-programs your next session.",
+    readTime: "7 min read",
+    updated: "2026",
+    intro:
+      "Fitbod generates each workout from your recent training, recovery, and available equipment, with strong progressive-overload logic. RecompOne generates an adaptive training block and adjusts it alongside your nutrition and recovery. Fitbod programs session-by-session; RecompOne plans and adapts a block with the full recomp picture.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive training blocks plus nutrition and recovery", competitor: "AI-generated workouts per session", notes: "Fitbod is session-led; RecompOne is block-and-plan-led." },
+      { feature: "Program generation", recompone: "Adaptive blocks for your equipment and experience", competitor: "Per-session AI generation from recovery", notes: "Both generate; Fitbod session-by-session, RecompOne as a block." },
+      { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; Fitbod does not." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Adjusts each workout automatically", notes: "Fitbod adapts workouts; RecompOne adapts the whole plan." },
+      { feature: "Progress signals", recompone: "Weight, waist, strength, adherence, recovery", competitor: "Muscle recovery and workout history", notes: "RecompOne uses a broader signal set." },
+      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Fitbod is mobile-native today." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "About $12.99/month or $79.99/year",
+      notes: "Fitbod is a single training tool; RecompOne bundles nutrition, training, and coaching."
+    },
+    bestFor: {
+      recompone: "People who want training adapted alongside nutrition and recovery in one plan.",
+      competitor: "People who want a smart, per-session workout generator and handle nutrition elsewhere."
+    },
+    faqs: [
+      { q: "Is RecompOne like Fitbod?", a: "Both generate adaptive training, but Fitbod builds each session on the fly while RecompOne generates a block and adapts it weekly with your nutrition and recovery." },
+      { q: "Does Fitbod track nutrition?", a: "No. Fitbod is training-only. RecompOne tracks nutrition and training together and adjusts both." },
+      { q: "Which adapts more?", a: "Fitbod adapts your workouts session to session. RecompOne adapts training, calories, and steps together on a weekly cadence." }
+    ],
+    relatedSlugs: ["recompone-vs-boostcamp", "recompone-vs-jefit"]
+  },
+  {
+    slug: "recompone-vs-jefit",
+    competitor: "JEFIT",
+    category: "training",
+    title: "RecompOne vs JEFIT",
+    summary:
+      "A neutral comparison of RecompOne and JEFIT — adaptive recomp coaching with generated training versus a long-standing workout logger with a big exercise library.",
+    readTime: "7 min read",
+    updated: "2026",
+    intro:
+      "JEFIT is a veteran workout logger with a large exercise library, routines, and a community. RecompOne generates adaptive training blocks and adjusts them with nutrition and recovery. JEFIT is a logger with a library; RecompOne is a coach that also logs.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive training blocks plus nutrition and recovery", competitor: "Workout logging with a large exercise library", notes: "JEFIT is library-and-logger-led; RecompOne is plan-led." },
+      { feature: "Exercise library", recompone: "Curated exercises for generated programs", competitor: "Very large library with video demos", notes: "JEFIT's library size is a strength." },
+      { feature: "Program generation", recompone: "Adaptive blocks for your equipment and experience", competitor: "Routines you can follow or build", notes: "RecompOne writes the plan; JEFIT offers routines to pick." },
+      { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; JEFIT does not." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "None — you manage progression", notes: "RecompOne adapts; JEFIT is manual." },
+      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "JEFIT is mobile-native today." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "Free; Elite about $12.99/month",
+      notes: "JEFIT's free tier is solid for logging; RecompOne is a paid coaching service."
+    },
+    bestFor: {
+      recompone: "People who want a program generated and adapted alongside their nutrition.",
+      competitor: "People who like browsing a big exercise library and logging their own workouts."
+    },
+    faqs: [
+      { q: "Does RecompOne have as many exercises as JEFIT?", a: "RecompOne uses a curated set tuned for its generated programs. JEFIT's library is larger and more browsable if you design your own workouts." },
+      { q: "Does JEFIT track nutrition?", a: "No. JEFIT is workout-only. RecompOne tracks nutrition and training together and adjusts both." },
+      { q: "Can RecompOne replace JEFIT?", a: "If you want a program written and adapted for you, yes. If you prefer to build your own workouts from a big library, JEFIT is strong." }
+    ],
+    relatedSlugs: ["recompone-vs-fitbod", "recompone-vs-strong"]
+  },
+  {
+    slug: "recompone-vs-caliber",
+    competitor: "Caliber",
+    category: "coaching",
+    title: "RecompOne vs Caliber",
+    summary:
+      "A neutral comparison of RecompOne and Caliber — adaptive automated coaching versus app-based personal coaching with real coaches.",
+    readTime: "7 min read",
+    updated: "2026",
+    intro:
+      "Caliber pairs app-based coaching with real coaches who build and adjust your program and check in with you. RecompOne generates an adaptive plan and adjusts it automatically, with an AI coach on demand. Caliber gives you a human coach in an app; RecompOne gives you an always-on adaptive system.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive, automated recomp coaching", competitor: "App-based coaching with real coaches", notes: "Caliber is human-coach-led; RecompOne is system-led." },
+      { feature: "Program generation", recompone: "Adaptive training blocks for your equipment", competitor: "Custom program from your coach", notes: "Both personalize; Caliber via a person, RecompOne via an engine." },
+      { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Nutrition guidance from your coach", notes: "RecompOne tracks and adjusts macros directly." },
+      { feature: "Availability", recompone: "Always-on adjustments and AI coach", competitor: "Your coach's check-in cadence", notes: "RecompOne is instant; Caliber is human-paced." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Coach adjusts as you check in", notes: "RecompOne automates; Caliber is human-paced." },
+      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Caliber is mobile-native today." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "Free app; coaching pricing varies by tier",
+      notes: "Caliber's coaching is human-led and priced accordingly; RecompOne is automated and lower-cost."
+    },
+    bestFor: {
+      recompone: "People who want an adaptive, always-on plan at a low price without waiting on a human.",
+      competitor: "People who want a real coach building and adjusting their program."
+    },
+    faqs: [
+      { q: "Is RecompOne a replacement for a Caliber coach?", a: "If you want an adaptive plan that adjusts automatically and an AI coach on demand, RecompOne covers a lot. If you specifically want a human coach, Caliber is built for that." },
+      { q: "Why is RecompOne cheaper than human coaching?", a: "RecompOne is an automated adaptive system, so it doesn't carry the cost of a dedicated human coach." },
+      { q: "Does RecompOne adjust my plan as often as a coach would?", a: "RecompOne adjusts weekly automatically and lets you message an AI coach anytime. A Caliber coach adjusts on their check-in cadence." }
+    ],
+    relatedSlugs: ["recompone-vs-future", "recompone-vs-1st-phorm"]
+  },
+  {
+    slug: "recompone-vs-tonal",
+    competitor: "Tonal",
+    category: "coaching",
+    title: "RecompOne vs Tonal",
+    summary:
+      "A neutral comparison of RecompOne and Tonal — adaptive recomp coaching versus a smart home gym with built-in coaching and digital weights.",
+    readTime: "7 min read",
+    updated: "2026",
+    intro:
+      "Tonal is a wall-mounted smart home gym with digital weights, form feedback, and coaching programs. RecompOne is software that generates adaptive training for whatever equipment you have and adjusts it with nutrition and recovery. Tonal is hardware with coaching; RecompOne is a coaching service that works with your own gear.",
+    featureMatrix: [
+      { feature: "Primary focus", recompone: "Adaptive recomp coaching for your equipment", competitor: "Smart home gym with digital weights and coaching", notes: "Tonal is hardware-led; RecompOne is software-led." },
+      { feature: "Equipment", recompone: "Bodyweight, dumbbells, or full gym — your own", competitor: "Proprietary digital-weight device", notes: "RecompOne works with what you have; Tonal requires its hardware." },
+      { feature: "Program generation", recompone: "Adaptive training blocks for your equipment", competitor: "Coaching programs on the device", notes: "Both coach; Tonal on its hardware, RecompOne on yours." },
+      { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Limited nutrition features", notes: "RecompOne covers nutrition fully; Tonal is training-focused." },
+      { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Programs adjust within the device ecosystem", notes: "RecompOne adapts the whole plan; Tonal adapts workouts on-device." },
+      { feature: "Cost of entry", recompone: "Low-entry software subscription", competitor: "Hardware purchase plus membership", notes: "Tonal has a high hardware cost; RecompOne does not." }
+    ],
+    pricing: {
+      recompone: "Low-entry subscription (early-access pricing on web)",
+      competitor: "Hardware (~$2,995+) plus membership (~$39/month)",
+      notes: "Tonal is a major hardware investment; RecompOne is software-only."
+    },
+    bestFor: {
+      recompone: "People who want adaptive coaching using their own equipment at a low price.",
+      competitor: "People who want a premium, all-in-one smart home gym with digital weights."
+    },
+    faqs: [
+      { q: "Does RecompOne need special equipment like Tonal?", a: "No. RecompOne generates programs for bodyweight, dumbbells, or a full gym — whatever you already have. Tonal requires its proprietary hardware." },
+      { q: "Does Tonal track nutrition?", a: "Tonal is primarily training-focused with limited nutrition features. RecompOne tracks and adjusts nutrition alongside training." },
+      { q: "Is RecompOne a cheaper alternative to Tonal?", a: "Yes — RecompOne is a low-entry software subscription that works with your own equipment, while Tonal is a significant hardware purchase plus a membership." }
+    ],
+    relatedSlugs: ["recompone-vs-caliber", "recompone-vs-future"]
   }
 ];
 

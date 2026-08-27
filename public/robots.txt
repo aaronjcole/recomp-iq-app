@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://recomp-iq.base44.app/sitemap.xml
+Sitemap: https://fitnesstrackerapps.com/sitemap.xml

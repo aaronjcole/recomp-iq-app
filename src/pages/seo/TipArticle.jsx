@@ -2,6 +2,12 @@ import SeoShell, { SITE_URL } from "@/components/seo/SeoShell";
 import { Link, useParams } from "react-router-dom";
 import { Clock } from "lucide-react";
 import { findTip, tips } from "@/lib/seo/tipsData";
+import { findComparison } from "@/lib/seo/comparisonsData";
+
+const TIP_COMPARISONS = {
+  "recomp-vs-bulk-vs-cut": ["recompone-vs-macrofactor", "recompone-vs-rp-strength-app"],
+  "how-to-count-macros-beginners": ["recompone-vs-macrofactor", "recompone-vs-myfitnesspal"]
+};
 
 export default function TipArticle() {
   const { slug } = useParams();
@@ -107,6 +113,24 @@ export default function TipArticle() {
           move — so the tips you read here become a plan you can actually follow.{" "}
           <Link to="/coming-soon" className="font-semibold text-teal hover:underline">See how it works</Link>.
         </p>
+
+        {TIP_COMPARISONS[tip.slug] && (
+          <section className="mt-8">
+            <h2 className="text-lg font-semibold">Related app comparisons</h2>
+            <div className="mt-3 grid gap-3">
+              {TIP_COMPARISONS[tip.slug].map((s) => {
+                const c = findComparison(s);
+                if (!c) return null;
+                return (
+                  <Link key={c.slug} to={`/compare/${c.slug}`} className="block rounded-2xl border border-line bg-panel p-4 hover:border-teal/40">
+                    <h3 className="text-sm font-semibold">{c.title}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{c.summary}</p>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <section className="mt-8">
           <h2 className="text-lg font-semibold">Related tips</h2>
