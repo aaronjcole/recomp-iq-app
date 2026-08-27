@@ -52,6 +52,8 @@ const LocationsIndex = lazyWithRetry(() => import('@/pages/seo/LocationsIndex'))
 const LocationPage = lazyWithRetry(() => import('@/pages/seo/LocationPage'));
 const TipsIndex = lazyWithRetry(() => import('@/pages/seo/TipsIndex'));
 const TipArticle = lazyWithRetry(() => import('@/pages/seo/TipArticle'));
+const ComparisonsIndex = lazyWithRetry(() => import('@/pages/seo/ComparisonsIndex'));
+const ComparisonArticle = lazyWithRetry(() => import('@/pages/seo/ComparisonArticle'));
 const RecompGate = lazyWithRetry(() =>
   import('@/lib/RecompContext').then((module) => ({ default: module.RecompGate }))
 );
@@ -91,6 +93,8 @@ const AuthenticatedApp = () => {
       <Route path="/locations/:slug" element={<LocationPage />} />
       <Route path="/tips" element={<TipsIndex />} />
       <Route path="/tips/:slug" element={<TipArticle />} />
+      <Route path="/compare" element={<ComparisonsIndex />} />
+      <Route path="/compare/:slug" element={<ComparisonArticle />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
