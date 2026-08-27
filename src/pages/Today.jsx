@@ -7,6 +7,7 @@ import HabitsCard from "@/components/today/HabitsCard";
 import QuickMealsCard from "@/components/today/QuickMealsCard";
 import TodayProgressCard from "@/components/today/TodayProgressCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
+import StreakBanner from "@/components/today/StreakBanner";
 import BestMoveCard from "@/components/today/BestMoveCard";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -58,6 +59,9 @@ export default function Today() {
         <p className="text-sm text-muted-foreground">{greeting()}</p>
         <h1 className="text-2xl font-bold">Today</h1>
       </div>
+
+      {/* Daily target streak — nutrition + steps hit consecutively. */}
+      <StreakBanner />
 
       {/* The recomposition signal is the single hero. */}
       <RecompSignalHero />
