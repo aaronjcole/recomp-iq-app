@@ -60,8 +60,9 @@ export default function TipsIndex() {
 
       <p className="mt-8 text-sm text-muted-foreground">
         Looking for deeper guides? Browse our{" "}
-        <Link to="/learn" className="font-medium text-teal hover:underline">learning hub</Link>{" "}
-        or try the free{" "}
+        <Link to="/learn" className="font-medium text-teal hover:underline">learning hub</Link>,{" "}
+        compare RecompOne to{" "}
+        <Link to="/compare" className="font-medium text-teal hover:underline">other fitness apps</Link>, or try the free{" "}
         <Link to="/tools/tdee-calculator" className="font-medium text-teal hover:underline">TDEE calculator</Link>.
       </p>
     </SeoShell>

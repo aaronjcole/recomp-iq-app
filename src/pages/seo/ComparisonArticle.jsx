@@ -69,12 +69,6 @@ export default function ComparisonArticle() {
       name: "RecompOne",
       applicationCategory: "HealthApplication",
       operatingSystem: "Web, iOS, Android",
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        description: "Low-entry early-access subscription; see app for current pricing."
-      },
       publisher: { "@type": "Organization", name: "RecompOne" }
     }
   ];
@@ -116,7 +110,7 @@ export default function ComparisonArticle() {
             <thead>
               <tr className="bg-panel2 text-left">
                 <th className="p-3 font-semibold">Feature</th>
-                <th className="p-3 font-semibold text-teal">RecompOne</th>
+                <th className="p-3 font-semibold text-teal bg-teal/10 border-l-2 border-teal/40">RecompOne</th>
                 <th className="p-3 font-semibold">{comparison.competitor}</th>
               </tr>
             </thead>
@@ -124,7 +118,7 @@ export default function ComparisonArticle() {
               {comparison.featureMatrix.map((row, i) => (
                 <tr key={row.feature} className={i % 2 === 0 ? "bg-panel" : "bg-panel2/40"}>
                   <td className="p-3 align-top font-medium">{row.feature}</td>
-                  <td className="p-3 align-top text-muted-foreground"><SupportCell value={row.recompone} /></td>
+                  <td className="p-3 align-top text-foreground bg-teal/5 border-l-2 border-teal/40"><SupportCell value={row.recompone} /></td>
                   <td className="p-3 align-top text-muted-foreground"><SupportCell value={row.competitor} /></td>
                 </tr>
               ))}
