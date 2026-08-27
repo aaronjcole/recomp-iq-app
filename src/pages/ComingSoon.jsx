@@ -100,6 +100,15 @@ const FAQS = [
   }
 ];
 
+const RESOURCES = [
+  { to: "/tools/tdee-calculator", label: "TDEE Calculator" },
+  { to: "/tools/macro-calculator", label: "Macro Calculator" },
+  { to: "/learn", label: "Learn" },
+  { to: "/tips", label: "Tips" },
+  { to: "/locations", label: "Locations" },
+  { to: "/compare", label: "Compare apps" }
+];
+
 export default function ComingSoon() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
@@ -136,6 +145,17 @@ export default function ComingSoon() {
             <span className="text-lg font-semibold">RecompOne</span>
           </Link>
           <div className="flex items-center gap-2">
+            <nav className="hidden items-center gap-1 lg:flex" aria-label="Free tools & resources">
+              {RESOURCES.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className="min-h-11 content-center rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
             <a
               href="#how-it-works"
               className="hidden min-h-11 items-center px-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
@@ -345,14 +365,34 @@ export default function ComingSoon() {
       </main>
 
       <footer className="border-t border-lineSoft">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-5 py-8 text-xs text-muted-foreground sm:flex-row">
-          <div className="flex items-center gap-2">
-            <BrandMark className="h-6 w-6 rounded-lg" />
-            <span>© {new Date().getFullYear()} RecompOne</span>
+        <div className="mx-auto max-w-5xl px-5 py-10">
+          <div className="grid gap-8 sm:grid-cols-2">
+            <div>
+              <span className="font-mono text-xs uppercase tracking-wider text-teal">Free tools & resources</span>
+              <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                {RESOURCES.map((link) => (
+                  <li key={link.to}>
+                    <Link to={link.to} className="min-h-11 inline-flex items-center text-muted-foreground hover:text-foreground">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="sm:text-right">
+              <span className="font-mono text-xs uppercase tracking-wider text-teal">Company</span>
+              <ul className="mt-3 flex flex-col gap-1.5 text-sm sm:items-end">
+                <li><Link to="/privacy" className="min-h-11 inline-flex items-center text-muted-foreground hover:text-foreground">Privacy</Link></li>
+                <li><Link to="/terms" className="min-h-11 inline-flex items-center text-muted-foreground hover:text-foreground">Terms</Link></li>
+                <li><Link to="/support" className="min-h-11 inline-flex items-center text-muted-foreground hover:text-foreground">Support</Link></li>
+              </ul>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
-            <Link to="/privacy" className="min-h-11 content-center hover:text-foreground">Privacy</Link>
-            <Link to="/terms" className="min-h-11 content-center hover:text-foreground">Terms</Link>
+          <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-lineSoft pt-6 text-xs text-muted-foreground sm:flex-row">
+            <div className="flex items-center gap-2">
+              <BrandMark className="h-6 w-6 rounded-lg" />
+              <span>© {new Date().getFullYear()} RecompOne</span>
+            </div>
             <span>RecompOne is not a medical device.</span>
           </div>
         </div>
