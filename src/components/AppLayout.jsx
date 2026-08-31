@@ -102,7 +102,7 @@ export default function AppLayout() {
                 {({ isActive }) => (
                   <>
                     <span
-                      className={`absolute top-1.5 h-1 w-6 rounded-full bg-teal transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0"}`}
+                      className={`absolute top-1 h-1 w-6 rounded-full bg-teal transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0"}`}
                       aria-hidden="true"
                     />
                     <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
