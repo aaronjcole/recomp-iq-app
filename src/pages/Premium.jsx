@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+import { featureFlags } from "@/lib/featureFlags";
 import { SUPPORT_REQUEST_MAILTO } from "@/lib/support";
 
 const FEATURES = [
@@ -40,9 +41,9 @@ const FEATURES = [
   {
     key: PREMIUM_FEATURES.AI_LIFESTYLE_COACH,
     icon: Bot,
-    title: "AI lifestyle coach",
+    title: "Lifestyle coach",
     description: "A conversational coach that draws on your logs, habits, and progress to give context-aware guidance.",
-    to: "/more/coach/lifestyle"
+    to: featureFlags.lifestyleCoach ? "/more/coach/lifestyle" : null
   }
 ];
 

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { featureFlags } from "@/lib/featureFlags";
+import LifestyleCoachComingSoon from "@/components/coach/LifestyleCoachComingSoon";
 import VoiceInput, { isSpeechSupported } from "@/components/VoiceInput";
 import {
   AlertTriangle,
@@ -89,14 +91,14 @@ function PremiumGate({ onNavigate }) {
         <button onClick={() => onNavigate(-1)} className="min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold leading-none">AI Lifestyle Coach</h1>
+        <h1 className="text-2xl font-bold leading-none">Lifestyle Coach</h1>
       </div>
       <div className="flex-1 flex flex-col items-center justify-center gap-6 px-2">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal/15 text-teal">
           <BrainCircuit className="h-8 w-8" aria-hidden="true" />
         </div>
         <div className="text-center space-y-2 max-w-xs">
-          <h2 className="text-xl font-bold">AI Lifestyle Coach</h2>
+          <h2 className="text-xl font-bold">Lifestyle Coach</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
             A deeply personalized coach that learns your schedule, diet, and lifestyle — and adjusts your plan accordingly. Uses voice input so you can just talk.
           </p>
@@ -215,6 +217,10 @@ export default function LifestyleCoach() {
     }
   };
 
+  if (!featureFlags.lifestyleCoach) {
+    return <LifestyleCoachComingSoon onBack={goBack} />;
+  }
+
   if (!canAccess("ai_lifestyle_coach")) {
     return <PremiumGate onNavigate={(path) => typeof path === "string" ? navigate(path) : navigate(path)} />;
   }
@@ -227,7 +233,7 @@ export default function LifestyleCoach() {
         <button onClick={goBack} className="min-h-11 min-w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold leading-none">AI Lifestyle Coach</h1>
+        <h1 className="text-2xl font-bold leading-none">Lifestyle Coach</h1>
         <Badge variant="outline" className="ml-auto border-teal/40 text-teal text-label font-mono uppercase tracking-wide">
           Premium
         </Badge>

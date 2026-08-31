@@ -116,7 +116,7 @@ export default function More() {
         { icon: Crown, label: "Premium features", to: "/more/premium", badge: "Premium" },
         { icon: Gift, label: "Refer friends", to: "/more/referrals", subtitle: "Earn free months" },
         { icon: MessageCircle, label: "Coach", to: "/more/coach" },
-        { icon: BrainCircuit, label: "Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Premium" },
+        { icon: BrainCircuit, label: "Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Soon" },
         {
           icon: RefreshCw,
           label: "Weekly check-in",

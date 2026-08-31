@@ -17,5 +17,10 @@ export const featureFlags = Object.freeze({
   // Crash + minimal funnel telemetry. Off by default; network delivery also
   // requires VITE_TELEMETRY_ENDPOINT, so nothing leaves the device until the
   // deployment has opted in and declared it (Play Data Safety).
-  telemetry: enabledFromEnvironment(import.meta.env?.VITE_ENABLE_TELEMETRY)
+  telemetry: enabledFromEnvironment(import.meta.env?.VITE_ENABLE_TELEMETRY),
+  // The Lifestyle Coach is under active development. Keep the entry point locked
+  // behind a "coming soon" state until the experience is ready to ship. This is
+  // independent of the premium entitlement — paying users still unlock the rest
+  // of the premium bundle; this flag only controls whether the coach UI is usable.
+  lifestyleCoach: false
 });
