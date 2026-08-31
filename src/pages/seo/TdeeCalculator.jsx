@@ -1,5 +1,6 @@
 import { useState } from "react";
 import SeoShell, { SITE_URL } from "@/components/seo/SeoShell";
+import SeoAppCta from "@/components/seo/SeoAppCta";
 import {
   calculateBMR,
   calculateTDEE,
@@ -223,10 +224,10 @@ export default function TdeeCalculator() {
         </details>
       </section>
 
-      <p className="mt-8 rounded-xl border border-teal/20 bg-teal/5 p-4 text-sm">
-        Want adaptive targets that update with your real progress?{" "}
-        <a href="/coming-soon" className="font-semibold text-teal hover:underline">Try RecompOne</a>.
-      </p>
+      <SeoAppCta
+        title="Get adaptive targets that update with your real progress"
+        body="RecompOne takes your TDEE and turns it into a weekly-adaptive calorie and macro plan that adjusts based on your actual adherence, weight, and waist trends — so you stop guessing and start converging."
+      />
     </SeoShell>
   );
 }

@@ -101,22 +101,36 @@ export default function SeoShell({ title, description, canonicalPath, jsonLd, ch
       </main>
 
       <footer className="border-t border-lineSoft">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-5 py-8 text-xs text-muted-foreground sm:flex-row">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-teal">
-              <Target className="h-3.5 w-3.5 text-buttonText" aria-hidden="true" />
+        <div className="mx-auto max-w-5xl px-5 py-8">
+          <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-teal/20 bg-teal/5 p-5 sm:flex-row">
+            <div className="text-center sm:text-left">
+              <p className="text-sm font-semibold text-foreground">Stop estimating. Start adapting.</p>
+              <p className="mt-1 text-xs text-muted-foreground">RecompOne builds adaptive nutrition and training plans around your real progress.</p>
             </div>
-            <span>© {new Date().getFullYear()} RecompOne</span>
+            <Link
+              to="/coming-soon"
+              className="min-h-11 content-center rounded-lg bg-teal px-5 text-sm font-semibold text-buttonText hover:opacity-90"
+            >
+              Get the app
+            </Link>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
-            {NAV_LINKS.map((link) => (
-              <Link key={link.to} to={link.to} className="min-h-11 content-center hover:text-foreground">
-                {link.label}
-              </Link>
-            ))}
-            <Link to="/privacy" className="min-h-11 content-center hover:text-foreground">Privacy</Link>
-            <Link to="/terms" className="min-h-11 content-center hover:text-foreground">Terms</Link>
-            <span>Educational guidance, not medical advice.</span>
+          <div className="mt-6 flex flex-col items-center justify-between gap-4 text-xs text-muted-foreground sm:flex-row">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-teal">
+                <Target className="h-3.5 w-3.5 text-buttonText" aria-hidden="true" />
+              </div>
+              <span>© {new Date().getFullYear()} RecompOne</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
+              {NAV_LINKS.map((link) => (
+                <Link key={link.to} to={link.to} className="min-h-11 content-center hover:text-foreground">
+                  {link.label}
+                </Link>
+              ))}
+              <Link to="/privacy" className="min-h-11 content-center hover:text-foreground">Privacy</Link>
+              <Link to="/terms" className="min-h-11 content-center hover:text-foreground">Terms</Link>
+              <span>Educational guidance, not medical advice.</span>
+            </div>
           </div>
         </div>
       </footer>

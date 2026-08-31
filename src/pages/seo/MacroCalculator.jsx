@@ -1,5 +1,6 @@
 import { useState } from "react";
 import SeoShell, { SITE_URL } from "@/components/seo/SeoShell";
+import SeoAppCta from "@/components/seo/SeoAppCta";
 import { calculateMacroTargets } from "@/lib/fitness/calculators";
 
 const inputClass =
@@ -141,10 +142,10 @@ export default function MacroCalculator() {
         </details>
       </section>
 
-      <p className="mt-8 rounded-xl border border-teal/20 bg-teal/5 p-4 text-sm">
-        Want macros that adjust with your weekly adherence?{" "}
-        <a href="/coming-soon" className="font-semibold text-teal hover:underline">Try RecompOne</a>.
-      </p>
+      <SeoAppCta
+        title="Get macros that adjust with your weekly adherence"
+        body="RecompOne builds adaptive macro targets from your real logs, then revisits them every week against your progress — so your plan stays on track without manual math."
+      />
     </SeoShell>
   );
 }
