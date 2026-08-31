@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { NavLink, useLocation, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
-import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Menu } from "lucide-react";
+import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Ellipsis } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { getTabRootPath, isTabRootPath, ROOT_TAB_PATHS } from "@/lib/tabNavigation";
 import { attributePendingReferral } from "@/lib/referralAttribution";
@@ -11,7 +11,7 @@ const tabs = [
   { to: "/nutrition", icon: Utensils, label: "Fuel", end: false },
   { to: "/training", icon: Dumbbell, label: "Train", end: false },
   { to: "/progress", icon: TrendingUp, label: "Progress", end: false },
-  { to: "/more", icon: Menu, label: "More", end: false }
+  { to: "/more", icon: Ellipsis, label: "More", end: false }
 ];
 
 export default function AppLayout() {
@@ -94,13 +94,21 @@ export default function AppLayout() {
                   window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
                 }}
                 className={({ isActive }) =>
-                  `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs font-medium leading-tight transition-colors rounded-xl ${
-                    isActive ? "text-teal bg-teal/10" : "text-muted-foreground"
+                  `relative flex-1 min-h-[52px] flex flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium leading-tight transition-colors duration-200 ${
+                    isActive ? "text-teal" : "text-muted-foreground hover:text-foreground"
                   }`
                 }
               >
-                <Icon className="w-[18px] h-[18px]" />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={`absolute top-1.5 h-1 w-6 rounded-full bg-teal transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0"}`}
+                      aria-hidden="true"
+                    />
+                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    {label}
+                  </>
+                )}
               </NavLink>
             ))}
           </div>
