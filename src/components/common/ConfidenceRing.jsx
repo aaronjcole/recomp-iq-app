@@ -1,8 +1,15 @@
 import { motion, useReducedMotion } from "framer-motion";
 
-export default function ConfidenceRing({ value, size = 120, stroke = 12, label }) {
+const TONE_COLOR = {
+  high: "var(--teal)",
+  building: "var(--gold)",
+  early: "var(--muted-foreground)"
+};
+
+export default function ConfidenceRing({ value, size = 120, stroke = 12, label, tone = "high" }) {
   const reduceMotion = useReducedMotion();
   const v = Math.max(0, Math.min(100, Number(value) || 0));
+  const color = TONE_COLOR[tone] ?? TONE_COLOR.high;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - v / 100);
@@ -22,7 +29,7 @@ export default function ConfidenceRing({ value, size = 120, stroke = 12, label }
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="var(--teal)"
+            stroke={color}
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={circumference}

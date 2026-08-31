@@ -94,8 +94,8 @@ export default function AppLayout() {
                   window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
                 }}
                 className={({ isActive }) =>
-                  `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs font-medium leading-tight transition-colors ${
-                    isActive ? "text-teal" : "text-muted-foreground"
+                  `flex-1 min-h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs font-medium leading-tight transition-colors rounded-xl ${
+                    isActive ? "text-teal bg-teal/10" : "text-muted-foreground"
                   }`
                 }
               >

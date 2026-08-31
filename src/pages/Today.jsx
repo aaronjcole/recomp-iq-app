@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRecomp } from "@/lib/RecompContext";
 import { Link, useLocation } from "react-router-dom";
-import ProgressRing from "@/components/common/ProgressRing";
+import TodayMacroCard from "@/components/today/TodayMacroCard";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import HabitsCard from "@/components/today/HabitsCard";
 import QuickMealsCard from "@/components/today/QuickMealsCard";
@@ -12,9 +12,8 @@ import BestMoveCard from "@/components/today/BestMoveCard";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { deriveBestMove } from "@/lib/fitness";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Check, ChevronRight, Bot, Sparkles } from "lucide-react";
+import { Check, ChevronRight, Bot, Sparkles } from "lucide-react";
 
 function greeting() {
   const h = new Date().getHours();
@@ -48,16 +47,16 @@ export default function Today() {
     </div>
   );
 
-  const consumedCalories = todayLog?.calories ?? 0;
-  const remaining = Math.max(0, strategy.calorie_target - consumedCalories);
   const bestMove = deriveBestMove({ preferences, signal, strategy, todayLog, trend });
+  const dateStr = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
   return (
     <PullToRefresh onRefresh={reload}>
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">{greeting()}</p>
-        <h1 className="text-2xl font-bold">Today</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Today</h1>
+        <p className="text-xs text-muted-foreground">{dateStr}</p>
       </div>
 
       {/* Daily target streak — nutrition + steps hit consecutively. */}
@@ -69,32 +68,24 @@ export default function Today() {
       {/* Best move: one action strip beneath the signal, not a competing hero. */}
       <BestMoveCard move={bestMove} onLog={() => setLogOpen(true)} compact />
 
-      {/* Daily loop: one canonical logging entry point (QuickLogSheet). */}
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 flex items-center gap-5">
-          <ProgressRing
-            value={consumedCalories}
-            max={strategy.calorie_target}
-            label={String(Math.round(consumedCalories))}
-            sublabel={`of ${strategy.calorie_target}`}
-            ariaLabel={`Calories: ${Math.round(consumedCalories)} of ${strategy.calorie_target}`}
-          />
-          <div className="flex-1 space-y-1">
-            <h2 className="text-xs text-muted-foreground">Calories</h2>
-            <div className="text-xl font-bold">{remaining} left</div>
-            <Button size="sm" className="mt-2 bg-teal text-buttonText hover:opacity-90" onClick={() => setLogOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Log today
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground px-1 pt-2">Today's loop</p>
+
+      <TodayMacroCard
+        calorieTarget={strategy.calorie_target}
+        protein={todayLog?.protein_g ?? 0}
+        carbs={todayLog?.carbs_g ?? 0}
+        fat={todayLog?.fat_g ?? 0}
+        onLog={() => setLogOpen(true)}
+      />
 
       <QuickMealsCard />
 
       <TodayProgressCard />
 
+      <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground px-1 pt-2">This week</p>
+
       <Link to="/today/autopilot" className="block">
-        <Card className="border-teal/30 bg-teal/10">
+        <Card className="border-teal/30 bg-gradient-to-br from-teal/15 to-teal/5">
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -134,9 +125,11 @@ export default function Today() {
       </Card>
 
       <Link to="/more/coach">
-        <Card className="bg-teal/10 border-teal/30">
+        <Card className="bg-panel border-line">
           <CardContent className="p-4 flex items-center gap-3">
-            <Bot className="w-5 h-5 text-teal" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue/10 text-blue">
+              <Bot className="h-5 w-5" aria-hidden="true" />
+            </div>
             <div className="flex-1">
               <h2 className="text-sm font-medium">Get personalized guidance</h2>
               <div className="text-xs text-muted-foreground">Advice drawn from your actual data</div>

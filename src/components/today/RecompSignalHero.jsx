@@ -74,10 +74,11 @@ export default function RecompSignalHero() {
   if (isEarly) cells = cells.filter((c) => c.value !== "—");
 
   const chipClass = CHIP[signal.label] ?? CHIP["Early read"];
+  const tone = signal.label === "High confidence" ? "high" : signal.label === "Building confidence" ? "building" : "early";
   const coachLine = boss?.countermove || signal.copy;
 
   return (
-    <div className="rounded-xl bg-panel border border-line shadow p-5 space-y-5">
+    <div className="rounded-xl bg-panel border border-line shadow-md p-5 space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground">Recomp Signal</h2>
         <span className={`font-mono text-label uppercase tracking-wider px-2 py-0.5 rounded-full border ${chipClass}`}>
@@ -92,7 +93,7 @@ export default function RecompSignalHero() {
           onClick={() => setDriversOpen(true)}
           aria-label={`Signal score ${Math.round(signal.score)}. Show what is driving this score.`}
         >
-          <ConfidenceRing value={signal.score} size={120} stroke={12} label="Signal" />
+          <ConfidenceRing value={signal.score} size={120} stroke={12} label="Signal" tone={tone} />
         </button>
         <div className="flex-1 space-y-1.5 min-w-0">
           <div className="font-semibold text-lg leading-tight">{recompSignal?.label ?? "—"}</div>
