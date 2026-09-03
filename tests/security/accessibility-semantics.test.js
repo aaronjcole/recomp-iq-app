@@ -7,6 +7,20 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
 
+function relativeLuminance(hex) {
+  const channels = hex.match(/[a-f\d]{2}/gi).map((channel) => {
+    const value = Number.parseInt(channel, 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(foreground, background) {
+  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
+  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 test("primary fitness screens expose navigable section headings", () => {
   const expectedHeadings = new Map([
     ["src/components/today/RecompSignalHero.jsx", ["Recomp Signal"]],
@@ -55,4 +69,24 @@ test("training history starts with a bounded day window and offers more results"
   assert.match(source, /Show \$\{Math\.min\(INITIAL_DAY_LIMIT, remainingDays\)\} more days/);
   assert.match(source, /aria-expanded=/);
   assert.match(source, /aria-controls="training-history-days"/);
+});
+
+test("the light gold text token meets normal-text contrast on its app surfaces", () => {
+  const source = read("src/index.css");
+  const lightTokens = source.match(/:root\s*{([\s\S]*?)\n\s*}/)?.[1];
+  assert.ok(lightTokens, "the light theme token block should exist");
+
+  const token = (name) => {
+    const value = lightTokens.match(new RegExp(`--${name}:\\s*(#[a-f\\d]{6})`, "i"))?.[1];
+    assert.ok(value, `--${name} should be a six-digit hex color`);
+    return value;
+  };
+
+  const gold = token("gold");
+  for (const surface of ["background", "card", "panel2", "questCompleteBg"]) {
+    assert.ok(
+      contrastRatio(gold, token(surface)) >= 4.5,
+      `--gold should have at least 4.5:1 contrast against --${surface}`
+    );
+  }
 });
