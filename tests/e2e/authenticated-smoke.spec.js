@@ -258,6 +258,24 @@ test("the More theme row is one operable switch", async ({ page }) => {
   assertNoPageErrors();
 });
 
+test("More groups its actions into named sections and lists", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/more");
+
+  const coachingSection = page.getByRole("region", { name: "Coaching & plan" });
+  await expect(coachingSection.getByRole("heading", { level: 2, name: "Coaching & plan" })).toBeVisible();
+  await expect(coachingSection.getByRole("listitem")).toHaveCount(7);
+
+  const accountSection = page.getByRole("region", { name: "App & account" });
+  await expect(accountSection.getByRole("heading", { level: 2, name: "App & account" })).toBeVisible();
+  await expect(accountSection.getByRole("listitem")).toHaveCount(4);
+
+  const legalSection = page.getByRole("region", { name: "Legal" });
+  await expect(legalSection.getByRole("listitem")).toHaveCount(4);
+
+  assertNoPageErrors();
+});
+
 test("the Premium catalog shows server-authorized tester access inside the More tab", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   const premiumResponse = page.waitForResponse((response) =>

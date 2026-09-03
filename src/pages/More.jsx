@@ -34,6 +34,10 @@ function initialsFrom(name, email) {
   return "—";
 }
 
+function sectionHeadingId(title) {
+  return `more-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-heading`;
+}
+
 function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) {
   const Icon = item.icon;
   const label = (
@@ -232,26 +236,34 @@ export default function More() {
         </CardContent>
       </Card>
 
-      {SECTIONS.map((section) => (
-        <Card key={section.title} className="bg-panel border-line">
-          <CardContent className="p-2">
-            <div className="px-3 pt-2 pb-1 font-mono text-label uppercase tracking-wider text-muted-foreground">
-              {section.title}
-            </div>
-            {section.items.map((item, idx) => (
-              <Row
-                key={item.label}
-                item={item}
-                first={idx === 0}
-                onActivate={() => handleItem(item)}
-                themeChecked={theme === "dark"}
-                onToggleTheme={toggle}
-                loading={running && item.action === "checkin"}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      ))}
+      {SECTIONS.map((section) => {
+        const headingId = sectionHeadingId(section.title);
+        return (
+          <section key={section.title} aria-labelledby={headingId}>
+            <Card className="bg-panel border-line">
+              <CardContent className="p-2">
+                <h2 id={headingId} className="px-3 pt-2 pb-1 font-mono text-label uppercase tracking-wider text-muted-foreground">
+                  {section.title}
+                </h2>
+                <ul>
+                  {section.items.map((item, idx) => (
+                    <li key={item.label}>
+                      <Row
+                        item={item}
+                        first={idx === 0}
+                        onActivate={() => handleItem(item)}
+                        themeChecked={theme === "dark"}
+                        onToggleTheme={toggle}
+                        loading={running && item.action === "checkin"}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </section>
+        );
+      })}
 
       <p className="text-center text-xs text-muted-foreground pt-1">RecompOne v{APP_VERSION}</p>
 
