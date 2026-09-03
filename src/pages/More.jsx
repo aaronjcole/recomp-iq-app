@@ -6,7 +6,6 @@ import { useTheme } from "@/lib/useTheme";
 import { GOAL_LABELS } from "@/lib/fitness";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
   Camera, CheckCircle, Moon, Sun, LogOut, User, Crown, Gift,
@@ -37,23 +36,47 @@ function initialsFrom(name, email) {
 
 function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) {
   const Icon = item.icon;
+  const label = (
+    <>
+      <Icon className="h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{item.label}</span>
+        {item.subtitle && <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>}
+      </span>
+    </>
+  );
+
+  if (item.control === "theme") {
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={themeChecked}
+        onClick={onToggleTheme}
+        className={`flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${first ? "" : "border-t border-lineSoft"}`}
+      >
+        {label}
+        <span
+          aria-hidden="true"
+          className={`inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent shadow-sm transition-colors ${themeChecked ? "bg-primary" : "bg-input"}`}
+        >
+          <span className={`block h-4 w-4 rounded-full bg-background shadow-lg transition-transform ${themeChecked ? "translate-x-4" : "translate-x-0"}`} />
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className={`flex w-full items-center gap-3 px-3 py-3 ${first ? "" : "border-t border-lineSoft"}`}>
       <button type="button" onClick={onActivate} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left">
-        <Icon className="w-4 h-4 text-teal shrink-0" />
-        <span className="flex-1 min-w-0">
-          <span className="block text-sm font-medium truncate">{item.label}</span>
-          {item.subtitle && <span className="block text-xs text-muted-foreground truncate">{item.subtitle}</span>}
-        </span>
+        {label}
       </button>
       {item.badge && (
         <span className="rounded bg-questComplete text-gold px-1.5 py-0.5 text-label font-mono uppercase tracking-wide">
           {item.badge}
         </span>
       )}
-      {item.control === "theme" ? (
-        <Switch checked={themeChecked} onCheckedChange={onToggleTheme} aria-label="Toggle dark mode" />
-      ) : loading ? (
+      {loading ? (
         <Loader2 className="w-4 h-4 text-teal shrink-0 animate-spin" />
       ) : (
         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
