@@ -161,6 +161,62 @@ test("shared controls stay touch-safe without overflowing a narrow mobile layout
   assertNoPageErrors();
 });
 
+test("primary nutrition, training, and habit forms expose descriptive field names", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/nutrition");
+  for (const name of [
+    "Food name",
+    "Serving",
+    "Grams",
+    "Food calories",
+    "Food protein (g)",
+    "Food carbs (g)",
+    "Food fat (g)",
+    "Food fiber (g)",
+    "Recipe title",
+    "Recipe servings",
+    "Ingredient 1 name",
+    "Ingredient 1 quantity",
+    "Ingredient 1 unit",
+  ]) {
+    await expect(page.getByLabel(name, { exact: true }), `${name} should name its control`).toBeVisible();
+  }
+  await page.getByText("Targets & adaptive mode", { exact: true }).click();
+  for (const name of ["Calories target", "Protein (g) target", "Carbs (g) target", "Fat (g) target", "Steps target"]) {
+    await expect(page.getByLabel(name, { exact: true }), `${name} should name its control`).toBeVisible();
+  }
+
+  await page.goto("/training");
+  for (const name of [
+    "Date",
+    "Type",
+    "Title",
+    "Duration (min)",
+    "RPE (1-10)",
+    "Muscle groups",
+  ]) {
+    await expect(page.getByLabel(name, { exact: true }), `${name} should name its control`).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Add lift" }).click();
+  for (const name of ["Lift 1 name", "Lift 1 weight (lb)", "Lift 1 reps", "Lift 1 sets"]) {
+    await expect(page.getByLabel(name, { exact: true }), `${name} should identify its row`).toBeVisible();
+  }
+
+  await page.goto("/today");
+  await page.getByRole("button", { name: "Edit habits" }).click();
+  const editor = page.getByRole("dialog", { name: "Add habit" });
+  await expect(editor.getByLabel("Name", { exact: true })).toBeVisible();
+  await expect(editor.getByLabel("Kind", { exact: true })).toBeVisible();
+  await expect(editor.getByRole("group", { name: "Icon" })).toBeVisible();
+  await editor.getByLabel("Kind", { exact: true }).click();
+  await page.getByRole("option", { name: "Count", exact: true }).click();
+  await expect(editor.getByRole("spinbutton", { name: "Target", exact: true })).toBeVisible();
+  await expect(editor.getByRole("textbox", { name: "Unit", exact: true })).toBeVisible();
+
+  assertNoPageErrors();
+});
+
 test("the Premium catalog shows server-authorized tester access inside the More tab", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   const premiumResponse = page.waitForResponse((response) =>

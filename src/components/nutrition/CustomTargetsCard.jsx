@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { calculateBMR } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,7 @@ export default function CustomTargetsCard({ embedded = false }) {
   const { strategy, profile } = useRecompRef();
   const { updateStrategy } = useRecompActions();
   const { toast } = useToast();
+  const targetFormId = useId();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -115,8 +116,10 @@ export default function CustomTargetsCard({ embedded = false }) {
         <div className="grid grid-cols-2 gap-3">
           {FIELDS.map((f) => (
             <div key={f.key} className="space-y-1.5">
-              <Label className="font-mono text-label uppercase tracking-wider text-muted-foreground">{f.label}</Label>
+              <Label htmlFor={`${targetFormId}-${f.key}`} className="font-mono text-label uppercase tracking-wider text-muted-foreground">{f.label}</Label>
               <Input
+                id={`${targetFormId}-${f.key}`}
+                aria-label={`${f.label} target`}
                 className="h-11"
                 type="number"
                 inputMode="decimal"

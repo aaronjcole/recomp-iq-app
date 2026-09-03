@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRecompActions, todayStr } from "@/lib/RecompContext";
 import { estimateOneRepMax } from "@/lib/fitness";
 import { useToast } from "@/components/ui/use-toast";
@@ -33,6 +33,7 @@ const TYPE_OPTIONS = [
 export default function SessionBuilder({ prefill = null }) {
   const { saveTrainingSession, completeBlockSession } = useRecompActions();
   const { toast } = useToast();
+  const fieldId = useId();
 
   const initLifts = () =>
     prefill?.lifts?.length
@@ -149,13 +150,13 @@ export default function SessionBuilder({ prefill = null }) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>Date</Label>
-            <Input className="h-11" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Label htmlFor={`${fieldId}-date`}>Date</Label>
+            <Input id={`${fieldId}-date`} className="h-11" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label htmlFor={`${fieldId}-type`}>Type</Label>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+              <SelectTrigger id={`${fieldId}-type`} className="h-11"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TYPE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -164,22 +165,22 @@ export default function SessionBuilder({ prefill = null }) {
             </Select>
           </div>
           <div className="col-span-2 space-y-1.5">
-            <Label>Title</Label>
-            <Input className="h-11" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Push day, 5k run…" />
+            <Label htmlFor={`${fieldId}-title`}>Title</Label>
+            <Input id={`${fieldId}-title`} className="h-11" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Push day, 5k run…" />
           </div>
-          <NumField label="Duration (min)" v={duration} on={setDuration} min={0} max={1440} />
-          <NumField label="RPE (1-10)" v={rpe} on={setRpe} min={1} max={10} />
+          <NumField id={`${fieldId}-duration`} label="Duration (min)" v={duration} on={setDuration} min={0} max={1440} />
+          <NumField id={`${fieldId}-rpe`} label="RPE (1-10)" v={rpe} on={setRpe} min={1} max={10} />
         </div>
 
         {(type === "cardio" || type === "mixed") && (
           <div className="grid grid-cols-2 gap-3">
-            <NumField label="Distance (mi)" v={cardio.distance} on={(v) => setCardio((c) => ({ ...c, distance: v }))} min={0} max={1000} />
-            <NumField label="Avg HR" v={cardio.hr} on={(v) => setCardio((c) => ({ ...c, hr: v }))} min={20} max={260} />
+            <NumField id={`${fieldId}-distance`} label="Distance (mi)" v={cardio.distance} on={(v) => setCardio((c) => ({ ...c, distance: v }))} min={0} max={1000} />
+            <NumField id={`${fieldId}-heart-rate`} label="Avg HR" v={cardio.hr} on={(v) => setCardio((c) => ({ ...c, hr: v }))} min={20} max={260} />
           </div>
         )}
 
         <div className="space-y-1.5">
-          <Label>Muscle groups</Label>
+          <Label htmlFor={`${fieldId}-muscle-groups`}>Muscle groups</Label>
           {muscleGroups.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {muscleGroups.map((m) => (
@@ -198,6 +199,7 @@ export default function SessionBuilder({ prefill = null }) {
             </div>
           )}
           <Input
+            id={`${fieldId}-muscle-groups`}
             value={muscleInput}
             onChange={(e) => setMuscleInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addMuscle(); } }}
@@ -224,20 +226,22 @@ export default function SessionBuilder({ prefill = null }) {
             {lifts.length === 0 && (
               <p className="text-xs text-muted-foreground">Add the lifts you performed — log as many as you need per session.</p>
             )}
-            {lifts.map((l) => {
+            {lifts.map((l, liftIndex) => {
               const e1rm = l.weight && l.reps ? Math.round(estimateOneRepMax(Number(l.weight), Number(l.reps))) : null;
+              const liftId = `${fieldId}-lift-${l.id}`;
               return (
                 <div key={l.id} className="rounded-lg border border-lineSoft bg-panel2 p-2.5 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Input value={l.name} onChange={(e) => updateLift(l.id, "name", e.target.value)} placeholder="Bench press" className="h-11 text-sm" />
-                    <button type="button" onClick={() => removeLift(l.id)} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1 text-muted-foreground hover:bg-panel3 hover:text-red" aria-label="Remove lift">
+                    <Label className="sr-only" htmlFor={`${liftId}-name`}>{`Lift ${liftIndex + 1} name`}</Label>
+                    <Input id={`${liftId}-name`} value={l.name} onChange={(e) => updateLift(l.id, "name", e.target.value)} placeholder="Bench press" className="h-11 text-sm" />
+                    <button type="button" onClick={() => removeLift(l.id)} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1 text-muted-foreground hover:bg-panel3 hover:text-red" aria-label={`Remove lift ${liftIndex + 1}`}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    <NumField compact label="Weight (lb)" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
-                    <NumField compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} min={1} max={1000} />
-                    <NumField compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
+                    <NumField id={`${liftId}-weight`} accessibleLabel={`Lift ${liftIndex + 1} weight (lb)`} compact label="Weight (lb)" v={l.weight} on={(v) => updateLift(l.id, "weight", v)} min={0} max={5000} />
+                    <NumField id={`${liftId}-reps`} accessibleLabel={`Lift ${liftIndex + 1} reps`} compact label="Reps" v={l.reps} on={(v) => updateLift(l.id, "reps", v)} min={1} max={1000} />
+                    <NumField id={`${liftId}-sets`} accessibleLabel={`Lift ${liftIndex + 1} sets`} compact label="Sets" v={l.sets} on={(v) => updateLift(l.id, "sets", v)} min={1} max={100} />
                     <div className="space-y-1">
                       <Label className="text-label">1RM</Label>
                       <div className="flex h-11 items-center font-mono text-xs tabular-nums text-muted-foreground">
@@ -261,13 +265,13 @@ export default function SessionBuilder({ prefill = null }) {
 }
 
 /**
- * @param {{label: React.ReactNode, v: string | number, on: (value: string) => void, compact?: boolean, min?: string | number, max?: string | number}} props
+ * @param {{id: string, label: React.ReactNode, accessibleLabel?: string, v: string | number, on: (value: string) => void, compact?: boolean, min?: string | number, max?: string | number}} props
  */
-function NumField({ label, v, on, compact = false, min, max }) {
+function NumField({ id, label, accessibleLabel, v, on, compact = false, min, max }) {
   return (
     <div className="space-y-1">
-      <Label className={compact ? "text-label" : ""}>{label}</Label>
-      <Input type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-11 text-sm" : "h-11"} />
+      <Label htmlFor={id} className={compact ? "text-label" : ""}>{label}</Label>
+      <Input id={id} aria-label={accessibleLabel} type="number" inputMode="decimal" min={min} max={max} value={v} onChange={(e) => on(e.target.value)} className={compact ? "h-11 text-sm" : "h-11"} />
     </div>
   );
 }
