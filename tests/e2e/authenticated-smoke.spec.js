@@ -244,6 +244,20 @@ test("primary nutrition, training, and habit forms expose descriptive field name
   assertNoPageErrors();
 });
 
+test("the More theme row is one operable switch", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/more");
+  const themeSwitch = page.getByRole("switch", { name: "Dark mode", exact: true });
+  await expect(themeSwitch).toHaveCount(1);
+  await expect(themeSwitch).toHaveAttribute("aria-checked", "false");
+  await themeSwitch.click();
+  await expect(themeSwitch).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+
+  assertNoPageErrors();
+});
+
 test("the Premium catalog shows server-authorized tester access inside the More tab", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   const premiumResponse = page.waitForResponse((response) =>
