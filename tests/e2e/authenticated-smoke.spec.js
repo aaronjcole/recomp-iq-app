@@ -377,6 +377,25 @@ test("a Premium tester can open the on-device Visual Progress Check inside the P
   assertNoPageErrors();
 });
 
+test("Progress share uses an accessible modal and restores focus when closed", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/progress");
+
+  const shareTrigger = page.getByRole("button", { name: "Share", exact: true });
+  await shareTrigger.click();
+
+  const shareDialog = page.getByRole("dialog", { name: "Share weekly progress" });
+  await expect(shareDialog).toBeVisible();
+  await expect(shareDialog.getByText("RecompOne", { exact: true })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(shareDialog).toBeHidden();
+  await expect(shareTrigger).toBeFocused();
+
+  assertNoPageErrors();
+});
+
 test("a Premium tester sees the deploy-enabled AI body-composition range in Progress", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   const tinyPng = Buffer.from(
