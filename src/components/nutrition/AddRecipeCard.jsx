@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const emptyRow = { name: "", quantity: "", unit: "" };
 export default function AddRecipeCard() {
   const { addRecipe } = useRecompActions();
   const { toast } = useToast();
+  const recipeFormId = useId();
   const [title, setTitle] = useState("");
   const [servings, setServings] = useState("1");
   const [rows, setRows] = useState([{ ...emptyRow }]);
@@ -47,22 +48,25 @@ export default function AddRecipeCard() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 space-y-1.5">
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Chicken rice bowl" />
+            <Label htmlFor={`${recipeFormId}-title`}>Title</Label>
+            <Input id={`${recipeFormId}-title`} aria-label="Recipe title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Chicken rice bowl" />
           </div>
           <div className="space-y-1.5">
-            <Label>Servings</Label>
-            <Input type="number" inputMode="decimal" value={servings} onChange={(e) => setServings(e.target.value)} />
+            <Label htmlFor={`${recipeFormId}-servings`}>Servings</Label>
+            <Input id={`${recipeFormId}-servings`} aria-label="Recipe servings" type="number" inputMode="decimal" value={servings} onChange={(e) => setServings(e.target.value)} />
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Ingredients</Label>
+          <div className="text-sm font-medium leading-none">Ingredients</div>
           {rows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <Input value={r.name} onChange={(e) => setRow(i, "name", e.target.value)} placeholder="Ingredient" className="flex-1" />
-              <Input type="number" inputMode="decimal" value={r.quantity} onChange={(e) => setRow(i, "quantity", e.target.value)} placeholder="Qty" className="w-20" />
-              <Input value={r.unit} onChange={(e) => setRow(i, "unit", e.target.value)} placeholder="unit" className="w-20" />
-              <button onClick={() => removeRow(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+              <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-name`}>{`Ingredient ${i + 1} name`}</Label>
+              <Input id={`${recipeFormId}-ingredient-${i}-name`} value={r.name} onChange={(e) => setRow(i, "name", e.target.value)} placeholder="Ingredient" className="flex-1" />
+              <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-quantity`}>{`Ingredient ${i + 1} quantity`}</Label>
+              <Input id={`${recipeFormId}-ingredient-${i}-quantity`} type="number" inputMode="decimal" value={r.quantity} onChange={(e) => setRow(i, "quantity", e.target.value)} placeholder="Qty" className="w-20" />
+              <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-unit`}>{`Ingredient ${i + 1} unit`}</Label>
+              <Input id={`${recipeFormId}-ingredient-${i}-unit`} value={r.unit} onChange={(e) => setRow(i, "unit", e.target.value)} placeholder="unit" className="w-20" />
+              <button type="button" onClick={() => removeRow(i)} aria-label={`Remove ingredient ${i + 1}`} className="text-muted-foreground hover:text-destructive shrink-0">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
@@ -35,6 +35,7 @@ export default function Nutrition() {
   const [searchParams] = useSearchParams();
   const { state } = useLocation();
   const detailsRef = useRef(null);
+  const foodFormId = useId();
   const requestedPanel = searchParams.get("panel");
   const [targetsExpanded, setTargetsExpanded] = useState(
     () => requestedPanel === "targets"
@@ -175,22 +176,22 @@ export default function Nutrition() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1.5">
-              <Label>Food name</Label>
-              <Input className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
+              <Label htmlFor={`${foodFormId}-name`}>Food name</Label>
+              <Input id={`${foodFormId}-name`} className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Serving</Label>
-              <Input className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
+              <Label htmlFor={`${foodFormId}-serving`}>Serving</Label>
+              <Input id={`${foodFormId}-serving`} className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
             </div>
             <div className="space-y-1.5">
-              <Label>Grams</Label>
-              <Input className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
+              <Label htmlFor={`${foodFormId}-grams`}>Grams</Label>
+              <Input id={`${foodFormId}-grams`} className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
             </div>
-            <Field label="Calories" v={form.calories} on={(v) => set("calories", v)} />
-            <Field label="Protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
-            <Field label="Carbs (g)" v={form.carbs_g} on={(v) => set("carbs_g", v)} />
-            <Field label="Fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
-            <Field label="Fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
+            <Field id={`${foodFormId}-calories`} label="Calories" accessibleLabel="Food calories" v={form.calories} on={(v) => set("calories", v)} />
+            <Field id={`${foodFormId}-protein`} label="Protein (g)" accessibleLabel="Food protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
+            <Field id={`${foodFormId}-carbs`} label="Carbs (g)" accessibleLabel="Food carbs (g)" v={form.carbs_g} on={(v) => set("carbs_g", v)} />
+            <Field id={`${foodFormId}-fat`} label="Fat (g)" accessibleLabel="Food fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
+            <Field id={`${foodFormId}-fiber`} label="Fiber (g)" accessibleLabel="Food fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
           </div>
           <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
             <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
@@ -350,11 +351,11 @@ function ScannerLoading() {
   );
 }
 
-function Field({ label, v, on }) {
+function Field({ id, label, accessibleLabel, v, on }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <Input className="h-11" type="number" inputMode="decimal" value={v} onChange={(e) => on(e.target.value)} />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} aria-label={accessibleLabel} className="h-11" type="number" inputMode="decimal" value={v} onChange={(e) => on(e.target.value)} />
     </div>
   );
 }

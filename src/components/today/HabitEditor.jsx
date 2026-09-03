@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { useRecompHabits, useRecompActions } from "@/lib/RecompContext";
 import {
   Dialog,
@@ -19,6 +19,7 @@ const blank = { id: null, name: "", kind: "check", target_value: "", unit: "", i
 export default function HabitEditor({ open, onOpenChange }) {
   const { habits } = useRecompHabits();
   const { addHabit, updateHabit, archiveHabit } = useRecompActions();
+  const habitFormId = useId();
   const [form, setForm] = useState(blank);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -55,13 +56,14 @@ export default function HabitEditor({ open, onOpenChange }) {
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Reading, water…" />
+            <Label htmlFor={`${habitFormId}-name`}>Name</Label>
+            <Input id={`${habitFormId}-name`} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Reading, water…" />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Kind</Label>
+            <Label htmlFor={`${habitFormId}-kind`}>Kind</Label>
             <AdaptiveSelect
+              id={`${habitFormId}-kind`}
               value={form.kind}
               onValueChange={(v) => set("kind", v)}
               options={[
@@ -76,19 +78,19 @@ export default function HabitEditor({ open, onOpenChange }) {
           {form.kind === "count" && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Target</Label>
-                <Input type="number" inputMode="decimal" value={form.target_value} onChange={(e) => set("target_value", e.target.value)} />
+                <Label htmlFor={`${habitFormId}-target`}>Target</Label>
+                <Input id={`${habitFormId}-target`} type="number" inputMode="decimal" value={form.target_value} onChange={(e) => set("target_value", e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Unit</Label>
-                <Input value={form.unit} onChange={(e) => set("unit", e.target.value)} placeholder="oz, cups" />
+                <Label htmlFor={`${habitFormId}-unit`}>Unit</Label>
+                <Input id={`${habitFormId}-unit`} value={form.unit} onChange={(e) => set("unit", e.target.value)} placeholder="oz, cups" />
               </div>
             </div>
           )}
 
           <div className="space-y-1.5">
-            <Label>Icon</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <Label id={`${habitFormId}-icon-label`}>Icon</Label>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={`${habitFormId}-icon-label`}>
               {ICON_KEYS.map((k) => {
                 const Ico = iconFor(k);
                 const sel = form.icon === k;
