@@ -66,7 +66,7 @@ export default function AddRecipeCard() {
               <Input id={`${recipeFormId}-ingredient-${i}-quantity`} type="number" inputMode="decimal" value={r.quantity} onChange={(e) => setRow(i, "quantity", e.target.value)} placeholder="Qty" className="w-20" />
               <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-unit`}>{`Ingredient ${i + 1} unit`}</Label>
               <Input id={`${recipeFormId}-ingredient-${i}-unit`} value={r.unit} onChange={(e) => setRow(i, "unit", e.target.value)} placeholder="unit" className="w-20" />
-              <button type="button" onClick={() => removeRow(i)} aria-label={`Remove ingredient ${i + 1}`} className="text-muted-foreground hover:text-destructive shrink-0">
+              <button type="button" onClick={() => removeRow(i)} aria-label={`Remove ingredient ${i + 1}`} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

@@ -39,7 +39,7 @@ function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) 
   const Icon = item.icon;
   return (
     <div className={`flex w-full items-center gap-3 px-3 py-3 ${first ? "" : "border-t border-lineSoft"}`}>
-      <button onClick={onActivate} className="flex flex-1 items-center gap-3 min-w-0 text-left">
+      <button type="button" onClick={onActivate} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left">
         <Icon className="w-4 h-4 text-teal shrink-0" />
         <span className="flex-1 min-w-0">
           <span className="block text-sm font-medium truncate">{item.label}</span>

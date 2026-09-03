@@ -114,15 +114,15 @@ export default function SessionHistory() {
                             </div>
                             {confirmId === s.id ? (
                               <div className="flex items-center gap-1 shrink-0">
-                                <button onClick={() => deleteSession(s.id)} className="text-xs text-red font-medium px-2 py-1 min-h-[36px]">Delete</button>
-                                <button onClick={() => setConfirmId(null)} className="text-xs text-muted-foreground px-1 py-1 min-h-[36px]">Cancel</button>
+                                <button type="button" onClick={() => deleteSession(s.id)} className="min-h-11 min-w-11 px-2 py-1 text-xs font-medium text-red">Delete</button>
+                                <button type="button" onClick={() => setConfirmId(null)} className="min-h-11 min-w-11 px-1 py-1 text-xs text-muted-foreground">Cancel</button>
                               </div>
                             ) : (
                               <div className="flex items-center shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => setEditSession(s)}
-                                  className="text-muted-foreground hover:text-teal p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                  className="flex min-h-11 min-w-11 items-center justify-center p-1 text-muted-foreground hover:text-teal"
                                   aria-label={`Edit ${s.title || TYPE_LABEL[s.type] || "session"}`}
                                 >
                                   <Pencil className="w-4 h-4" />
@@ -130,7 +130,7 @@ export default function SessionHistory() {
                                 <button
                                   type="button"
                                   onClick={() => setConfirmId(s.id)}
-                                  className="text-muted-foreground hover:text-red p-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                  className="flex min-h-11 min-w-11 items-center justify-center p-1 text-muted-foreground hover:text-red"
                                   aria-label={`Delete ${s.title || TYPE_LABEL[s.type] || "session"}`}
                                 >
                                   <Trash2 className="w-4 h-4" />

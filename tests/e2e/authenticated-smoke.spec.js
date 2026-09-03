@@ -161,6 +161,33 @@ test("shared controls stay touch-safe without overflowing a narrow mobile layout
   assertNoPageErrors();
 });
 
+test("custom mobile actions expose at least 44px touch targets", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const expectTouchSafe = async (locator, name) => {
+    const box = await locator.boundingBox();
+    expect(box?.height, `${name} height`).toBeGreaterThanOrEqual(44);
+    expect(box?.width, `${name} width`).toBeGreaterThanOrEqual(44);
+  };
+
+  await page.goto("/today");
+  await expectTouchSafe(page.getByRole("link", { name: "Manage" }), "Today Manage link");
+  await expectTouchSafe(page.getByRole("link", { name: "Full progress" }), "Today Full progress link");
+
+  await page.goto("/more");
+  await expectTouchSafe(page.getByRole("button", { name: /Premium features/i }), "More navigation row");
+
+  await page.goto("/nutrition");
+  await expectTouchSafe(page.getByRole("button", { name: "Remove ingredient 1" }), "Recipe remove action");
+
+  await page.goto("/training");
+  await expectTouchSafe(page.getByRole("button", { name: /Edit Strength/i }).first(), "Training history edit action");
+  await expectTouchSafe(page.getByRole("button", { name: /Delete Strength/i }).first(), "Training history delete action");
+
+  assertNoPageErrors();
+});
+
 test("primary nutrition, training, and habit forms expose descriptive field names", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 

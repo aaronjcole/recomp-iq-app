@@ -32,7 +32,7 @@ export default function QuickMealsCard() {
           <h2 className="flex items-center gap-2 font-medium">
             <Utensils className="w-4 h-4 text-teal" /> Quick meals
           </h2>
-          <Link to="/nutrition" className="flex items-center gap-0.5 text-xs text-teal">
+          <Link to="/nutrition" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
             Manage <ChevronRight className="w-3 h-3" />
           </Link>
         </div>
