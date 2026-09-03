@@ -274,6 +274,15 @@ test("the Premium catalog shows server-authorized tester access inside the More 
   await expect(page.getByRole("heading", { level: 1, name: "Premium features" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Testing access enabled" })).toBeVisible();
   await expect(page.getByText("Access granted · available now")).toHaveCount(4);
+  for (const name of [
+    "Open meal planner",
+    "Open training planner",
+    "Open Weekly Autopilot",
+    "Open visual progress tools",
+  ]) {
+    await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("link", { name: "Request Lifestyle coach access", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
   assertNoPageErrors();
