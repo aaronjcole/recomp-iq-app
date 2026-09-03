@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import {
@@ -20,6 +20,21 @@ import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle
+} from "@/components/ui/drawer";
 
 const BodyCompositionScan = lazy(() => import("@/components/progress/BodyCompositionScan"));
 
@@ -45,6 +60,7 @@ export default function Progress() {
   const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
   const [range, setRange] = useState("35d");
   const [showShare, setShowShare] = useState(false);
+  const shareTriggerRef = useRef(null);
 
   const dedupedLogs = useMemo(
     () => (isActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
@@ -167,6 +183,7 @@ export default function Progress() {
             <h2 className="font-medium">Latest read</h2>
             {trend && (
               <Button
+                ref={shareTriggerRef}
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-teal hover:text-teal"
@@ -192,8 +209,13 @@ export default function Progress() {
         </CardContent>
       </Card>
 
-      {showShare && trend && (
-        <ShareCard trend={trend} onClose={() => setShowShare(false)} />
+      {trend && (
+        <ShareCard
+          trend={trend}
+          open={showShare}
+          onOpenChange={setShowShare}
+          returnFocusRef={shareTriggerRef}
+        />
       )}
 
       {projection && (
@@ -265,7 +287,8 @@ function Stat({ label, value, highlight = false }) {
   );
 }
 
-function ShareCard({ trend, onClose }) {
+function ShareCard({ trend, open, onOpenChange, returnFocusRef }) {
+  const isMobile = useIsMobile();
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   const weeklyChange = trend.weight_change_lbs !== null
@@ -287,50 +310,79 @@ function ShareCard({ trend, onClose }) {
     navigator.share({ title: "RecompOne Progress", text }).catch(() => {});
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center p-4 pb-8 bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-xs rounded-2xl overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="bg-[#07110f] px-6 py-8 space-y-5">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#2fc4a7] flex items-center justify-center">
-              <Target className="w-4 h-4 text-[#07110f]" />
+  const restoreTriggerFocus = (event) => {
+    event.preventDefault();
+    returnFocusRef.current?.focus();
+  };
+
+  const content = (
+    <div className="w-full overflow-hidden rounded-2xl shadow-2xl">
+      <div className="bg-[#07110f] px-6 py-8 space-y-5">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[#2fc4a7] flex items-center justify-center">
+            <Target className="w-4 h-4 text-[#07110f]" aria-hidden="true" />
+          </div>
+          <span className="font-semibold text-[#2fc4a7]">RecompOne</span>
+        </div>
+        <div className="space-y-2">
+          {stats.map((stat) => (
+            <div key={stat.label} className="flex justify-between">
+              <span className="text-sm text-white/50">{stat.label}</span>
+              <span className="text-sm font-semibold text-white">{stat.value}</span>
             </div>
-            <span className="font-semibold text-[#2fc4a7]">RecompOne</span>
-          </div>
-          <div className="space-y-2">
-            {stats.map((s) => (
-              <div key={s.label} className="flex justify-between">
-                <span className="text-sm text-white/50">{s.label}</span>
-                <span className="text-sm font-semibold text-white">{s.value}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-white/30 text-center">recompone.app</p>
+          ))}
         </div>
-        <div className="bg-panel p-4 space-y-2">
-          {canShare ? (
-            <Button
-              className="w-full bg-teal text-buttonText hover:opacity-90"
-              onClick={handleShare}
-            >
-              <Share2 className="w-4 h-4 mr-2" /> Share
-            </Button>
-          ) : (
-            <p className="text-xs text-center text-muted-foreground">
-              Screenshot the card above to share your progress
-            </p>
-          )}
-          <Button variant="outline" className="w-full border-line" onClick={onClose}>
-            Done
+        <p className="text-xs text-white/30 text-center">recompone.app</p>
+      </div>
+      <div className="bg-panel p-4 space-y-2">
+        {canShare ? (
+          <Button
+            className="w-full bg-teal text-buttonText hover:opacity-90"
+            onClick={handleShare}
+          >
+            <Share2 className="w-4 h-4 mr-2" aria-hidden="true" /> Share
           </Button>
-        </div>
+        ) : (
+          <p className="text-xs text-center text-muted-foreground">
+            Screenshot the card above to share your progress
+          </p>
+        )}
+        <Button variant="outline" className="w-full border-line" onClick={() => onOpenChange(false)}>
+          Done
+        </Button>
       </div>
     </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
+        <DrawerContent
+          className="mx-auto max-w-sm border-0 bg-transparent px-4 pb-[max(2rem,env(safe-area-inset-bottom))]"
+          onCloseAutoFocus={restoreTriggerFocus}
+        >
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Share weekly progress</DrawerTitle>
+            <DrawerDescription>Preview and share your latest weekly progress summary.</DrawerDescription>
+          </DrawerHeader>
+          {content}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-w-xs gap-0 overflow-hidden border-0 bg-transparent p-0"
+        onCloseAutoFocus={restoreTriggerFocus}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Share weekly progress</DialogTitle>
+          <DialogDescription>Preview and share your latest weekly progress summary.</DialogDescription>
+        </DialogHeader>
+        {content}
+      </DialogContent>
+    </Dialog>
   );
 }
