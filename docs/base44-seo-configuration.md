@@ -16,7 +16,7 @@ Console can reject. With generation disabled, Base44 serves the repository's val
 - Primary custom domain: `https://fitnesstrackerapps.com`
 
 > **Publish before verifying.** SEO content routes (`/tools/*`, `/learn/*`, `/tips/*`,
-> `/locations/*`) only resolve after the app is published. A stale deploy returns the app's
+> `/compare/*`, `/locations/*`) only resolve after the app is published. A stale deploy returns the app's
 > 404 page for these routes. After publishing, register each SEO route under Per-page
 > indexing so the platform pre-renders it with the correct title, description, and canonical.
 
@@ -36,17 +36,21 @@ Console can reject. With generation disabled, Base44 serves the repository's val
 | `/learn/body-recomposition-guide` | Index | Long-form body recomposition guide |
 | `/tips` | Index | Fitness tips hub |
 | `/tips/:slug` | Index | Individual tip articles (16 articles) |
+| `/compare` | Index | Fitness app comparisons hub |
+| `/compare/:slug` | Index | Individual app comparisons (16 comparisons) |
 | `/locations` | Index | Local GEO locations index |
-| `/locations/:slug` | Index | City landing pages (8 cities) |
+| `/locations/:slug` | Index | City landing pages (20 cities) |
 | `/hero` | No index | Web-beta sign-in gateway; reachable by direct link only, not linked from `/coming-soon` |
 | `/login` | No index | Authentication utility route |
 | `/register` | No index | Authentication utility route |
 | `/forgot-password` | No index | Authentication utility route |
 | `/reset-password` | No index | Authentication utility route |
 
-`public/sitemap.xml` is the source of truth for route inclusion. Whenever routing changes, update
-and verify its exact public URL set; authenticated, authentication-utility, beta-gateway, and
-other non-public routes must remain absent.
+`src/lib/seo/publicRouteInventory.js` is the route-policy source of truth, and
+`public/sitemap.xml` is its crawler-facing mirror. Whenever public content changes, update the
+inventory and sitemap together; the security suite verifies both against the article datasets.
+Authenticated, authentication-utility, beta-gateway, and other non-public routes must remain
+absent.
 
 ## Page metadata
 
@@ -80,12 +84,14 @@ require hosting that supports path rules or a future Base44 platform capability.
 1. Confirm `/` initial HTML contains the homepage title, description, canonical, and `index`.
 2. Confirm `/hero` and the auth pages contain `noindex` in their initial HTML.
 3. Confirm `/sitemap.xml` returns valid XML with `application/xml`, `text/xml`, or an
-   `application/*+xml` media type (an optional charset is allowed) and lists only the five
-   indexable public routes above. `text/html` is a failure.
+   `application/*+xml` media type (an optional charset is allowed) and lists exactly the 64
+   canonical public routes in the route inventory. `text/html` is a failure.
 4. Confirm `/robots.txt` returns `text/plain` (an optional charset is allowed) and references the
    canonical sitemap URL. `text/html` is a failure.
 5. Confirm `/coming-soon` renders the marketing page with `index,follow` and a canonical pointing to the root URL; it should remain absent from the sitemap because its canonical is `https://fitnesstrackerapps.com/`.
-6. Fetch `/tips` and `/tools/tdee-calculator` and confirm they return real content (not the app 404 page). If they 404, publish the app and register the routes under Per-page indexing.
+6. Fetch `/tips`, one `/tips/:slug`, one `/compare/:slug`, one `/locations/:slug`, and
+   `/tools/tdee-calculator`; confirm each returns real content rather than the app 404 page. If
+   any 404, publish the app and register the route pattern under Per-page indexing.
 7. Submit the sitemap in Google Search Console and request indexing for `/`.
 
 ## Platform references

@@ -22,6 +22,7 @@ import {
   REPORTED_CONTENT_MAX_LENGTH,
   normalizeAiReportRequest
 } from "../../base44/shared/aiReportDomain.js";
+import { json as jsonResponse } from "../../base44/shared/httpUtils.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -227,6 +228,18 @@ test("AI report requests allow only bounded identifiers, categories, and user ex
   }
 });
 
+test("shared JSON responses preserve caller headers and disable caching", async () => {
+  const response = jsonResponse(
+    { error: "Method not allowed" },
+    { status: 405, headers: { Allow: "POST" } }
+  );
+
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get("Allow"), "POST");
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await response.json(), { error: "Method not allowed" });
+});
+
 test("coach and report functions are authenticated and narrowly owner-scoped", () => {
   const coach = readFileSync(
     resolve(repoRoot, "base44/functions/coachReply/entry.ts"),
@@ -239,8 +252,10 @@ test("coach and report functions are authenticated and narrowly owner-scoped", (
 
   for (const source of [coach, report]) {
     assert.match(source, /user = await base44\.auth\.me\(\)/);
-    assert.match(source, /Cache-Control", "no-store"/);
   }
+  assert.match(coach, /import \{ json, safeErrorDetails, statusOf \} from "\.\.\/\.\.\/shared\/httpUtils\.js"/);
+  assert.doesNotMatch(coach, /Response\.json\(/);
+  assert.match(report, /Cache-Control", "no-store"/);
   assert.deepEqual(
     coach.match(/asServiceRole\.entities\.[A-Za-z]+/g),
     ["asServiceRole.entities.CoachRequestUsage"]

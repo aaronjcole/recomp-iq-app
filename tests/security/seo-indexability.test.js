@@ -4,19 +4,36 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
+import {
+  COMPARISON_SLUGS,
+  LOCATION_SLUGS,
+  PUBLIC_CANONICAL_PATHS,
+  TIP_SLUGS
+} from "../../src/lib/seo/publicRouteInventory.js";
+import { comparisons } from "../../src/lib/seo/comparisonsData.js";
+import { locations } from "../../src/lib/seo/locationsData.js";
+import { tips } from "../../src/lib/seo/tipsData.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const siteUrl = "https://fitnesstrackerapps.com";
 
-test("the canonical homepage is indexable while beta and app routes stay out of search", () => {
+test("every canonical public route is indexable with exact metadata", () => {
+  for (const path of PUBLIC_CANONICAL_PATHS) {
+    const metadata = getRouteMetadata(path);
+    assert.equal(metadata.robots, "index,follow", `${path} must be indexed`);
+    assert.equal(metadata.canonicalUrl, `${siteUrl}${path}`, `${path} canonical must be exact`);
+    assert.notEqual(metadata.title, "Page Not Found | RecompOne", `${path} needs route metadata`);
+  }
+
   const home = getRouteMetadata("/");
   assert.equal(home.title, "RecompOne: Adaptive Body Recomposition");
-  assert.equal(home.canonicalUrl, `${siteUrl}/`);
-  assert.equal(home.robots, "index,follow");
 
   const comingSoon = getRouteMetadata("/coming-soon");
   assert.equal(comingSoon.canonicalUrl, `${siteUrl}/`);
   assert.equal(comingSoon.robots, "index,follow");
+});
+
+test("beta, authenticated, and unknown routes stay out of search", () => {
 
   for (const path of [
     "/hero",
@@ -30,10 +47,19 @@ test("the canonical homepage is indexable while beta and app routes stay out of 
     "/training",
     "/progress",
     "/more",
-    "/missing"
+    "/missing",
+    "/tips/not-a-real-tip",
+    "/compare/not-a-real-comparison",
+    "/locations/not-a-real-city"
   ]) {
     assert.equal(getRouteMetadata(path).robots, "noindex,follow", `${path} must not be indexed`);
   }
+});
+
+test("the lightweight public route inventory matches every content dataset", () => {
+  assert.deepEqual([...TIP_SLUGS].sort(), tips.map(({ slug }) => slug).sort());
+  assert.deepEqual([...COMPARISON_SLUGS].sort(), comparisons.map(({ slug }) => slug).sort());
+  assert.deepEqual([...LOCATION_SLUGS].sort(), locations.map(({ slug }) => slug).sort());
 });
 
 test("static crawler files define the public index when Base44 generation is disabled", () => {
@@ -44,13 +70,7 @@ test("static crawler files define the public index when Base44 generation is dis
 
   const sitemap = readFileSync(sitemapPath, "utf8");
   const robots = readFileSync(robotsPath, "utf8");
-  const publicUrls = [
-    `${siteUrl}/`,
-    `${siteUrl}/privacy`,
-    `${siteUrl}/terms`,
-    `${siteUrl}/support`,
-    `${siteUrl}/delete-account`
-  ];
+  const publicUrls = PUBLIC_CANONICAL_PATHS.map((path) => `${siteUrl}${path}`);
   const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   assert.deepEqual(sitemapUrls, publicUrls);
 
@@ -70,7 +90,18 @@ test("static crawler files define the public index when Base44 generation is dis
   assert.ok(robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`));
 
   const checklist = readFileSync(resolve(repoRoot, "docs/base44-seo-configuration.md"), "utf8");
-  for (const path of ["/", "/coming-soon", "/privacy", "/terms", "/support", "/delete-account"]) {
+  for (const path of [
+    "/",
+    "/coming-soon",
+    "/privacy",
+    "/terms",
+    "/support",
+    "/delete-account",
+    "/tools/tdee-calculator",
+    "/tips/:slug",
+    "/compare/:slug",
+    "/locations/:slug"
+  ]) {
     assert.ok(checklist.includes(`| \`${path}\` | Index |`));
   }
   for (const path of [

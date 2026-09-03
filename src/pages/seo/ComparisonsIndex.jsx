@@ -1,7 +1,7 @@
 import SeoShell, { SITE_URL } from "@/components/seo/SeoShell";
 import { Link } from "react-router-dom";
 import { ArrowRight, Clock, Scale } from "lucide-react";
-import { comparisons, CATEGORIES, comparisonsByCategory } from "@/lib/seo/comparisonsData";
+import { CATEGORIES, comparisonsByCategory } from "@/lib/seo/comparisonsData";
 
 const jsonLd = [
   {

@@ -232,14 +232,14 @@ export default function TdeeCalculator() {
   );
 }
 
-function Stat({ label, value, unit, highlight }) {
+function Stat({ label, value, unit, highlight = false }) {
   return (
     <div className={`rounded-xl border p-4 ${highlight ? "border-teal/40 bg-teal/10" : "border-line bg-bg"}`}>
       <div className="font-mono text-2xl font-bold tabular-nums text-foreground">
         {value}
         <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>
       </div>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="font-mono text-micro uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }

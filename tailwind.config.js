@@ -84,6 +84,7 @@ module.exports = {
   			mono: ['var(--font-mono)']
   		},
 		fontSize: {
+			micro: '0.625rem',
 			label: '0.75rem'
 		},
   		keyframes: {

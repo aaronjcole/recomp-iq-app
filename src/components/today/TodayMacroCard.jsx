@@ -21,7 +21,12 @@ export default function TodayMacroCard({ calorieTarget, protein = 0, carbs = 0, 
             <div className="text-xl font-bold tabular-nums">{remaining} left</div>
             <div className="text-xs text-muted-foreground">of {calorieTarget} kcal</div>
           </div>
-          <Button size="sm" className="bg-teal text-buttonText hover:opacity-90" onClick={onLog}>
+          <Button
+            size="sm"
+            className="bg-teal text-buttonText hover:opacity-90"
+            onClick={onLog}
+            aria-label="Log today's basics"
+          >
             <Plus className="w-4 h-4 mr-1" /> Log
           </Button>
         </div>
