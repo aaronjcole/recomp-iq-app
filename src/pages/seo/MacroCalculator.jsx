@@ -157,7 +157,7 @@ function Stat({ label, value, unit, pct }) {
         {value}
         <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>
       </div>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
         {label} · {pct}% of cals
       </div>
     </div>

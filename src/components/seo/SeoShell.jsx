@@ -41,7 +41,7 @@ function upsertLink(rel, href) {
  * wraps article content in a semantic container. These pages are public and
  * intentionally excluded from the app's bottom navigation.
  */
-export default function SeoShell({ title, description, canonicalPath, jsonLd, children }) {
+export default function SeoShell({ title, description, canonicalPath, jsonLd = null, children }) {
   useEffect(() => {
     const fullUrl = `${SITE_URL}${canonicalPath}`;
     document.title = title;

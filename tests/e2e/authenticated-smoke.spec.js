@@ -66,12 +66,13 @@ test("Today opens the single canonical logging sheet", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/today");
-  await page.getByRole("button", { name: /Log today/i }).first().click();
+  await page.getByRole("button", { name: "Log today's basics", exact: true }).click();
 
   // QuickLogSheet is the one logging surface after the redesign.
-  await expect(page.getByText("Add the signals you have. Empty fields stay unlogged.")).toBeVisible();
-  await expect(page.getByText("Weight (lb)")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Save today's log/i })).toBeVisible();
+  const sheet = page.getByRole("dialog", { name: "Log today" });
+  await expect(sheet.getByText("Add the signals you have. Empty fields stay unlogged.")).toBeVisible();
+  await expect(sheet.getByText("Weight (lb)")).toBeVisible();
+  await expect(sheet.getByRole("button", { name: /Save today's log/i })).toBeVisible();
   assertNoPageErrors();
 });
 
@@ -103,12 +104,13 @@ test("saving the daily log closes the sheet without error", async ({ page }) => 
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/today");
-  await page.getByRole("button", { name: /Log today/i }).first().click();
-  const sheetText = page.getByText("Add the signals you have. Empty fields stay unlogged.");
+  await page.getByRole("button", { name: "Log today's basics", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Log today" });
+  const sheetText = sheet.getByText("Add the signals you have. Empty fields stay unlogged.");
   await expect(sheetText).toBeVisible();
 
   await page.getByRole("button", { name: /Save today's log/i }).click();
-  await expect(sheetText).toBeHidden();
+  await expect(sheet).toBeHidden();
 
   assertNoPageErrors();
 });
@@ -150,8 +152,9 @@ test("shared controls stay touch-safe without overflowing a narrow mobile layout
   ).toBeLessThanOrEqual(layoutWidth.viewport);
 
   await page.goto("/today");
-  await page.getByRole("button", { name: /Log today/i }).first().click();
-  const closeBox = await page.getByRole("button", { name: "Close" }).boundingBox();
+  await page.getByRole("button", { name: "Log today's basics", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Log today" });
+  const closeBox = await sheet.getByRole("button", { name: "Close" }).boundingBox();
   expect(closeBox?.height).toBeGreaterThanOrEqual(44);
   expect(closeBox?.width).toBeGreaterThanOrEqual(44);
 

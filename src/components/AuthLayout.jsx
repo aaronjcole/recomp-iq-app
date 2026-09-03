@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * @param {{icon: React.ElementType, title: React.ReactNode, subtitle?: React.ReactNode, footer?: React.ReactNode, children: React.ReactNode}} props
+ * @param {{icon: React.ElementType, title: React.ReactNode, subtitle?: React.ReactNode, footer?: React.ReactNode, children?: React.ReactNode}} props
  */
 export default function AuthLayout({ icon: Icon, title, subtitle = null, footer = null, children }) {
   return (

@@ -56,7 +56,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   assertNoPageErrors();
 });
 
-test("coming-soon page explains the decision system and exposes the Android beta CTA", async ({ page }) => {
+test("coming-soon page explains the decision system and exposes the early-access CTA", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/coming-soon?utm_source=playwright");
@@ -67,7 +67,8 @@ test("coming-soon page explains the decision system and exposes the Android beta
       name: "Know when to hold, adjust, or push your body recomposition plan."
     })
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Join the Android beta" })).toBeVisible();
+  const waitlistForm = page.getByRole("form", { name: "Join the RecompOne early-access list" });
+  await expect(waitlistForm.getByRole("button", { name: "Get early access", exact: true })).toBeVisible();
   await expect(page.getByText("Hold targets steady")).toBeVisible();
 
   await page.getByRole("link", { name: "See how RecompOne decides" }).click();
@@ -81,10 +82,36 @@ test("coming-soon page explains the decision system and exposes the Android beta
   await expect(page.getByRole("heading", { name: "Weekly Autopilot" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Visual progress tools" })).toBeVisible();
   await expect(page.getByText("Premium features are available to approved testers during beta.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Join the Android beta" })).toHaveAttribute(
+  const premiumPlans = page.getByRole("region", { name: "Premium plans that adapt with you." });
+  await expect(premiumPlans.getByRole("link", { name: "Get early access", exact: true })).toHaveAttribute(
     "href",
     "#waitlist-email"
   );
+  assertNoPageErrors();
+});
+
+test("representative public content routes expose indexable metadata and real content", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  const routes = [
+    { path: "/tools/tdee-calculator", heading: "TDEE Calculator" },
+    {
+      path: "/tips/start-calorie-deficit-without-losing-muscle",
+      heading: "How to Start a Calorie Deficit Without Losing Muscle"
+    },
+    { path: "/compare/recompone-vs-macrofactor", heading: "RecompOne vs MacroFactor" },
+    { path: "/locations/austin-tx", heading: "Body Recomposition in Austin, Texas" }
+  ];
+
+  for (const route of routes) {
+    await page.goto(route.path);
+    await expect(page.getByRole("heading", { level: 1, name: route.heading })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index,follow");
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      `https://fitnesstrackerapps.com${route.path}`
+    );
+  }
+
   assertNoPageErrors();
 });
 

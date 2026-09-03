@@ -14,8 +14,9 @@ function sourceFiles(directory) {
   });
 }
 
-test("metadata text uses the rem-based label token", () => {
+test("metadata text uses named rem-based tokens", () => {
   const config = readFileSync(resolve(repoRoot, "tailwind.config.js"), "utf8");
+  assert.match(config, /fontSize:\s*\{[\s\S]*?micro:\s*["']0\.625rem["']/);
   assert.match(config, /fontSize:\s*\{[\s\S]*?label:\s*["']0\.75rem["']/);
 
   const adHocPixels = sourceFiles(resolve(repoRoot, "src")).flatMap((path) => {
