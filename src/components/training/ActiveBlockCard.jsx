@@ -122,7 +122,7 @@ export default function ActiveBlockCard({ block }) {
                   <button
                     type="button"
                     onClick={() => handleStartSession(i, session)}
-                    className="flex shrink-0 items-center gap-1 rounded-lg bg-teal/10 px-3 py-2 text-xs font-medium text-teal hover:bg-teal/20"
+                    className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg bg-teal/10 px-3 py-2 text-xs font-medium text-teal hover:bg-teal/20"
                     aria-label={`Start ${session.title}`}
                   >
                     <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />

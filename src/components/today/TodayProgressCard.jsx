@@ -21,7 +21,7 @@ export default function TodayProgressCard() {
       <CardContent className="p-5 space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="font-medium">Your trends</h2>
-          <Link to="/progress" className="flex items-center gap-0.5 text-xs text-teal">
+          <Link to="/progress" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
             Full progress <ChevronRight className="w-3 h-3" />
           </Link>
         </div>
