@@ -150,12 +150,10 @@ test("mobile release flows prioritize primary actions and usable touch targets",
   assert.match(quickLogSource, /checked=\{!!form\.workout_completed\}/);
 
   const todaySource = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
-  assert.match(todaySource, /<BestMoveCard/);
-  assert.match(todaySource, /<RecompSignalHero/);
-  assert.ok(
-    todaySource.indexOf("<RecompSignalHero") < todaySource.indexOf("<BestMoveCard"),
-    "the recomposition signal leads as the hero, with the best-move action directly beneath it"
-  );
+  assert.match(todaySource, /<RecompSignalHero move=\{bestMove\}/);
+  assert.match(todaySource, /<StreakBanner compact/);
+  const signalHeroSource = readFileSync(resolve(repoRoot, "src/components/today/RecompSignalHero.jsx"), "utf8");
+  assert.match(signalHeroSource, /<BestMoveCard move=\{move\} onLog=\{onLog\} embedded/);
   const bestMoveSource = readFileSync(resolve(repoRoot, "src/components\/today\/BestMoveCard.jsx"), "utf8");
   assert.match(bestMoveSource, /Today&apos;s best move/);
   assert.match(bestMoveSource, /Why not the alternatives/);

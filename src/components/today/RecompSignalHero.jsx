@@ -4,6 +4,7 @@ import { strengthTrend } from "@/lib/fitness";
 import ConfidenceRing from "@/components/common/ConfidenceRing";
 import SignalStat from "@/components/common/SignalStat";
 import ScoreDriversSheet from "@/components/today/ScoreDriversSheet";
+import BestMoveCard from "@/components/today/BestMoveCard";
 
 const CHIP = {
   "High confidence": "border-teal text-teal",
@@ -15,7 +16,7 @@ const RECOVERY_STATUS = { good: "good", moderate: "watch", poor: "bad", unknown:
 
 const signed = (n, unit) => `${n > 0 ? "+" : ""}${n} ${unit}`;
 
-export default function RecompSignalHero() {
+export default function RecompSignalHero({ move, onLog }) {
   const { signal, recompSignal, boss, trend, strengthLogs } = useRecomp();
   const [driversOpen, setDriversOpen] = useState(false);
 
@@ -72,6 +73,7 @@ export default function RecompSignalHero() {
 
   let cells = [weightCell, waistCell, strengthCell, fuelCell, proteinCell, recoveryCell].filter(Boolean);
   if (isEarly) cells = cells.filter((c) => c.value !== "—");
+  const highlights = cells.slice(0, 3);
 
   const chipClass = CHIP[signal.label] ?? CHIP["Early read"];
   const tone = signal.label === "High confidence" ? "high" : signal.label === "Building confidence" ? "building" : "early";
@@ -101,9 +103,9 @@ export default function RecompSignalHero() {
         </div>
       </div>
 
-      {cells.length > 0 && (
+      {highlights.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
-          {cells.map((c) => (
+          {highlights.map((c) => (
             <SignalStat key={c.label} label={c.label} value={c.value} unit={c.unit} status={c.status} />
           ))}
         </div>
@@ -117,6 +119,7 @@ export default function RecompSignalHero() {
           </p>
         </div>
       )}
+      <BestMoveCard move={move} onLog={onLog} embedded />
       <ScoreDriversSheet open={driversOpen} onOpenChange={setDriversOpen} drivers={cells} />
     </div>
   );

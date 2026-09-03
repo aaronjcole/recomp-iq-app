@@ -30,6 +30,20 @@ test("the signed-in shell reaches Today with data, not login or onboarding", asy
   assertNoPageErrors();
 });
 
+test("Today brings the first daily logging module into the initial phone viewport", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/today");
+
+  const fuelHeading = page.getByRole("heading", { level: 2, name: "Today's fuel" });
+  await expect(fuelHeading).toBeVisible();
+  const bounds = await fuelHeading.boundingBox();
+  expect(bounds, "Today's fuel should have measurable bounds").not.toBeNull();
+  expect(bounds.y + bounds.height, "Today's fuel should begin above the fold").toBeLessThanOrEqual(844);
+
+  assertNoPageErrors();
+});
+
 test("every authenticated tab renders its screen without a runtime error", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
