@@ -14,8 +14,14 @@ import {
 import CheckInSheet from "@/components/more/CheckInSheet";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 
 const APP_VERSION = "0.1.0";
+const THEME_OPTIONS = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" }
+];
 
 function daysSince(dateStr) {
   if (!dateStr) return Infinity;
@@ -38,7 +44,7 @@ function sectionHeadingId(title) {
   return `more-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-heading`;
 }
 
-function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) {
+function Row({ item, first, onActivate, theme, themePreference, onThemeChange, loading }) {
   const Icon = item.icon;
   const label = (
     <>
@@ -52,21 +58,26 @@ function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) 
 
   if (item.control === "theme") {
     return (
-      <button
-        type="button"
-        role="switch"
-        aria-checked={themeChecked}
-        onClick={onToggleTheme}
-        className={`flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${first ? "" : "border-t border-lineSoft"}`}
+      <div
+        className={`flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left ${first ? "" : "border-t border-lineSoft"}`}
       >
-        {label}
-        <span
-          aria-hidden="true"
-          className={`inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent shadow-sm transition-colors ${themeChecked ? "bg-primary" : "bg-input"}`}
-        >
-          <span className={`block h-4 w-4 rounded-full bg-background shadow-lg transition-transform ${themeChecked ? "translate-x-4" : "translate-x-0"}`} />
+        <Icon className="h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <label htmlFor="appearance-theme" className="block truncate text-sm font-medium">Appearance</label>
+          <span className="block truncate text-xs text-muted-foreground">
+            {themePreference === "system" ? "Matches your device" : `Using ${theme} mode`}
+          </span>
         </span>
-      </button>
+        <AdaptiveSelect
+          id="appearance-theme"
+          value={themePreference}
+          onValueChange={onThemeChange}
+          options={THEME_OPTIONS}
+          drawerTitle="Appearance"
+          drawerDescription="Choose whether RecompOne follows your device or uses a fixed theme."
+          triggerClassName="w-28 shrink-0 border-0 bg-transparent px-2 shadow-none"
+        />
+      </div>
     );
   }
 
@@ -92,7 +103,7 @@ function Row({ item, first, onActivate, themeChecked, onToggleTheme, loading }) 
 export default function More() {
   const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, mealTemplates } = useRecomp();
   const { user } = useAuth();
-  const { theme, toggle } = useTheme();
+  const { theme, preference: themePreference, setTheme } = useTheme();
   const navigate = useNavigate();
 
   const [checkinOpen, setCheckinOpen] = useState(false);
@@ -181,7 +192,7 @@ export default function More() {
       title: "App & account",
       items: [
         { icon: User, label: "Profile & plan", to: "/more/profile" },
-        { icon: theme === "dark" ? Moon : Sun, label: "Dark mode", control: "theme" },
+        { icon: theme === "dark" ? Moon : Sun, label: "Appearance", control: "theme" },
         { icon: RefreshCw, label: "Refresh data", action: "reload" },
         { icon: LogOut, label: "Log out", action: "logout" }
       ]
@@ -252,8 +263,9 @@ export default function More() {
                         item={item}
                         first={idx === 0}
                         onActivate={() => handleItem(item)}
-                        themeChecked={theme === "dark"}
-                        onToggleTheme={toggle}
+                        theme={theme}
+                        themePreference={themePreference}
+                        onThemeChange={setTheme}
                         loading={running && item.action === "checkin"}
                       />
                     </li>

@@ -244,16 +244,34 @@ test("primary nutrition, training, and habit forms expose descriptive field name
   assertNoPageErrors();
 });
 
-test("the More theme row is one operable switch", async ({ page }) => {
+test("appearance follows the system by default and preserves explicit overrides", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
+  await page.addInitScript(() => {
+    if (window.sessionStorage.getItem("theme-test-initialized")) return;
+    window.localStorage.removeItem("recomp-theme");
+    window.sessionStorage.setItem("theme-test-initialized", "true");
+  });
+  await page.emulateMedia({ colorScheme: "dark" });
 
   await page.goto("/more");
-  const themeSwitch = page.getByRole("switch", { name: "Dark mode", exact: true });
-  await expect(themeSwitch).toHaveCount(1);
-  await expect(themeSwitch).toHaveAttribute("aria-checked", "false");
-  await themeSwitch.click();
-  await expect(themeSwitch).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+
+  const appearance = page.getByRole("combobox", { name: "Appearance", exact: true });
+  await expect(appearance).toContainText("System");
+  await appearance.click();
+  await page.getByRole("option", { name: "Light", exact: true }).click();
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("recomp-theme"))).toBe("light");
+
+  await page.reload();
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+  await expect(appearance).toContainText("Light");
+
+  await appearance.click();
+  await page.getByRole("option", { name: "System", exact: true }).click();
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
 
   assertNoPageErrors();
 });
