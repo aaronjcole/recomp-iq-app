@@ -9,7 +9,7 @@ const CONFIDENCE_CLASS = {
   "Early read": "border-line bg-panel2 text-muted-foreground"
 };
 
-export default function BestMoveCard({ move, onLog, compact = false }) {
+export default function BestMoveCard({ move, onLog, embedded = false }) {
   if (!move) return null;
 
   const action = move.action;
@@ -19,7 +19,7 @@ export default function BestMoveCard({ move, onLog, compact = false }) {
       <ArrowRight className="h-4 w-4" aria-hidden="true" />
     </>
   );
-  const actionClass = `min-h-11 bg-teal text-buttonText hover:opacity-90 ${compact ? "shrink-0" : "w-full"}`;
+  const actionClass = `min-h-11 bg-teal text-buttonText hover:opacity-90 ${embedded ? "shrink-0" : "w-full"}`;
   const actionButton =
     action.type === "log" ? (
       <Button type="button" onClick={onLog} className={actionClass}>
@@ -82,23 +82,21 @@ export default function BestMoveCard({ move, onLog, compact = false }) {
     </details>
   );
 
-  // Compact strip: sits beneath the Recomp Signal hero as a single action row,
-  // keeping the explainable "Why this move" details without competing for the
-  // headline. Used on the redesigned Today screen.
-  if (compact) {
+  if (embedded) {
     return (
-      <Card className="overflow-hidden border-teal/40 bg-gradient-to-br from-teal/15 via-panel to-panel shadow-sm">
-        <CardContent className="p-0">
-          <div className="space-y-3 p-4">
-            {header}
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-bold leading-tight">{move.title}</h2>
-              {actionButton}
+      <div className="-mx-5 -mb-5 overflow-hidden border-t border-teal/30 bg-gradient-to-br from-teal/15 via-panel to-panel">
+        <div className="flex items-center justify-between gap-3 p-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-mono text-label uppercase tracking-wider text-teal">
+              <Target className="h-4 w-4" aria-hidden="true" />
+              Today&apos;s best move
             </div>
+            <h3 className="mt-1 text-base font-bold leading-tight">{move.title}</h3>
           </div>
-          {details}
-        </CardContent>
-      </Card>
+          {actionButton}
+        </div>
+        {details}
+      </div>
     );
   }
 

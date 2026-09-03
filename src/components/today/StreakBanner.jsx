@@ -62,7 +62,7 @@ function calculateStreak(logs, strategy) {
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
-export default function StreakBanner() {
+export default function StreakBanner({ compact = false }) {
   const { logs, strategy } = useRecomp();
 
   const { streak, trail } = useMemo(() => {
@@ -85,6 +85,21 @@ export default function StreakBanner() {
   }, [logs, strategy]);
 
   if (!strategy) return null;
+
+  if (compact) {
+    return (
+      <div
+        className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-teal/30 bg-teal/10 px-3 text-teal"
+        role="status"
+        aria-live="polite"
+        aria-label={`${streak} day target streak. Nutrition and steps targets hit.`}
+      >
+        <Flame className="h-4 w-4" aria-hidden="true" />
+        <span className="font-mono text-sm font-bold tabular-nums">{streak}</span>
+        <span className="text-xs font-medium text-muted-foreground">day streak</span>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -8,7 +8,6 @@ import QuickMealsCard from "@/components/today/QuickMealsCard";
 import TodayProgressCard from "@/components/today/TodayProgressCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
 import StreakBanner from "@/components/today/StreakBanner";
-import BestMoveCard from "@/components/today/BestMoveCard";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { deriveBestMove } from "@/lib/fitness";
@@ -52,23 +51,18 @@ export default function Today() {
 
   return (
     <PullToRefresh onRefresh={reload}>
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground">{greeting()}</p>
-        <h1 className="text-3xl font-bold tracking-tight">Today</h1>
-        <p className="text-xs text-muted-foreground">{dateStr}</p>
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">{greeting()}</p>
+          <h1 className="text-3xl font-bold tracking-tight">Today</h1>
+          <p className="text-xs text-muted-foreground">{dateStr}</p>
+        </div>
+        <StreakBanner compact />
       </div>
 
-      {/* Daily target streak — nutrition + steps hit consecutively. */}
-      <StreakBanner />
-
-      {/* The recomposition signal is the single hero. */}
-      <RecompSignalHero />
-
-      {/* Best move: one action strip beneath the signal, not a competing hero. */}
-      <BestMoveCard move={bestMove} onLog={() => setLogOpen(true)} compact />
-
-      <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground px-1 pt-2">Today's loop</p>
+      {/* One actionable hero: signal, reasoning, and today's best move. */}
+      <RecompSignalHero move={bestMove} onLog={() => setLogOpen(true)} />
 
       <TodayMacroCard
         calorieTarget={strategy.calorie_target}
