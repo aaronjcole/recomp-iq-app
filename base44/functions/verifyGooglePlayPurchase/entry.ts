@@ -1,14 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { secrets } from "base44:runtime";
 import { PREMIUM_PRODUCTS } from "../../shared/premiumDomain.js";
 
-// Required Base44 app Secrets (set before going live):
+// Required Base44 app Secrets (set in dashboard → Settings → Secrets):
 //   PLAY_PACKAGE_NAME         — your Android package name, e.g. com.recompone.app
 //   GOOGLE_PLAY_SA_JSON       — full contents of your Google service account key file
 //                               (JSON string). The account needs the Android Publisher
 //                               API scope: https://www.googleapis.com/auth/androidpublisher
 
-const PLAY_PACKAGE_NAME = Deno.env.get("PLAY_PACKAGE_NAME");
-const GOOGLE_PLAY_SA_JSON = Deno.env.get("GOOGLE_PLAY_SA_JSON");
 const VALID_PRODUCT_IDS = new Set(Object.values(PREMIUM_PRODUCTS));
 
 function statusOf(error) {
@@ -98,16 +97,18 @@ async function getGoogleAccessToken(serviceAccountJson) {
 // RecompOne's first commercial shape is a single one-time premium product. If you later
 // add renewable subscriptions, add the subscriptionsv2 path and handle autoRenewing.
 async function verifyWithGooglePlay(purchaseToken, productId) {
-  if (!PLAY_PACKAGE_NAME) throw new Error("PLAY_PACKAGE_NAME is not configured");
-  if (!GOOGLE_PLAY_SA_JSON) throw new Error("GOOGLE_PLAY_SA_JSON is not configured");
+  const playPackageName = secrets.get("PLAY_PACKAGE_NAME");
+  const googlePlaySaJson = secrets.get("GOOGLE_PLAY_SA_JSON");
+  if (!playPackageName) throw new Error("PLAY_PACKAGE_NAME is not configured");
+  if (!googlePlaySaJson) throw new Error("GOOGLE_PLAY_SA_JSON is not configured");
 
-  const accessToken = await getGoogleAccessToken(GOOGLE_PLAY_SA_JSON);
+  const accessToken = await getGoogleAccessToken(googlePlaySaJson);
 
   // One-time product (inapp) purchase verification.
   // Docs: https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.products/get
   const url =
     `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
-    `${encodeURIComponent(PLAY_PACKAGE_NAME)}/purchases/products/` +
+    `${encodeURIComponent(playPackageName)}/purchases/products/` +
     `${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`;
 
   const res = await fetch(url, {
