@@ -417,12 +417,49 @@ test("a Premium tester can open the on-device Visual Progress Check inside the P
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/progress");
+  await page.getByRole("tab", { name: "Photos" }).click();
   await page.getByRole("link", { name: /Open visual check/i }).click();
   await expect(page).toHaveURL(/\/progress\/visual-check$/);
   await expect(page.getByRole("heading", { level: 1, name: "Visual Progress Check" })).toBeVisible();
   await expect(page.getByText("No uploads, no AI analysis, and no body-fat or medical estimate.")).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Add two progress photos" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+
+  assertNoPageErrors();
+});
+
+test("Progress separates overview, trends, and photos without losing the selected section", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/progress");
+
+  const sections = page.getByRole("tablist", { name: "Progress sections" });
+  const overviewTab = sections.getByRole("tab", { name: "Overview" });
+  const trendsTab = sections.getByRole("tab", { name: "Trends" });
+  const photosTab = sections.getByRole("tab", { name: "Photos" });
+
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { level: 2, name: "Latest read" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Weight", exact: true })).toBeHidden();
+
+  await trendsTab.click();
+  await expect(trendsTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { level: 2, name: "Weight", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Weight trend range" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Calories vs target" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Strength (e1RM)" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Weight trend" })).toHaveCount(0);
+
+  await photosTab.click();
+  await expect(photosTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { level: 2, name: "Visual Progress Check" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Progress photos" })).toBeVisible();
+
+  const nav = page.getByRole("navigation", { name: "Primary" });
+  await nav.getByRole("link", { name: "Fuel" }).click();
+  await nav.getByRole("link", { name: "Progress" }).click();
+  await expect(photosTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { level: 2, name: "Progress photos" })).toBeVisible();
 
   assertNoPageErrors();
 });
@@ -460,6 +497,7 @@ test("a Premium tester sees the deploy-enabled AI body-composition range in Prog
   });
 
   await page.goto("/progress");
+  await page.getByRole("tab", { name: "Photos" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "AI body-composition range" })).toBeVisible();
   await expect(page.getByText(/cannot currently request immediate deletion/i)).toBeVisible();
 

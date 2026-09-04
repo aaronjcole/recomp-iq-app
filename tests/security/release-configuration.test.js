@@ -160,10 +160,18 @@ test("mobile release flows prioritize primary actions and usable touch targets",
   assert.match(bestMoveSource, /What would change this call/);
 
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
-  assert.match(progressSource, /visibleData\.length < 2/);
-  assert.match(progressSource, /Log a weigh-in/);
-  assert.doesNotMatch(progressSource, /Log your first weigh-in/);
+  assert.match(progressSource, /aria-label="Progress sections"/);
+  assert.match(progressSource, /section === "overview"/);
+  assert.match(progressSource, /section === "trends"/);
+  assert.match(progressSource, /section === "photos"/);
   assert.match(progressSource, /\{projection\.confidence\} confidence<\/Badge>/);
+
+  const weightTrendSource = readFileSync(
+    resolve(repoRoot, "src/components/progress/WeightTrendChart.jsx"),
+    "utf8"
+  );
+  assert.match(weightTrendSource, /data\.length < 2/);
+  assert.match(weightTrendSource, /Log a couple of weigh-ins/);
 
   const trainingSource = readFileSync(
     resolve(repoRoot, "src/components/training/SessionBuilder.jsx"),

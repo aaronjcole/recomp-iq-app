@@ -28,8 +28,9 @@ test("primary fitness screens expose navigable section headings", () => {
     ["src/components/training/SessionBuilder.jsx", ["Log a session"]],
     ["src/components/training/SessionHistory.jsx", ["Training history"]],
     ["src/components/training/StrengthProgressionCard.jsx", ["Strength progression"]],
+    ["src/components/progress/TrendsDashboard.jsx", ["Weight", "Calories vs target", "Strength (e1RM)"]],
     ["src/components/progress/ProgressPhotos.jsx", ["Progress photos"]],
-    ["src/pages/Progress.jsx", ["Weight trend", "Latest read", "12-week projection"]],
+    ["src/pages/Progress.jsx", ["Latest read", "12-week projection"]],
     ["src/pages/Nutrition.jsx", ["Quick add food", "Food library"]]
   ]);
 
