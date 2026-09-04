@@ -123,7 +123,13 @@ test("the static document exposes canonical, social, and organization metadata",
   assert.match(html, /<meta property="og:url" content="https:\/\/fitnesstrackerapps\.com\/" \/>/);
   assert.match(html, /"@type": "WebSite"/);
   assert.match(html, /"@type": "Organization"/);
+  assert.match(html, /"@type": "SoftwareApplication"/);
+  assert.match(html, /"operatingSystem": "Web, Android"/);
   assert.match(html, /recompone-logo-primary\.png/);
+
+  const homepage = readFileSync(resolve(repoRoot, "src/pages/ComingSoon.jsx"), "utf8");
+  assert.match(homepage, /"@type": "FAQPage"/);
+  assert.match(homepage, /mainEntity: FAQS\.map/);
 });
 
 test("routing keeps the marketing homepage and beta gateway intentionally separate", () => {
