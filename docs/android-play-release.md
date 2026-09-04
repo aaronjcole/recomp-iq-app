@@ -120,6 +120,10 @@ AAB; the splash colors remain a non-blocking visual advisory unless Base44 expos
 
 ## Play Console completion
 
+- TODO (when ready): upload the Google Play verifier secrets in Base44 dashboard → Settings → Secrets:
+  - `PLAY_PACKAGE_NAME` — Android package name (e.g. `com.base6a68bb922bf88da5ec767da3.app`).
+  - `GOOGLE_PLAY_SA_JSON` — full contents of the Google service account key JSON (Android Publisher API scope).
+  The `verifyGooglePlayPurchase` backend function reads these via platform secret management; until they are set, Play purchase verification returns "not configured".
 - Use a verified organization developer account for this health and fitness app.
 - Enroll in Play App Signing and protect the upload key.
 - Complete the Health Apps declaration for Activity & Fitness, Nutrition & Weight Management, and
