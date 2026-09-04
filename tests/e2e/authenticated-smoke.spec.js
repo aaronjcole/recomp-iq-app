@@ -335,6 +335,31 @@ test("the Premium catalog shows server-authorized tester access inside the More 
   await expect(page.getByRole("link", { name: "Request Lifestyle coach access", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
+  const previewExpectations = [
+    ["Adaptive meal planning preview", "7 days", "1 list"],
+    ["Adaptive training blocks preview", "4–6 weeks", "Final week"],
+    ["Weekly Autopilot Review preview", "5 signals", "1 move"],
+    ["Visual progress tools preview", "On-device", "Optional"],
+    ["Lifestyle coach preview", "Your logs", "Guarded"],
+  ];
+  for (const [name, firstValue, secondValue] of previewExpectations) {
+    const preview = page.getByRole("group", { name });
+    await expect(preview.getByText(firstValue, { exact: true })).toBeVisible();
+    await expect(preview.getByText(secondValue, { exact: true })).toBeVisible();
+  }
+
+  assertNoPageErrors();
+});
+
+test("the Premium visual-tools action opens the Photos section", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/more/premium");
+
+  await page.getByRole("link", { name: "Open visual progress tools", exact: true }).click();
+  await expect(page).toHaveURL(/\/progress\?section=photos$/);
+  await expect(page.getByRole("tab", { name: "Photos" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { level: 2, name: "Progress photos" })).toBeVisible();
+
   assertNoPageErrors();
 });
 
