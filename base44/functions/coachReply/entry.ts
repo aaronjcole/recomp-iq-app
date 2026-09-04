@@ -153,7 +153,7 @@ export default async function(req) {
       sessions,
       checkIn: checkIns[0] ?? null
     });
-    const rawReply = await base44.integrations.Core.InvokeLLM({
+    const rawReply = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: COACH_RESPONSE_SCHEMA
     });

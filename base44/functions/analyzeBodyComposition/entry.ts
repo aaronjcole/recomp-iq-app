@@ -131,7 +131,7 @@ export default async function(req) {
 
     const fileUrls = await Promise.all(
       ["front", "side", "back"].map(async (pose) => {
-        const signed = await base44.integrations.Core.CreateFileSignedUrl({
+        const signed = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
           file_uri: request.photoRefs[pose],
           expires_in: SIGNED_URL_TTL_SECONDS
         });
@@ -140,7 +140,7 @@ export default async function(req) {
       })
     );
 
-    const rawResult = await base44.integrations.Core.InvokeLLM({
+    const rawResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: buildBodyCompositionPrompt({ profile, strategy }),
       model: "gemini_3_flash",
       file_urls: fileUrls,

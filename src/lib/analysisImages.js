@@ -27,15 +27,3 @@ export async function uploadPrivateAnalysisImage(core, file) {
   if (!fileUri) throw new Error("Private image upload did not return a file reference.");
   return fileUri;
 }
-
-export async function createPrivateAnalysisUrl(core, file) {
-  const fileUri = await uploadPrivateAnalysisImage(core, file);
-
-  const { signed_url: signedUrl } = await core.CreateFileSignedUrl({
-    file_uri: fileUri,
-    expires_in: ANALYSIS_URL_TTL_SECONDS
-  });
-  if (!signedUrl) throw new Error("Could not create a temporary image link.");
-
-  return { fileUri, signedUrl };
-}

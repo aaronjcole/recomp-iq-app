@@ -1,25 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { createPrivateAnalysisUrl, validateAnalysisImage } from "@/lib/analysisImages";
+import { uploadPrivateAnalysisImage, validateAnalysisImage } from "@/lib/analysisImages";
 import { Button } from "@/components/ui/button";
 import { X, Camera, Loader2, Plus, Bookmark, RefreshCw, Sparkles } from "lucide-react";
-
-const SCHEMA = {
-  type: "object",
-  properties: {
-    name: { type: "string", description: "Short food or dish name" },
-    serving_description: { type: "string", description: "Human-readable portion, e.g. '1 bowl (≈350g)'" },
-    serving_grams: { type: "number", description: "Estimated portion weight in grams" },
-    calories: { type: "number", description: "Estimated kcal for the shown portion" },
-    protein_g: { type: "number" },
-    carbs_g: { type: "number" },
-    fat_g: { type: "number" },
-    fiber_g: { type: "number" },
-    confidence: { type: "string", enum: ["low", "moderate", "high"] },
-    notes: { type: "string", description: "One-line note on assumptions or items that couldn't be identified" }
-  },
-  required: ["name", "serving_description", "calories", "protein_g", "carbs_g", "fat_g"]
-};
 
 export default function FoodPhotoScan({ onClose, onResult }) {
   const inputRef = useRef(null);
@@ -117,35 +100,17 @@ export default function FoodPhotoScan({ onClose, onResult }) {
     setStatus("analyzing");
     setErr("");
     try {
-      const { signedUrl } = await createPrivateAnalysisUrl(
+      const fileUri = await uploadPrivateAnalysisImage(
         base44.integrations.Core,
         photo.file
       );
       if (!mountedRef.current) return;
 
-      const prompt = `You are a nutrition estimation assistant. Analyze the food in this photo and estimate the nutrition for the VISIBLE PORTION on the plate/in the glass.
-
-Guidelines:
-- Identify the dish and its likely ingredients.
-- Estimate the portion size as realistically as the photo allows (use the plate/bowl/hand for scale).
-- Return per-portion macros (calories, protein, carbs, fat, fiber) for that portion only.
-- If multiple items are present, combine into one estimate and name the dish accordingly.
-- Be conservative and honest; if the food is ambiguous, give your best estimate and set confidence to "low".
-- Do not refuse — always provide your best estimate.
-
-Return ONLY the JSON object matching the schema.`;
-
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        model: "gemini_3_flash",
-        file_urls: [signedUrl],
-        response_json_schema: SCHEMA
+      const response = await base44.functions.invoke("analyzeFoodPhoto", {
+        photoUri: fileUri
       });
-
       if (!mountedRef.current) return;
-      const data = /** @type {Record<string, any> | null} */ (
-        typeof res === "object" && res !== null ? res : null
-      );
+      const data = response?.data ?? response;
       if (!data || data.calories == null) throw new Error("No estimate returned");
       setFood({ ...data, source: "manual" });
       setStatus("found");

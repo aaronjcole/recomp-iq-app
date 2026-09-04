@@ -181,7 +181,7 @@ export default async function(req: Request) {
       request, profile, preferences, strategy, lifestyleProfile, dailyLogs, sessions, checkIn, preAnalysis
     });
 
-    const rawReply = await base44.integrations.Core.InvokeLLM({
+    const rawReply = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: LIFESTYLE_RESPONSE_SCHEMA
     });
