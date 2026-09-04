@@ -3,16 +3,13 @@ import { Link, useLocation } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import {
   calculateInitialStrategy,
-  calculateMovingAverage,
   dedupeLogsByDate,
   generateWeightProjection
 } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { format, parseISO } from "date-fns";
-import { ArrowRight, Scale, ScanLine, Share2, Target } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, Images, LayoutDashboard, ScanLine, Share2, Target } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import TrendsDashboard from "@/components/progress/TrendsDashboard";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -40,60 +37,31 @@ const BodyCompositionScan = lazy(() => import("@/components/progress/BodyComposi
 
 const pct = (v) => (v === null || v === undefined ? "—" : Math.round(v * 100) + "%");
 const EMPTY_LOGS = [];
-const RANGES = [
-  { value: "35d", label: "35d" },
-  { value: "90d", label: "90d" },
-  { value: "all", label: "All" }
+const PROGRESS_SECTIONS = [
+  { value: "overview", label: "Overview", icon: LayoutDashboard },
+  { value: "trends", label: "Trends", icon: ChartNoAxesCombined },
+  { value: "photos", label: "Photos", icon: Images }
 ];
-
-function daysAgoStr(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-}
 
 export default function Progress() {
   const { profile, strategy, logs, trend, reload } = useRecomp();
   const { canAccess, releaseFlags } = usePremiumAccess();
   const location = useLocation();
   const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
-  const [range, setRange] = useState("35d");
+  const [section, setSection] = useState("overview");
   const [showShare, setShowShare] = useState(false);
   const shareTriggerRef = useRef(null);
+  const isOverviewActive = isActive && section === "overview";
 
   const dedupedLogs = useMemo(
-    () => (isActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
-    [isActive, logs]
-  );
-
-  const chartData = useMemo(() => {
-    if (!isActive) return [];
-    const weights = dedupedLogs
-      .filter((l) => typeof l.weight_lbs === "number")
-      .map((l) => ({ date: l.date, weight: l.weight_lbs }));
-    const ma = calculateMovingAverage(
-      weights.map((w) => ({ date: w.date, value: w.weight })),
-      7,
-      { deduped: true }
-    );
-    const maByDate = new Map(ma.map((point) => [point.date, point.value]));
-    return weights.map((weight) => ({
-      ...weight,
-      ma: maByDate.get(weight.date) ?? null
-    }));
-  }, [dedupedLogs, isActive]);
-
-  const rangeDays = range === "all" ? null : range === "90d" ? 90 : 35;
-  const visibleData = useMemo(
-    () => (rangeDays === null ? chartData : chartData.filter((w) => w.date >= daysAgoStr(rangeDays))),
-    [chartData, rangeDays]
+    () => (isOverviewActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
+    [isOverviewActive, logs]
   );
 
   const tdee = useMemo(() => (profile ? calculateInitialStrategy(profile).tdee_estimate : null), [profile]);
   const projection = useMemo(
     () =>
-      isActive && profile && strategy
+      isOverviewActive && profile && strategy
         ? generateWeightProjection({
             logs: dedupedLogs,
             logsAreDeduped: true,
@@ -105,8 +73,21 @@ export default function Progress() {
             currentWeight: profile.current_weight_lbs
           })
         : null,
-    [dedupedLogs, isActive, profile, strategy, tdee]
+    [dedupedLogs, isOverviewActive, profile, strategy, tdee]
   );
+
+  const handleSectionKeyDown = (event, index) => {
+    let nextIndex = null;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % PROGRESS_SECTIONS.length;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + PROGRESS_SECTIONS.length) % PROGRESS_SECTIONS.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = PROGRESS_SECTIONS.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextSection = PROGRESS_SECTIONS[nextIndex].value;
+    setSection(nextSection);
+    document.getElementById(`progress-tab-${nextSection}`)?.focus();
+  };
 
   if (!profile || !strategy) return (
     <div className="space-y-5">
@@ -122,146 +103,148 @@ export default function Progress() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Progress</h1>
 
-      <TrendsDashboard />
+      <div
+        role="tablist"
+        aria-label="Progress sections"
+        className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-panel p-1"
+      >
+        {PROGRESS_SECTIONS.map(({ value, label, icon: Icon }, index) => {
+          const selected = section === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              id={`progress-tab-${value}`}
+              aria-selected={selected}
+              aria-controls={`progress-panel-${value}`}
+              tabIndex={selected ? 0 : -1}
+              className={`flex min-h-11 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors ${
+                selected ? "bg-teal text-buttonText shadow-sm" : "text-muted-foreground hover:bg-panel2 hover:text-foreground"
+              }`}
+              onClick={() => setSection(value)}
+              onKeyDown={(event) => handleSectionKeyDown(event, index)}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-medium">Weight trend</h2>
-            <div className="flex gap-1">
-              {RANGES.map(({ value, label }) => (
-                <Button
-                  key={value}
-                  size="sm"
-                  variant={range === value ? "default" : "outline"}
-                  aria-pressed={range === value}
-                  className={range === value ? "bg-teal text-buttonText hover:opacity-90 h-11 px-3 text-xs" : "border-line h-11 px-3 text-xs"}
-                  onClick={() => setRange(value)}
-                >
-                  {label}
+      {section === "overview" && (
+        <div
+          id="progress-panel-overview"
+          role="tabpanel"
+          aria-labelledby="progress-tab-overview"
+          className="space-y-5"
+        >
+          <Card className="bg-panel border-line">
+            <CardContent className="p-5 space-y-2 text-sm">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-medium">Latest read</h2>
+                {trend && (
+                  <Button
+                    ref={shareTriggerRef}
+                    variant="ghost"
+                    size="sm"
+                    className="h-11 px-3 text-teal hover:text-teal"
+                    onClick={() => setShowShare(true)}
+                  >
+                    <Share2 className="w-4 h-4 mr-1" /> Share
+                  </Button>
+                )}
+              </div>
+              {trend ? (
+                <>
+                  <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
+                  <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
+                  <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
+                  <Row label="Calorie adherence" value={pct(trend.calorie_adherence)} />
+                  <Row label="Protein adherence" value={pct(trend.protein_adherence)} />
+                  <Row label="Step adherence" value={pct(trend.step_adherence)} />
+                  <Row label="Workout adherence" value={pct(trend.workout_adherence)} />
+                </>
+              ) : (
+                <p className="text-muted-foreground">Trend data unavailable — log a few more weigh-ins to unlock your trend read.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {trend && (
+            <ShareCard
+              trend={trend}
+              open={showShare}
+              onOpenChange={setShowShare}
+              returnFocusRef={shareTriggerRef}
+            />
+          )}
+
+          {projection && (
+            <Card className="bg-panel border-line">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-medium">12-week projection</h2>
+                  <Badge variant="outline" className="capitalize">{projection.confidence} confidence</Badge>
+                </div>
+                <div className="grid grid-cols-3 text-center">
+                  <Stat label="Low" value={projection.projected_low_end_weight} />
+                  <Stat label="Likely" value={projection.projected_median_end_weight} highlight />
+                  <Stat label="High" value={projection.projected_high_end_weight} />
+                </div>
+                <p className="text-xs text-muted-foreground">{projection.explanation}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {section === "trends" && (
+        <div
+          id="progress-panel-trends"
+          role="tabpanel"
+          aria-labelledby="progress-tab-trends"
+        >
+          <TrendsDashboard />
+        </div>
+      )}
+
+      {section === "photos" && (
+        <div
+          id="progress-panel-photos"
+          role="tabpanel"
+          aria-labelledby="progress-tab-photos"
+          className="space-y-5"
+        >
+          {(featureFlags.bodyCompositionScan || releaseFlags.bodyCompositionScan) && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
+            <Suspense fallback={<div className="h-16 animate-pulse rounded-xl bg-panel2" />}>
+              <BodyCompositionScan />
+            </Suspense>
+          )}
+
+          <Card className="border-line bg-panel">
+            <CardContent className="flex gap-3 p-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+                <ScanLine className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-medium">Visual Progress Check</h2>
+                  <PremiumBadge />
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Compare two private photos with an on-device reveal—no upload or body-fat estimate.
+                </p>
+                <Button asChild variant="outline" className="mt-3 w-full justify-between border-line">
+                  <Link to="/progress/visual-check">Open visual check <ArrowRight aria-hidden="true" /></Link>
                 </Button>
-              ))}
-            </div>
-          </div>
-          {visibleData.length < 2 ? (
-            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border border-dashed border-lineSoft bg-panel2/40 px-6 text-center">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-teal/15 text-teal">
-                <Scale className="h-5 w-5" aria-hidden="true" />
               </div>
-              <div className="font-medium">
-                {visibleData.length === 0 ? "Log a weigh-in" : "One more weigh-in reveals your trend"}
-              </div>
-              <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                {visibleData.length === 0
-                  ? "Add a weight from Today to start the chart."
-                  : "A second point in this range is needed before a trend line is meaningful."}
-              </p>
-            </div>
-          ) : (
-            <div className="h-56 -ml-4" data-pull-to-refresh-ignore>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={visibleData} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid stroke="var(--lineSoft)" vertical={false} />
-                  <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), "M/d")} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
-                  <YAxis domain={["auto", "auto"]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} width={36} />
-                  <Tooltip
-                    contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, fontSize: 12 }}
-                    labelFormatter={(d) => format(parseISO(d), "MMM d")}
-                  />
-                  <Line type="monotone" dataKey="weight" stroke="var(--teal)" strokeWidth={2} dot={false} name="Weight" />
-                  <Line type="monotone" dataKey="ma" stroke="var(--blue)" strokeWidth={2} dot={false} strokeDasharray="4 4" name="7-day avg" connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-2 text-sm">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="font-medium">Latest read</h2>
-            {trend && (
-              <Button
-                ref={shareTriggerRef}
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2 text-teal hover:text-teal"
-                onClick={() => setShowShare(true)}
-              >
-                <Share2 className="w-4 h-4 mr-1" /> Share
-              </Button>
-            )}
-          </div>
-          {trend ? (
-            <>
-              <Row label="7-day avg weight" value={trend.avg_weight_current_7_day !== null ? `${trend.avg_weight_current_7_day} lb` : "—"} />
-              <Row label="Weekly change" value={trend.weight_change_lbs !== null ? `${trend.weight_change_lbs > 0 ? "+" : ""}${trend.weight_change_lbs} lb` : "—"} />
-              <Row label="Waist change" value={trend.waist_change_in !== null ? `${trend.waist_change_in} in` : "—"} />
-              <Row label="Calorie adherence" value={pct(trend.calorie_adherence)} />
-              <Row label="Protein adherence" value={pct(trend.protein_adherence)} />
-              <Row label="Step adherence" value={pct(trend.step_adherence)} />
-              <Row label="Workout adherence" value={pct(trend.workout_adherence)} />
-            </>
-          ) : (
-            <p className="text-muted-foreground">Trend data unavailable — log a few more weigh-ins to unlock your trend read.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {trend && (
-        <ShareCard
-          trend={trend}
-          open={showShare}
-          onOpenChange={setShowShare}
-          returnFocusRef={shareTriggerRef}
-        />
+          <ProgressPhotos />
+        </div>
       )}
-
-      {projection && (
-        <Card className="bg-panel border-line">
-          <CardContent className="p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-medium">12-week projection</h2>
-              <Badge variant="outline" className="capitalize">{projection.confidence} confidence</Badge>
-            </div>
-            <div className="grid grid-cols-3 text-center">
-              <Stat label="Low" value={projection.projected_low_end_weight} />
-              <Stat label="Likely" value={projection.projected_median_end_weight} highlight />
-              <Stat label="High" value={projection.projected_high_end_weight} />
-            </div>
-            <p className="text-xs text-muted-foreground">{projection.explanation}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {(featureFlags.bodyCompositionScan || releaseFlags.bodyCompositionScan) && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
-        <Suspense fallback={<div className="h-16 animate-pulse rounded-xl bg-panel2" />}>
-          <BodyCompositionScan />
-        </Suspense>
-      )}
-
-      <Card className="border-line bg-panel">
-        <CardContent className="flex gap-3 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
-            <ScanLine className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-medium">Visual Progress Check</h2>
-              <PremiumBadge />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Compare two private photos with an on-device reveal—no upload or body-fat estimate.
-            </p>
-            <Button asChild variant="outline" className="mt-3 w-full justify-between border-line">
-              <Link to="/progress/visual-check">Open visual check <ArrowRight aria-hidden="true" /></Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <ProgressPhotos />
     </div>
     </PullToRefresh>
   );

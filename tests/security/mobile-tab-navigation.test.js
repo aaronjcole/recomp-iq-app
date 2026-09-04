@@ -53,6 +53,9 @@ test("pull-to-refresh yields to charts and horizontal swipe gestures", () => {
   assert.match(pullSource, /Math\.abs\(deltaX\) > Math\.abs\(d\)/);
   assert.match(pullSource, /onTouchCancel=\{resetPull\}/);
 
-  const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
-  assert.match(progressSource, /data-pull-to-refresh-ignore/);
+  const weightTrendSource = readFileSync(
+    resolve(repoRoot, "src/components/progress/WeightTrendChart.jsx"),
+    "utf8"
+  );
+  assert.match(weightTrendSource, /data-pull-to-refresh-ignore/);
 });
