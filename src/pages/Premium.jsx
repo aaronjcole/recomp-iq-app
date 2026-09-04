@@ -16,7 +16,11 @@ const FEATURES = [
     title: "Adaptive meal planning",
     actionLabel: "Open meal planner",
     description: "A weekly meal plan and grocery list shaped by your targets and recent progress.",
-    to: "/nutrition/meal-plan"
+    to: "/nutrition/meal-plan",
+    preview: [
+      { value: "7 days", label: "Target-scaled meals" },
+      { value: "1 list", label: "Consolidated groceries" }
+    ]
   },
   {
     key: PREMIUM_FEATURES.TRAINING_PLANNING,
@@ -24,7 +28,11 @@ const FEATURES = [
     title: "Adaptive training blocks",
     actionLabel: "Open training planner",
     description: "Four-to-six-week workout blocks that respond to your schedule, training history, and recovery.",
-    to: "/training/plan"
+    to: "/training/plan",
+    preview: [
+      { value: "4–6 weeks", label: "Progressive block" },
+      { value: "Final week", label: "Planned deload" }
+    ]
   },
   {
     key: PREMIUM_FEATURES.WEEKLY_AUTOPILOT,
@@ -32,7 +40,11 @@ const FEATURES = [
     title: "Weekly Autopilot Review",
     actionLabel: "Open Weekly Autopilot",
     description: "One clear weekly review connecting your nutrition, training, habits, and progress signals.",
-    to: "/today/autopilot"
+    to: "/today/autopilot",
+    preview: [
+      { value: "5 signals", label: "Weekly scorecard" },
+      { value: "1 move", label: "Prioritized action" }
+    ]
   },
   {
     key: PREMIUM_FEATURES.VISUAL_PROGRESS,
@@ -40,7 +52,11 @@ const FEATURES = [
     title: "Visual progress tools",
     actionLabel: "Open visual progress tools",
     description: "Private, on-device comparisons plus an optional AI-assisted body-composition range—not a medical measurement.",
-    to: "/progress"
+    to: "/progress?section=photos",
+    preview: [
+      { value: "On-device", label: "Private comparison" },
+      { value: "Optional", label: "AI-assisted range" }
+    ]
   },
   {
     key: PREMIUM_FEATURES.AI_LIFESTYLE_COACH,
@@ -48,7 +64,11 @@ const FEATURES = [
     title: "Lifestyle coach",
     actionLabel: "Open Lifestyle coach",
     description: "A conversational coach that draws on your logs, habits, and progress to give context-aware guidance.",
-    to: featureFlags.lifestyleCoach ? "/more/coach/lifestyle" : null
+    to: featureFlags.lifestyleCoach ? "/more/coach/lifestyle" : null,
+    preview: [
+      { value: "Your logs", label: "Context-aware guidance" },
+      { value: "Guarded", label: "Educational scope" }
+    ]
   }
 ];
 
@@ -80,7 +100,7 @@ export default function Premium() {
       </Card>
 
       <div className="space-y-3" aria-label="Premium feature catalog">
-        {FEATURES.map(({ key, icon: Icon, title, actionLabel, description, to }) => {
+        {FEATURES.map(({ key, icon: Icon, title, actionLabel, description, to, preview }) => {
           const available = canAccess(key);
           return (
             <Card key={key} className="border-line bg-panel">
@@ -94,6 +114,18 @@ export default function Premium() {
                     <PremiumBadge />
                   </div>
                   <p className="text-sm text-muted-foreground">{description}</p>
+                  <div
+                    role="group"
+                    aria-label={`${title} preview`}
+                    className="grid grid-cols-2 gap-2 pt-1"
+                  >
+                    {preview.map((item) => (
+                      <div key={item.label} className="rounded-xl border border-lineSoft bg-panel2/50 px-3 py-2.5">
+                        <p className="font-semibold text-foreground">{item.value}</p>
+                        <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{item.label}</p>
+                      </div>
+                    ))}
+                  </div>
                   <p className={`text-xs font-medium ${available ? "text-teal" : "text-muted-foreground"}`}>
                     {available && to ? "Access granted · available now" : available ? "Access granted · rollout in progress" : "Available to approved testers — contact us to request access"}
                   </p>

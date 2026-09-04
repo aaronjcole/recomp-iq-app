@@ -1,5 +1,5 @@
-import { lazy, Suspense, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import {
   calculateInitialStrategy,
@@ -42,16 +42,33 @@ const PROGRESS_SECTIONS = [
   { value: "trends", label: "Trends", icon: ChartNoAxesCombined },
   { value: "photos", label: "Photos", icon: Images }
 ];
+const PROGRESS_SECTION_VALUES = new Set(PROGRESS_SECTIONS.map(({ value }) => value));
+
+function sectionFromSearch(search) {
+  const requested = new URLSearchParams(search).get("section");
+  return PROGRESS_SECTION_VALUES.has(requested) ? requested : null;
+}
 
 export default function Progress() {
   const { profile, strategy, logs, trend, reload } = useRecomp();
   const { canAccess, releaseFlags } = usePremiumAccess();
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = location.pathname.replace(/\/+$/, "") === "/progress";
-  const [section, setSection] = useState("overview");
+  const [section, setSection] = useState(() => sectionFromSearch(location.search) ?? "overview");
   const [showShare, setShowShare] = useState(false);
   const shareTriggerRef = useRef(null);
   const isOverviewActive = isActive && section === "overview";
+
+  useEffect(() => {
+    const requestedSection = sectionFromSearch(location.search);
+    if (requestedSection) setSection(requestedSection);
+  }, [location.search]);
+
+  const selectSection = (nextSection) => {
+    setSection(nextSection);
+    navigate(nextSection === "overview" ? "/progress" : `/progress?section=${nextSection}`, { replace: true });
+  };
 
   const dedupedLogs = useMemo(
     () => (isOverviewActive ? dedupeLogsByDate(logs) : EMPTY_LOGS),
@@ -85,7 +102,7 @@ export default function Progress() {
     if (nextIndex === null) return;
     event.preventDefault();
     const nextSection = PROGRESS_SECTIONS[nextIndex].value;
-    setSection(nextSection);
+    selectSection(nextSection);
     document.getElementById(`progress-tab-${nextSection}`)?.focus();
   };
 
@@ -122,7 +139,7 @@ export default function Progress() {
               className={`flex min-h-11 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors ${
                 selected ? "bg-teal text-buttonText shadow-sm" : "text-muted-foreground hover:bg-panel2 hover:text-foreground"
               }`}
-              onClick={() => setSection(value)}
+              onClick={() => selectSection(value)}
               onKeyDown={(event) => handleSectionKeyDown(event, index)}
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
