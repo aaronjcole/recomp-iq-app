@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import BrandMark from "@/components/BrandMark";
 import DeviceMockup from "@/components/hero/DeviceMockup";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { buildWaitlistAttribution } from "@/lib/marketingAttribution";
+import { APP_STORE_URL, GOOGLE_PLAY_URL } from "@/lib/storeLinks";
 import {
   Activity,
   ArrowRight,
@@ -12,12 +13,14 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  CirclePlay,
   ClipboardList,
   Dumbbell,
   Loader2,
   Mail,
   ScanLine,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Target,
   UserCheck
@@ -100,6 +103,19 @@ const FAQS = [
   }
 ];
 
+const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map(({ question, answer }) => ({
+    "@type": "Question",
+    name: question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: answer
+    }
+  }))
+};
+
 const RESOURCES = [
   { to: "/tools/tdee-calculator", label: "TDEE Calculator" },
   { to: "/tools/macro-calculator", label: "Macro Calculator" },
@@ -114,6 +130,15 @@ export default function ComingSoon() {
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [message, setMessage] = useState("");
   const [explainerViewed, setExplainerViewed] = useState(false);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.dataset.recomponeHomepage = "faq";
+    script.text = JSON.stringify(FAQ_JSON_LD);
+    document.head.appendChild(script);
+    return () => script.remove();
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -138,11 +163,11 @@ export default function ComingSoon() {
 
   return (
     <div className="min-h-screen bg-bg text-foreground">
-      <header className="sticky top-0 z-40 border-b border-lineSoft bg-bg/85 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07110f]/90 text-white backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
           <Link to="/" className="flex min-h-11 items-center gap-2" aria-label="RecompOne home">
             <BrandMark className="h-9 w-9 rounded-xl" />
-            <span className="text-lg font-semibold">RecompOne</span>
+            <span className="text-lg font-semibold text-white">RecompOne</span>
           </Link>
           <div className="flex items-center gap-2">
             <nav className="hidden items-center gap-1 lg:flex" aria-label="Free tools & resources">
@@ -150,7 +175,7 @@ export default function ComingSoon() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  className="min-h-11 content-center rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  className="min-h-11 content-center rounded-md px-2.5 text-sm font-medium text-white/60 hover:text-white"
                 >
                   {link.label}
                 </Link>
@@ -158,7 +183,7 @@ export default function ComingSoon() {
             </nav>
             <a
               href="#how-it-works"
-              className="hidden min-h-11 items-center px-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
+              className="hidden min-h-11 items-center px-2 text-sm font-medium text-white/60 hover:text-white sm:inline-flex"
               onClick={() => setExplainerViewed(true)}
             >
               How it works
@@ -171,38 +196,79 @@ export default function ComingSoon() {
       </header>
 
       <main id="main-content" tabIndex={-1}>
+        <div className="bg-[#07110f] text-white">
         <section className="mx-auto grid max-w-5xl items-center gap-12 px-5 pb-16 pt-12 md:grid-cols-[1.1fr_0.9fr] md:pt-16">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1 font-mono text-xs uppercase tracking-wider text-gold">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#c4f58f]/10 px-3 py-1 font-mono text-xs uppercase tracking-wider text-[#c4f58f]">
               <Activity className="h-3.5 w-3.5" aria-hidden="true" /> Adaptive body recomposition app
             </span>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
+            <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
               Know when to hold, adjust, or push your body recomposition plan.
             </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-white/70">
               RecompOne turns nutrition, training, recovery, and body-trend data into one evidence-backed next move—then shows which signals influenced it.
             </p>
-            <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-lineSoft bg-panel px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <span className="flex h-2 w-2 rounded-full bg-teal" aria-hidden="true" />
-              Web early access open now · Android &amp; iOS coming soon
+            <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/65">
+              <span className="flex h-2 w-2 rounded-full bg-[#2fc4a7]" aria-hidden="true" />
+              Useful on the web · Google Play beta testing · iOS next
             </p>
 
+            <section
+              id="download"
+              aria-labelledby="download-heading"
+              className="mt-6 grid scroll-mt-24 gap-2 sm:grid-cols-2"
+            >
+              <h2 id="download-heading" className="sr-only">Get RecompOne on your phone</h2>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-2 text-[#5ee6ca]">
+                  <CirclePlay className="h-5 w-5" aria-hidden="true" />
+                  <h3 className="font-semibold text-white">Google Play beta</h3>
+                </div>
+                <p className="mt-1.5 text-sm text-white/60">Testing with invited Android users now.</p>
+                <a
+                  href={GOOGLE_PLAY_URL ?? "#waitlist-email"}
+                  {...(GOOGLE_PLAY_URL ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  data-marketing-event="google-play-cta"
+                  className="mt-3 inline-flex min-h-11 items-center gap-2 font-medium text-[#5ee6ca] hover:underline"
+                >
+                  {GOOGLE_PLAY_URL ? "Open Google Play beta" : "Request Android beta access"}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-2 text-[#c4f58f]">
+                  <Smartphone className="h-5 w-5" aria-hidden="true" />
+                  <h3 className="font-semibold text-white">iPhone is next</h3>
+                </div>
+                <p className="mt-1.5 text-sm text-white/60">Get notified when iOS testing opens.</p>
+                <a
+                  href={APP_STORE_URL ?? "#waitlist-email"}
+                  {...(APP_STORE_URL ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  data-marketing-event="app-store-cta"
+                  className="mt-3 inline-flex min-h-11 items-center gap-2 font-medium text-[#c4f58f] hover:underline"
+                >
+                  {APP_STORE_URL ? "View on the App Store" : "Get iOS launch updates"}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+            </section>
+
             {status === "done" ? (
-              <div role="status" className="mt-7 flex items-center gap-3 rounded-2xl border border-teal/40 bg-teal/10 px-5 py-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal">
+              <div role="status" className="mt-5 flex items-center gap-3 rounded-2xl border border-[#2fc4a7]/40 bg-[#2fc4a7]/10 px-5 py-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2fc4a7]">
                   <Check className="h-5 w-5 text-buttonText" aria-hidden="true" />
                 </span>
                 <div>
-                  <div className="font-semibold">You&apos;re on the list.</div>
-                  <div className="text-sm text-muted-foreground">Watch your inbox for web access and launch updates. Android &amp; iOS apps are coming soon.</div>
+                  <div className="font-semibold text-white">You&apos;re on the list.</div>
+                  <div className="text-sm text-white/65">Watch your inbox for Android beta access, iOS testing, and product updates.</div>
                 </div>
               </div>
             ) : (
-              <form onSubmit={submit} className="mt-7 max-w-xl" aria-label="Join the RecompOne early-access list">
+              <form onSubmit={submit} className="mt-5 max-w-xl" aria-label="Join the RecompOne app launch list">
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <div className="relative flex-1">
                     <label htmlFor="waitlist-email" className="sr-only">Email address</label>
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" aria-hidden="true" />
                     <input
                       id="waitlist-email"
                       name="email"
@@ -212,21 +278,21 @@ export default function ComingSoon() {
                       value={email}
                       onChange={(event) => { setEmail(event.target.value); setStatus("idle"); }}
                       placeholder="you@email.com"
-                      className="h-14 w-full rounded-2xl border border-line bg-panel pl-10 pr-4 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal"
+                      className="h-14 w-full rounded-2xl border border-white/15 bg-white/10 pl-10 pr-4 text-base text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2fc4a7]"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={status === "loading"}
                     data-marketing-event="waitlist-submit"
-                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-teal px-6 font-medium text-buttonText transition-opacity hover:opacity-90 disabled:opacity-60"
+                    className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#2fc4a7] px-6 font-medium text-[#07110f] transition-opacity hover:opacity-90 disabled:opacity-60"
                   >
                     {status === "loading" ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-5 w-5" aria-hidden="true" />}
-                    {status === "loading" ? "Joining…" : "Get early access"}
+                    {status === "loading" ? "Joining…" : "Get app updates"}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  You&apos;ll get web access plus launch and feature announcements. No advertising cookies or cross-site tracking.
+                <p className="mt-2 text-xs text-white/50">
+                  Choose Android or iOS updates after joining. No advertising cookies or cross-site tracking.
                 </p>
               </form>
             )}
@@ -238,17 +304,17 @@ export default function ComingSoon() {
                 href="#how-it-works"
                 data-marketing-event="explainer-open"
                 onClick={() => setExplainerViewed(true)}
-                className="inline-flex min-h-11 items-center gap-2 font-medium text-teal hover:underline"
+                className="inline-flex min-h-11 items-center gap-2 font-medium text-[#5ee6ca] hover:underline"
               >
                 See how RecompOne decides <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
-              <span className="text-xs text-muted-foreground">For adults 18+ · Educational guidance, not medical advice</span>
+              <span className="text-xs text-white/55">For adults 18+ · Educational guidance, not medical advice</span>
             </div>
 
-            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 border-t border-lineSoft pt-5 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-teal" aria-hidden="true" /> No silent log changes</span>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-teal" aria-hidden="true" /> Signal strength shown</span>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-teal" aria-hidden="true" /> Manual targets available</span>
+            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 pt-5 text-xs text-white/55">
+              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#5ee6ca]" aria-hidden="true" /> No silent log changes</span>
+              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#5ee6ca]" aria-hidden="true" /> Signal strength shown</span>
+              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[#5ee6ca]" aria-hidden="true" /> Manual targets available</span>
             </div>
           </div>
 
@@ -256,6 +322,7 @@ export default function ComingSoon() {
             <DeviceMockup />
           </div>
         </section>
+        </div>
 
         <section id="how-it-works" className="scroll-mt-24 border-y border-lineSoft bg-panel/40">
           <div className="mx-auto max-w-5xl px-5 py-16">

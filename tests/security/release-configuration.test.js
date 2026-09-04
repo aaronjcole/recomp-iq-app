@@ -16,6 +16,7 @@ import {
   sanitizeCampaignValue
 } from "../../src/lib/marketingAttribution.js";
 import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
+import { normalizeStoreUrl } from "../../src/lib/storeLinks.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -79,6 +80,21 @@ test("launch configuration disables undeclared telemetry and unfinished store cl
 
   const moreSource = readFileSync(resolve(repoRoot, "src/pages/More.jsx"), "utf8");
   assert.doesNotMatch(moreSource, /Weekly email & export|Demo data/);
+});
+
+test("marketing store links accept only official HTTPS store origins", () => {
+  assert.equal(
+    normalizeStoreUrl("https://play.google.com/apps/testing/com.example.app", "play.google.com"),
+    "https://play.google.com/apps/testing/com.example.app"
+  );
+  assert.equal(
+    normalizeStoreUrl("https://apps.apple.com/us/app/example/id123456789", "apps.apple.com"),
+    "https://apps.apple.com/us/app/example/id123456789"
+  );
+  assert.equal(normalizeStoreUrl("http://play.google.com/apps/testing/example", "play.google.com"), null);
+  assert.equal(normalizeStoreUrl("https://play.google.com.evil.example/app", "play.google.com"), null);
+  assert.equal(normalizeStoreUrl("https://user:secret@apps.apple.com/app", "apps.apple.com"), null);
+  assert.equal(normalizeStoreUrl("https://example.com/app", "example.com"), null);
 });
 
 test("waitlist attribution is conversion-only, bounded, and free of arbitrary query data", () => {

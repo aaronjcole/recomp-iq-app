@@ -53,6 +53,9 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Weekly Autopilot" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Visual progress tools" })).toBeVisible();
   await expect(page.getByText("Premium features are available to approved testers during beta.")).toBeVisible();
+  const faqSchema = page.locator('script[data-recompone-homepage="faq"]');
+  await expect(faqSchema).toHaveCount(1);
+  expect(JSON.parse(await faqSchema.textContent())["@type"]).toBe("FAQPage");
   assertNoPageErrors();
 });
 
@@ -67,8 +70,8 @@ test("coming-soon page explains the decision system and exposes the early-access
       name: "Know when to hold, adjust, or push your body recomposition plan."
     })
   ).toBeVisible();
-  const waitlistForm = page.getByRole("form", { name: "Join the RecompOne early-access list" });
-  await expect(waitlistForm.getByRole("button", { name: "Get early access", exact: true })).toBeVisible();
+  const waitlistForm = page.getByRole("form", { name: "Join the RecompOne app launch list" });
+  await expect(waitlistForm.getByRole("button", { name: "Get app updates", exact: true })).toBeVisible();
   await expect(page.getByText("Hold targets steady")).toBeVisible();
 
   await page.getByRole("link", { name: "See how RecompOne decides" }).click();
@@ -87,6 +90,33 @@ test("coming-soon page explains the decision system and exposes the early-access
     "href",
     "#waitlist-email"
   );
+  assertNoPageErrors();
+});
+
+test("public pages lead visitors toward the Android beta and iOS launch path", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/coming-soon");
+
+  const download = page.getByRole("region", { name: "Get RecompOne on your phone" });
+  await expect(download.getByRole("heading", { name: "Google Play beta" })).toBeVisible();
+  await expect(download.getByRole("heading", { name: "iPhone is next" })).toBeVisible();
+  await expect(download.getByRole("link", { name: "Request Android beta access" })).toHaveAttribute(
+    "href",
+    "#waitlist-email"
+  );
+  await expect(download.getByRole("link", { name: "Get iOS launch updates" })).toHaveAttribute(
+    "href",
+    "#waitlist-email"
+  );
+  await expect(page.getByRole("button", { name: "Get app updates", exact: true })).toBeVisible();
+
+  await page.goto("/tools/tdee-calculator");
+  await expect(page.getByRole("link", { name: "Get app launch updates" })).toHaveAttribute(
+    "href",
+    "/coming-soon#download"
+  );
+
   assertNoPageErrors();
 });
 
