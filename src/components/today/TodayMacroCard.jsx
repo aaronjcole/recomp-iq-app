@@ -3,17 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-const KCAL = { protein: 4, carbs: 4, fat: 9 };
-
-export default function TodayMacroCard({ calorieTarget, protein = 0, carbs = 0, fat = 0, onLog }) {
-  const macroCals = protein * KCAL.protein + carbs * KCAL.carbs + fat * KCAL.fat;
-  const remaining = Math.max(0, Math.round(calorieTarget - macroCals));
+export default function TodayMacroCard({ calorieTarget, calories = 0, protein = 0, carbs = 0, fat = 0, onLog }) {
+  const parsedCalories = Number(calories);
+  const loggedCalories = Number.isFinite(parsedCalories) ? Math.max(0, parsedCalories) : 0;
+  const remaining = Math.max(0, Math.round(calorieTarget - loggedCalories));
   return (
     <Card className="bg-panel border-line">
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Today's fuel</h2>
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">{Math.round(macroCals)} / {calorieTarget} kcal</span>
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">{Math.round(loggedCalories)} / {calorieTarget} kcal</span>
         </div>
         <MacroDonut protein={protein} carbs={carbs} fat={fat} />
         <div className="flex items-center justify-between">

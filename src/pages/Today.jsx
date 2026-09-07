@@ -66,6 +66,7 @@ export default function Today() {
 
       <TodayMacroCard
         calorieTarget={strategy.calorie_target}
+        calories={todayLog?.calories ?? 0}
         protein={todayLog?.protein_g ?? 0}
         carbs={todayLog?.carbs_g ?? 0}
         fat={todayLog?.fat_g ?? 0}
