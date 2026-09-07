@@ -32,20 +32,33 @@ test("analysis images keep signed URL creation and paid inference on the server"
   const client = readFileSync(resolve(repoRoot, "src/lib/analysisImages.js"), "utf8");
   assert.doesNotMatch(client, /CreateFileSignedUrl|InvokeLLM/);
 
-  for (const path of [
-    "base44/functions/analyzeFoodPhoto/entry.ts",
-    "base44/functions/analyzeBodyComposition/entry.ts"
-  ]) {
-    const server = readFileSync(resolve(repoRoot, path), "utf8");
-    assert.match(server, /base44\.asServiceRole\.integrations\.Core\.CreateFileSignedUrl/);
-    assert.match(server, /SIGNED_URL_TTL_SECONDS = 300/);
-    assert.match(server, /expires_in:\s*SIGNED_URL_TTL_SECONDS/);
-    assert.match(server, /base44\.asServiceRole\.integrations\.Core\.InvokeLLM/);
-    assert.ok(
-      server.indexOf("CreateFileSignedUrl") < server.indexOf("InvokeLLM"),
-      `${path} must create the short-lived URL before invoking the model`
-    );
-  }
+  const foodPhoto = readFileSync(
+    resolve(repoRoot, "base44/functions/analyzeFoodPhoto/entry.ts"),
+    "utf8"
+  );
+  assert.match(foodPhoto, /SIGNED_URL_TTL_SECONDS = 300/);
+  assert.match(
+    foodPhoto,
+    /const\s+signed\s*=\s*await\s+base44\.asServiceRole\.integrations\.Core\.CreateFileSignedUrl\(\s*\{\s*file_uri:\s*photoUri,\s*expires_in:\s*SIGNED_URL_TTL_SECONDS\s*\}\s*\)/
+  );
+  assert.match(
+    foodPhoto,
+    /base44\.asServiceRole\.integrations\.Core\.InvokeLLM\(\s*\{[\s\S]*?file_urls:\s*\[\s*signed\.signed_url\s*\][\s\S]*?\}\s*\)/
+  );
+
+  const bodyComposition = readFileSync(
+    resolve(repoRoot, "base44/functions/analyzeBodyComposition/entry.ts"),
+    "utf8"
+  );
+  assert.match(bodyComposition, /SIGNED_URL_TTL_SECONDS = 300/);
+  assert.match(
+    bodyComposition,
+    /const\s+fileUrls\s*=\s*await\s+Promise\.all\([\s\S]*?const\s+signed\s*=\s*await\s+base44\.asServiceRole\.integrations\.Core\.CreateFileSignedUrl\(\s*\{\s*file_uri:\s*request\.photoRefs\[pose\],\s*expires_in:\s*SIGNED_URL_TTL_SECONDS\s*\}\s*\)[\s\S]*?return\s+signed\.signed_url;[\s\S]*?\)\s*\)/
+  );
+  assert.match(
+    bodyComposition,
+    /base44\.asServiceRole\.integrations\.Core\.InvokeLLM\(\s*\{[\s\S]*?file_urls:\s*fileUrls[\s\S]*?\}\s*\)/
+  );
 });
 
 test("analysis images can upload privately without exposing a signed URL to the client", async () => {
