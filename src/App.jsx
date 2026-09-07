@@ -15,6 +15,7 @@ import RouteErrorBoundary from '@/components/RouteErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 import RouteAccessibility from '@/components/RouteAccessibility';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { isNativeStoreShell } from '@/lib/nativeStoreShell';
 
 const PageNotFound = lazyWithRetry(() => import('./lib/PageNotFound'));
 const AppLayout = lazyWithRetry(() => import('@/components/AppLayout'));
@@ -64,7 +65,8 @@ const RequireOnboarding = lazyWithRetry(() =>
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
-  return <Navigate to={isAuthenticated ? "/today" : "/coming-soon"} replace />;
+  const unauthenticatedDestination = isNativeStoreShell() ? "/login" : "/coming-soon";
+  return <Navigate to={isAuthenticated ? "/today" : unauthenticatedDestination} replace />;
 }
 
 const AuthenticatedApp = () => {

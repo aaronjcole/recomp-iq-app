@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
+import AppleIcon from "@/components/AppleIcon";
 import GoogleIcon from "@/components/GoogleIcon";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
@@ -36,6 +37,10 @@ export default function Login() {
     base44.auth.loginWithProvider("google", returnTo);
   };
 
+  const handleApple = () => {
+    base44.auth.loginWithProvider("apple", returnTo);
+  };
+
   return (
     <AuthLayout
       icon={LogIn}
@@ -54,8 +59,15 @@ export default function Login() {
       }
     >
       <Button
+        className="mb-3 h-11 w-full bg-black text-sm font-medium text-white hover:bg-black/90"
+        onClick={handleApple}
+      >
+        <AppleIcon className="mr-2 h-5 w-5" />
+        Continue with Apple
+      </Button>
+      <Button
         variant="outline"
-        className="w-full h-11 text-sm font-medium mb-6"
+        className="mb-6 h-11 w-full text-sm font-medium"
         onClick={handleGoogle}
       >
         <GoogleIcon className="w-5 h-5 mr-2" />
