@@ -21,7 +21,10 @@ export default function AuthLayout({ icon: Icon, title, subtitle = null, footer 
         {footer && (
           <p className="text-center text-sm text-muted-foreground mt-6">{footer}</p>
         )}
-        <nav aria-label="Legal" className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground">
+        <nav
+          aria-label="Legal and support"
+          className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground"
+        >
           <Link to="/privacy" className="hover:text-foreground hover:underline">
             Privacy
           </Link>

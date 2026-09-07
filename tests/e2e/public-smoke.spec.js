@@ -232,7 +232,11 @@ test("authentication entry points render and link together", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Continue with Apple" })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Legal" }).getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+  await expect(
+    page
+      .getByRole("navigation", { name: "Legal and support" })
+      .getByRole("link", { name: "Privacy" })
+  ).toHaveAttribute("href", "/privacy");
 
   await page.getByRole("link", { name: "Create one" }).click();
   await expect(page).toHaveURL(/\/register$/);
