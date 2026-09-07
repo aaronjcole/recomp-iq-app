@@ -157,6 +157,19 @@ test("unauthenticated root visit lands on the marketing page", async ({ page }) 
   assertNoPageErrors();
 });
 
+test("the Base44 store wrapper sends signed-out users to app authentication", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.addInitScript(() => {
+    window.wixMobileNativeBridge = { general: {} };
+  });
+
+  await page.goto("/");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("button", { name: "Continue with Apple" })).toBeVisible();
+  assertNoPageErrors();
+});
+
 test("beta gateway remains accessible but stays out of search", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
@@ -216,13 +229,16 @@ test("authentication entry points render and link together", async ({ page }) =>
     "Sign in to your RecompOne account.",
   );
   await expect(page.getByRole("heading", { level: 1, name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Apple" })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Legal" }).getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
 
   await page.getByRole("link", { name: "Create one" }).click();
   await expect(page).toHaveURL(/\/register$/);
   await expect(page).toHaveTitle("Create Account | RecompOne");
   await expect(page.getByRole("heading", { level: 1, name: "Create your account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Apple" })).toBeVisible();
 
   await page.getByLabel("Email").fill("test@example.com");
   await page.getByLabel("Password", { exact: true }).fill("valid-looking-password");

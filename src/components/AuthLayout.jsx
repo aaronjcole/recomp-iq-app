@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 /**
  * @param {{icon: React.ElementType, title: React.ReactNode, subtitle?: React.ReactNode, footer?: React.ReactNode, children?: React.ReactNode}} props
@@ -20,6 +21,17 @@ export default function AuthLayout({ icon: Icon, title, subtitle = null, footer 
         {footer && (
           <p className="text-center text-sm text-muted-foreground mt-6">{footer}</p>
         )}
+        <nav aria-label="Legal" className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground">
+          <Link to="/privacy" className="hover:text-foreground hover:underline">
+            Privacy
+          </Link>
+          <Link to="/terms" className="hover:text-foreground hover:underline">
+            Terms
+          </Link>
+          <Link to="/support" className="hover:text-foreground hover:underline">
+            Support
+          </Link>
+        </nav>
       </div>
     </main>
   );
