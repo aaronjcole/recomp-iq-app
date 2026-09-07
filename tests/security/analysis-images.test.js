@@ -1,13 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ANALYSIS_IMAGE_MAX_BYTES,
-  ANALYSIS_URL_TTL_SECONDS,
-  createPrivateAnalysisUrl,
   uploadPrivateAnalysisImage,
   validateAnalysisImage
 } from "../../src/lib/analysisImages.js";
 
+const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const validFile = { type: "image/jpeg", size: 1024 };
 
 test("analysis images enforce an explicit type and size allowlist", () => {
@@ -26,35 +28,37 @@ test("analysis images enforce an explicit type and size allowlist", () => {
   );
 });
 
-test("analysis images use private storage and a short-lived signed URL", async () => {
-  const calls = [];
-  const core = {
-    async UploadPrivateFile(payload) {
-      calls.push(["upload", payload]);
-      return { file_uri: "private/user/image.jpg" };
-    },
-    async CreateFileSignedUrl(payload) {
-      calls.push(["sign", payload]);
-      return { signed_url: "https://example.test/temporary-image" };
-    }
-  };
+test("analysis images keep signed URL creation and paid inference on the server", () => {
+  const client = readFileSync(resolve(repoRoot, "src/lib/analysisImages.js"), "utf8");
+  assert.doesNotMatch(client, /CreateFileSignedUrl|InvokeLLM/);
 
-  const result = await createPrivateAnalysisUrl(core, validFile);
+  const foodPhoto = readFileSync(
+    resolve(repoRoot, "base44/functions/analyzeFoodPhoto/entry.ts"),
+    "utf8"
+  );
+  assert.match(foodPhoto, /SIGNED_URL_TTL_SECONDS = 300/);
+  assert.match(
+    foodPhoto,
+    /const\s+signed\s*=\s*await\s+base44\.asServiceRole\.integrations\.Core\.CreateFileSignedUrl\(\s*\{\s*file_uri:\s*photoUri,\s*expires_in:\s*SIGNED_URL_TTL_SECONDS\s*\}\s*\)/
+  );
+  assert.match(
+    foodPhoto,
+    /base44\.asServiceRole\.integrations\.Core\.InvokeLLM\(\s*\{[\s\S]*?file_urls:\s*\[\s*signed\.signed_url\s*\][\s\S]*?\}\s*\)/
+  );
 
-  assert.deepEqual(result, {
-    fileUri: "private/user/image.jpg",
-    signedUrl: "https://example.test/temporary-image"
-  });
-  assert.deepEqual(calls, [
-    ["upload", { file: validFile }],
-    [
-      "sign",
-      {
-        file_uri: "private/user/image.jpg",
-        expires_in: ANALYSIS_URL_TTL_SECONDS
-      }
-    ]
-  ]);
+  const bodyComposition = readFileSync(
+    resolve(repoRoot, "base44/functions/analyzeBodyComposition/entry.ts"),
+    "utf8"
+  );
+  assert.match(bodyComposition, /SIGNED_URL_TTL_SECONDS = 300/);
+  assert.match(
+    bodyComposition,
+    /const\s+fileUrls\s*=\s*await\s+Promise\.all\([\s\S]*?const\s+signed\s*=\s*await\s+base44\.asServiceRole\.integrations\.Core\.CreateFileSignedUrl\(\s*\{\s*file_uri:\s*request\.photoRefs\[pose\],\s*expires_in:\s*SIGNED_URL_TTL_SECONDS\s*\}\s*\)[\s\S]*?return\s+signed\.signed_url;[\s\S]*?\)\s*\)/
+  );
+  assert.match(
+    bodyComposition,
+    /base44\.asServiceRole\.integrations\.Core\.InvokeLLM\(\s*\{[\s\S]*?file_urls:\s*fileUrls[\s\S]*?\}\s*\)/
+  );
 });
 
 test("analysis images can upload privately without exposing a signed URL to the client", async () => {
@@ -77,5 +81,5 @@ test("analysis upload fails closed when Base44 omits a private reference", async
     }
   };
 
-  await assert.rejects(() => createPrivateAnalysisUrl(core, validFile), /private image upload/i);
+  await assert.rejects(() => uploadPrivateAnalysisImage(core, validFile), /private image upload/i);
 });
