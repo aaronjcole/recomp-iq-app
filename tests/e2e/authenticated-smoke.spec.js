@@ -44,6 +44,16 @@ test("Today brings the first daily logging module into the initial phone viewpor
   assertNoPageErrors();
 });
 
+test("Today uses the stored calorie total instead of estimating it from macros", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+
+  await page.goto("/today");
+
+  await expect(page.getByText("1980 / 2200 kcal", { exact: true })).toBeVisible();
+  await expect(page.getByText("220 left", { exact: true })).toBeVisible();
+  assertNoPageErrors();
+});
+
 test("every authenticated tab renders its screen without a runtime error", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 

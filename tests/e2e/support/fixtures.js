@@ -24,7 +24,9 @@ const dailyLogs = Array.from({ length: 28 }, (_, i) => {
     date: isoDaysAgo(day),
     weight_lbs: 181 - day * 0.05,
     waist_in: 34 - day * 0.01,
-    calories: 2100 + ((day % 3) - 1) * 120,
+    // Keep today's stored calorie total intentionally different from the
+    // macro-derived estimate so the Today UI proves which source it displays.
+    calories: day === 0 ? 1980 : 2100 + ((day % 3) - 1) * 120,
     protein_g: 165 + (day % 2) * 8,
     carbs_g: 200,
     fat_g: 68,
