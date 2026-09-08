@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
 import { strengthTrend } from "@/lib/fitness";
 import ConfidenceRing from "@/components/common/ConfidenceRing";
-import SignalStat from "@/components/common/SignalStat";
 import ScoreDriversSheet from "@/components/today/ScoreDriversSheet";
 import BestMoveCard from "@/components/today/BestMoveCard";
+import { ChevronRight } from "lucide-react";
 
 const CHIP = {
   "High confidence": "border-teal text-teal",
@@ -73,54 +73,43 @@ export default function RecompSignalHero({ move, onLog }) {
 
   let cells = [weightCell, waistCell, strengthCell, fuelCell, proteinCell, recoveryCell].filter(Boolean);
   if (isEarly) cells = cells.filter((c) => c.value !== "—");
-  const highlights = cells.slice(0, 3);
-
   const chipClass = CHIP[signal.label] ?? CHIP["Early read"];
   const tone = signal.label === "High confidence" ? "high" : signal.label === "Building confidence" ? "building" : "early";
   const coachLine = boss?.countermove || signal.copy;
 
   return (
-    <div className="rounded-xl bg-panel border border-line shadow-md p-5 space-y-5">
+    <section aria-labelledby="recomp-signal-heading" className="rounded-xl bg-panel border border-line shadow-md p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground">Recomp Signal</h2>
+        <h2 id="recomp-signal-heading" className="font-mono text-label uppercase tracking-wider text-muted-foreground">Recomp Signal</h2>
         <span className={`font-mono text-label uppercase tracking-wider px-2 py-0.5 rounded-full border ${chipClass}`}>
           {signal.label}
         </span>
       </div>
 
-      <div className="flex items-center gap-5">
-        <button
-          type="button"
-          className="min-h-11 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() => setDriversOpen(true)}
-          aria-label={`Signal score ${Math.round(signal.score)}. Show what is driving this score.`}
-        >
-          <ConfidenceRing value={signal.score} size={120} stroke={12} label="Signal" tone={tone} />
-        </button>
-        <div className="flex-1 space-y-1.5 min-w-0">
+      <button
+        type="button"
+        className="flex min-h-11 w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        onClick={() => setDriversOpen(true)}
+        aria-label={`Signal score ${Math.round(signal.score)}. Show signal details.`}
+      >
+        <span className="shrink-0" aria-hidden="true">
+          <ConfidenceRing value={signal.score} size={72} stroke={8} label="Signal" tone={tone} />
+        </span>
+        <span className="flex-1 space-y-1 min-w-0">
           <div className="font-semibold text-lg leading-tight">{recompSignal?.label ?? "—"}</div>
-          <p className="text-sm text-muted-foreground leading-snug">{recompSignal?.copy ?? "—"}</p>
-        </div>
-      </div>
+          <span className="block text-sm text-muted-foreground leading-snug line-clamp-2">{recompSignal?.copy ?? "—"}</span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </button>
 
-      {highlights.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {highlights.map((c) => (
-            <SignalStat key={c.label} label={c.label} value={c.value} unit={c.unit} status={c.status} />
-          ))}
-        </div>
-      )}
-
-      {coachLine && (
-        <div className="rounded-lg bg-panel2 px-3 py-2.5">
-          <p className="text-sm leading-snug">
-            {boss && <span className="font-bold">{boss.title}. </span>}
-            {coachLine}
-          </p>
-        </div>
-      )}
       <BestMoveCard move={move} onLog={onLog} embedded />
-      <ScoreDriversSheet open={driversOpen} onOpenChange={setDriversOpen} drivers={cells} />
-    </div>
+      <ScoreDriversSheet
+        open={driversOpen}
+        onOpenChange={setDriversOpen}
+        drivers={cells}
+        summary={coachLine}
+        summaryTitle={boss?.title}
+      />
+    </section>
   );
 }

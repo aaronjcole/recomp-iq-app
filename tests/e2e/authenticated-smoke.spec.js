@@ -44,6 +44,39 @@ test("Today brings the first daily logging module into the initial phone viewpor
   assertNoPageErrors();
 });
 
+test("Today prioritizes logging and progressively discloses secondary detail", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/today");
+
+  const logButton = page.getByRole("button", { name: "Log today's basics" });
+  await expect(logButton).toBeVisible();
+  const logBounds = await logButton.boundingBox();
+  expect(logBounds, "Today log action should have measurable bounds").not.toBeNull();
+  expect(logBounds.y + logBounds.height, "Today log action should fit in the initial phone viewport").toBeLessThanOrEqual(844);
+
+  const fuel = page.getByRole("region", { name: "Today's fuel" });
+  await expect(fuel.getByRole("heading", { level: 3, name: "Quick meals" })).toBeVisible();
+  await expect(fuel.getByText("1980", { exact: true })).toBeVisible();
+
+  const checklistTrigger = page.getByRole("button", { name: "Show today's checklist" });
+  await expect(checklistTrigger).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Sleep & recovery" })).toBeHidden();
+  await checklistTrigger.click();
+  await expect(page.getByRole("heading", { level: 2, name: "Sleep & recovery" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Habits" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View", exact: true })).toHaveAttribute("href", "/training");
+
+  const weekTrigger = page.getByRole("button", { name: "Show this week" });
+  await expect(weekTrigger).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "Weekly Autopilot" })).toBeHidden();
+  await weekTrigger.click();
+  await expect(page.getByRole("heading", { level: 3, name: "Weekly Autopilot" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /View full progress/i })).toBeVisible();
+
+  assertNoPageErrors();
+});
+
 test("Today uses the stored calorie total instead of estimating it from macros", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
@@ -110,6 +143,7 @@ test("free sleep insights update through the canonical daily log", async ({ page
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/today");
+  await page.getByRole("button", { name: "Show today's checklist" }).click();
   const sleep = page.getByRole("region", { name: "Sleep & recovery" });
   await expect(sleep.getByText("7.0h", { exact: true })).toBeVisible();
   await expect(sleep.getByText("Included", { exact: true })).toBeVisible();
@@ -158,6 +192,18 @@ test("bottom-nav navigation preserves the tab shell and updates the route", asyn
   assertNoPageErrors();
 });
 
+test("Manage habits opens the Today checklist at the existing habit controls", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/more");
+
+  await page.getByRole("button", { name: /Manage habits/i }).click();
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(page.getByRole("button", { name: "Hide today's checklist" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit habits" })).toBeVisible();
+
+  assertNoPageErrors();
+});
+
 test("Today opens the single canonical logging sheet", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
@@ -180,6 +226,7 @@ test("incrementing a habit updates its counter without a reload", async ({ page 
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/today");
+  await page.getByRole("button", { name: "Show today's checklist" }).click();
   // Fixture seeds Water at 80/100 today; step size is target/10 = 10.
   await expect(page.getByText("80/100 oz")).toBeVisible();
 
@@ -327,6 +374,7 @@ test("primary nutrition, training, and habit forms expose descriptive field name
   }
 
   await page.goto("/today");
+  await page.getByRole("button", { name: "Show today's checklist" }).click();
   await page.getByRole("button", { name: "Edit habits" }).click();
   const editor = page.getByRole("dialog", { name: "Add habit" });
   await expect(editor.getByLabel("Name", { exact: true })).toBeVisible();
@@ -504,6 +552,7 @@ test("a Premium tester can run Weekly Autopilot inside the Today tab", async ({ 
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/today");
+  await page.getByRole("button", { name: "Show this week" }).click();
   await page.getByRole("link", { name: /Weekly Autopilot/i }).click();
   await expect(page).toHaveURL(/\/today\/autopilot$/);
   await expect(page.getByRole("heading", { level: 1, name: "Weekly Autopilot" })).toBeVisible();

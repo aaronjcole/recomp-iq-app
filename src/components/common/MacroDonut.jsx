@@ -1,12 +1,15 @@
 const KCAL = { protein: 4, carbs: 4, fat: 9 };
 
-export default function MacroDonut({ protein = 0, carbs = 0, fat = 0 }) {
+export default function MacroDonut({ protein = 0, carbs = 0, fat = 0, calories = Number.NaN }) {
   const segs = [
     { label: "Protein", grams: protein, cals: protein * KCAL.protein, color: "var(--teal)" },
     { label: "Carbs", grams: carbs, cals: carbs * KCAL.carbs, color: "var(--blue)" },
     { label: "Fat", grams: fat, cals: fat * KCAL.fat, color: "var(--gold)" }
   ];
-  const total = segs.reduce((s, m) => s + m.cals, 0);
+  const macroTotal = segs.reduce((s, m) => s + m.cals, 0);
+  const parsedCalories = Number(calories);
+  const hasStoredCalories = Number.isFinite(parsedCalories);
+  const displayCalories = hasStoredCalories ? Math.max(0, parsedCalories) : macroTotal;
 
   const size = 128;
   const stroke = 14;
@@ -21,9 +24,9 @@ export default function MacroDonut({ protein = 0, carbs = 0, fat = 0 }) {
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
           <circle cx={cx} cy={cx} r={r} fill="none" stroke="var(--lineSoft)" strokeWidth={stroke} />
-          {total > 0 &&
+          {macroTotal > 0 &&
             segs.map((m, i) => {
-              const len = (m.cals / total) * C;
+              const len = (m.cals / macroTotal) * C;
               const offset = -cum;
               cum += len;
               return (
@@ -43,7 +46,7 @@ export default function MacroDonut({ protein = 0, carbs = 0, fat = 0 }) {
             })}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="font-mono text-lg font-bold tabular-nums leading-none">{total > 0 ? Math.round(total) : "—"}</div>
+          <div className="font-mono text-lg font-bold tabular-nums leading-none">{hasStoredCalories || macroTotal > 0 ? Math.round(displayCalories) : "—"}</div>
           <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">kcal</div>
         </div>
       </div>
@@ -55,7 +58,7 @@ export default function MacroDonut({ protein = 0, carbs = 0, fat = 0 }) {
             <span className="font-mono text-label uppercase tracking-wider text-muted-foreground flex-1">{m.label}</span>
             <span className="font-mono text-xs tabular-nums">{Math.round(m.grams)}g</span>
             <span className="font-mono text-label tabular-nums text-muted-foreground w-9 text-right">
-              {total > 0 ? Math.round((m.cals / total) * 100) : 0}%
+              {macroTotal > 0 ? Math.round((m.cals / macroTotal) * 100) : 0}%
             </span>
           </div>
         ))}

@@ -1,6 +1,5 @@
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Utensils, ChevronRight, Plus } from "lucide-react";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
@@ -10,7 +9,7 @@ import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
  * so common food combinations can be logged without opening the full
  * Nutrition editor. Template creation happens on the Nutrition page.
  */
-export default function QuickMealsCard() {
+export function QuickMealsContent() {
   const { mealTemplates } = useRecompRef();
   const { logMealTemplate } = useRecompActions();
   const { toast } = useToast();
@@ -26,18 +25,17 @@ export default function QuickMealsCard() {
   };
 
   return (
-    <Card className="bg-panel border-line">
-      <CardContent className="p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-medium">
-            <Utensils className="w-4 h-4 text-teal" /> Quick meals
-          </h2>
-          <Link to="/nutrition" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
-            Manage <ChevronRight className="w-3 h-3" />
-          </Link>
-        </div>
+    <div className="space-y-2 border-t border-lineSoft pt-3">
+      <div className="flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-medium">
+          <Utensils className="w-4 h-4 text-teal" /> Quick meals
+        </h3>
+        <Link to="/nutrition" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
+          Manage <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
 
-        {mealTemplates.length === 0 ? (
+      {mealTemplates.length === 0 ? (
           <div className="flex items-center gap-3 rounded-lg border border-dashed border-lineSoft bg-panel2/40 p-3">
             <Plus className="w-4 h-4 shrink-0 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">
@@ -46,7 +44,7 @@ export default function QuickMealsCard() {
               page to log them here in one tap.
             </p>
           </div>
-        ) : (
+      ) : (
           <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
             {mealTemplates.map((t) => (
               <button
@@ -61,8 +59,9 @@ export default function QuickMealsCard() {
               </button>
             ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
+
+export default QuickMealsContent;

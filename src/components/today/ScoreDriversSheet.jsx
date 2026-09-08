@@ -7,7 +7,7 @@ const STATUS_CLASS = {
   neutral: "bg-teal"
 };
 
-export default function ScoreDriversSheet({ open, onOpenChange, drivers }) {
+export default function ScoreDriversSheet({ open, onOpenChange, drivers, summary, summaryTitle }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="mx-auto max-w-md rounded-t-xl">
@@ -16,6 +16,12 @@ export default function ScoreDriversSheet({ open, onOpenChange, drivers }) {
           <SheetDescription>Your signal combines the useful data available from recent logs.</SheetDescription>
         </SheetHeader>
         <div className="space-y-1 px-4 pb-6 pt-4">
+          {summary && (
+            <div className="mb-3 rounded-lg bg-panel2 px-3 py-2.5 text-sm leading-snug">
+              {summaryTitle && <span className="font-bold">{summaryTitle}. </span>}
+              {summary}
+            </div>
+          )}
           {drivers.map((driver) => (
             <div key={driver.label} className="flex min-h-11 items-center gap-3 border-b border-lineSoft py-2 last:border-0">
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_CLASS[driver.status] ?? STATUS_CLASS.neutral}`} aria-hidden="true" />

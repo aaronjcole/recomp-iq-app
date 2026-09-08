@@ -1,11 +1,7 @@
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
-import { dedupeLogsByDate } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
-import WeightTrendChart from "@/components/progress/WeightTrendChart";
-import CalorieAdherenceChart from "@/components/progress/CalorieAdherenceChart";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus } from "lucide-react";
 
 /**
  * At-a-glance progress dashboard for the Today (main) view. Shows compact
@@ -13,30 +9,36 @@ import CalorieAdherenceChart from "@/components/progress/CalorieAdherenceChart";
  * TrendsDashboard (including strength) lives on the Progress page.
  */
 export default function TodayProgressCard() {
-  const { logs, strategy } = useRecomp();
-  const dedupedLogs = useMemo(() => dedupeLogsByDate(logs), [logs]);
+  const { trend } = useRecomp();
+  const weightChange = trend?.weight_change_lbs;
+  const WeightIcon = weightChange == null || Math.abs(weightChange) <= 0.3
+    ? Minus
+    : weightChange < 0
+      ? ArrowDownRight
+      : ArrowUpRight;
+  const weightLabel = weightChange == null
+    ? "Building weight trend"
+    : `${weightChange > 0 ? "+" : ""}${weightChange} lb this week`;
+  const calorieLabel = trend?.calorie_adherence == null
+    ? "Building nutrition trend"
+    : `${Math.round(trend.calorie_adherence * 100)}% calorie consistency`;
 
   return (
     <Card className="bg-panel border-line">
-      <CardContent className="p-5 space-y-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-medium">Your trends</h2>
-          <Link to="/progress" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
-            Full progress <ChevronRight className="w-3 h-3" />
-          </Link>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue/10 text-blue">
+          <WeightIcon className="h-5 w-5" aria-hidden="true" />
         </div>
-
-        <div>
-          <h3 className="mb-1 text-xs font-medium text-muted-foreground">Weight · last 35 days</h3>
-          <WeightTrendChart dedupedLogs={dedupedLogs} rangeDays={35} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-medium">Progress snapshot</h2>
+          <p className="text-xs text-muted-foreground">{weightLabel} · {calorieLabel}</p>
         </div>
-
-        <div className="border-t border-lineSoft pt-4">
-          <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-            Calories vs target · last 35 days
-          </h3>
-          <CalorieAdherenceChart dedupedLogs={dedupedLogs} calorieTarget={strategy?.calorie_target ?? null} rangeDays={35} />
-        </div>
+        <Link
+          to="/progress" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-teal"
+          aria-label="View full progress"
+        >
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </CardContent>
     </Card>
   );
