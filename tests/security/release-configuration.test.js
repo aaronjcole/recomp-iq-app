@@ -23,6 +23,7 @@ const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.equal(featureFlags.bodyCompositionScan, false);
   assert.equal(featureFlags.foodPhotoScan, false);
+  assert.equal(featureFlags.itemizedFoodDiary, false);
   assert.equal(enabledFromEnvironment(undefined), false);
   assert.equal(enabledFromEnvironment("false"), false);
   assert.equal(enabledFromEnvironment("TRUE"), false);

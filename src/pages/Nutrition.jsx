@@ -13,6 +13,7 @@ import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
 import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
+import FoodDiaryCard from "@/components/nutrition/FoodDiaryCard";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight } from "lucide-react";
 // Loaded on demand so the ~110KB @zxing barcode decoder (and the flag-gated AI
@@ -28,7 +29,7 @@ const empty = { name: "", serving_description: "", serving_grams: "", calories: 
 const num = (v) => (v === "" ? null : Number(v));
 
 export default function Nutrition() {
-  const { strategy, todayLog, foods, upsertDailyLog, addFood, reload } = useRecomp();
+  const { strategy, todayLog, foods, addFood, logFoodEntry, upsertDailyLog, reload } = useRecomp();
   const [form, setForm] = useState(empty);
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
@@ -41,6 +42,25 @@ export default function Nutrition() {
     () => requestedPanel === "targets"
   );
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const logToToday = async (food, source, sourceFoodId) => {
+    if (featureFlags.itemizedFoodDiary) {
+      await logFoodEntry({
+        date: todayStr(), meal: "other", name: food.name,
+        serving_description: food.serving_description || "1 serving", quantity: 1,
+        calories: food.calories ?? 0, protein_g: food.protein_g ?? 0,
+        carbs_g: food.carbs_g ?? 0, fat_g: food.fat_g ?? 0, fiber_g: food.fiber_g ?? 0,
+        source, source_food_id: sourceFoodId
+      });
+      return;
+    }
+    await upsertDailyLog(todayStr(), (current) => ({
+      calories: (current?.calories ?? 0) + (food.calories ?? 0),
+      protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
+      carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
+      fat_g: (current?.fat_g ?? 0) + (food.fat_g ?? 0)
+    }));
+  };
 
   useEffect(() => {
     if (!strategy || requestedPanel !== "targets") return undefined;
@@ -57,14 +77,9 @@ export default function Nutrition() {
   }, [state?.scrollTo]);
 
   const handleScannedFood = async (food, addToToday) => {
-    await addFood(food);
+    const savedFood = await addFood(food);
     if (addToToday) {
-      await upsertDailyLog(todayStr(), (current) => ({
-        calories: (current?.calories ?? 0) + (food.calories ?? 0),
-        protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
-        carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
-        fat_g: (current?.fat_g ?? 0) + (food.fat_g ?? 0)
-      }));
+      await logToToday(food, showPhotoScan ? "photo" : "barcode", savedFood.id);
     }
     toast({ title: `${food.name} ${addToToday ? "added to today" : "saved to library"}` });
     setShowScanner(false);
@@ -74,12 +89,7 @@ export default function Nutrition() {
   const [showAllFoods, setShowAllFoods] = useState(false);
 
   const quickAddFood = async (f) => {
-    await upsertDailyLog(todayStr(), (current) => ({
-      calories: (current?.calories ?? 0) + (f.calories ?? 0),
-      protein_g: (current?.protein_g ?? 0) + (f.protein_g ?? 0),
-      carbs_g: (current?.carbs_g ?? 0) + (f.carbs_g ?? 0),
-      fat_g: (current?.fat_g ?? 0) + (f.fat_g ?? 0)
-    }));
+    await logToToday(f, "library", f.id);
     toast({ title: `${f.name} added` });
   };
 
@@ -111,14 +121,9 @@ export default function Nutrition() {
       fat_g: Number(form.fat_g) || 0,
       fiber_g: num(form.fiber_g)
     };
-    await addFood(food);
+    const savedFood = await addFood(food);
     if (addToToday) {
-      await upsertDailyLog(todayStr(), (current) => ({
-        calories: (current?.calories ?? 0) + food.calories,
-        protein_g: (current?.protein_g ?? 0) + food.protein_g,
-        carbs_g: (current?.carbs_g ?? 0) + food.carbs_g,
-        fat_g: (current?.fat_g ?? 0) + food.fat_g
-      }));
+      await logToToday(food, "manual", savedFood.id);
     }
     setForm(empty);
   };
@@ -138,6 +143,8 @@ export default function Nutrition() {
           <MacroBar label="Fat" value={consumed.fat} target={strategy.fat_target_g} unit="g" colorClass="bg-gold" />
         </CardContent>
       </Card>
+
+      {featureFlags.itemizedFoodDiary && <FoodDiaryCard />}
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">

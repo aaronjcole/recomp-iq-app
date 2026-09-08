@@ -105,6 +105,23 @@ export const ENTITY_FIXTURES = {
     { id: "food-1", name: "Greek Yogurt", calories: 150, protein_g: 20, carbs_g: 8, fat_g: 4, source: "manual" },
     { id: "food-2", name: "Chicken Breast", calories: 165, protein_g: 31, carbs_g: 0, fat_g: 4, source: "manual" },
   ],
+  FoodLogEntry: [
+    {
+      id: "food-log-1",
+      date: isoDaysAgo(0),
+      meal: "breakfast",
+      name: "Greek Yogurt",
+      serving_description: "1 cup",
+      quantity: 1,
+      calories: 150,
+      protein_g: 20,
+      carbs_g: 8,
+      fat_g: 4,
+      fiber_g: 0,
+      source: "library",
+      source_food_id: "food-1",
+    },
+  ],
   Recipe: [],
   DecisionLedger: [
     { id: "dl-1", date: isoDaysAgo(7), reason: "Weekly review", previous_targets: {}, new_targets: {} },

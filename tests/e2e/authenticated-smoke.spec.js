@@ -54,6 +54,32 @@ test("Today uses the stored calorie total instead of estimating it from macros",
   assertNoPageErrors();
 });
 
+test("food diary supports one-tap repeat, edit, delete, and undo", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/nutrition");
+
+  const diary = page.getByRole("region", { name: "Food diary" });
+  await expect(diary.getByRole("heading", { level: 2, name: "Today's diary" })).toBeVisible();
+  await expect(diary.getByText("Greek Yogurt", { exact: true })).toBeVisible();
+
+  await diary.getByRole("button", { name: "Repeat Greek Yogurt" }).click();
+  await expect(diary.getByText("2 items")).toBeVisible();
+
+  await diary.getByRole("button", { name: "Edit Greek Yogurt" }).first().click();
+  const editor = page.getByRole("dialog", { name: "Edit food entry" });
+  await editor.getByLabel("Calories").fill("175");
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await expect(diary.getByText(/175 kcal/)).toBeVisible();
+  await expect(page.getByText("2155 / 2200", { exact: true })).toBeVisible();
+
+  await diary.getByRole("button", { name: "Delete Greek Yogurt" }).first().click();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(diary.getByText("2 items")).toBeVisible();
+  await expect(page.getByText("2155 / 2200", { exact: true })).toBeVisible();
+  assertNoPageErrors();
+});
+
 test("free sleep insights update through the canonical daily log", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });

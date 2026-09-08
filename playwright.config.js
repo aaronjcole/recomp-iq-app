@@ -64,6 +64,7 @@ export default defineConfig({
           ...process.env,
           VITE_BASE44_APP_ID: "playwright-local",
           VITE_BASE44_APP_BASE_URL: localBaseURL,
+          VITE_ENABLE_ITEMIZED_FOOD_DIARY: "true",
         },
       },
 });
