@@ -70,6 +70,36 @@ test("a server-marked starter keeps partial cleanup retryable", () => {
   assert.ok(plan.slice(1).every((group) => group.duplicates.length === 0));
 });
 
+test("archived or malformed keyed habits cannot become destructive candidates", () => {
+  const defaults = legacyDefaults();
+  const active = defaults.map((habit, index) => ({
+    ...habit,
+    system_key: DEFAULT_HABITS[index].system_key
+  }));
+  const archivedWater = {
+    ...active[0],
+    id: "water-archived",
+    archived: true,
+    created_date: "2026-07-01T00:00:00.000Z"
+  };
+  const forgedWater = {
+    ...active[0],
+    id: "water-forged",
+    name: "Custom hydration",
+    target_value: 64,
+    created_date: "2026-07-02T00:00:00.000Z"
+  };
+  const plan = planDefaultHabitReconciliation([
+    archivedWater,
+    forgedWater,
+    ...active
+  ]);
+
+  assert.equal(needsDefaultHabitReconciliation([archivedWater, forgedWater, ...active]), false);
+  assert.ok(plan.every((group) => group.duplicates.length === 0));
+  assert.equal(plan[0].canonical.id, active[0].id);
+});
+
 test("duplicate history merges by date without inflating count progress", () => {
   const result = mergeDefaultHabitEntries([
     { id: "entry-new", habit_id: "duplicate", date: "2026-09-08", value: 40, created_date: "2026-09-08T10:05:00Z" },
@@ -88,13 +118,20 @@ test("default provisioning is authenticated, user-scoped, and client seeding is 
     "utf8"
   );
   const client = readFileSync(resolve(repoRoot, "src/lib/RecompContext.jsx"), "utf8");
+  const schema = JSON.parse(readFileSync(resolve(repoRoot, "base44/entities/Habit.jsonc"), "utf8"));
 
   assert.match(backend, /user = await base44\.auth\.me\(\)/);
   assert.match(backend, /enqueueByUser\(user\.id/);
-  assert.doesNotMatch(backend, /asServiceRole/);
+  assert.match(backend, /owned\.created_by_id !== user\.id/);
+  assert.match(backend, /asServiceRole\.entities\.Habit\.update/);
+  assert.match(backend, /ENTRY_PAGE_SIZE,\s*skip/);
   assert.match(backend, /mergeDuplicateEntries/);
   assert.match(backend, /habit_entries: habitEntries/);
   assert.match(client, /functions\.invoke\("ensureDefaultHabits"/);
   assert.match(client, /ensured\?\.data\?\.habit_entries/);
+  assert.match(client, /Default habits could not be reconciled/);
   assert.doesNotMatch(client, /Habit\.create\(\{ name: "Water"/);
+  assert.deepEqual(schema.properties.system_key.rls.write, {
+    user_condition: { role: "admin" }
+  });
 });

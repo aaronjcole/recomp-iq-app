@@ -57,7 +57,13 @@ export function planDefaultHabitReconciliation(habits) {
   );
 
   return DEFAULT_HABITS.flatMap((definition) => {
-    const keyed = records.filter((habit) => habit.system_key === definition.system_key);
+    // `system_key` is protected by field-level security, and the full starter
+    // shape is still validated here as defense in depth before destructive
+    // reconciliation. Archived or user-modified habits are never candidates.
+    const keyed = records.filter(
+      (habit) => habit.system_key === definition.system_key
+        && matchesLegacyDefault(habit, definition)
+    );
     const includeLegacy = keyed.length > 0 || hasCompleteLegacyTrio;
     const candidatesById = new Map();
     for (const habit of keyed) candidatesById.set(habit.id, habit);

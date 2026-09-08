@@ -71,12 +71,13 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, ensuredHabits?: object[], premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
   const entities = options.entities ?? ENTITY_FIXTURES;
   const ensuredHabits = options.ensuredHabits ?? entities.Habit ?? [];
+  const ensureHabitsError = options.ensureHabitsError ?? false;
   const premiumAccess = options.premiumAccess ?? PREMIUM_TESTER_ACCESS;
   const mealPlan = options.mealPlan ?? ADAPTIVE_MEAL_PLAN;
   const trainingBlock = options.trainingBlock ?? ADAPTIVE_TRAINING_BLOCK;
@@ -139,6 +140,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (url.includes("/functions/")) {
       if (url.includes("/functions/ensureDefaultHabits")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        if (ensureHabitsError) return json({ error: "Temporary repair outage" }, 503);
         return json({
           habits: ensuredHabits,
           habit_entries: entities.HabitEntry ?? [],

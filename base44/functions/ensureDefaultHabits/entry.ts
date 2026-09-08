@@ -6,6 +6,7 @@ import {
 } from "../../shared/defaultHabitsDomain.js";
 
 const inFlightEnsures = new Map();
+const ENTRY_PAGE_SIZE = 500;
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -27,9 +28,23 @@ function enqueueByUser(userId, work) {
 }
 
 async function mergeDuplicateEntries(base44, canonicalHabit, duplicateHabit) {
+  async function listAllEntries(habitId) {
+    const entries = [];
+    for (let skip = 0; ; skip += ENTRY_PAGE_SIZE) {
+      const page = await base44.entities.HabitEntry.filter(
+        { habit_id: habitId },
+        "created_date",
+        ENTRY_PAGE_SIZE,
+        skip
+      );
+      entries.push(...page);
+      if (page.length < ENTRY_PAGE_SIZE) return entries;
+    }
+  }
+
   const [canonicalEntries, duplicateEntries] = await Promise.all([
-    base44.entities.HabitEntry.filter({ habit_id: canonicalHabit.id }, "created_date", 500),
-    base44.entities.HabitEntry.filter({ habit_id: duplicateHabit.id }, "created_date", 500)
+    listAllEntries(canonicalHabit.id),
+    listAllEntries(duplicateHabit.id)
   ]);
   const byDate = new Map();
   for (const entry of [...canonicalEntries, ...duplicateEntries]) {
@@ -47,12 +62,31 @@ async function mergeDuplicateEntries(base44, canonicalHabit, duplicateHabit) {
   }
 }
 
+async function assignSystemKey(base44, user, habit, systemKey) {
+  // Field-level security keeps clients from claiming a starter identity. Use
+  // service role only after independently verifying this exact record belongs
+  // to the authenticated caller.
+  const owned = await base44.asServiceRole.entities.Habit.get(habit.id);
+  if (!owned?.id || owned.created_by_id !== user.id) {
+    throw new Error("Starter habit ownership could not be verified");
+  }
+  const updated = await base44.asServiceRole.entities.Habit.update(habit.id, {
+    system_key: systemKey
+  });
+  return { ...habit, ...updated };
+}
+
 async function ensureDefaults(base44, user) {
   let habits = await base44.entities.Habit.list("-sort_order", 200);
+  // Preserve the original product behavior: seed only a truly empty account.
+  // A custom-only account represents an intentional user choice and must not
+  // have archived or removed starter habits recreated.
   if (habits.length === 0) {
     const created = [];
     for (const definition of DEFAULT_HABITS) {
-      created.push(await base44.entities.Habit.create({ ...definition }));
+      const { system_key: systemKey, ...fields } = definition;
+      const habit = await base44.entities.Habit.create(fields);
+      created.push(await assignSystemKey(base44, user, habit, systemKey));
     }
     habits = await base44.entities.Habit.list("-sort_order", 200);
     const observedIds = new Set(habits.map((habit) => habit.id));
@@ -68,10 +102,12 @@ async function ensureDefaults(base44, user) {
   for (const group of plan) {
     let canonical = group.canonical;
     if (group.canonicalNeedsKey) {
-      const updated = await base44.entities.Habit.update(canonical.id, {
-        system_key: group.definition.system_key
-      });
-      canonical = { ...canonical, ...updated };
+      canonical = await assignSystemKey(
+        base44,
+        user,
+        canonical,
+        group.definition.system_key
+      );
       survivingHabits.set(canonical.id, canonical);
     }
     for (const duplicate of group.duplicates) {

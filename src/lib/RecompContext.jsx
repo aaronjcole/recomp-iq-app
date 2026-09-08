@@ -293,12 +293,18 @@ export function RecompProvider({ children }) {
       activeBlockRef.current = loadedActiveBlock;
       setActiveBlock(loadedActiveBlock);
       if (needsDefaultHabitReconciliation(habitList)) {
-        const ensured = await base44.functions.invoke("ensureDefaultHabits", {});
-        habitList = ensured?.data?.habits ?? habitList;
-        normalizedHabitEntries = newestByKey(
-          ensured?.data?.habit_entries ?? loadedHabitEntries,
-          (item) => `${item.habit_id}:${item.date}`
-        );
+        try {
+          const ensured = await base44.functions.invoke("ensureDefaultHabits", {});
+          habitList = ensured?.data?.habits ?? habitList;
+          normalizedHabitEntries = newestByKey(
+            ensured?.data?.habit_entries ?? loadedHabitEntries,
+            (item) => `${item.habit_id}:${item.date}`
+          );
+        } catch (error) {
+          // Starter repair is best-effort. Existing account data is still
+          // usable, so do not turn a cleanup outage into a full-screen failure.
+          console.warn("Default habits could not be reconciled; showing loaded habits.", error);
+        }
       }
       setHabits(habitList);
       setHabitEntriesCurrent(normalizedHabitEntries);
