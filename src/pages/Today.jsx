@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
-import { useRecomp } from "@/lib/RecompContext";
+import { useState, useEffect, useMemo } from "react";
+import { todayStr, useRecomp } from "@/lib/RecompContext";
 import { Link, useLocation } from "react-router-dom";
 import TodayMacroCard from "@/components/today/TodayMacroCard";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
 import HabitsCard from "@/components/today/HabitsCard";
 import QuickMealsCard from "@/components/today/QuickMealsCard";
 import TodayProgressCard from "@/components/today/TodayProgressCard";
+import SleepCard from "@/components/today/SleepCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
 import StreakBanner from "@/components/today/StreakBanner";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import PremiumBadge from "@/components/premium/PremiumBadge";
-import { deriveBestMove } from "@/lib/fitness";
+import { deriveBestMove, summarizeSleep } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, ChevronRight, Bot, Sparkles } from "lucide-react";
 
@@ -22,7 +23,7 @@ function greeting() {
 }
 
 export default function Today() {
-  const { preferences, signal, strategy, trend, quests, todayLog, reload } = useRecomp();
+  const { preferences, signal, strategy, trend, quests, logs, todayLog, reload } = useRecomp();
   const [logOpen, setLogOpen] = useState(false);
   const { state } = useLocation();
   useEffect(() => {
@@ -30,6 +31,10 @@ export default function Today() {
     const el = document.getElementById(state.scrollTo);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [state?.scrollTo]);
+  const sleepSummary = useMemo(
+    () => summarizeSleep(logs, { referenceDate: todayStr() }),
+    [logs]
+  );
 
   if (!strategy) return (
     <div className="space-y-5 animate-pulse">
@@ -74,6 +79,8 @@ export default function Today() {
       />
 
       <QuickMealsCard />
+
+      <SleepCard todayLog={todayLog} summary={sleepSummary} onLog={() => setLogOpen(true)} />
 
       <TodayProgressCard />
 

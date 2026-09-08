@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ const EMPTY_FORM = {
   energy_rating: "",
   soreness_rating: "",
   sleep_hours: "",
+  sleep_quality: "",
   notes: ""
 };
 
@@ -42,6 +43,7 @@ const EMPTY_FORM = {
  *   energy_rating?: string | number,
  *   soreness_rating?: string | number,
  *   sleep_hours?: string | number,
+ *   sleep_quality?: string | number,
  *   notes?: string,
  * }} QuickLogForm
  */
@@ -67,6 +69,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         energy_rating: todayLog?.energy_rating ?? "",
         soreness_rating: todayLog?.soreness_rating ?? "",
         sleep_hours: todayLog?.sleep_hours ?? "",
+        sleep_quality: todayLog?.sleep_quality ?? "",
         notes: todayLog?.notes ?? ""
       });
     }
@@ -90,6 +93,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         energy_rating: num(form.energy_rating),
         soreness_rating: num(form.soreness_rating),
         sleep_hours: num(form.sleep_hours),
+        sleep_quality: num(form.sleep_quality),
         notes: form.notes || undefined
       });
       triggerHaptic(HAPTIC_TRIGGERS.LOG_SAVED);
@@ -122,17 +126,21 @@ export default function QuickLogSheet({ open, onOpenChange }) {
 
           <Section label="Activity">
             <Field label="Steps" value={form.steps} onChange={(v) => set("steps", v)} type="number" min={0} max={200000} />
-            <Field label="Sleep (h)" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" min={0} max={24} />
             <div className="col-span-2 flex items-center justify-between rounded-lg bg-panel2 px-3 py-2">
               <Label htmlFor="wc">Workout completed</Label>
               <Switch id="wc" checked={!!form.workout_completed} onCheckedChange={(v) => set("workout_completed", v)} />
             </div>
           </Section>
 
-          <Section label="How you felt">
-            <RatingDrawer label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
+          <Section label="Sleep & recovery">
+            <Field label="Sleep hours" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" min={0} max={24} />
+            <RatingDrawer label="Sleep quality (1-5)" value={form.sleep_quality} onChange={(v) => set("sleep_quality", v)} />
             <RatingDrawer label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
             <RatingDrawer label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
+          </Section>
+
+          <Section label="How you felt">
+            <RatingDrawer label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
           </Section>
 
           <div className="space-y-1.5">
@@ -163,10 +171,11 @@ function Section({ label, children }) {
  * @param {{label: React.ReactNode, value?: string | number, onChange: (value: string) => void, type?: React.HTMLInputTypeAttribute, min?: string | number, max?: string | number}} props
  */
 function Field({ label, value, onChange, type = "text", min, max }) {
+  const inputId = useId();
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <Input type={type} inputMode={type === "number" ? "decimal" : undefined} min={min} max={max} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+      <Label htmlFor={inputId}>{label}</Label>
+      <Input id={inputId} type={type} inputMode={type === "number" ? "decimal" : undefined} min={min} max={max} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

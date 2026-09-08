@@ -12,6 +12,7 @@ export * from "./nutritionScoring";
 export * from "./mealPlanning";
 export * from "./trainingAnalysis";
 export * from "./strengthTrend";
+export * from "./sleep";
 export * from "./recalculate";
 export * from "./bestMove";
 export { GOAL_LABELS, JOB_ACTIVITY_LABELS, GOALS, JOB_ACTIVITIES, SEXES, EXPERIENCE_LEVELS, COACH_TONES, ADJUSTMENT_DECISIONS } from "./constants";

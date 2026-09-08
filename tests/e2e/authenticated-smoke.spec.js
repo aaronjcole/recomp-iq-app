@@ -54,6 +54,27 @@ test("Today uses the stored calorie total instead of estimating it from macros",
   assertNoPageErrors();
 });
 
+test("free sleep insights update through the canonical daily log", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto("/today");
+  const sleep = page.getByRole("region", { name: "Sleep & recovery" });
+  await expect(sleep.getByText("7.0h", { exact: true })).toBeVisible();
+  await expect(sleep.getByText("Included", { exact: true })).toBeVisible();
+
+  await sleep.getByRole("button", { name: "Log sleep" }).click();
+  const sheet = page.getByRole("dialog", { name: "Log today" });
+  await sheet.getByLabel("Sleep hours").fill("7.8");
+  await sheet.getByRole("button", { name: "Sleep quality (1-5)" }).click();
+  await page.getByRole("dialog", { name: "Sleep quality (1-5)" }).getByRole("button", { name: "5" }).click();
+  await sheet.getByRole("button", { name: /Save today's log/i }).click();
+
+  await expect(sleep.getByText("7.8h", { exact: true })).toBeVisible();
+  await expect(sleep.getByText("5/5 quality", { exact: true })).toBeVisible();
+  assertNoPageErrors();
+});
+
 test("every authenticated tab renders its screen without a runtime error", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
