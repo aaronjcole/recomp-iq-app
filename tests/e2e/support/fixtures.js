@@ -33,6 +33,7 @@ const dailyLogs = Array.from({ length: 28 }, (_, i) => {
     steps: 8500 + (day % 4) * 500,
     workout_completed: day % 2 === 0,
     sleep_hours: 7 + (day % 2) * 0.5,
+    sleep_quality: 4,
     energy_rating: 4,
     soreness_rating: 2,
     hunger_rating: 3,

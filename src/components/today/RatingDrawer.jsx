@@ -20,7 +20,7 @@ export default function RatingDrawer({ label, value, onChange }) {
       <Label>{label}</Label>
       <Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
         <DrawerTrigger asChild>
-          <Button variant="outline" className="w-full justify-between font-normal">
+          <Button aria-label={label} variant="outline" className="w-full justify-between font-normal">
             {value ? String(value) : "—"}
           </Button>
         </DrawerTrigger>
