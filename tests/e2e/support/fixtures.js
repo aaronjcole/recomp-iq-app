@@ -53,13 +53,29 @@ const habitEntries = [
   { id: "he-meditate-1", habit_id: "habit-meditate", date: isoDaysAgo(1), done: true },
 ];
 
-const sessions = Array.from({ length: 6 }, (_, i) => ({
-  id: `sess-${i}`,
-  date: isoDaysAgo(i * 3),
-  type: "strength",
-  name: "Full body",
-  duration_min: 55,
-}));
+const sessions = [
+  {
+    id: "sess-reusable",
+    date: isoDaysAgo(2),
+    type: "strength",
+    title: "Push day",
+    duration_minutes: 52,
+    perceived_exertion: 8,
+    muscle_groups: ["Chest", "Shoulders", "Arms"],
+    sets: [
+      { exercise_name: "Bench Press", weight_lbs: 185, reps: 8, set_index: 1 },
+      { exercise_name: "Bench Press", weight_lbs: 185, reps: 8, set_index: 2 },
+      { exercise_name: "Overhead Press", weight_lbs: 95, reps: 10, set_index: 1 },
+    ],
+  },
+  ...Array.from({ length: 6 }, (_, i) => ({
+    id: `sess-${i}`,
+    date: isoDaysAgo(i * 3),
+    type: "strength",
+    name: "Full body",
+    duration_min: 55,
+  })),
+];
 
 const strengthLogs = Array.from({ length: 8 }, (_, i) => ({
   id: `str-${i}`,

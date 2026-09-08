@@ -80,6 +80,31 @@ test("food diary supports one-tap repeat, edit, delete, and undo", async ({ page
   assertNoPageErrors();
 });
 
+test("training history can prefill the builder and log a session again in one tap", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto("/training");
+
+  const history = page.getByRole("region", { name: "Training history" });
+  await history.getByRole("button", { name: "Use Push day as template" }).click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Push day");
+  await expect(page.getByLabel("Lift 1 name", { exact: true })).toHaveValue("Bench Press");
+
+  const repeated = page.waitForResponse(
+    (response) => response.url().includes("/entities/ExerciseSession") && response.request().method() === "POST"
+  );
+  await history.getByRole("button", { name: "Log Push day again" }).click();
+  const repeatedResponse = await repeated;
+  const repeatedPayload = repeatedResponse.request().postDataJSON();
+  expect(repeatedPayload.title).toBe("Push day");
+  expect(repeatedPayload.sets).toHaveLength(3);
+  expect(repeatedPayload.sets[0]).toMatchObject({ exercise_name: "Bench Press", weight_lbs: 185, reps: 8 });
+  await expect(page.getByText("Push day", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("Workout logged again", { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  assertNoPageErrors();
+});
+
 test("free sleep insights update through the canonical daily log", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -466,6 +491,11 @@ test("a Premium tester can build a training block inside the Train tab", async (
   await expect(page.getByRole("heading", { level: 2, name: "Weekly schedule" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Week-by-week progression" })).toBeVisible();
   await expect(page.getByText("Week 5 · Deload")).toBeVisible();
+
+  await page.getByRole("button", { name: "Start this session" }).click();
+  await expect(page).toHaveURL(/\/training$/);
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Upper A");
+  await expect(page.getByLabel("Lift 1 name", { exact: true })).toHaveValue("Barbell Bench Press");
 
   assertNoPageErrors();
 });

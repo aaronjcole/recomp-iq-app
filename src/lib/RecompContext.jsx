@@ -656,6 +656,57 @@ export function RecompProvider({ children }) {
     [setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]
   );
 
+  const repeatTrainingSession = useCallback(async (source) => {
+    const date = todayStr();
+    const sets = (source.sets ?? []).map((set, index) => ({
+      exercise_name: set.exercise_name,
+      set_index: set.set_index ?? index + 1,
+      weight_lbs: Number(set.weight_lbs) || 0,
+      reps: Number(set.reps) || 0,
+      duration_seconds: set.duration_seconds,
+      distance_miles: set.distance_miles,
+      rest_seconds: set.rest_seconds,
+      notes: set.notes
+    }));
+    const setCounts = sets.reduce((counts, set) => {
+      if (set.exercise_name) counts.set(set.exercise_name, (counts.get(set.exercise_name) ?? 0) + 1);
+      return counts;
+    }, new Map());
+    const byExercise = new Map();
+    for (const set of sets) {
+      if (!set.exercise_name || !set.weight_lbs || !set.reps) continue;
+      const estimate = estimateOneRepMax(set.weight_lbs, set.reps);
+      const current = byExercise.get(set.exercise_name);
+      if (!current || estimate > current.estimated_1rm) {
+        byExercise.set(set.exercise_name, {
+          date,
+          lift_name: set.exercise_name,
+          weight: set.weight_lbs,
+          reps: set.reps,
+          sets: setCounts.get(set.exercise_name) ?? 1,
+          estimated_1rm: estimate
+        });
+      }
+    }
+    return saveTrainingSession({
+      session: {
+        date,
+        type: source.type ?? "strength",
+        title: source.title || (source.type === "cardio" ? "Cardio" : "Strength"),
+        duration_minutes: source.duration_minutes,
+        calories_estimated: source.calories_estimated,
+        perceived_exertion: source.perceived_exertion,
+        muscle_groups: source.muscle_groups ?? [],
+        cardio_distance_miles: source.cardio_distance_miles,
+        cardio_avg_heart_rate: source.cardio_avg_heart_rate,
+        sets,
+        notes: source.notes
+      },
+      strengthEntries: [...byExercise.values()],
+      markDaily: true
+    });
+  }, [saveTrainingSession]);
+
   const deleteSession = useCallback(async (id) => {
     const session = sessionsRef.current.find((item) => item.id === id);
     try {
@@ -929,6 +980,7 @@ export function RecompProvider({ children }) {
       archiveHabit,
       addSession,
       saveTrainingSession,
+      repeatTrainingSession,
       deleteSession,
       updateSession,
       saveTrainingBlock,
@@ -959,6 +1011,7 @@ export function RecompProvider({ children }) {
       archiveHabit,
       addSession,
       saveTrainingSession,
+      repeatTrainingSession,
       deleteSession,
       updateSession,
       saveTrainingBlock,
