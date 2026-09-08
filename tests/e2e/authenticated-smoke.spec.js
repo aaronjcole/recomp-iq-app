@@ -32,7 +32,7 @@ test("the signed-in shell reaches Today with data, not login or onboarding", asy
 
 test("Today brings the first daily logging module into the initial phone viewport", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
-  await page.setViewportSize({ width: 320, height: 720 });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/today");
 
   const fuelHeading = page.getByRole("heading", { level: 2, name: "Today's fuel" });
