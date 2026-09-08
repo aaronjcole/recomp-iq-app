@@ -9,6 +9,23 @@
     "name": {
       "type": "string"
     },
+    "system_key": {
+      "type": "string",
+      "enum": [
+        "default_water",
+        "default_read",
+        "default_meditate"
+      ],
+      "description": "Server-managed identity for a starter habit.",
+      "rls": {
+        "read": true,
+        "write": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
+    },
     "kind": {
       "type": "string",
       "enum": [
