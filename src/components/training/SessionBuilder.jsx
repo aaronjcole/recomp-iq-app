@@ -41,14 +41,17 @@ export default function SessionBuilder({ prefill = null }) {
       : [];
 
   const [date, setDate] = useState(todayStr());
-  const [type, setType] = useState("strength");
+  const [type, setType] = useState(prefill?.type ?? "strength");
   const [title, setTitle] = useState(prefill?.title ?? "");
-  const [duration, setDuration] = useState("");
-  const [rpe, setRpe] = useState("");
+  const [duration, setDuration] = useState(prefill?.duration != null ? String(prefill.duration) : "");
+  const [rpe, setRpe] = useState(prefill?.rpe != null ? String(prefill.rpe) : "");
   const [muscleGroups, setMuscleGroups] = useState(prefill?.muscleGroups ?? []);
   const [muscleInput, setMuscleInput] = useState("");
   const [lifts, setLifts] = useState(initLifts);
-  const [cardio, setCardio] = useState({ distance: "", hr: "" });
+  const [cardio, setCardio] = useState({
+    distance: prefill?.cardio?.distance != null ? String(prefill.cardio.distance) : "",
+    hr: prefill?.cardio?.hr != null ? String(prefill.cardio.hr) : ""
+  });
   const [saving, setSaving] = useState(false);
 
   const isStrength = type === "strength" || type === "mixed";

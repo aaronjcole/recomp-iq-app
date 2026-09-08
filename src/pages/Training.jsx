@@ -23,12 +23,44 @@ export default function Training() {
   const prefillKey = useRef(0);
   useEffect(() => {
     if (location.state?.planSession) {
+      const incoming = location.state.planSession;
       prefillKey.current += 1;
-      setPrefill(location.state.planSession);
+      setPrefill(incoming.prefill ? { ...incoming.prefill, blockId: incoming.blockId, dayIndex: incoming.dayIndex, sessionId: incoming.sessionId } : incoming);
       // Clear the state so a back-nav doesn't re-trigger it
       window.history.replaceState({ ...window.history.state, usr: undefined }, "");
     }
   }, [location.state?.planSession]);
+
+  const reuseHistorySession = (session) => {
+    const grouped = new Map();
+    for (const set of session.sets ?? []) {
+      if (!set?.exercise_name) continue;
+      const current = grouped.get(set.exercise_name) ?? {
+        name: set.exercise_name,
+        weight: set.weight_lbs ?? "",
+        reps: set.reps ?? "",
+        sets: 0
+      };
+      current.sets += 1;
+      grouped.set(set.exercise_name, current);
+    }
+    prefillKey.current += 1;
+    setPrefill({
+      title: session.title ?? "",
+      type: session.type ?? "strength",
+      duration: session.duration_minutes ?? "",
+      rpe: session.perceived_exertion ?? "",
+      muscleGroups: session.muscle_groups ?? [],
+      lifts: [...grouped.values()],
+      cardio: {
+        distance: session.cardio_distance_miles ?? "",
+        hr: session.cardio_avg_heart_rate ?? ""
+      }
+    });
+    window.setTimeout(() => {
+      document.getElementById("session-builder")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
 
   return (
     <PullToRefresh onRefresh={reload}>
@@ -64,8 +96,10 @@ export default function Training() {
         <StrengthProgressionCard />
         <PlateauAlertCard />
         <WorkoutTracker />
-        <SessionBuilder key={prefillKey.current} prefill={prefill} />
-        <SessionHistory />
+        <div id="session-builder" className="scroll-mt-4">
+          <SessionBuilder key={prefillKey.current} prefill={prefill} />
+        </div>
+        <SessionHistory onReuse={reuseHistorySession} />
       </div>
     </PullToRefresh>
   );

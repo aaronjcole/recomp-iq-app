@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dumbbell, Pencil, Trash2 } from "lucide-react";
+import { CopyPlus, Dumbbell, Loader2, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import SessionEditSheet from "./SessionEditSheet";
+import { useToast } from "@/components/ui/use-toast";
 
 function parseDate(s) {
   const [y, m, d] = s.split("-").map(Number);
@@ -39,12 +40,27 @@ function summarizeSets(sets) {
   return [...map.values()];
 }
 
-export default function SessionHistory() {
+export default function SessionHistory({ onReuse }) {
   const { sessions } = useRecompRef();
-  const { deleteSession } = useRecompActions();
+  const { deleteSession, repeatTrainingSession } = useRecompActions();
+  const { toast } = useToast();
   const [confirmId, setConfirmId] = useState(null);
   const [editSession, setEditSession] = useState(null);
   const [visibleDayCount, setVisibleDayCount] = useState(INITIAL_DAY_LIMIT);
+  const [repeatingId, setRepeatingId] = useState(null);
+
+  const repeat = async (session) => {
+    if (repeatingId) return;
+    setRepeatingId(session.id);
+    try {
+      await repeatTrainingSession(session);
+      toast({ title: "Workout logged again", description: `${session.title} was added to today.` });
+    } catch {
+      toast({ title: "Couldn't repeat workout", variant: "destructive" });
+    } finally {
+      setRepeatingId(null);
+    }
+  };
 
   const days = useMemo(() => {
     const map = new Map();
@@ -61,7 +77,7 @@ export default function SessionHistory() {
 
   return (
     <>
-    <Card className="bg-panel border-line">
+    <Card role="region" aria-label="Training history" className="bg-panel border-line">
       <CardContent className="p-5">
         <h2 className="font-mono text-label uppercase tracking-wider text-muted-foreground mb-3">Training history</h2>
         {sessions.length === 0 ? (
@@ -111,6 +127,27 @@ export default function SessionHistory() {
                                   ))}
                                 </div>
                               )}
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => onReuse?.(s)}
+                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-line px-2 text-xs font-medium text-foreground hover:bg-panel2"
+                                  aria-label={`Use ${s.title || TYPE_LABEL[s.type] || "session"} as template`}
+                                >
+                                  <CopyPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Use template
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => repeat(s)}
+                                  disabled={!!repeatingId}
+                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-teal/10 px-2 text-xs font-medium text-teal hover:bg-teal/20 disabled:opacity-50"
+                                  aria-label={`Log ${s.title || TYPE_LABEL[s.type] || "session"} again`}
+                                >
+                                  {repeatingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
+                                  Log again
+                                </button>
+                              </div>
                             </div>
                             {confirmId === s.id ? (
                               <div className="flex items-center gap-1 shrink-0">
