@@ -31,9 +31,10 @@ export default function Today() {
     const el = document.getElementById(state.scrollTo);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [state?.scrollTo]);
+  const sleepReferenceDate = todayStr();
   const sleepSummary = useMemo(
-    () => summarizeSleep(logs, { referenceDate: todayStr() }),
-    [logs]
+    () => summarizeSleep(logs, { referenceDate: sleepReferenceDate }),
+    [logs, sleepReferenceDate]
   );
 
   if (!strategy) return (

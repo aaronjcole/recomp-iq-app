@@ -63,7 +63,7 @@ test("free sleep insights update through the canonical daily log", async ({ page
   await expect(sleep.getByText("7.0h", { exact: true })).toBeVisible();
   await expect(sleep.getByText("Included", { exact: true })).toBeVisible();
 
-  await sleep.getByRole("button", { name: "Log sleep" }).click();
+  await sleep.getByRole("button", { name: "Update sleep" }).click();
   const sheet = page.getByRole("dialog", { name: "Log today" });
   await sheet.getByLabel("Sleep hours").fill("7.8");
   await sheet.getByRole("button", { name: "Sleep quality (1-5)" }).click();

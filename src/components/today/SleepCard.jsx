@@ -24,7 +24,7 @@ function guidance(summary) {
   if (summary.shortNights >= 3) {
     return "Your average is holding, but several short nights may still make recovery feel uneven.";
   }
-  return "Recent sleep supports your current recovery rhythm. Consistency is the next win.";
+  return "Recent sleep is meeting the general adult reference. Continue logging to track consistency.";
 }
 
 export default function SleepCard({ todayLog, summary, onLog }) {
@@ -52,7 +52,12 @@ export default function SleepCard({ todayLog, summary, onLog }) {
                 <p className="text-xs text-muted-foreground">A clear trend from the nights you log</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={onLog} aria-label="Log sleep">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onLog}
+              aria-label={hasLastNight ? "Update sleep" : "Log sleep"}
+            >
               <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
               {hasLastNight ? "Update" : "Log"}
             </Button>
