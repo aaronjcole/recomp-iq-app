@@ -30,9 +30,11 @@ test("Weekly Autopilot stays in the Today tab and is gated in UI and backend", (
   const app = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
   const page = readFileSync(resolve(repoRoot, "src/pages/WeeklyAutopilot.jsx"), "utf8");
   const today = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
+  const thisWeek = readFileSync(resolve(repoRoot, "src/components/today/ThisWeekCard.jsx"), "utf8");
 
   assert.match(app, /path=["']\/today\/autopilot["']/);
   assert.match(page, /canAccess\(PREMIUM_FEATURES\.WEEKLY_AUTOPILOT\)/);
   assert.match(page, /generateWeeklyAutopilot/);
-  assert.match(today, /to=["']\/today\/autopilot["']/);
+  assert.match(today, /<ThisWeekCard/);
+  assert.match(thisWeek, /to=["']\/today\/autopilot["']/);
 });
