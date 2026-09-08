@@ -13,11 +13,34 @@ import {
   estimateOneRepMax
 } from "@/lib/fitness";
 import { trackEvent } from "@/lib/telemetry";
+import { featureFlags } from "@/lib/featureFlags";
 
 const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
 const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
 const ActionsCtx = createContext(null);
 const HabitsCtx = createContext(null);
+
+const FOOD_TOTAL_FIELDS = ["calories", "protein_g", "carbs_g", "fat_g"];
+
+function foodTotals(items) {
+  return FOOD_TOTAL_FIELDS.reduce((totals, field) => {
+    totals[field] = items.reduce((sum, item) => sum + (Number(item?.[field]) || 0), 0);
+    return totals;
+  }, {});
+}
+
+function foodEntryPayload(entry) {
+  const {
+    id: _id,
+    created_date: _createdDate,
+    updated_date: _updatedDate,
+    created_by: _createdBy,
+    created_by_id: _createdById,
+    pending: _pending,
+    ...payload
+  } = entry;
+  return payload;
+}
 
 // Stable actions live in their own context so components that only invoke
 // actions (never read state) stop re-rendering on unrelated data changes.
@@ -136,6 +159,7 @@ export function RecompProvider({ children }) {
   const [strengthLogs, setStrengthLogs] = useState([]);
   const [checkIns, setCheckIns] = useState([]);
   const [foods, setFoods] = useState([]);
+  const [foodLogEntries, setFoodLogEntries] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [decisionLedger, setDecisionLedger] = useState([]);
   const [mealTemplates, setMealTemplates] = useState([]);
@@ -150,6 +174,7 @@ export function RecompProvider({ children }) {
   const sessionsRef = useRef(sessions);
   const habitEntriesRef = useRef(habitEntries);
   const activeBlockRef = useRef(null);
+  const foodLogEntriesRef = useRef([]);
   const dailyQueues = useRef(new Map());
   const habitQueues = useRef(new Map());
 
@@ -174,6 +199,9 @@ export function RecompProvider({ children }) {
   useEffect(() => {
     activeBlockRef.current = activeBlock;
   }, [activeBlock]);
+  useEffect(() => {
+    foodLogEntriesRef.current = foodLogEntries;
+  }, [foodLogEntries]);
 
   const setLogsCurrent = useCallback((nextOrUpdater) => {
     const next = typeof nextOrUpdater === "function"
@@ -206,6 +234,14 @@ export function RecompProvider({ children }) {
     });
   }, []);
 
+  const setFoodLogEntriesCurrent = useCallback((nextOrUpdater) => {
+    setFoodLogEntries((previous) => {
+      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      foodLogEntriesRef.current = next;
+      return next;
+    });
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -224,7 +260,10 @@ export function RecompProvider({ children }) {
         base44.entities.MealTemplate.list("-created_date", 200),
         base44.entities.Habit.list("-sort_order", 200),
         base44.entities.HabitEntry.list("-date", 500),
-        base44.entities.TrainingBlock.filter({ status: "active" }, "-created_date", 1).catch(() => [])
+        base44.entities.TrainingBlock.filter({ status: "active" }, "-created_date", 1).catch(() => []),
+        featureFlags.itemizedFoodDiary
+          ? base44.entities.FoodLogEntry.list("-date", 500)
+          : Promise.resolve([])
       ]);
       const loadedProfile = results[0][0] ?? null;
       const loadedPreferences = results[1][0] ?? null;
@@ -232,6 +271,7 @@ export function RecompProvider({ children }) {
       const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
       const loadedHabitEntries = newestByKey(results[12], (item) => `${item.habit_id}:${item.date}`);
       const loadedActiveBlock = results[13]?.[0] ?? null;
+      const loadedFoodLogEntries = results[14] ?? [];
       profileRef.current = loadedProfile;
       preferencesRef.current = loadedPreferences;
       strategyRef.current = loadedStrategy;
@@ -243,6 +283,7 @@ export function RecompProvider({ children }) {
       setStrengthLogsCurrent(results[5]);
       setCheckIns(results[6]);
       setFoods(results[7]);
+      setFoodLogEntriesCurrent(loadedFoodLogEntries);
       setRecipes(results[8]);
       setDecisionLedger(results[9]);
       setMealTemplates(results[10]);
@@ -265,7 +306,7 @@ export function RecompProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
+  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
   useEffect(() => {
     loadAll();
@@ -667,6 +708,123 @@ export function RecompProvider({ children }) {
     return created;
   }, []);
 
+  const adjustDailyNutrition = useCallback(
+    (date, delta) => upsertDailyLog(date, (current) =>
+      FOOD_TOTAL_FIELDS.reduce((fields, field) => {
+        fields[field] = Math.max(0, (Number(current?.[field]) || 0) + (Number(delta?.[field]) || 0));
+        return fields;
+      }, {})
+    ),
+    [upsertDailyLog]
+  );
+
+  const logFoodEntries = useCallback(async (entries) => {
+    if (!entries.length) return [];
+    const date = entries[0].date;
+    if (!date || entries.some((entry) => entry.date !== date)) {
+      throw new Error("Food entries must share one valid date");
+    }
+
+    const optimistic = entries.map((entry, index) => ({
+      ...foodEntryPayload(entry),
+      id: `food-log-pending-${Date.now()}-${index}`,
+      pending: true
+    }));
+    setFoodLogEntriesCurrent((previous) => [...optimistic, ...previous]);
+
+    const created = [];
+    try {
+      for (const entry of entries) {
+        created.push(await base44.entities.FoodLogEntry.create(foodEntryPayload(entry)));
+      }
+      await adjustDailyNutrition(date, foodTotals(entries));
+      const optimisticIds = new Set(optimistic.map((entry) => entry.id));
+      setFoodLogEntriesCurrent((previous) => [
+        ...created,
+        ...previous.filter((entry) => !optimisticIds.has(entry.id))
+      ]);
+      return created;
+    } catch (error) {
+      await Promise.allSettled(created.map((entry) => base44.entities.FoodLogEntry.delete(entry.id)));
+      const optimisticIds = new Set(optimistic.map((entry) => entry.id));
+      setFoodLogEntriesCurrent((previous) => previous.filter((entry) => !optimisticIds.has(entry.id)));
+      throw error;
+    }
+  }, [adjustDailyNutrition, setFoodLogEntriesCurrent]);
+
+  const logFoodEntry = useCallback(
+    async (entry) => (await logFoodEntries([entry]))[0],
+    [logFoodEntries]
+  );
+
+  const updateFoodLogEntry = useCallback(async (id, changes) => {
+    const previous = foodLogEntriesRef.current.find((entry) => entry.id === id);
+    if (!previous) throw new Error("Food entry not found");
+    const next = { ...previous, ...changes };
+    setFoodLogEntriesCurrent((entries) => entries.map((entry) => entry.id === id ? next : entry));
+    try {
+      const updated = await base44.entities.FoodLogEntry.update(id, foodEntryPayload(next));
+      const previousTotals = foodTotals([previous]);
+      const nextTotals = foodTotals([next]);
+      const delta = FOOD_TOTAL_FIELDS.reduce((value, field) => {
+        value[field] = nextTotals[field] - previousTotals[field];
+        return value;
+      }, {});
+      await adjustDailyNutrition(previous.date, delta);
+      setFoodLogEntriesCurrent((entries) => entries.map((entry) => entry.id === id ? updated : entry));
+      return updated;
+    } catch (error) {
+      await base44.entities.FoodLogEntry.update(id, foodEntryPayload(previous)).catch(() => undefined);
+      setFoodLogEntriesCurrent((entries) => entries.map((entry) => entry.id === id ? previous : entry));
+      throw error;
+    }
+  }, [adjustDailyNutrition, setFoodLogEntriesCurrent]);
+
+  const deleteFoodLogEntry = useCallback(async (id) => {
+    const previous = foodLogEntriesRef.current.find((entry) => entry.id === id);
+    if (!previous) throw new Error("Food entry not found");
+    setFoodLogEntriesCurrent((entries) => entries.filter((entry) => entry.id !== id));
+    let deletedRemotely = false;
+    try {
+      await base44.entities.FoodLogEntry.delete(id);
+      deletedRemotely = true;
+      const totals = foodTotals([previous]);
+      await adjustDailyNutrition(previous.date, FOOD_TOTAL_FIELDS.reduce((delta, field) => {
+        delta[field] = -totals[field];
+        return delta;
+      }, {}));
+      return previous;
+    } catch (error) {
+      let restored = deletedRemotely ? null : previous;
+      if (deletedRemotely) {
+        try {
+          restored = await base44.entities.FoodLogEntry.create(foodEntryPayload(previous));
+        } catch {
+          await loadAll();
+        }
+      }
+      if (restored) {
+        setFoodLogEntriesCurrent((entries) => [restored, ...entries.filter((entry) => entry.id !== restored.id)]);
+      }
+      throw error;
+    }
+  }, [adjustDailyNutrition, loadAll, setFoodLogEntriesCurrent]);
+
+  const repeatFoodLogEntry = useCallback(
+    (entry, date = todayStr()) => logFoodEntry({
+      ...foodEntryPayload(entry),
+      date,
+      source: "repeat",
+      repeated_from_id: entry.id
+    }),
+    [logFoodEntry]
+  );
+
+  const restoreFoodLogEntry = useCallback(
+    (entry) => logFoodEntry({ ...foodEntryPayload(entry), source: "repeat", repeated_from_id: entry.id }),
+    [logFoodEntry]
+  );
+
   const addStrengthLog = useCallback(async (data) => {
     const created = await base44.entities.StrengthLog.create(data);
     setStrengthLogsCurrent((prev) => [created, ...prev]);
@@ -681,14 +839,30 @@ export function RecompProvider({ children }) {
 
   const logMealTemplate = useCallback(
     async (template) => {
-      await upsertDailyLog(todayStr(), (current) => ({
-        calories: (current?.calories ?? 0) + (template.total_calories ?? 0),
-        protein_g: (current?.protein_g ?? 0) + (template.total_protein_g ?? 0),
-        carbs_g: (current?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
-        fat_g: (current?.fat_g ?? 0) + (template.total_fat_g ?? 0)
-      }));
+      if (!featureFlags.itemizedFoodDiary) {
+        await upsertDailyLog(todayStr(), (current) => ({
+          calories: (current?.calories ?? 0) + (template.total_calories ?? 0),
+          protein_g: (current?.protein_g ?? 0) + (template.total_protein_g ?? 0),
+          carbs_g: (current?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
+          fat_g: (current?.fat_g ?? 0) + (template.total_fat_g ?? 0)
+        }));
+        return;
+      }
+      await logFoodEntries((template.items ?? []).map((item) => ({
+        date: todayStr(),
+        meal: "other",
+        name: item.name,
+        serving_description: item.serving_description || "1 serving",
+        quantity: 1,
+        calories: item.calories ?? 0,
+        protein_g: item.protein_g ?? 0,
+        carbs_g: item.carbs_g ?? 0,
+        fat_g: item.fat_g ?? 0,
+        fiber_g: item.fiber_g ?? 0,
+        source: "template"
+      })));
     },
-    [upsertDailyLog]
+    [logFoodEntries, upsertDailyLog]
   );
 
   const addRecipe = useCallback(async (data) => {
@@ -760,6 +934,12 @@ export function RecompProvider({ children }) {
       saveTrainingBlock,
       completeBlockSession,
       addFood,
+      logFoodEntry,
+      logFoodEntries,
+      updateFoodLogEntry,
+      deleteFoodLogEntry,
+      repeatFoodLogEntry,
+      restoreFoodLogEntry,
       addStrengthLog,
       saveMealTemplate,
       logMealTemplate,
@@ -784,6 +964,12 @@ export function RecompProvider({ children }) {
       saveTrainingBlock,
       completeBlockSession,
       addFood,
+      logFoodEntry,
+      logFoodEntries,
+      updateFoodLogEntry,
+      deleteFoodLogEntry,
+      repeatFoodLogEntry,
+      restoreFoodLogEntry,
       addStrengthLog,
       saveMealTemplate,
       logMealTemplate,
@@ -805,6 +991,7 @@ export function RecompProvider({ children }) {
       strengthLogs,
       checkIns,
       foods,
+      foodLogEntries,
       recipes,
       decisionLedger,
       mealTemplates,
@@ -821,6 +1008,7 @@ export function RecompProvider({ children }) {
       strengthLogs,
       checkIns,
       foods,
+      foodLogEntries,
       recipes,
       decisionLedger,
       mealTemplates,

@@ -1,0 +1,139 @@
+{
+  "name": "FoodLogEntry",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "meal": {
+      "type": "string",
+      "enum": [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack",
+        "other"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "serving_description": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "quantity": {
+      "type": "number",
+      "minimum": 0.01,
+      "maximum": 1000
+    },
+    "calories": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20000
+    },
+    "protein_g": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
+    },
+    "carbs_g": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3000
+    },
+    "fat_g": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
+    },
+    "fiber_g": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "library",
+        "barcode",
+        "photo",
+        "template",
+        "repeat"
+      ]
+    },
+    "source_food_id": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "repeated_from_id": {
+      "type": "string",
+      "maxLength": 128
+    }
+  },
+  "required": [
+    "date",
+    "meal",
+    "name",
+    "serving_description",
+    "quantity",
+    "calories",
+    "protein_g",
+    "carbs_g",
+    "fat_g",
+    "source"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
