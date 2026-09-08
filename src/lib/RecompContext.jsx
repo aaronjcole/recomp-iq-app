@@ -14,6 +14,7 @@ import {
 } from "@/lib/fitness";
 import { trackEvent } from "@/lib/telemetry";
 import { featureFlags } from "@/lib/featureFlags";
+import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
 
 const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
 const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
@@ -287,20 +288,20 @@ export function RecompProvider({ children }) {
       setRecipes(results[8]);
       setDecisionLedger(results[9]);
       setMealTemplates(results[10]);
-      const habitList = results[11];
-      setHabitEntriesCurrent(loadedHabitEntries);
+      let habitList = results[11];
+      let normalizedHabitEntries = loadedHabitEntries;
       activeBlockRef.current = loadedActiveBlock;
       setActiveBlock(loadedActiveBlock);
-      if (habitList.length > 0) {
-        setHabits(habitList);
-      } else {
-        const seeded = await Promise.all([
-          base44.entities.Habit.create({ name: "Water", kind: "count", target_value: 100, unit: "oz", sort_order: 0 }),
-          base44.entities.Habit.create({ name: "Read", kind: "check", sort_order: 1 }),
-          base44.entities.Habit.create({ name: "Meditate", kind: "check", sort_order: 2 })
-        ]);
-        setHabits(seeded.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
+      if (needsDefaultHabitReconciliation(habitList)) {
+        const ensured = await base44.functions.invoke("ensureDefaultHabits", {});
+        habitList = ensured?.data?.habits ?? habitList;
+        normalizedHabitEntries = newestByKey(
+          ensured?.data?.habit_entries ?? loadedHabitEntries,
+          (item) => `${item.habit_id}:${item.date}`
+        );
       }
+      setHabits(habitList);
+      setHabitEntriesCurrent(normalizedHabitEntries);
     } catch (error) {
       setLoadError(error instanceof Error ? error : new Error("Unable to load your data."));
     } finally {
