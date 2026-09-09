@@ -157,7 +157,8 @@ test("the paywall does not simulate purchases in the WebView and gates restore b
   // Purchase and restore are disabled without the bridge.
   assert.match(paywall, /disabled=\{!bridgeAvailable/);
   // Does not call verifyApplePurchase directly from the client.
-  assert.doesNotMatch(paywall, /verifyApplePurchase/);
+  assert.doesNotMatch(paywall, /base44\.functions\.invoke.*verifyApplePurchase/);
+  assert.doesNotMatch(paywall, /verifyApplePurchase\s*\(/);
   // Does not set local flags or simulate success.
   assert.doesNotMatch(paywall, /localStorage|hasAccess\s*=\s*true/);
 

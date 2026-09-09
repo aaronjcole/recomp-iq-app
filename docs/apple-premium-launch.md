@@ -53,9 +53,9 @@ Set these in the Base44 dashboard → Settings → Secrets:
 |---|---|---|
 | `APPLE_ISSUER_ID` | App Store Connect API issuer ID | ✅ already set |
 | `APPLE_KEY_ID` | App Store Connect API key ID (tied to the .p8 key) | ✅ already set |
-| `APPLE_BUNDLE_ID` | `com.fitnesstrackerapps.recompone` | ❌ **set this** |
-| `APPLE_PRIVATE_KEY` | Contents of the Apple .p8 private key (PEM body, no `-----` header/footer lines) | ❌ **set this** |
-| `APPLE_APP_ID` | Apple App ID prefix (optional, for notification validation) | optional |
+| `APPLE_BUNDLE_ID` | `com.fitnesstrackerapps.recompone` | ✅ set |
+| `APPLE_PRIVATE_KEY` | Contents of the Apple .p8 private key (PEM body, no `-----` header/footer lines) | ✅ set |
+| `APPLE_APP_ID` | Apple App ID prefix (optional, for notification validation) | ✅ set |
 | `PREMIUM_TESTER_EMAILS` | Comma-separated tester emails (testing only — clear before launch) | ✅ already set |
 
 ## How to configure App Store Server Notifications V2
