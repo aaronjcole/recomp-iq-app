@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Bot, CalendarDays, Dumbbell, ScanLine, Sparkles } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
+import PremiumPaywall from "@/components/premium/PremiumPaywall";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
@@ -73,7 +74,7 @@ const FEATURES = [
 ];
 
 export default function Premium() {
-  const { canAccess, testerAccess, isLoading, isUnavailable } = usePremiumAccess();
+  const { canAccess, hasAnyAccess, testerAccess, isLoading, isUnavailable } = usePremiumAccess();
 
   return (
     <div className="space-y-5">
@@ -98,6 +99,8 @@ export default function Premium() {
           )}
         </CardContent>
       </Card>
+
+      {!hasAnyAccess && !testerAccess && <PremiumPaywall />}
 
       <div className="space-y-3" aria-label="Premium feature catalog">
         {FEATURES.map(({ key, icon: Icon, title, actionLabel, description, to, preview }) => {

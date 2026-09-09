@@ -15,6 +15,26 @@ export const PREMIUM_PRODUCTS = Object.freeze({
   AI_LIFESTYLE_COACH: "ai_lifestyle_coach_premium"
 });
 
+// Apple App Store StoreKit product IDs. Both map to the same all-in-one
+// recompone_premium entitlement — there is only one premium tier.
+export const APPLE_STORE_PRODUCTS = Object.freeze({
+  MONTHLY: "recompone_premium_monthly",
+  ANNUAL: "recompone_premium_annual"
+});
+
+const APPLE_PRODUCT_TO_ENTITLEMENT = Object.freeze({
+  [APPLE_STORE_PRODUCTS.MONTHLY]: PREMIUM_PRODUCTS.BUNDLE,
+  [APPLE_STORE_PRODUCTS.ANUAL]: PREMIUM_PRODUCTS.BUNDLE
+});
+
+export function isAppleStoreProduct(appleProductId) {
+  return Boolean(APPLE_PRODUCT_TO_ENTITLEMENT[appleProductId]);
+}
+
+export function mapAppleProductId(appleProductId) {
+  return APPLE_PRODUCT_TO_ENTITLEMENT[appleProductId] ?? null;
+}
+
 const BUNDLE_FEATURES = Object.freeze([
   "meal_planning",
   "training_planning",

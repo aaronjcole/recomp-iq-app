@@ -1,15 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { secrets } from 'base44:runtime';
-import { PREMIUM_PRODUCTS } from "../../shared/premiumDomain.js";
+import { mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 // Required Base44 app Secrets (set before going live):
 //   APPLE_ISSUER_ID      — App Store Connect API issuer ID
 //   APPLE_KEY_ID         — App Store Connect API key ID tied to the .p8 private key
-//   APPLE_BUNDLE_ID      — iOS app bundle ID configured in App Store Connect
+//   APPLE_BUNDLE_ID       — iOS app bundle ID configured in App Store Connect
+//                           (com.fitnesstrackerapps.recompone)
 //   APPLE_PRIVATE_KEY    — contents of the Apple .p8 private key (PEM body, no header/footer)
-
-const VALID_PRODUCT_IDS = new Set(Object.values(PREMIUM_PRODUCTS));
+//
+// This endpoint handles BOTH initial purchase verification AND restore.
+// The native client calls it with { transactionId, productId } after any
+// StoreKit purchase or restore completes. The server verifies the
+// transaction with Apple's App Store Server API and upserts the
+// entitlement idempotently.
 
 function b64url(obj) {
   return btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -68,23 +73,30 @@ async function makeAppleServerJwt() {
 }
 
 // Fetches transaction info from the App Store Server API and decodes the signed payload.
-// Returns { isValid, expiresAt, originalTransactionId }.
+// Returns { isValid, expiresAt, originalTransactionId, bundleId }.
 // Docs: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
 async function verifyWithApple(transactionId, expectedProductId) {
   const jwt = await makeAppleServerJwt();
   const url = `https://api.storekit.itunes.apple.com/inApps/v1/transactions/${encodeURIComponent(transactionId)}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
-  if (res.status === 404) return { isValid: false, expiresAt: null, originalTransactionId: null };
+  if (res.status === 404) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
   if (!res.ok) throw new Error(`App Store Server API returned ${res.status}`);
 
   const body = await res.json();
   const transactionInfo = body?.signedTransactionInfo
     ? decodeJwsPayload(body.signedTransactionInfo)
     : null;
-  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null };
+  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
 
+  // Verify the product ID matches what the client claims.
   if (transactionInfo.productId !== expectedProductId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null };
+    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+  }
+
+  // Verify the bundle ID matches the configured app to prevent cross-app replay.
+  const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
+  if (expectedBundleId && transactionInfo.bundleId && transactionInfo.bundleId !== expectedBundleId) {
+    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId };
   }
 
   // Revocation indicates a refund or voided purchase.
@@ -100,7 +112,8 @@ async function verifyWithApple(transactionId, expectedProductId) {
   return {
     isValid,
     expiresAt,
-    originalTransactionId: transactionInfo.originalTransactionId ?? transactionId
+    originalTransactionId: transactionInfo.originalTransactionId ?? transactionId,
+    bundleId: transactionInfo.bundleId ?? null
   };
 }
 
@@ -139,9 +152,14 @@ export default async function(req) {
   const productId = typeof body?.productId === "string" ? body.productId.trim() : "";
 
   if (!transactionId) return json({ error: "transactionId is required" }, { status: 400 });
-  if (!productId || !VALID_PRODUCT_IDS.has(productId)) {
+  // Only the two configured Apple StoreKit product IDs are accepted.
+  if (!productId || !isAppleStoreProduct(productId)) {
     return json({ error: "productId is not recognized" }, { status: 400 });
   }
+
+  // Map the Apple StoreKit product to the internal entitlement product.
+  // Both recompone_premium_monthly and recompone_premium_annual map to recompone_premium.
+  const entitlementProductId = mapAppleProductId(productId);
 
   let verification;
   try {
@@ -151,14 +169,16 @@ export default async function(req) {
     return json({ error: "Could not verify the purchase with Apple" }, { status: 502 });
   }
 
+  // Fail closed: an unavailable or failed validation must not unlock Premium.
   if (!verification.isValid) {
     return json({ error: "Purchase is not active" }, { status: 402 });
   }
 
   try {
     // Upsert: update an existing apple_store entitlement for this user+product, or create one.
+    // This is idempotent — duplicate calls for the same transaction update the same record.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { owner_id: user.id, product_id: productId, source: "apple_store" },
+      { owner_id: user.id, product_id: entitlementProductId, source: "apple_store" },
       "-created_date",
       1
     );
@@ -172,7 +192,7 @@ export default async function(req) {
     } else {
       await base44.asServiceRole.entities.PremiumEntitlement.create({
         owner_id: user.id,
-        product_id: productId,
+        product_id: entitlementProductId,
         source: "apple_store",
         status: "active",
         ...(verification.expiresAt ? { expires_at: verification.expiresAt } : {}),
@@ -180,7 +200,7 @@ export default async function(req) {
       });
     }
 
-    return json({ ok: true });
+    return json({ ok: true, entitlementProductId });
   } catch (error) {
     console.error("verifyApplePurchase entitlement write failed", safeErrorDetails(error));
     return json({ error: "Could not record the entitlement" }, { status: 500 });

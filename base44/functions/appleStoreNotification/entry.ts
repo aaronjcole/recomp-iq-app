@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { verifyAppleNotificationJws, verifyInnerJws } from "../../shared/appleJwsVerify.js";
+import { isAppleStoreProduct } from "../../shared/premiumDomain.js";
 
 // App Store Server Notifications V2 webhook.
 // Configure in App Store Connect to POST to:
@@ -63,10 +64,14 @@ export default async function(req) {
   const productId = transactionInfo.productId;
   const originalTransactionId = transactionInfo.originalTransactionId;
   if (!productId || !originalTransactionId) return json({ ok: true });
+  if (!isAppleStoreProduct(productId)) return json({ ok: true });
 
   try {
+    // Match by external_transaction_id (Apple originalTransactionId), which is
+    // stable across notifications. The entitlement product_id is the internal
+    // recompone_premium ID, not the Apple StoreKit product ID.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { product_id: productId, external_transaction_id: originalTransactionId, source: "apple_store" },
+      { external_transaction_id: originalTransactionId, source: "apple_store" },
       "-created_date",
       50
     );
