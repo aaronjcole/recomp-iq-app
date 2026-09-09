@@ -24,11 +24,12 @@ test("monthly Apple StoreKit product maps to the recompone_premium entitlement",
 });
 
 test("annual Apple StoreKit product maps to the recompone_premium entitlement", () => {
+  assert.equal(APPLE_STORE_PRODUCTS.ANNUAL, "recompone_premium_annual");
   assert.equal(
-    mapAppleProductId(APPLE_STORE_PRODUCTS.ANUAL),
+    mapAppleProductId(APPLE_STORE_PRODUCTS.ANNUAL),
     PREMIUM_PRODUCTS.BUNDLE
   );
-  assert.equal(isAppleStoreProduct(APPLE_STORE_PRODUCTS.ANUAL), true);
+  assert.equal(isAppleStoreProduct(APPLE_STORE_PRODUCTS.ANNUAL), true);
 });
 
 test("unknown Apple product IDs are rejected", () => {
@@ -99,6 +100,15 @@ test("verifyApplePurchase validates Apple product IDs, maps to the bundle, verif
   assert.match(source, /product_id: entitlementProductId/);
   // Uses asServiceRole for entitlement writes.
   assert.match(source, /asServiceRole\.entities\.PremiumEntitlement/);
+  // TestFlight transactions fall back to Apple's sandbox endpoint only after
+  // the production lookup reports that the transaction was not found.
+  assert.match(source, /api\.storekit\.itunes\.apple\.com/);
+  assert.match(source, /api\.storekit-sandbox\.itunes\.apple\.com/);
+  assert.match(source, /candidate\.status === 404/);
+  // One Apple subscription lineage cannot be replayed onto another app user.
+  assert.match(source, /external_transaction_id: verification\.originalTransactionId/);
+  assert.match(source, /record\.owner_id !== user\.id/);
+  assert.match(source, /Purchase is already linked to another account/);
 });
 
 test("appleStoreNotification matches by external_transaction_id and handles revoke, expire, and renew", () => {
@@ -161,7 +171,7 @@ test("the PremiumEntitlement entity accepts apple_store as a source with admin-o
   assert.equal(Object.hasOwn(schema.properties, "receipt"), false);
 });
 
-test("the paywall does not simulate purchases in the WebView and gates restore behind a native bridge", () => {
+test("the paywall verifies through the authenticated web client before finishing StoreKit", () => {
   const paywall = readFileSync(
     resolve(repoRoot, "src/components/premium/PremiumPaywall.jsx"),
     "utf8"
@@ -175,13 +185,42 @@ test("the paywall does not simulate purchases in the WebView and gates restore b
   assert.match(paywall, /hasNativeIapBridge/);
   // Purchase and restore are disabled without the bridge.
   assert.match(paywall, /disabled=\{!bridgeAvailable/);
-  // Does not call verifyApplePurchase directly from the client.
-  assert.doesNotMatch(paywall, /base44\.functions\.invoke.*verifyApplePurchase/);
-  assert.doesNotMatch(paywall, /verifyApplePurchase\s*\(/);
+  // The signed-in web client verifies the transaction, keeping the Base44
+  // access token out of the native shell.
+  assert.match(paywall, /base44\.functions\.invoke\("verifyApplePurchase"/);
+  // StoreKit is finished only after server verification returns.
+  assert.match(paywall, /await base44\.functions\.invoke\([\s\S]*await bridge\.finishTransaction/);
   // Does not set local flags or simulate success.
   assert.doesNotMatch(paywall, /localStorage|hasAccess\s*=\s*true/);
 
-  // Bridge detection checks for IAP-specific methods.
+  // A partial bridge cannot enable purchase controls.
   assert.match(bridge, /requestPurchase/);
   assert.match(bridge, /restorePurchases/);
+  assert.match(bridge, /finishTransaction/);
+  assert.match(bridge, /requestPurchase[\s\S]*&&[\s\S]*restorePurchases[\s\S]*&&[\s\S]*finishTransaction/);
+});
+
+test("the Expo shell strictly scopes bridge messages and native StoreKit products", () => {
+  const protocol = readFileSync(
+    resolve(repoRoot, "expo-ios/src/bridgeProtocol.ts"),
+    "utf8"
+  );
+  const nativeShell = readFileSync(
+    resolve(repoRoot, "expo-ios/src/RecompOneWebView.tsx"),
+    "utf8"
+  );
+  const injectedBridge = readFileSync(
+    resolve(repoRoot, "expo-ios/src/injectedBridge.ts"),
+    "utf8"
+  );
+
+  assert.match(protocol, /https:\/\/recomp-iq\.base44\.app/);
+  assert.match(protocol, /recompone_premium_monthly/);
+  assert.match(protocol, /recompone_premium_annual/);
+  assert.match(nativeShell, /isTrustedAppUrl\(event\.nativeEvent\.url/);
+  assert.match(nativeShell, /requestPurchase\([\s\S]*type: "subs"/);
+  assert.match(nativeShell, /getAvailablePurchases/);
+  assert.match(nativeShell, /finishTransaction\(\{ purchase, isConsumable: false \}\)/);
+  assert.doesNotMatch(nativeShell, /base44_access_token|Authorization|APPLE_PRIVATE_KEY/);
+  assert.doesNotMatch(injectedBridge, /base44_access_token|Authorization|APPLE_PRIVATE_KEY/);
 });

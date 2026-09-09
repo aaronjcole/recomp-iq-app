@@ -39,3 +39,8 @@ blob-report/
 # Signed mobile release artifacts stay outside source control.
 *.aab
 *.apk
+
+# Expo local state and generated native projects. EAS regenerates ios/ from app.json.
+expo-ios/.expo/
+expo-ios/ios/
+expo-ios/android/

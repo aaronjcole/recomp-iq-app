@@ -6,7 +6,37 @@
 //
 // When the app is wrapped with Expo + react-native-iap (see
 // docs/apple-premium-launch.md), the native shell injects a bridge that
-// exposes requestPurchase and restorePurchases.
+// exposes requestPurchase, restorePurchases, and finishTransaction.
+
+/**
+ * @typedef {{ transactionId: string, productId: string }} NativePurchase
+ */
+
+/**
+ * @typedef {{
+ *   requestPurchase: (productId: string) => Promise<NativePurchase>,
+ *   restorePurchases: () => Promise<{ purchases: NativePurchase[] }>,
+ *   finishTransaction: (transactionId: string) => Promise<{ finished: true }>
+ * }} NativeIapBridge
+ */
+
+/**
+ * @param {(Window & { wixMobileNativeBridge?: any }) | null} [browserWindow]
+ * @returns {NativeIapBridge | null}
+ */
+export function getNativeIapBridge(
+  browserWindow = typeof window === "undefined" ? null : window
+) {
+  if (!browserWindow) return null;
+  const bridge = browserWindow.wixMobileNativeBridge;
+  if (!bridge || typeof bridge !== "object") return null;
+  const complete = (
+    typeof bridge.requestPurchase === "function" &&
+    typeof bridge.restorePurchases === "function" &&
+    typeof bridge.finishTransaction === "function"
+  );
+  return complete ? bridge : null;
+}
 
 /**
  * @param {(Window & { wixMobileNativeBridge?: any }) | null} [browserWindow]
@@ -14,11 +44,5 @@
 export function hasNativeIapBridge(
   browserWindow = typeof window === "undefined" ? null : window
 ) {
-  if (!browserWindow) return false;
-  const bridge = browserWindow.wixMobileNativeBridge;
-  if (!bridge || typeof bridge !== "object") return false;
-  return (
-    typeof bridge.requestPurchase === "function" ||
-    typeof bridge.restorePurchases === "function"
-  );
+  return getNativeIapBridge(browserWindow) !== null;
 }

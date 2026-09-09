@@ -80,9 +80,28 @@ async function makeAppleServerJwt() {
 // Docs: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
 async function verifyWithApple(transactionId, expectedProductId) {
   const jwt = await makeAppleServerJwt();
-  const url = `https://api.storekit.itunes.apple.com/inApps/v1/transactions/${encodeURIComponent(transactionId)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
-  if (res.status === 404) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+  const encodedTransactionId = encodeURIComponent(transactionId);
+  const hosts = [
+    "https://api.storekit.itunes.apple.com",
+    "https://api.storekit-sandbox.itunes.apple.com"
+  ];
+  let res = null;
+
+  // TestFlight and sandbox transactions are not visible at the production
+  // endpoint. Apple recommends trying production first, then sandbox only when
+  // the transaction is not found, so production purchases never depend on the
+  // sandbox service.
+  for (const host of hosts) {
+    const candidate = await fetch(
+      `${host}/inApps/v1/transactions/${encodedTransactionId}`,
+      { headers: { Authorization: `Bearer ${jwt}` } }
+    );
+    if (candidate.status === 404) continue;
+    res = candidate;
+    break;
+  }
+
+  if (!res) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
   if (!res.ok) throw new Error(`App Store Server API returned ${res.status}`);
 
   const body = await res.json();
@@ -178,6 +197,20 @@ export default async function(req) {
   }
 
   try {
+    // An Apple originalTransactionId identifies one subscription lineage. Do
+    // not allow the same Apple purchase to be replayed onto another RecompOne
+    // account, even though Apple confirms that the transaction itself is valid.
+    const transactionClaims = verification.originalTransactionId
+      ? await base44.asServiceRole.entities.PremiumEntitlement.filter(
+          { external_transaction_id: verification.originalTransactionId, source: "apple_store" },
+          "-created_date",
+          50
+        )
+      : [];
+    if (transactionClaims.some((record) => record.owner_id !== user.id)) {
+      return json({ error: "Purchase is already linked to another account" }, { status: 409 });
+    }
+
     // Upsert: update an existing apple_store entitlement for this user+product, or create one.
     // This is idempotent — duplicate calls for the same transaction update the same record.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(

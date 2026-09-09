@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
-import { hasNativeIapBridge } from "@/lib/nativeIapBridge";
+import { getNativeIapBridge, hasNativeIapBridge } from "@/lib/nativeIapBridge";
 import { useToast } from "@/components/ui/use-toast";
 
 // Apple App Store StoreKit product IDs. Both map to the same recompone_premium
@@ -51,6 +52,24 @@ const PLANS = [
   }
 ];
 
+function isNativePurchase(value) {
+  return Boolean(
+    value &&
+    typeof value.transactionId === "string" &&
+    value.transactionId.length > 0 &&
+    value.transactionId.length <= 128 &&
+    (value.productId === APPLE_PRODUCT_MONTHLY || value.productId === APPLE_PRODUCT_ANNUAL)
+  );
+}
+
+async function verifyAndFinish(bridge, purchase) {
+  await base44.functions.invoke("verifyApplePurchase", {
+    transactionId: purchase.transactionId,
+    productId: purchase.productId
+  });
+  await bridge.finishTransaction(purchase.transactionId);
+}
+
 export default function PremiumPaywall() {
   const { refresh, isUnavailable } = usePremiumAccess();
   const { toast } = useToast();
@@ -61,15 +80,20 @@ export default function PremiumPaywall() {
     if (!bridgeAvailable || isBusy) return;
     setIsBusy(true);
     try {
-      const bridge = window.wixMobileNativeBridge;
-      // The native bridge initiates the StoreKit purchase sheet.
-      // After StoreKit completes, the native shell calls verifyApplePurchase
-      // with the resulting transaction, then we refresh getPremiumAccess.
+      const bridge = getNativeIapBridge();
+      if (!bridge) throw new Error("Native StoreKit bridge is unavailable");
+      // Native presents StoreKit and returns only the transaction metadata.
+      // Verification stays in this authenticated Base44 session, so the native
+      // layer never receives the Base44 access token. StoreKit is finished only
+      // after the server has confirmed and recorded the entitlement.
       const result = await bridge.requestPurchase(productId);
-      if (result?.transactionId) {
-        await refresh();
-        toast({ title: "Premium unlocked", description: "Your subscription is active." });
+      if (!isNativePurchase(result) || result.productId !== productId) {
+        throw new Error("StoreKit returned an unexpected transaction");
       }
+      await verifyAndFinish(bridge, result);
+      const access = await refresh();
+      if (!access.hasBundleAccess) throw new Error("Premium access was not confirmed");
+      toast({ title: "Premium unlocked", description: "Your subscription is active." });
     } catch {
       toast({ title: "Purchase incomplete", description: "The purchase was not completed." });
     } finally {
@@ -81,14 +105,28 @@ export default function PremiumPaywall() {
     if (!bridgeAvailable || isBusy) return;
     setIsBusy(true);
     try {
-      const bridge = window.wixMobileNativeBridge;
-      // The native bridge restores previous StoreKit purchases.
-      // For each restored transaction, the native shell calls verifyApplePurchase.
+      const bridge = getNativeIapBridge();
+      if (!bridge) throw new Error("Native StoreKit bridge is unavailable");
+      // StoreKit returns active transactions; each one is verified through the
+      // signed-in Base44 client before native code finishes the transaction.
       const result = await bridge.restorePurchases();
-      await refresh();
+      const purchases = Array.isArray(result?.purchases)
+        ? result.purchases.filter(isNativePurchase)
+        : [];
+      let verified = 0;
+      for (const purchase of purchases) {
+        try {
+          await verifyAndFinish(bridge, purchase);
+          verified += 1;
+        } catch {
+          // Leave an unverified StoreKit transaction unfinished so it can be
+          // delivered again rather than silently granting or discarding access.
+        }
+      }
+      const access = await refresh();
       toast({
-        title: "Purchases restored",
-        description: result?.restored
+        title: access.hasBundleAccess ? "Purchases restored" : "No active purchase found",
+        description: verified > 0 && access.hasBundleAccess
           ? "Your Premium access has been restored."
           : "No previous purchases were found."
       });
