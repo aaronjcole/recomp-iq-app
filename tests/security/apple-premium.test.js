@@ -111,8 +111,10 @@ test("appleStoreNotification matches by external_transaction_id and handles revo
   assert.match(source, /verifyAppleNotificationJws/);
   // Validates the Apple product ID.
   assert.match(source, /isAppleStoreProduct\(productId\)/);
-  // Matches by external_transaction_id, not Apple product_id.
-  assert.match(source, /external_transaction_id: originalTransactionId, source: "apple_store"/);
+  // Maps the Apple product ID to the internal bundle entitlement.
+  assert.match(source, /mapAppleProductId\(productId\)/);
+  // Matches by external_transaction_id + internal product_id + apple_store source.
+  assert.match(source, /external_transaction_id: originalTransactionId, product_id: entitlementProductId, source: "apple_store"/);
   assert.doesNotMatch(source, /product_id: productId, external_transaction_id/);
   // Handles revoke.
   assert.match(source, /REFUND.*REVOKE/);
@@ -125,6 +127,23 @@ test("appleStoreNotification matches by external_transaction_id and handles revo
   assert.match(source, /status: "active"/);
   // Idempotent: acknowledges even when no matching entitlement.
   assert.match(source, /return json\(\{ ok: true \}\)/);
+});
+
+test("appleStoreNotification rejects notifications with the wrong bundle ID and does not revoke on auto-renew off", () => {
+  const source = readFileSync(
+    resolve(repoRoot, "base44/functions/appleStoreNotification/entry.ts"),
+    "utf8"
+  );
+
+  // Verifies the signed transaction bundleId against the configured app.
+  assert.match(source, /secrets\.get\("APPLE_BUNDLE_ID"\)/);
+  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
+  // Acknowledges (does not process) when the bundle ID does not match.
+  assert.match(source, /return json\(\{ ok: true \}\)/);
+  // Only refunds/revocations revoke; only actual expiration expires.
+  // Auto-renew being turned off does NOT revoke or expire access.
+  assert.match(source, /REVOKE_TYPES = new Set\(\["REFUND", "REVOKE"\]\)/);
+  assert.match(source, /EXPIRE_TYPES = new Set\(\["EXPIRED", "GRACE_PERIOD_EXPIRED"\]\)/);
 });
 
 test("the PremiumEntitlement entity accepts apple_store as a source with admin-only RLS", () => {

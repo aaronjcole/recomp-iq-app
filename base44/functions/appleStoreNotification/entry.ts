@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { secrets } from 'base44:runtime';
 import { verifyAppleNotificationJws, verifyInnerJws } from "../../shared/appleJwsVerify.js";
-import { isAppleStoreProduct } from "../../shared/premiumDomain.js";
+import { isAppleStoreProduct, mapAppleProductId } from "../../shared/premiumDomain.js";
 
 // App Store Server Notifications V2 webhook.
 // Configure in App Store Connect to POST to:
@@ -18,6 +19,10 @@ function json(body, init = {}) {
   return Response.json(body, { ...init, headers });
 }
 
+// Apple notification types we act on. Turning auto-renew off does NOT
+// revoke or expire access — the user keeps premium until the period ends
+// and Apple sends EXPIRED. Only refunds/revocations revoke; only actual
+// expiration expires.
 const REVOKE_TYPES = new Set(["REFUND", "REVOKE"]);
 const EXPIRE_TYPES = new Set(["EXPIRED", "GRACE_PERIOD_EXPIRED"]);
 
@@ -66,12 +71,25 @@ export default async function(req) {
   if (!productId || !originalTransactionId) return json({ ok: true });
   if (!isAppleStoreProduct(productId)) return json({ ok: true });
 
+  // Verify the signed transaction bundleId matches the configured app to
+  // prevent a legitimate Apple notification for a different app from
+  // revoking or expiring entitlements here.
+  const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
+  if (expectedBundleId && transactionInfo.bundleId && transactionInfo.bundleId !== expectedBundleId) {
+    return json({ ok: true });
+  }
+
+  // Map the Apple StoreKit product to the internal recompone_premium
+  // entitlement before locating the record.
+  const entitlementProductId = mapAppleProductId(productId);
+  if (!entitlementProductId) return json({ ok: true });
+
   try {
     // Match by external_transaction_id (Apple originalTransactionId), which is
     // stable across notifications. The entitlement product_id is the internal
     // recompone_premium ID, not the Apple StoreKit product ID.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { external_transaction_id: originalTransactionId, source: "apple_store" },
+      { external_transaction_id: originalTransactionId, product_id: entitlementProductId, source: "apple_store" },
       "-created_date",
       50
     );

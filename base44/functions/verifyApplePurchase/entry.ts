@@ -4,11 +4,14 @@ import { mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDoma
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 // Required Base44 app Secrets (set before going live):
-//   APPLE_ISSUER_ID      — App Store Connect API issuer ID
-//   APPLE_KEY_ID         — App Store Connect API key ID tied to the .p8 private key
-//   APPLE_BUNDLE_ID       — iOS app bundle ID configured in App Store Connect
+//   APPLE_BUNDLE_ID      — iOS app bundle ID configured in App Store Connect
 //                           (com.fitnesstrackerapps.recompone)
-//   APPLE_PRIVATE_KEY    — contents of the Apple .p8 private key (PEM body, no header/footer)
+//   APPLE_PRIVATE_KEY    — contents of the Apple .p8 private key (PEM body,
+//                           no BEGIN/END lines)
+//   APPLE_ISSUER_ID      — App Store Connect API issuer ID
+//   APPLE_KEY_ID         — App Store Connect API key ID tied to the .p8 key
+//   APPLE_APP_ID         — numeric App Store Connect app ID (6803546092),
+//                           if used by the implementation
 //
 // This endpoint handles BOTH initial purchase verification AND restore.
 // The native client calls it with { transactionId, productId } after any
