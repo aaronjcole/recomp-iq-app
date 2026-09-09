@@ -14,7 +14,7 @@
 
 /**
  * @typedef {{
- *   requestPurchase: (productId: string) => Promise<NativePurchase>,
+ *   requestPurchase: (productId: string, appAccountToken: string) => Promise<NativePurchase>,
  *   restorePurchases: () => Promise<{ purchases: NativePurchase[] }>,
  *   finishTransaction: (transactionId: string) => Promise<{ finished: true }>
  * }} NativeIapBridge

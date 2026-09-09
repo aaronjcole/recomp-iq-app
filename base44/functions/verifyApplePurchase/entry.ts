@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { secrets } from 'base44:runtime';
+import { deriveAppleAppAccountToken } from "../../shared/appleAppAccountToken.js";
 import { mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
@@ -76,7 +77,7 @@ async function makeAppleServerJwt() {
 }
 
 // Fetches transaction info from the App Store Server API and decodes the signed payload.
-// Returns { isValid, expiresAt, originalTransactionId, bundleId }.
+// Returns the verified transaction fields needed for entitlement ownership.
 // Docs: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
 async function verifyWithApple(transactionId, expectedProductId) {
   const jwt = await makeAppleServerJwt();
@@ -101,24 +102,24 @@ async function verifyWithApple(transactionId, expectedProductId) {
     break;
   }
 
-  if (!res) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+  if (!res) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
   if (!res.ok) throw new Error(`App Store Server API returned ${res.status}`);
 
   const body = await res.json();
   const transactionInfo = body?.signedTransactionInfo
     ? decodeJwsPayload(body.signedTransactionInfo)
     : null;
-  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
 
   // Verify the product ID matches what the client claims.
   if (transactionInfo.productId !== expectedProductId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
   }
 
   // Verify the bundle ID matches the configured app to prevent cross-app replay.
   const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
   if (expectedBundleId && transactionInfo.bundleId && transactionInfo.bundleId !== expectedBundleId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId };
+    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId, appAccountToken: null };
   }
 
   // Revocation indicates a refund or voided purchase.
@@ -135,7 +136,8 @@ async function verifyWithApple(transactionId, expectedProductId) {
     isValid,
     expiresAt,
     originalTransactionId: transactionInfo.originalTransactionId ?? transactionId,
-    bundleId: transactionInfo.bundleId ?? null
+    bundleId: transactionInfo.bundleId ?? null,
+    appAccountToken: transactionInfo.appAccountToken ?? null
   };
 }
 
@@ -196,21 +198,19 @@ export default async function(req) {
     return json({ error: "Purchase is not active" }, { status: 402 });
   }
 
-  try {
-    // An Apple originalTransactionId identifies one subscription lineage. Do
-    // not allow the same Apple purchase to be replayed onto another RecompOne
-    // account, even though Apple confirms that the transaction itself is valid.
-    const transactionClaims = verification.originalTransactionId
-      ? await base44.asServiceRole.entities.PremiumEntitlement.filter(
-          { external_transaction_id: verification.originalTransactionId, source: "apple_store" },
-          "-created_date",
-          50
-        )
-      : [];
-    if (transactionClaims.some((record) => record.owner_id !== user.id)) {
-      return json({ error: "Purchase is already linked to another account" }, { status: 409 });
-    }
+  // StoreKit signs appAccountToken into the transaction. Recompute the token
+  // from the authenticated Base44 account and require an exact match. This is
+  // the ownership authority: a transaction for one account cannot be replayed
+  // onto another account, including during concurrent requests.
+  const expectedAccountToken = await deriveAppleAppAccountToken(user.id);
+  if (
+    typeof verification.appAccountToken !== "string" ||
+    verification.appAccountToken.toLowerCase() !== expectedAccountToken
+  ) {
+    return json({ error: "Purchase is already linked to another account" }, { status: 409 });
+  }
 
+  try {
     // Upsert: update an existing apple_store entitlement for this user+product, or create one.
     // This is idempotent — duplicate calls for the same transaction update the same record.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(

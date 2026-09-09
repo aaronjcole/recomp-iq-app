@@ -40,8 +40,11 @@ export function buildInjectedBridgeScript(): string {
       var bridge = window.wixMobileNativeBridge && typeof window.wixMobileNativeBridge === "object"
         ? window.wixMobileNativeBridge
         : {};
-      bridge.requestPurchase = function (productId) {
-        return send("requestPurchase", { productId: productId });
+      bridge.requestPurchase = function (productId, appAccountToken) {
+        return send("requestPurchase", {
+          productId: productId,
+          appAccountToken: appAccountToken
+        });
       };
       bridge.restorePurchases = function () {
         return send("restorePurchases");

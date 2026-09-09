@@ -10,6 +10,8 @@ export const APPLE_PRODUCT_IDS = [
 
 export type AppleProductId = (typeof APPLE_PRODUCT_IDS)[number];
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type BridgeRequest =
   | {
       source: typeof BRIDGE_SOURCE;
@@ -17,6 +19,7 @@ export type BridgeRequest =
       requestId: string;
       action: "requestPurchase";
       productId: AppleProductId;
+      appAccountToken: string;
     }
   | {
       source: typeof BRIDGE_SOURCE;
@@ -66,7 +69,9 @@ export function parseBridgeRequest(raw: string): BridgeRequest | null {
     if (value.action === "restorePurchases") return value as BridgeRequest;
     if (
       value.action === "requestPurchase" &&
-      isAppleProductId((value as { productId?: unknown }).productId)
+      isAppleProductId((value as { productId?: unknown }).productId) &&
+      typeof (value as { appAccountToken?: unknown }).appAccountToken === "string" &&
+      UUID_PATTERN.test((value as { appAccountToken: string }).appAccountToken)
     ) {
       return value as BridgeRequest;
     }

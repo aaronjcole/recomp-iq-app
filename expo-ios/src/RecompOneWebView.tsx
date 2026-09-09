@@ -85,7 +85,20 @@ export function RecompOneWebView() {
     const purchaseUpdate = purchaseUpdatedListener((purchase) => {
       const result = rememberPurchase(purchase);
       const pending = pendingPurchaseRef.current;
-      if (!result || !pending || result.productId !== pending.productId) return;
+      if (!pending) return;
+      if (!result || result.productId !== pending.productId) {
+        pendingPurchaseRef.current = null;
+        sendResponse({
+          source: BRIDGE_SOURCE,
+          version: BRIDGE_VERSION,
+          requestId: pending.requestId,
+          ok: false,
+          error: result
+            ? "Another StoreKit transaction was recovered. Use Restore Purchases, then try again."
+            : "StoreKit returned an unsupported transaction"
+        });
+        return;
+      }
       pendingPurchaseRef.current = null;
       sendResponse({
         source: BRIDGE_SOURCE,
@@ -155,7 +168,12 @@ export function RecompOneWebView() {
           productId: request.productId
         };
         await requestPurchase({
-          request: { apple: { sku: request.productId } },
+          request: {
+            apple: {
+              sku: request.productId,
+              appAccountToken: request.appAccountToken
+            }
+          },
           type: "subs"
         });
         return;

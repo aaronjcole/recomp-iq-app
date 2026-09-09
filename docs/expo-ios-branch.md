@@ -36,7 +36,7 @@ injects this complete contract into `window.wixMobileNativeBridge`:
 
 ```ts
 interface NativeIapBridge {
-  requestPurchase(productId: string): Promise<{
+  requestPurchase(productId: string, appAccountToken: string): Promise<{
     transactionId: string;
     productId: string;
   }>;
@@ -53,6 +53,13 @@ product ID to `verifyApplePurchase` through the authenticated Base44 client. It
 calls `finishTransaction` only after verification succeeds, then refreshes
 `getPremiumAccess`. An unavailable or rejected verification stays locked and the
 transaction remains unfinished so StoreKit can redeliver it.
+
+For a new purchase, the web app derives a stable UUIDv8 from a domain-separated
+SHA-256 hash of the authenticated Base44 user ID and passes that pseudonymous
+value to StoreKit as `appAccountToken`. Apple signs it into the transaction, and
+the verifier independently recomputes and compares it. This provides atomic
+cross-account ownership without a filter-then-create database race or exposing
+the underlying user identifier to Apple/native code.
 
 Bridge messages are versioned, request-correlated, constrained to the exact
 hosted app origin, and validated against the two-product allowlist. Native keeps

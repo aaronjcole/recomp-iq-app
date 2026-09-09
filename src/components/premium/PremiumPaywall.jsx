@@ -13,6 +13,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { deriveAppleAppAccountToken } from "../../../base44/shared/appleAppAccountToken";
+import { useAuth } from "@/lib/AuthContext";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { getNativeIapBridge, hasNativeIapBridge } from "@/lib/nativeIapBridge";
 import { useToast } from "@/components/ui/use-toast";
@@ -71,6 +73,7 @@ async function verifyAndFinish(bridge, purchase) {
 }
 
 export default function PremiumPaywall() {
+  const { user } = useAuth();
   const { refresh, isUnavailable } = usePremiumAccess();
   const { toast } = useToast();
   const [isBusy, setIsBusy] = useState(false);
@@ -82,11 +85,13 @@ export default function PremiumPaywall() {
     try {
       const bridge = getNativeIapBridge();
       if (!bridge) throw new Error("Native StoreKit bridge is unavailable");
+      if (!user?.id) throw new Error("A signed-in account is required");
+      const appAccountToken = await deriveAppleAppAccountToken(user.id);
       // Native presents StoreKit and returns only the transaction metadata.
       // Verification stays in this authenticated Base44 session, so the native
       // layer never receives the Base44 access token. StoreKit is finished only
       // after the server has confirmed and recorded the entitlement.
-      const result = await bridge.requestPurchase(productId);
+      const result = await bridge.requestPurchase(productId, appAccountToken);
       if (!isNativePurchase(result) || result.productId !== productId) {
         throw new Error("StoreKit returned an unexpected transaction");
       }

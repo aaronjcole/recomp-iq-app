@@ -12,6 +12,7 @@
   - Maps both Apple products to the internal `recompone_premium` entitlement.
   - Tries Apple's production transaction endpoint first, then the sandbox endpoint on a not-found response so TestFlight purchases can be verified.
   - Rejects replay attempts that would attach one Apple subscription lineage to a different RecompOne account.
+  - Independently derives the authenticated user's pseudonymous UUIDv8 `appAccountToken` and requires it to match the value Apple signed into the transaction.
   - Upserts the entitlement idempotently (owner-scoped via `base44.auth.me()`, never trusts client user ID).
   - Fails closed on any validation error — no unlock on unavailable or failed verification.
   - Never stores raw receipts, health data, or email.
@@ -128,7 +129,8 @@ Both products grant the same `recompone_premium` entitlement.
 ### 3. Implement the purchase flow
 
 ```
-requestPurchase(productId)
+derive appAccountToken from the signed-in RecompOne user
+  → requestPurchase(productId, appAccountToken)
   → StoreKit purchase sheet
   → transaction returned to the authenticated web app
   → POST /functions/verifyApplePurchase { transactionId, productId }
@@ -153,7 +155,7 @@ The native shell must inject `window.wixMobileNativeBridge` with:
 
 ```ts
 interface NativeIapBridge {
-  requestPurchase(productId: string): Promise<{ transactionId: string; productId: string }>;
+  requestPurchase(productId: string, appAccountToken: string): Promise<{ transactionId: string; productId: string }>;
   restorePurchases(): Promise<{ purchases: Array<{ transactionId: string; productId: string }> }>;
   finishTransaction(transactionId: string): Promise<{ finished: true }>;
 }
@@ -166,7 +168,9 @@ buttons remain disabled and show "Available in the iOS app."
 The implementation lives in `expo-ios/`. It deliberately keeps the Base44
 access token inside the authenticated web app: native code owns StoreKit
 presentation, restoration, and transaction finishing, while the web app calls
-the authenticated verification function.
+the authenticated verification function. The pseudonymous `appAccountToken` is
+safe to pass to StoreKit: it contains no user ID or email, and the server
+recomputes it rather than trusting a client ownership claim.
 
 ### 6. Handle App Store Server Notifications V2
 

@@ -10,6 +10,8 @@ Base44 authentication and entitlement verification inside the web app.
 - Native code never receives or stores the Base44 access token.
 - Only messages from `https://recomp-iq.base44.app` are processed.
 - Only `recompone_premium_monthly` and `recompone_premium_annual` are accepted.
+- New purchases include a pseudonymous `appAccountToken` that Apple signs and
+  the Base44 verifier independently derives from the authenticated account.
 - StoreKit transactions are not finished until the authenticated web app has
   called `verifyApplePurchase` and received server confirmation.
 - A restore uses the same server verification path as a new purchase.
