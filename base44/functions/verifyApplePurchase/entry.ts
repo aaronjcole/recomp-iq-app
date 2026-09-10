@@ -6,7 +6,7 @@ import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 // Required Base44 app Secrets (set before going live):
 //   APPLE_BUNDLE_ID      — iOS app bundle ID configured in App Store Connect
-//                           (com.fitnesstrackerapps.recompone)
+//                           (com.base6a68bb922bf88da5ec767da3.app)
 //   APPLE_PRIVATE_KEY    — contents of the Apple .p8 private key (PEM body,
 //                           no BEGIN/END lines)
 //   APPLE_ISSUER_ID      — App Store Connect API issuer ID

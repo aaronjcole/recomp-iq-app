@@ -7,7 +7,8 @@
 - **`verifyApplePurchase`** — server-side Apple App Store Server API verification:
   - Accepts `{ transactionId, productId }` after a native StoreKit purchase **or restore**.
   - Validates the transaction via Apple's Get Transaction Info endpoint.
-  - Verifies the bundle ID matches `com.fitnesstrackerapps.recompone`.
+  - Verifies the bundle ID matches the existing App Store Connect app:
+    `com.base6a68bb922bf88da5ec767da3.app`.
   - Only accepts `recompone_premium_monthly` or `recompone_premium_annual`.
   - Maps both Apple products to the internal `recompone_premium` entitlement.
   - Tries Apple's production transaction endpoint first, then the sandbox endpoint on a not-found response so TestFlight purchases can be verified.
@@ -56,7 +57,7 @@ Set these in the Base44 dashboard → Settings → Secrets:
 |---|---|---|
 | `APPLE_ISSUER_ID` | App Store Connect API issuer ID | ✅ already set |
 | `APPLE_KEY_ID` | App Store Connect API key ID (tied to the .p8 key) | ✅ already set |
-| `APPLE_BUNDLE_ID` | `com.fitnesstrackerapps.recompone` | ✅ set |
+| `APPLE_BUNDLE_ID` | `com.base6a68bb922bf88da5ec767da3.app` | ⚠️ update before TestFlight purchase testing |
 | `APPLE_PRIVATE_KEY` | Contents of the Apple .p8 private key (PEM body, no `-----` header/footer lines) | ✅ set |
 | `APPLE_APP_ID` | Numeric App Store Connect app ID (`6803546092`); reserved for integrations that require it | ✅ set |
 | `PREMIUM_TESTER_EMAILS` | Comma-separated tester emails (testing only — clear before launch) | ✅ already set |

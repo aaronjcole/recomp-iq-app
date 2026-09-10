@@ -15,6 +15,7 @@ import { deriveAppleAppAccountToken } from "../../base44/shared/appleAppAccountT
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const NOW = Date.parse("2026-09-09T18:00:00.000Z");
+const APP_STORE_BUNDLE_ID = "com.base6a68bb922bf88da5ec767da3.app";
 
 test("monthly Apple StoreKit product maps to the recompone_premium entitlement", () => {
   assert.equal(
@@ -154,6 +155,23 @@ test("Apple app-account tokens are stable, pseudonymous UUIDs scoped per user", 
   assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.doesNotMatch(first, /base44-user/);
   await assert.rejects(() => deriveAppleAppAccountToken(""));
+});
+
+test("the Expo shell and StoreKit account-token namespace match the existing App Store app", () => {
+  const appConfig = JSON.parse(
+    readFileSync(resolve(repoRoot, "expo-ios/app.json"), "utf8")
+  );
+  const accountTokenSource = readFileSync(
+    resolve(repoRoot, "base44/shared/appleAppAccountToken.js"),
+    "utf8"
+  );
+
+  assert.equal(appConfig.expo.ios.bundleIdentifier, APP_STORE_BUNDLE_ID);
+  assert.equal(
+    appConfig.expo.extra.eas.projectId,
+    "df0b21a1-85f8-415f-9c8c-b465f7fbc1f0"
+  );
+  assert.match(accountTokenSource, new RegExp(`${APP_STORE_BUNDLE_ID.replaceAll(".", "\\.")}:storekit-account:v1:`));
 });
 
 test("appleStoreNotification matches by external_transaction_id and handles revoke, expire, and renew", () => {
