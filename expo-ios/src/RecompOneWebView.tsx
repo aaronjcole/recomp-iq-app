@@ -230,6 +230,7 @@ export function RecompOneWebView() {
         thirdPartyCookiesEnabled
         javaScriptEnabled
         domStorageEnabled
+        contentInsetAdjustmentBehavior="never"
         allowsBackForwardNavigationGestures
         pullToRefreshEnabled={false}
         startInLoadingState

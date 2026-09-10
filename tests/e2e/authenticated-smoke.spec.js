@@ -420,6 +420,21 @@ test("appearance follows the system by default and preserves explicit overrides"
   assertNoPageErrors();
 });
 
+test("mobile appearance uses a reliable native selector and persists an explicit choice", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.removeItem("recomp-theme"));
+  await page.goto("/more");
+
+  const appearance = page.locator("select#appearance-theme");
+  await expect(appearance).toBeVisible();
+  await appearance.selectOption("light");
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("recomp-theme"))).toBe("light");
+
+  assertNoPageErrors();
+});
+
 test("More groups its actions into named sections and lists", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.goto("/more");

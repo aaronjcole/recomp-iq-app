@@ -151,12 +151,12 @@ export default function SessionBuilder({ prefill = null }) {
           <h2 className="font-medium">Log a session</h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor={`${fieldId}-date`}>Date</Label>
             <Input id={`${fieldId}-date`} className="h-11" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor={`${fieldId}-type`}>Type</Label>
             <Select value={type} onValueChange={setType}>
               <SelectTrigger id={`${fieldId}-type`} className="h-11"><SelectValue /></SelectTrigger>
@@ -176,7 +176,7 @@ export default function SessionBuilder({ prefill = null }) {
         </div>
 
         {(type === "cardio" || type === "mixed") && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
             <NumField id={`${fieldId}-distance`} label="Distance (mi)" v={cardio.distance} on={(v) => setCardio((c) => ({ ...c, distance: v }))} min={0} max={1000} />
             <NumField id={`${fieldId}-heart-rate`} label="Avg HR" v={cardio.hr} on={(v) => setCardio((c) => ({ ...c, hr: v }))} min={20} max={260} />
           </div>

@@ -1,14 +1,14 @@
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView, StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { RecompOneWebView } from "./src/RecompOneWebView";
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar style="auto" />
       <RecompOneWebView />
-    </SafeAreaView>
+    </View>
   );
 }
 
