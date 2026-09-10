@@ -91,6 +91,9 @@ test("verifyApplePurchase validates Apple product IDs, maps to the bundle, verif
   // Verifies bundle ID from transaction info.
   assert.match(source, /APPLE_BUNDLE_ID/);
   assert.match(source, /transactionInfo\.bundleId/);
+  // Missing configuration and missing bundle IDs must both fail closed.
+  assert.match(source, /typeof expectedBundleId !== "string"/);
+  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
   // Fails closed on invalid verification.
   assert.match(source, /Purchase is not active/);
   // Never trusts client-supplied user ID.
@@ -210,6 +213,7 @@ test("appleStoreNotification rejects notifications with the wrong bundle ID and 
 
   // Verifies the signed transaction bundleId against the configured app.
   assert.match(source, /secrets\.get\("APPLE_BUNDLE_ID"\)/);
+  assert.match(source, /typeof expectedBundleId !== "string"/);
   assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
   // Acknowledges (does not process) when the bundle ID does not match.
   assert.match(source, /return json\(\{ ok: true \}\)/);

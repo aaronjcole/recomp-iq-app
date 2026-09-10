@@ -75,7 +75,11 @@ export default async function(req) {
   // prevent a legitimate Apple notification for a different app from
   // revoking or expiring entitlements here.
   const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
-  if (expectedBundleId && transactionInfo.bundleId && transactionInfo.bundleId !== expectedBundleId) {
+  if (
+    typeof expectedBundleId !== "string" ||
+    expectedBundleId.length === 0 ||
+    transactionInfo.bundleId !== expectedBundleId
+  ) {
     return json({ ok: true });
   }
 

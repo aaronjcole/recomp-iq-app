@@ -118,7 +118,11 @@ async function verifyWithApple(transactionId, expectedProductId) {
 
   // Verify the bundle ID matches the configured app to prevent cross-app replay.
   const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
-  if (expectedBundleId && transactionInfo.bundleId && transactionInfo.bundleId !== expectedBundleId) {
+  if (
+    typeof expectedBundleId !== "string" ||
+    expectedBundleId.length === 0 ||
+    transactionInfo.bundleId !== expectedBundleId
+  ) {
     return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId, appAccountToken: null };
   }
 
