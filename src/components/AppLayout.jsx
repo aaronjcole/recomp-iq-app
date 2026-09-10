@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { NavLink, useLocation, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Ellipsis } from "lucide-react";
-import { useTheme } from "@/lib/useTheme";
 import { getTabRootPath, isTabRootPath, ROOT_TAB_PATHS } from "@/lib/tabNavigation";
 import { attributePendingReferral } from "@/lib/referralAttribution";
 
@@ -15,7 +14,6 @@ const tabs = [
 ];
 
 export default function AppLayout() {
-  useTheme();
   const location = useLocation();
   const outlet = useOutlet();
   const cache = useRef({});
