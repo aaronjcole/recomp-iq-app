@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import { secrets } from 'base44:runtime';
+import { deriveAppleAppAccountToken } from "../../shared/appleAppAccountToken.js";
 import { mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
@@ -76,30 +77,49 @@ async function makeAppleServerJwt() {
 }
 
 // Fetches transaction info from the App Store Server API and decodes the signed payload.
-// Returns { isValid, expiresAt, originalTransactionId, bundleId }.
+// Returns the verified transaction fields needed for entitlement ownership.
 // Docs: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
 async function verifyWithApple(transactionId, expectedProductId) {
   const jwt = await makeAppleServerJwt();
-  const url = `https://api.storekit.itunes.apple.com/inApps/v1/transactions/${encodeURIComponent(transactionId)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
-  if (res.status === 404) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+  const encodedTransactionId = encodeURIComponent(transactionId);
+  const hosts = [
+    "https://api.storekit.itunes.apple.com",
+    "https://api.storekit-sandbox.itunes.apple.com"
+  ];
+  let res = null;
+
+  // TestFlight and sandbox transactions are not visible at the production
+  // endpoint. Apple recommends trying production first, then sandbox only when
+  // the transaction is not found, so production purchases never depend on the
+  // sandbox service.
+  for (const host of hosts) {
+    const candidate = await fetch(
+      `${host}/inApps/v1/transactions/${encodedTransactionId}`,
+      { headers: { Authorization: `Bearer ${jwt}` } }
+    );
+    if (candidate.status === 404) continue;
+    res = candidate;
+    break;
+  }
+
+  if (!res) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
   if (!res.ok) throw new Error(`App Store Server API returned ${res.status}`);
 
   const body = await res.json();
   const transactionInfo = body?.signedTransactionInfo
     ? decodeJwsPayload(body.signedTransactionInfo)
     : null;
-  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
 
   // Verify the product ID matches what the client claims.
   if (transactionInfo.productId !== expectedProductId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null };
+    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
   }
 
   // Verify the bundle ID matches the configured app to prevent cross-app replay.
   const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
   if (expectedBundleId && transactionInfo.bundleId && transactionInfo.bundleId !== expectedBundleId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId };
+    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId, appAccountToken: null };
   }
 
   // Revocation indicates a refund or voided purchase.
@@ -116,7 +136,8 @@ async function verifyWithApple(transactionId, expectedProductId) {
     isValid,
     expiresAt,
     originalTransactionId: transactionInfo.originalTransactionId ?? transactionId,
-    bundleId: transactionInfo.bundleId ?? null
+    bundleId: transactionInfo.bundleId ?? null,
+    appAccountToken: transactionInfo.appAccountToken ?? null
   };
 }
 
@@ -175,6 +196,18 @@ export default async function(req) {
   // Fail closed: an unavailable or failed validation must not unlock Premium.
   if (!verification.isValid) {
     return json({ error: "Purchase is not active" }, { status: 402 });
+  }
+
+  // StoreKit signs appAccountToken into the transaction. Recompute the token
+  // from the authenticated Base44 account and require an exact match. This is
+  // the ownership authority: a transaction for one account cannot be replayed
+  // onto another account, including during concurrent requests.
+  const expectedAccountToken = await deriveAppleAppAccountToken(user.id);
+  if (
+    typeof verification.appAccountToken !== "string" ||
+    verification.appAccountToken.toLowerCase() !== expectedAccountToken
+  ) {
+    return json({ error: "Purchase is already linked to another account" }, { status: 409 });
   }
 
   try {

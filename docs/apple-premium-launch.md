@@ -10,6 +10,9 @@
   - Verifies the bundle ID matches `com.fitnesstrackerapps.recompone`.
   - Only accepts `recompone_premium_monthly` or `recompone_premium_annual`.
   - Maps both Apple products to the internal `recompone_premium` entitlement.
+  - Tries Apple's production transaction endpoint first, then the sandbox endpoint on a not-found response so TestFlight purchases can be verified.
+  - Rejects replay attempts that would attach one Apple subscription lineage to a different RecompOne account.
+  - Independently derives the authenticated user's pseudonymous UUIDv8 `appAccountToken` and requires it to match the value Apple signed into the transaction.
   - Upserts the entitlement idempotently (owner-scoped via `base44.auth.me()`, never trusts client user ID).
   - Fails closed on any validation error — no unlock on unavailable or failed verification.
   - Never stores raw receipts, health data, or email.
@@ -37,7 +40,7 @@
   - Restore Purchases control — visible, disabled in the WebView.
   - Note that core food, workout, sleep, habit, and progress tracking remain free.
 
-- **`nativeIapBridge.js`** (`src/lib/nativeIapBridge.js`) — detects whether the Base44 wrapper exposes `requestPurchase`/`restorePurchases` on `wixMobileNativeBridge`.
+- **`nativeIapBridge.js`** (`src/lib/nativeIapBridge.js`) — enables purchasing only when the wrapper exposes the complete `requestPurchase`/`restorePurchases`/`finishTransaction` contract on `wixMobileNativeBridge`.
 
 - **`Premium.jsx`** — paywall shown above the feature catalog when the user has no access. Locked cards remain discoverable.
 
@@ -45,7 +48,7 @@
 
 - `tests/security/apple-premium.test.js` — product mapping, fail-closed, source inspection, paywall gating, entity RLS.
 
-## Required App Store Connect / Apple Server API secrets
+## Base44 App Store Connect / Apple Server API secrets
 
 Set these in the Base44 dashboard → Settings → Secrets:
 
@@ -55,7 +58,7 @@ Set these in the Base44 dashboard → Settings → Secrets:
 | `APPLE_KEY_ID` | App Store Connect API key ID (tied to the .p8 key) | ✅ already set |
 | `APPLE_BUNDLE_ID` | `com.fitnesstrackerapps.recompone` | ✅ set |
 | `APPLE_PRIVATE_KEY` | Contents of the Apple .p8 private key (PEM body, no `-----` header/footer lines) | ✅ set |
-| `APPLE_APP_ID` | Apple App ID prefix (optional, for notification validation) | ✅ set |
+| `APPLE_APP_ID` | Numeric App Store Connect app ID (`6803546092`); reserved for integrations that require it | ✅ set |
 | `PREMIUM_TESTER_EMAILS` | Comma-separated tester emails (testing only — clear before launch) | ✅ already set |
 
 ## How to configure App Store Server Notifications V2
@@ -93,11 +96,11 @@ Apple reviewers need a screenshot of the paywall showing:
 
 Take this screenshot from the native iOS app on the `/more/premium` screen.
 
-## Native StoreKit work that Base44 cannot perform
+## Native StoreKit shell
 
-**The current Base44 WebView wrapper does NOT provide a native StoreKit in-app-purchase bridge.** The `wixMobileNativeBridge` object provides navigation and device APIs but does not expose `requestPurchase` or `restorePurchases` methods. The paywall correctly detects this and disables purchase/restore controls in the WebView — no simulated success.
+**The current Base44 WebView wrapper does NOT provide a native StoreKit in-app-purchase bridge.** The `wixMobileNativeBridge` object provides navigation and device APIs but does not expose `requestPurchase` or `restorePurchases` methods. The paywall correctly detects this and disables purchase/restore controls in that wrapper — no simulated success.
 
-To complete the purchase flow, the app must be wrapped with Expo + react-native-iap (or the supported Expo equivalent). The native shell must:
+The runnable Expo + `react-native-iap` shell is implemented in `expo-ios/` and supplies the required bridge. Native compilation, signing, and TestFlight execution remain required:
 
 ### 1. Install react-native-iap
 
@@ -126,10 +129,12 @@ Both products grant the same `recompone_premium` entitlement.
 ### 3. Implement the purchase flow
 
 ```
-requestPurchase(productId)
+derive appAccountToken from the signed-in RecompOne user
+  → requestPurchase(productId, appAccountToken)
   → StoreKit purchase sheet
-  → transaction finish
+  → transaction returned to the authenticated web app
   → POST /functions/verifyApplePurchase { transactionId, productId }
+  → finish the StoreKit transaction only after server verification succeeds
   → refresh getPremiumAccess (base44.functions.invoke("getPremiumAccess"))
   → unlock only after server confirms active entitlement
 ```
@@ -140,6 +145,7 @@ requestPurchase(productId)
 restorePurchases()
   → for each restored Apple transaction:
       POST /functions/verifyApplePurchase { transactionId, productId }
+      finish the StoreKit transaction only after verification succeeds
   → refresh getPremiumAccess
 ```
 
@@ -149,12 +155,22 @@ The native shell must inject `window.wixMobileNativeBridge` with:
 
 ```ts
 interface NativeIapBridge {
-  requestPurchase(productId: string): Promise<{ transactionId: string; productId: string }>;
-  restorePurchases(): Promise<{ restored: boolean }>;
+  requestPurchase(productId: string, appAccountToken: string): Promise<{ transactionId: string; productId: string }>;
+  restorePurchases(): Promise<{ purchases: Array<{ transactionId: string; productId: string }> }>;
+  finishTransaction(transactionId: string): Promise<{ finished: true }>;
 }
 ```
 
-The `hasNativeIapBridge()` check in `src/lib/nativeIapBridge.js` detects these methods and enables the paywall buttons. Without them, the buttons remain disabled and show "Available in the iOS app."
+The `hasNativeIapBridge()` check in `src/lib/nativeIapBridge.js` requires all
+three methods before enabling the paywall. Without the complete bridge, the
+buttons remain disabled and show "Available in the iOS app."
+
+The implementation lives in `expo-ios/`. It deliberately keeps the Base44
+access token inside the authenticated web app: native code owns StoreKit
+presentation, restoration, and transaction finishing, while the web app calls
+the authenticated verification function. The pseudonymous `appAccountToken` is
+safe to pass to StoreKit: it contains no user ID or email, and the server
+recomputes it rather than trusting a client ownership claim.
 
 ### 6. Handle App Store Server Notifications V2
 
@@ -177,6 +193,7 @@ Content-Type: application/json
 |---|---|---|
 | 200 | `{ "ok": true, "entitlementProductId": "recompone_premium" }` | Verified, entitlement upserted |
 | 402 | `{ "error": "Purchase is not active" }` | Expired, revoked, or not found at Apple |
+| 409 | `{ "error": "Purchase is already linked to another account" }` | The Apple subscription lineage belongs to a different RecompOne account |
 | 400 | `{ "error": "productId is not recognized" }` | Unknown product ID |
 | 401 | `{ "error": "Unauthorized" }` | Not authenticated |
 
