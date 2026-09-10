@@ -182,7 +182,7 @@ export default function ComingSoon() {
             </p>
             <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/65">
               <span className="flex h-2 w-2 rounded-full bg-[#2fc4a7]" aria-hidden="true" />
-              Available on the web · Google Play beta · iOS coming soon
+              Available on the web · Google Play beta · iOS
             </p>
 
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
@@ -230,24 +230,20 @@ export default function ComingSoon() {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-center gap-2 text-[#c4f58f]">
                   <Smartphone className="h-5 w-5" aria-hidden="true" />
-                  <h3 className="font-semibold text-white">iPhone is next</h3>
+                  <h3 className="font-semibold text-white">iPhone</h3>
                 </div>
-                {APP_STORE_URL ? (
-                  <>
-                    <p className="mt-1.5 text-sm text-white/60">Available on the App Store.</p>
-                    <a
-                      href={APP_STORE_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      data-marketing-event="app-store-cta"
-                      className="mt-3 inline-flex min-h-11 items-center gap-2 font-medium text-[#c4f58f] hover:underline"
-                    >
-                      View on the App Store
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </a>
-                  </>
-                ) : (
-                  <p className="mt-1.5 text-sm text-white/60">iOS coming soon.</p>
+                <p className="mt-1.5 text-sm text-white/60">Available on the App Store.</p>
+                {APP_STORE_URL && (
+                  <a
+                    href={APP_STORE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-marketing-event="app-store-cta"
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 font-medium text-[#c4f58f] hover:underline"
+                  >
+                    View on the App Store
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </a>
                 )}
               </div>
             </section>

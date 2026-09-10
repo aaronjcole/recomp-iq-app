@@ -91,16 +91,16 @@ test("coming-soon page explains the decision system and exposes the live product
   assertNoPageErrors();
 });
 
-test("public pages lead visitors toward the Android beta and iOS launch path", async ({ page }) => {
+test("public pages lead visitors toward the Android beta and iOS availability", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/coming-soon");
 
   const download = page.getByRole("region", { name: "Get RecompOne on your phone" });
   await expect(download.getByRole("heading", { name: "Google Play beta" })).toBeVisible();
-  await expect(download.getByRole("heading", { name: "iPhone is next" })).toBeVisible();
+  await expect(download.getByRole("heading", { name: "iPhone" })).toBeVisible();
   await expect(download.getByText("Android beta is in progress.")).toBeVisible();
-  await expect(download.getByText("iOS coming soon.")).toBeVisible();
+  await expect(download.getByText("Available on the App Store.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
 
   await page.goto("/tools/tdee-calculator");
