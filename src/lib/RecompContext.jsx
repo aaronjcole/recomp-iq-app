@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
@@ -17,10 +17,7 @@ import { featureFlags } from "@/lib/featureFlags";
 import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
 import { computeSessionDateMoveEffects } from "@/lib/loggingDateUtils";
 
-const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
-const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
-const ActionsCtx = createContext(null);
-const HabitsCtx = createContext(null);
+import { Ctx, RefCtx, ActionsCtx, HabitsCtx } from "@/lib/recompContexts";
 
 const FOOD_TOTAL_FIELDS = ["calories", "protein_g", "carbs_g", "fat_g"];
 
