@@ -76,6 +76,7 @@ function Row({ item, first, onActivate, theme, themePreference, onThemeChange, l
           drawerTitle="Appearance"
           drawerDescription="Choose whether RecompOne follows your device or uses a fixed theme."
           triggerClassName="w-28 shrink-0 border-0 bg-transparent px-2 shadow-none"
+          nativeOnMobile
         />
       </div>
     );

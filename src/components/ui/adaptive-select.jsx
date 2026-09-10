@@ -31,7 +31,8 @@ import {
  *   drawerTitle?: React.ReactNode,
  *   drawerDescription?: React.ReactNode,
  *   disabled?: boolean,
- *   triggerClassName?: string
+ *   triggerClassName?: string,
+ *   nativeOnMobile?: boolean
  * }} props
  */
 export function AdaptiveSelect({
@@ -43,7 +44,8 @@ export function AdaptiveSelect({
   drawerTitle = "Choose an option",
   drawerDescription,
   disabled = false,
-  triggerClassName
+  triggerClassName,
+  nativeOnMobile = false
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -63,6 +65,31 @@ export function AdaptiveSelect({
           ))}
         </SelectContent>
       </Select>
+    );
+  }
+
+  // A small settings control can use the platform picker on touch devices.
+  // This avoids a nested gesture surface inside native WebViews while keeping
+  // drawers for longer or more contextual option lists.
+  if (nativeOnMobile) {
+    return (
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        disabled={disabled}
+        aria-label={typeof drawerTitle === "string" ? drawerTitle : undefined}
+        className={cn(
+          "flex min-h-11 w-full rounded-md border border-input bg-transparent px-3 py-2.5 text-left text-sm shadow-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          triggerClassName
+        )}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     );
   }
 
