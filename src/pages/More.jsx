@@ -68,16 +68,34 @@ function Row({ item, first, onActivate, theme, themePreference, onThemeChange, l
             {themePreference === "system" ? "Matches your device" : `Using ${theme} mode`}
           </span>
         </span>
-        <AdaptiveSelect
-          id="appearance-theme"
-          value={themePreference}
-          onValueChange={onThemeChange}
-          options={THEME_OPTIONS}
-          drawerTitle="Appearance"
-          drawerDescription="Choose whether RecompOne follows your device or uses a fixed theme."
-          triggerClassName="w-28 shrink-0 border-0 bg-transparent px-2 shadow-none"
-          nativeOnMobile
-        />
+        <div role="group" aria-label="Appearance" className="flex shrink-0 overflow-hidden rounded-md border border-input md:hidden">
+          {THEME_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={themePreference === option.value}
+              onClick={() => onThemeChange(option.value)}
+              className={`min-h-11 px-2 text-xs transition-colors ${
+                themePreference === option.value
+                  ? "bg-teal text-bg"
+                  : "bg-transparent text-muted-foreground"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <div className="hidden w-28 shrink-0 md:block">
+          <AdaptiveSelect
+            id="appearance-theme"
+            value={themePreference}
+            onValueChange={onThemeChange}
+            options={THEME_OPTIONS}
+            drawerTitle="Appearance"
+            drawerDescription="Choose whether RecompOne follows your device or uses a fixed theme."
+            triggerClassName="w-full border-0 bg-transparent px-2 shadow-none"
+          />
+        </div>
       </div>
     );
   }

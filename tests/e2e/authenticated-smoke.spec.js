@@ -420,15 +420,17 @@ test("appearance follows the system by default and preserves explicit overrides"
   assertNoPageErrors();
 });
 
-test("mobile appearance uses a reliable native selector and persists an explicit choice", async ({ page }) => {
+test("mobile appearance uses direct controls and persists an explicit choice", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.removeItem("recomp-theme"));
   await page.goto("/more");
 
-  const appearance = page.locator("select#appearance-theme");
+  const appearance = page.getByRole("group", { name: "Appearance" });
   await expect(appearance).toBeVisible();
-  await appearance.selectOption("light");
+  await expect(appearance.getByRole("button", { name: "System", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await appearance.getByRole("button", { name: "Light", exact: true }).click();
+  await expect(appearance.getByRole("button", { name: "Light", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
   await expect.poll(() => page.evaluate(() => localStorage.getItem("recomp-theme"))).toBe("light");
 
