@@ -7,7 +7,7 @@
     "platforms": [
       "ios"
     ],
-    "icon": "../public/brand/recompone-logo-primary.png",
+    "icon": "../public/brand/recompone-app-icon-ios.png",
     "scheme": "recompone",
     "userInterfaceStyle": "automatic",
     "ios": {
