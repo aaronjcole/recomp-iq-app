@@ -15,6 +15,7 @@ import { deriveAppleAppAccountToken } from "../../base44/shared/appleAppAccountT
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const NOW = Date.parse("2026-09-09T18:00:00.000Z");
+const APP_STORE_BUNDLE_ID = "com.base6a68bb922bf88da5ec767da3.app";
 
 test("monthly Apple StoreKit product maps to the recompone_premium entitlement", () => {
   assert.equal(
@@ -90,6 +91,9 @@ test("verifyApplePurchase validates Apple product IDs, maps to the bundle, verif
   // Verifies bundle ID from transaction info.
   assert.match(source, /APPLE_BUNDLE_ID/);
   assert.match(source, /transactionInfo\.bundleId/);
+  // Missing configuration and missing bundle IDs must both fail closed.
+  assert.match(source, /typeof expectedBundleId !== "string"/);
+  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
   // Fails closed on invalid verification.
   assert.match(source, /Purchase is not active/);
   // Never trusts client-supplied user ID.
@@ -156,6 +160,23 @@ test("Apple app-account tokens are stable, pseudonymous UUIDs scoped per user", 
   await assert.rejects(() => deriveAppleAppAccountToken(""));
 });
 
+test("the Expo shell and StoreKit account-token namespace match the existing App Store app", () => {
+  const appConfig = JSON.parse(
+    readFileSync(resolve(repoRoot, "expo-ios/app.json"), "utf8")
+  );
+  const accountTokenSource = readFileSync(
+    resolve(repoRoot, "base44/shared/appleAppAccountToken.js"),
+    "utf8"
+  );
+
+  assert.equal(appConfig.expo.ios.bundleIdentifier, APP_STORE_BUNDLE_ID);
+  assert.equal(
+    appConfig.expo.extra.eas.projectId,
+    "df0b21a1-85f8-415f-9c8c-b465f7fbc1f0"
+  );
+  assert.match(accountTokenSource, new RegExp(`${APP_STORE_BUNDLE_ID.replaceAll(".", "\\.")}:storekit-account:v1:`));
+});
+
 test("appleStoreNotification matches by external_transaction_id and handles revoke, expire, and renew", () => {
   const source = readFileSync(
     resolve(repoRoot, "base44/functions/appleStoreNotification/entry.ts"),
@@ -192,6 +213,7 @@ test("appleStoreNotification rejects notifications with the wrong bundle ID and 
 
   // Verifies the signed transaction bundleId against the configured app.
   assert.match(source, /secrets\.get\("APPLE_BUNDLE_ID"\)/);
+  assert.match(source, /typeof expectedBundleId !== "string"/);
   assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
   // Acknowledges (does not process) when the bundle ID does not match.
   assert.match(source, /return json\(\{ ok: true \}\)/);

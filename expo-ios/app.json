@@ -1,15 +1,17 @@
 {
   "expo": {
     "name": "RecompOne",
-    "slug": "recompone-ios",
+    "slug": "recompone-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "platforms": ["ios"],
+    "platforms": [
+      "ios"
+    ],
     "icon": "../public/brand/recompone-logo-primary.png",
     "scheme": "recompone",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.fitnesstrackerapps.recompone",
+      "bundleIdentifier": "com.base6a68bb922bf88da5ec767da3.app",
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
@@ -17,6 +19,12 @@
         "NSCameraUsageDescription": "RecompOne uses the camera to scan food barcodes and optionally capture progress photos you choose to take.",
         "NSPhotoLibraryUsageDescription": "RecompOne accesses only the progress or food photos you choose to add."
       }
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "df0b21a1-85f8-415f-9c8c-b465f7fbc1f0"
+      }
+    },
+    "owner": "promptlabllc"
   }
 }

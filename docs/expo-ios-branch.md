@@ -113,8 +113,9 @@ npx eas-cli build --profile production --platform ios
 npx eas-cli submit --platform ios --latest
 ```
 
-The configured bundle identifier is
-`com.fitnesstrackerapps.recompone`. The production EAS profile uses remote
+The configured bundle identifier is the immutable identifier on App Store
+Connect app `6803546092`:
+`com.base6a68bb922bf88da5ec767da3.app`. The production EAS profile uses remote
 versioning with `autoIncrement`, so EAS advances the iOS build number for each
 production build; the value in `app.json` is the local/development baseline.
 EAS can manage the distribution certificate and provisioning profile

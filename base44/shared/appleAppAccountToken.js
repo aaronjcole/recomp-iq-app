@@ -1,4 +1,4 @@
-const TOKEN_DOMAIN = "com.fitnesstrackerapps.recompone:storekit-account:v1:";
+const TOKEN_DOMAIN = "com.base6a68bb922bf88da5ec767da3.app:storekit-account:v1:";
 
 /**
  * Derive the stable, pseudonymous UUID passed to StoreKit as appAccountToken.
