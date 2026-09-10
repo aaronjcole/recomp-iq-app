@@ -3,7 +3,6 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
 import { useLoggingDate } from "@/lib/LoggingDateContext";
-import { formatShortDate, todayStr } from "@/lib/loggingDateUtils";
 import LoggingDatePicker from "@/components/LoggingDatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

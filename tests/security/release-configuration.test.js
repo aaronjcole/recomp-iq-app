@@ -10,11 +10,6 @@ import {
   SUPPORT_MAILTO,
   SUPPORT_REQUEST_MAILTO
 } from "../../src/lib/support.js";
-import {
-  buildWaitlistAttribution,
-  HERO_VARIANT,
-  sanitizeCampaignValue
-} from "../../src/lib/marketingAttribution.js";
 import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
 import { normalizeStoreUrl } from "../../src/lib/storeLinks.js";
 
@@ -96,39 +91,6 @@ test("marketing store links accept only official HTTPS store origins", () => {
   assert.equal(normalizeStoreUrl("https://play.google.com.evil.example/app", "play.google.com"), null);
   assert.equal(normalizeStoreUrl("https://user:secret@apps.apple.com/app", "apps.apple.com"), null);
   assert.equal(normalizeStoreUrl("https://example.com/app", "example.com"), null);
-});
-
-test("waitlist attribution is conversion-only, bounded, and free of arbitrary query data", () => {
-  assert.equal(HERO_VARIANT, "decision_v1");
-  assert.equal(sanitizeCampaignValue(" creator/<script> "), "creatorscript");
-  assert.equal(sanitizeCampaignValue("x".repeat(100)).length, 80);
-
-  assert.deepEqual(
-    buildWaitlistAttribution(
-      "?utm_source=tiktok&utm_medium=creator&utm_campaign=founding_testers&utm_content=hold-steady&email=private@example.com",
-      { explainerViewed: true }
-    ),
-    {
-      hero_variant: "decision_v1",
-      explainer_viewed: true,
-      campaign_source: "tiktok",
-      campaign_medium: "creator",
-      campaign_name: "founding_testers",
-      campaign_content: "hold-steady"
-    }
-  );
-
-  const comingSoonSource = readFileSync(resolve(repoRoot, "src/pages/ComingSoon.jsx"), "utf8");
-  assert.match(comingSoonSource, /buildWaitlistAttribution/);
-  assert.match(comingSoonSource, /No advertising cookies or cross-site tracking/);
-
-  const joinWaitlistSource = readFileSync(
-    resolve(repoRoot, "base44/functions/joinWaitlist/entry.ts"),
-    "utf8"
-  );
-  assert.match(joinWaitlistSource, /ATTRIBUTION_FIELDS/);
-  assert.match(joinWaitlistSource, /slice\(0, 80\)/);
-  assert.doesNotMatch(joinWaitlistSource, /referrer|user-agent|cookie/i);
 });
 
 test("mobile release flows prioritize primary actions and usable touch targets", () => {

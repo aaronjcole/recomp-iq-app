@@ -43,8 +43,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   // Assert the routes, not just the label: a link renamed to "Beta access" would
   // restore the entry point while still passing a text-only check.
   const banner = page.getByRole("banner");
-  await expect(banner.locator('a[href="/hero"], a[href="/login"]')).toHaveCount(0);
-  await expect(banner.getByRole("link", { name: /sign in/i })).toHaveCount(0);
+  await expect(banner.getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
   await expect(page.getByRole("link", { name: "Privacy" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Premium plans that adapt with you." })).toBeVisible();
@@ -59,7 +58,7 @@ test("landing page exposes the core public navigation", async ({ page }) => {
   assertNoPageErrors();
 });
 
-test("coming-soon page explains the decision system and exposes the early-access CTA", async ({ page }) => {
+test("coming-soon page explains the decision system and exposes the live product CTAs", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
   await page.goto("/coming-soon?utm_source=playwright");
@@ -70,15 +69,14 @@ test("coming-soon page explains the decision system and exposes the early-access
       name: "Know when to hold, adjust, or push your body recomposition plan."
     })
   ).toBeVisible();
-  const waitlistForm = page.getByRole("form", { name: "Join the RecompOne app launch list" });
-  await expect(waitlistForm.getByRole("button", { name: "Get app updates", exact: true })).toBeVisible();
   await expect(page.getByText("Hold targets steady")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
+  await expect(page.getByRole("link", { name: "Create your account", exact: true }).first()).toHaveAttribute("href", "/register");
 
   await page.getByRole("link", { name: "See how RecompOne decides" }).click();
   await expect(page).toHaveURL(/#how-it-works$/);
   await expect(page.getByRole("heading", { name: "A feedback loop, not another dashboard." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Act on one best move" })).toBeVisible();
-  await expect(page.getByText("No advertising cookies or cross-site tracking.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Premium plans that adapt with you." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Adaptive meal planning" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Adaptive training blocks" })).toBeVisible();
@@ -86,9 +84,9 @@ test("coming-soon page explains the decision system and exposes the early-access
   await expect(page.getByRole("heading", { name: "Visual progress tools" })).toBeVisible();
   await expect(page.getByText("Premium features are available to approved testers during beta.")).toBeVisible();
   const premiumPlans = page.getByRole("region", { name: "Premium plans that adapt with you." });
-  await expect(premiumPlans.getByRole("link", { name: "Get early access", exact: true })).toHaveAttribute(
+  await expect(premiumPlans.getByRole("link", { name: "Create your account", exact: true })).toHaveAttribute(
     "href",
-    "#waitlist-email"
+    "/register"
   );
   assertNoPageErrors();
 });
@@ -101,21 +99,12 @@ test("public pages lead visitors toward the Android beta and iOS launch path", a
   const download = page.getByRole("region", { name: "Get RecompOne on your phone" });
   await expect(download.getByRole("heading", { name: "Google Play beta" })).toBeVisible();
   await expect(download.getByRole("heading", { name: "iPhone is next" })).toBeVisible();
-  await expect(download.getByRole("link", { name: "Request Android beta access" })).toHaveAttribute(
-    "href",
-    "#waitlist-email"
-  );
-  await expect(download.getByRole("link", { name: "Get iOS launch updates" })).toHaveAttribute(
-    "href",
-    "#waitlist-email"
-  );
-  await expect(page.getByRole("button", { name: "Get app updates", exact: true })).toBeVisible();
+  await expect(download.getByText("Android beta is in progress.")).toBeVisible();
+  await expect(download.getByText("iOS coming soon.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
 
   await page.goto("/tools/tdee-calculator");
-  await expect(page.getByRole("link", { name: "Get app launch updates" })).toHaveAttribute(
-    "href",
-    "/coming-soon#download"
-  );
+  await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
 
   assertNoPageErrors();
 });

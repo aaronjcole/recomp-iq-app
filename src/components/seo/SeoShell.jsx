@@ -88,10 +88,10 @@ export default function SeoShell({ title, description, canonicalPath, jsonLd = n
             ))}
           </nav>
           <Link
-            to="/coming-soon"
+            to="/login"
             className="ml-auto min-h-11 content-center rounded-lg bg-teal px-4 text-sm font-semibold text-buttonText sm:ml-2"
           >
-            Get the app
+            Open RecompOne
           </Link>
         </div>
       </header>
@@ -108,10 +108,10 @@ export default function SeoShell({ title, description, canonicalPath, jsonLd = n
               <p className="mt-1 text-xs text-muted-foreground">RecompOne builds adaptive nutrition and training plans around your real progress.</p>
             </div>
             <Link
-              to="/coming-soon"
+              to="/login"
               className="min-h-11 content-center rounded-lg bg-teal px-5 text-sm font-semibold text-buttonText hover:opacity-90"
             >
-              Get the app
+              Open RecompOne
             </Link>
           </div>
           <div className="mt-6 flex flex-col items-center justify-between gap-4 text-xs text-muted-foreground sm:flex-row">

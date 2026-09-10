@@ -4,12 +4,13 @@ import { GOOGLE_PLAY_URL } from "@/lib/storeLinks";
 
 /**
  * Prominent "convert to signup" CTA used on SEO tool pages. Links to the
- * coming-soon waitlist via client-side navigation (no full reload).
+ * live product: the Google Play beta when the store URL is configured, or
+ * the web sign-in page via client-side navigation (no full reload).
  */
 export default function SeoAppCta({
   title = "Get the full adaptive app",
   body = "RecompOne turns these numbers into weekly-adaptive nutrition and training plans that adjust to your real adherence, weight, and waist trends.",
-  cta = GOOGLE_PLAY_URL ? "Open Google Play beta" : "Get app launch updates"
+  cta = GOOGLE_PLAY_URL ? "Open Google Play beta" : "Open RecompOne"
 }) {
   const actionClassName = "mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal px-5 text-sm font-semibold text-buttonText hover:opacity-90";
 
@@ -37,7 +38,7 @@ export default function SeoAppCta({
         </a>
       ) : (
         <Link
-          to="/coming-soon#download"
+          to="/login"
           data-marketing-event="seo-launch-cta"
           className={actionClassName}
         >

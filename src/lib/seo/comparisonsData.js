@@ -28,7 +28,7 @@ export const comparisons = [
       { feature: "Training plans", recompone: "Adaptive training blocks generated for your equipment", competitor: "No built-in training programs", notes: "MacroFactor is nutrition-only by design." },
       { feature: "Progress signals", recompone: "Weight, waist, strength, adherence, recovery, confidence score", competitor: "Weight trend and macro adherence", notes: "RecompOne surfaces a broader signal set." },
       { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No AI coach", notes: "RecompOne includes conversational coaching." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "MacroFactor is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "MacroFactor is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -63,7 +63,7 @@ export const comparisons = [
       { feature: "Target adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Coach-built macro adjustments from progress", notes: "Both adjust; RecompOne adjusts more variables." },
       { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "No built-in training programs", notes: "Carbon is nutrition-only." },
       { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No AI coach", notes: "RecompOne adds conversational coaching." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Carbon is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Carbon is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -98,7 +98,7 @@ export const comparisons = [
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Static goals; premium adds some insights", notes: "RecompOne adapts the plan; MyFitnessPal mostly tracks it." },
       { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "Workout logging, no generated programs", notes: "RecompOne generates plans; MyFitnessPal records them." },
       { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No conversational coach", notes: "RecompOne adds coaching on top of tracking." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS, Android, and web", notes: "MyFitnessPal is cross-platform today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS, Android, and web", notes: "MyFitnessPal is cross-platform today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -133,7 +133,7 @@ export const comparisons = [
       { feature: "Logging experience", recompone: "Set-by-set tracker with RPE and notes", competitor: "Fast, polished set logging with rest timers", notes: "Hevy's logging UX is a standout." },
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; Hevy does not." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "None — you manage your own progression", notes: "RecompOne adapts; Hevy is manual." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Hevy is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Hevy is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -168,7 +168,7 @@ export const comparisons = [
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Programs are fixed; you swap manually", notes: "RecompOne adapts the plan; Boostcamp hands you a static one." },
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; Boostcamp does not." },
       { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No AI coach", notes: "RecompOne adds conversational coaching." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Boostcamp is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Boostcamp is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -203,7 +203,7 @@ export const comparisons = [
       { feature: "Logging experience", recompone: "Set-by-set tracker with RPE and notes", competitor: "Polished, simple set logging", notes: "Strong's logging simplicity is a strength." },
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; Strong does not." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "None — you manage progression", notes: "RecompOne adapts; Strong is manual." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Strong is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Strong is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -238,7 +238,7 @@ export const comparisons = [
       { feature: "Training", recompone: "Adaptive blocks for your equipment and experience", competitor: "Training templates by muscle group and schedule", notes: "Both provide training; RP via templates, RecompOne via generation." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Template adjustments within the cut protocol", notes: "RecompOne adjusts more levers continuously." },
       { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No conversational coach", notes: "RecompOne adds coaching on top of templates." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "RP is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "RP is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -273,7 +273,7 @@ export const comparisons = [
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Nutrition guidance within coaching", notes: "RecompOne tracks and adjusts macros directly." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Coach-guided, not auto-adjusted", notes: "RecompOne automates adjustments; 1st Phorm relies on a human coach." },
       { feature: "Community", recompone: "Focused on your plan and progress", competitor: "Strong community and challenges", notes: "1st Phorm's community is a core feature." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "1st Phorm is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "1st Phorm is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -308,7 +308,7 @@ export const comparisons = [
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Nutrition guidance from your trainer", notes: "RecompOne tracks and adjusts macros directly." },
       { feature: "Availability", recompone: "Always-on adjustments and AI coach", competitor: "Your trainer's schedule and response time", notes: "RecompOne is instant; Future depends on the human." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Trainer adjusts as you check in", notes: "RecompOne automates; Future is human-paced." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Future is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Future is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -343,7 +343,7 @@ export const comparisons = [
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Static targets; no auto-adjustment", notes: "RecompOne adapts the plan; Cronometer tracks it." },
       { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "No built-in training programs", notes: "RecompOne covers training; Cronometer does not." },
       { feature: "AI coach", recompone: "Built-in lifestyle and nutrition coach", competitor: "No AI coach", notes: "RecompOne adds conversational coaching." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS, Android, and web", notes: "Cronometer is cross-platform today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS, Android, and web", notes: "Cronometer is cross-platform today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -378,7 +378,7 @@ export const comparisons = [
       { feature: "Nutrition logging", recompone: "Calories and macros with adjustments", competitor: "Food logging with a decent database", notes: "Both log nutrition; RecompOne adapts targets from it." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Static goals; some insights in premium", notes: "RecompOne adapts the plan; Fitbit mostly displays it." },
       { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "Workout logging and guided sessions", notes: "RecompOne generates plans; Fitbit guides sessions." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS, Android, and web with a wearable", notes: "Fitbit is hardware-dependent; RecompOne is software-only." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS, Android, and web with a wearable", notes: "Fitbit is hardware-dependent; RecompOne is software-only." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -413,7 +413,7 @@ export const comparisons = [
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Nutrition journal within the coach feature", notes: "RecompOne tracks and adapts macros directly." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across calories, macros, steps, training", competitor: "Strain targets based on recovery, not nutrition", notes: "RecompOne adjusts the full plan; Whoop adjusts exertion targets." },
       { feature: "Training", recompone: "Adaptive training blocks for your equipment", competitor: "No generated training programs", notes: "RecompOne writes plans; Whoop measures them." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android with a wearable", notes: "Whoop is hardware-dependent; RecompOne is software-only." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android with a wearable", notes: "Whoop is hardware-dependent; RecompOne is software-only." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -448,7 +448,7 @@ export const comparisons = [
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; Fitbod does not." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Adjusts each workout automatically", notes: "Fitbod adapts workouts; RecompOne adapts the whole plan." },
       { feature: "Progress signals", recompone: "Weight, waist, strength, adherence, recovery", competitor: "Muscle recovery and workout history", notes: "RecompOne uses a broader signal set." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Fitbod is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Fitbod is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -483,7 +483,7 @@ export const comparisons = [
       { feature: "Program generation", recompone: "Adaptive blocks for your equipment and experience", competitor: "Routines you can follow or build", notes: "RecompOne writes the plan; JEFIT offers routines to pick." },
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "No nutrition tracking", notes: "RecompOne covers nutrition; JEFIT does not." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "None — you manage progression", notes: "RecompOne adapts; JEFIT is manual." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "JEFIT is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "JEFIT is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
@@ -518,7 +518,7 @@ export const comparisons = [
       { feature: "Nutrition", recompone: "Full calorie and macro tracking with adjustments", competitor: "Nutrition guidance from your coach", notes: "RecompOne tracks and adjusts macros directly." },
       { feature: "Availability", recompone: "Always-on adjustments and AI coach", competitor: "Your coach's check-in cadence", notes: "RecompOne is instant; Caliber is human-paced." },
       { feature: "Adaptive adjustments", recompone: "Weekly autopilot across training, calories, steps", competitor: "Coach adjusts as you check in", notes: "RecompOne automates; Caliber is human-paced." },
-      { feature: "Platforms", recompone: "Web early access; iOS and Android coming soon", competitor: "iOS and Android", notes: "Caliber is mobile-native today." }
+      { feature: "Platforms", recompone: "Web; Android beta; iOS coming soon", competitor: "iOS and Android", notes: "Caliber is mobile-native today." }
     ],
     pricing: {
       recompone: "Low-entry subscription (early-access pricing on web)",
