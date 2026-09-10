@@ -129,6 +129,14 @@ async function verifyWithGooglePlay(purchaseToken, productId) {
   return { isValid, expiresAt };
 }
 
+async function hashPurchaseToken(token) {
+  const data = new TextEncoder().encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export default async function(req) {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "POST" } });
@@ -181,6 +189,23 @@ export default async function(req) {
   }
 
   try {
+    // Bind the purchase token to the authenticated account. Google Play
+    // one-time purchases stay purchaseState === 0 indefinitely, so without
+    // a global ownership check a single token could be replayed to grant
+    // premium to unlimited accounts. Store a SHA-256 hash of the token as
+    // external_transaction_id (raw tokens exceed the 128-char field limit)
+    // and reject reuse by a different owner.
+    const tokenHash = await hashPurchaseToken(purchaseToken);
+
+    const tokenLinked = await base44.asServiceRole.entities.PremiumEntitlement.filter(
+      { external_transaction_id: tokenHash, source: "google_play" },
+      "-created_date",
+      1
+    );
+    if (tokenLinked?.length && tokenLinked[0].owner_id !== user.id) {
+      return json({ error: "Purchase is already linked to another account" }, { status: 409 });
+    }
+
     // Upsert: update an existing google_play entitlement for this user+product, or create one.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(
       { owner_id: user.id, product_id: productId, source: "google_play" },
@@ -188,10 +213,18 @@ export default async function(req) {
       1
     );
 
-    if (existing?.length) {
-      await base44.asServiceRole.entities.PremiumEntitlement.update(existing[0].id, {
+    if (tokenLinked?.length) {
+      // Token already linked to this user — idempotent refresh.
+      await base44.asServiceRole.entities.PremiumEntitlement.update(tokenLinked[0].id, {
         status: "active",
         expires_at: verification.expiresAt ?? undefined
+      });
+    } else if (existing?.length) {
+      // Legacy entitlement created before token binding — bind the token now.
+      await base44.asServiceRole.entities.PremiumEntitlement.update(existing[0].id, {
+        status: "active",
+        expires_at: verification.expiresAt ?? undefined,
+        external_transaction_id: tokenHash
       });
     } else {
       await base44.asServiceRole.entities.PremiumEntitlement.create({
@@ -199,6 +232,7 @@ export default async function(req) {
         product_id: productId,
         source: "google_play",
         status: "active",
+        external_transaction_id: tokenHash,
         ...(verification.expiresAt ? { expires_at: verification.expiresAt } : {})
       });
     }
