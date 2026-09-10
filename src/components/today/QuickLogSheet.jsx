@@ -1,14 +1,15 @@
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useMemo } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { useRecomp } from "@/lib/RecompContext";
 import RatingDrawer from "@/components/today/RatingDrawer";
 import { useToast } from "@/components/ui/use-toast";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
+import { todayStr } from "@/lib/loggingDateUtils";
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
@@ -48,39 +49,41 @@ const EMPTY_FORM = {
  * }} QuickLogForm
  */
 
-export default function QuickLogSheet({ open, onOpenChange }) {
-  const { todayLog, upsertDailyLog } = useRecomp();
+export default function QuickLogSheet({ open, onOpenChange, date = todayStr() }) {
+  const { logs, upsertDailyLog } = useRecomp();
   const { toast } = useToast();
   const [form, setForm] = useState(/** @type {QuickLogForm} */ ({ ...EMPTY_FORM }));
   const [saving, setSaving] = useState(false);
 
+  const logForDate = useMemo(() => logs.find((l) => l.date === date) ?? null, [logs, date]);
+
   useEffect(() => {
     if (open) {
       setForm({
-        weight_lbs: todayLog?.weight_lbs ?? "",
-        calories: todayLog?.calories ?? "",
-        protein_g: todayLog?.protein_g ?? "",
-        carbs_g: todayLog?.carbs_g ?? "",
-        fat_g: todayLog?.fat_g ?? "",
-        steps: todayLog?.steps ?? "",
-        waist_in: todayLog?.waist_in ?? "",
-        workout_completed: todayLog?.workout_completed ?? false,
-        hunger_rating: todayLog?.hunger_rating ?? "",
-        energy_rating: todayLog?.energy_rating ?? "",
-        soreness_rating: todayLog?.soreness_rating ?? "",
-        sleep_hours: todayLog?.sleep_hours ?? "",
-        sleep_quality: todayLog?.sleep_quality ?? "",
-        notes: todayLog?.notes ?? ""
+        weight_lbs: logForDate?.weight_lbs ?? "",
+        calories: logForDate?.calories ?? "",
+        protein_g: logForDate?.protein_g ?? "",
+        carbs_g: logForDate?.carbs_g ?? "",
+        fat_g: logForDate?.fat_g ?? "",
+        steps: logForDate?.steps ?? "",
+        waist_in: logForDate?.waist_in ?? "",
+        workout_completed: logForDate?.workout_completed ?? false,
+        hunger_rating: logForDate?.hunger_rating ?? "",
+        energy_rating: logForDate?.energy_rating ?? "",
+        soreness_rating: logForDate?.soreness_rating ?? "",
+        sleep_hours: logForDate?.sleep_hours ?? "",
+        sleep_quality: logForDate?.sleep_quality ?? "",
+        notes: logForDate?.notes ?? ""
       });
     }
-  }, [open, todayLog]);
+  }, [open, logForDate]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await upsertDailyLog(todayStr(), {
+      await upsertDailyLog(date, {
         weight_lbs: num(form.weight_lbs),
         calories: num(form.calories),
         protein_g: num(form.protein_g),
@@ -97,7 +100,7 @@ export default function QuickLogSheet({ open, onOpenChange }) {
         notes: form.notes || undefined
       });
       triggerHaptic(HAPTIC_TRIGGERS.LOG_SAVED);
-      toast({ title: "Logged", description: "Today's numbers are saved." });
+      toast({ title: "Logged", description: date === todayStr() ? "Today's numbers are saved." : "Log saved." });
       onOpenChange(false);
     } finally {
       setSaving(false);

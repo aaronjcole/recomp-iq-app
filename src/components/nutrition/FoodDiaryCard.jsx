@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CopyPlus, Pencil, Trash2, Utensils } from "lucide-react";
-import { useRecompActions, useRecompRef, todayStr } from "@/lib/RecompContext";
+import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
+import { todayStr } from "@/lib/loggingDateUtils";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,14 +38,14 @@ function editState(entry) {
   };
 }
 
-export default function FoodDiaryCard() {
+export default function FoodDiaryCard({ date = todayStr() }) {
   const { foodLogEntries } = useRecompRef();
   const { deleteFoodLogEntry, repeatFoodLogEntry, restoreFoodLogEntry, updateFoodLogEntry } = useRecompActions();
   const { toast } = useToast();
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(editState(null));
   const [saving, setSaving] = useState(false);
-  const today = todayStr();
+  const today = date;
 
   const entries = useMemo(
     () => foodLogEntries.filter((entry) => entry.date === today),

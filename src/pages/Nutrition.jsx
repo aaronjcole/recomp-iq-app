@@ -1,7 +1,10 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { useRecomp } from "@/lib/RecompContext";
 import { scoreNutritionQuality } from "@/lib/fitness";
+import { useLoggingDate } from "@/lib/LoggingDateContext";
+import { formatShortDate, todayStr } from "@/lib/loggingDateUtils";
+import LoggingDatePicker from "@/components/LoggingDatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +32,8 @@ const empty = { name: "", serving_description: "", serving_grams: "", calories: 
 const num = (v) => (v === "" ? null : Number(v));
 
 export default function Nutrition() {
-  const { strategy, todayLog, foods, addFood, logFoodEntry, upsertDailyLog, reload } = useRecomp();
+  const { strategy, logs, foods, addFood, logFoodEntry, upsertDailyLog, reload } = useRecomp();
+  const { selectedDate, isToday } = useLoggingDate();
   const [form, setForm] = useState(empty);
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
@@ -43,10 +47,15 @@ export default function Nutrition() {
   );
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const selectedLog = useMemo(
+    () => logs.find((l) => l.date === selectedDate) ?? null,
+    [logs, selectedDate]
+  );
+
   const logToToday = async (food, source, sourceFoodId) => {
     if (featureFlags.itemizedFoodDiary) {
       await logFoodEntry({
-        date: todayStr(), meal: "other", name: food.name,
+        date: selectedDate, meal: "other", name: food.name,
         serving_description: food.serving_description || "1 serving", quantity: 1,
         calories: food.calories ?? 0, protein_g: food.protein_g ?? 0,
         carbs_g: food.carbs_g ?? 0, fat_g: food.fat_g ?? 0, fiber_g: food.fiber_g ?? 0,
@@ -54,7 +63,7 @@ export default function Nutrition() {
       });
       return;
     }
-    await upsertDailyLog(todayStr(), (current) => ({
+    await upsertDailyLog(selectedDate, (current) => ({
       calories: (current?.calories ?? 0) + (food.calories ?? 0),
       protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
       carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
@@ -103,10 +112,10 @@ export default function Nutrition() {
   );
 
   const consumed = {
-    calories: todayLog?.calories ?? 0,
-    protein: todayLog?.protein_g ?? 0,
-    carbs: todayLog?.carbs_g ?? 0,
-    fat: todayLog?.fat_g ?? 0
+    calories: selectedLog?.calories ?? 0,
+    protein: selectedLog?.protein_g ?? 0,
+    carbs: selectedLog?.carbs_g ?? 0,
+    fat: selectedLog?.fat_g ?? 0
   };
 
   const saveFood = async (addToToday) => {
@@ -135,6 +144,8 @@ export default function Nutrition() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Nutrition</h1>
 
+      <LoggingDatePicker />
+
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
           <MacroBar label="Calories" value={consumed.calories} target={strategy.calorie_target} colorClass="bg-teal" />
@@ -144,7 +155,7 @@ export default function Nutrition() {
         </CardContent>
       </Card>
 
-      {featureFlags.itemizedFoodDiary && <FoodDiaryCard />}
+      {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} />}
 
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
@@ -311,7 +322,7 @@ export default function Nutrition() {
       </Card>
 
       <div id="meal-templates-section">
-        <MealTemplatesCard />
+        <MealTemplatesCard date={selectedDate} />
       </div>
 
       <div id="grocery-list-section">

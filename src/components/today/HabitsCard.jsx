@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useRecompHabits, useRecompActions, todayStr } from "@/lib/RecompContext";
+import { useRecompHabits, useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, Check, Pencil } from "lucide-react";
@@ -7,6 +7,7 @@ import ProgressRing from "@/components/common/ProgressRing";
 import HabitEditor from "@/components/today/HabitEditor";
 import { iconFor } from "@/lib/habitIcons";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
+import { todayStr } from "@/lib/loggingDateUtils";
 
 function toStr(d) {
   const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
@@ -64,10 +65,10 @@ function StreakHint({ streak }) {
   );
 }
 
-export default function HabitsCard() {
+export default function HabitsCard({ date = todayStr() }) {
   const { habits, habitEntries } = useRecompHabits();
   const { upsertHabitEntry } = useRecompActions();
-  const today = todayStr();
+  const today = date;
   const [editorOpen, setEditorOpen] = useState(false);
 
   const active = useMemo(

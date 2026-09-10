@@ -15,6 +15,7 @@ import {
 import { trackEvent } from "@/lib/telemetry";
 import { featureFlags } from "@/lib/featureFlags";
 import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
+import { computeSessionDateMoveEffects } from "@/lib/loggingDateUtils";
 
 const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
 const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
@@ -746,19 +747,46 @@ export function RecompProvider({ children }) {
   }, [loadAll, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const updateSession = useCallback(async ({ id, session, strengthEntries = [] }) => {
+    const previous = sessionsRef.current.find((item) => item.id === id) ?? null;
     const updated = await base44.entities.ExerciseSession.update(id, session);
     const oldLogs = await base44.entities.StrengthLog.filter({ session_id: id }, "-date", 500);
     await Promise.all(oldLogs.map((e) => base44.entities.StrengthLog.delete(e.id)));
     const newLogs = [];
     for (const entry of strengthEntries) {
-      const created = await base44.entities.StrengthLog.create({ ...entry, session_id: id });
+      const created = await base44.entities.StrengthLog.create({ ...entry, session_id: id, date: session.date });
       newLogs.push(created);
     }
     setSessionsCurrent((prev) => prev.map((s) => (s.id === id ? updated : s)));
     const oldLogIds = new Set(oldLogs.map((e) => e.id));
     setStrengthLogsCurrent((prev) => [...newLogs, ...prev.filter((e) => !oldLogIds.has(e.id))]);
+
+    // When the session moved to a different date, update daily-log workout
+    // markers on both the old and new dates.
+    if (previous && session.date && previous.date !== session.date) {
+      const remaining = sessionsRef.current.filter((s) => s.id !== id);
+      const effects = computeSessionDateMoveEffects(previous.date, session.date, remaining);
+      if (effects?.shouldClearOld) {
+        try {
+          await upsertDailyLog(effects.oldDate, {
+            workout_completed: false,
+            workout_type: undefined
+          });
+        } catch (error) {
+          console.warn("Session moved, but the old date's workout marker could not be cleared.", error);
+        }
+      }
+      try {
+        await upsertDailyLog(effects.newDate, {
+          workout_completed: true,
+          workout_type: session.type
+        });
+      } catch (error) {
+        console.warn("Session moved, but the new date's workout marker could not be set.", error);
+      }
+    }
+
     return { session: updated, strengthLogs: newLogs };
-  }, [setSessionsCurrent, setStrengthLogsCurrent]);
+  }, [setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const addFood = useCallback(async (data) => {
     const created = await base44.entities.FoodItem.create(data);
@@ -896,9 +924,9 @@ export function RecompProvider({ children }) {
   }, []);
 
   const logMealTemplate = useCallback(
-    async (template) => {
+    async (template, date = todayStr()) => {
       if (!featureFlags.itemizedFoodDiary) {
-        await upsertDailyLog(todayStr(), (current) => ({
+        await upsertDailyLog(date, (current) => ({
           calories: (current?.calories ?? 0) + (template.total_calories ?? 0),
           protein_g: (current?.protein_g ?? 0) + (template.total_protein_g ?? 0),
           carbs_g: (current?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
@@ -907,7 +935,7 @@ export function RecompProvider({ children }) {
         return;
       }
       await logFoodEntries((template.items ?? []).map((item) => ({
-        date: todayStr(),
+        date,
         meal: "other",
         name: item.name,
         serving_description: item.serving_description || "1 serving",

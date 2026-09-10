@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { todayStr, useRecomp } from "@/lib/RecompContext";
+import { useRecomp } from "@/lib/RecompContext";
 import { useLocation } from "react-router-dom";
 import TodayMacroCard from "@/components/today/TodayMacroCard";
 import QuickLogSheet from "@/components/today/QuickLogSheet";
@@ -10,6 +10,9 @@ import RecompSignalHero from "@/components/today/RecompSignalHero";
 import StreakBanner from "@/components/today/StreakBanner";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { deriveBestMove, summarizeSleep } from "@/lib/fitness";
+import { useLoggingDate } from "@/lib/LoggingDateContext";
+import { formatShortDate, todayStr } from "@/lib/loggingDateUtils";
+import LoggingDatePicker from "@/components/LoggingDatePicker";
 
 function greeting() {
   const h = new Date().getHours();
@@ -19,7 +22,8 @@ function greeting() {
 }
 
 export default function Today() {
-  const { preferences, signal, strategy, trend, quests, logs, todayLog, reload } = useRecomp();
+  const { preferences, signal, strategy, trend, quests, logs, reload } = useRecomp();
+  const { selectedDate, isToday } = useLoggingDate();
   const [logOpen, setLogOpen] = useState(false);
   const { state } = useLocation();
   useEffect(() => {
@@ -27,7 +31,11 @@ export default function Today() {
     const el = document.getElementById(state.scrollTo);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [state?.scrollTo]);
-  const sleepReferenceDate = todayStr();
+  const selectedLog = useMemo(
+    () => logs.find((l) => l.date === selectedDate) ?? null,
+    [logs, selectedDate]
+  );
+  const sleepReferenceDate = isToday ? todayStr() : selectedDate;
   const sleepSummary = useMemo(
     () => summarizeSleep(logs, { referenceDate: sleepReferenceDate }),
     [logs, sleepReferenceDate]
@@ -48,8 +56,10 @@ export default function Today() {
     </div>
   );
 
-  const bestMove = deriveBestMove({ preferences, signal, strategy, todayLog, trend });
-  const dateStr = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const bestMove = deriveBestMove({ preferences, signal, strategy, todayLog: selectedLog, trend });
+  const dateLabel = isToday
+    ? new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    : formatShortDate(selectedDate);
 
   return (
     <PullToRefresh onRefresh={reload}>
@@ -57,26 +67,29 @@ export default function Today() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">{greeting()}</p>
-          <h1 className="text-3xl font-bold tracking-tight">Today</h1>
-          <p className="text-xs text-muted-foreground">{dateStr}</p>
+          <h1 className="text-3xl font-bold tracking-tight">{isToday ? "Today" : "Log"}</h1>
+          <p className="text-xs text-muted-foreground">{dateLabel}</p>
         </div>
         <StreakBanner compact />
       </div>
+
+      <LoggingDatePicker />
 
       {/* One actionable hero: signal, reasoning, and today's best move. */}
       <RecompSignalHero move={bestMove} onLog={() => setLogOpen(true)} />
 
       <TodayMacroCard
         calorieTarget={strategy.calorie_target}
-        calories={todayLog?.calories ?? 0}
-        protein={todayLog?.protein_g ?? 0}
-        carbs={todayLog?.carbs_g ?? 0}
-        fat={todayLog?.fat_g ?? 0}
+        calories={selectedLog?.calories ?? 0}
+        protein={selectedLog?.protein_g ?? 0}
+        carbs={selectedLog?.carbs_g ?? 0}
+        fat={selectedLog?.fat_g ?? 0}
         onLog={() => setLogOpen(true)}
       />
 
       <TodayChecklist
-        todayLog={todayLog}
+        todayLog={selectedLog}
+        date={selectedDate}
         sleepSummary={sleepSummary}
         onLog={() => setLogOpen(true)}
         expand={state?.scrollTo === "habits-section"}
@@ -86,7 +99,7 @@ export default function Today() {
 
       <TodayProgressCard />
 
-      <QuickLogSheet open={logOpen} onOpenChange={setLogOpen} />
+      <QuickLogSheet open={logOpen} onOpenChange={setLogOpen} date={selectedDate} />
     </div>
     </PullToRefresh>
   );

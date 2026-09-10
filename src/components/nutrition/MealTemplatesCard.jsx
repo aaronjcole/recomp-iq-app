@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
+import { todayStr } from "@/lib/loggingDateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,7 @@ import { Plus, Trash2, Utensils } from "lucide-react";
 const emptyItem = { name: "", serving_description: "1 serving", calories: "", protein_g: "", carbs_g: "", fat_g: "" };
 const n = (v) => Number(v) || 0;
 
-export default function MealTemplatesCard() {
+export default function MealTemplatesCard({ date = todayStr() }) {
   const { mealTemplates, foods } = useRecompRef();
   const { saveMealTemplate, logMealTemplate } = useRecompActions();
   const { toast } = useToast();
@@ -77,8 +78,8 @@ export default function MealTemplatesCard() {
   };
 
   const log = async (tpl) => {
-    await logMealTemplate(tpl);
-    toast({ title: "Logged", description: `${tpl.name} added to today.` });
+    await logMealTemplate(tpl, date);
+    toast({ title: "Logged", description: date === todayStr() ? `${tpl.name} added to today.` : `${tpl.name} added.` });
   };
 
   return (

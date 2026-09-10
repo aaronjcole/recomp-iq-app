@@ -14,6 +14,7 @@ import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { useRecompActions } from "@/lib/RecompContext";
 import { estimateOneRepMax } from "@/lib/fitness";
 import { useToast } from "@/components/ui/use-toast";
+import { todayStr } from "@/lib/loggingDateUtils";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -31,6 +32,7 @@ const MUSCLE_SUGGESTIONS = [
 
 function sessionToEditState(session) {
   return {
+    date: session?.date ?? todayStr(),
     title: session.title ?? "",
     type: session.type ?? "strength",
     duration: session.duration_minutes != null ? String(session.duration_minutes) : "",
@@ -154,7 +156,7 @@ export default function SessionEditSheet({ session, open, onOpenChange }) {
       await updateSession({
         id: session.id,
         session: {
-          date: session.date,
+          date: state.date,
           type: state.type,
           title: state.title.trim() || state.type,
           duration_minutes: state.duration ? Number(state.duration) : null,
@@ -190,6 +192,16 @@ export default function SessionEditSheet({ session, open, onOpenChange }) {
 
         <div className="space-y-4 px-4 py-4">
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <Label>Date</Label>
+              <Input
+                className="h-11"
+                type="date"
+                max={todayStr()}
+                value={state.date}
+                onChange={(e) => set("date", e.target.value)}
+              />
+            </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Title</Label>
               <Input

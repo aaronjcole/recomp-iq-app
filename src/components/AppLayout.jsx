@@ -4,6 +4,7 @@ import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { LayoutDashboard, Utensils, Dumbbell, TrendingUp, Ellipsis } from "lucide-react";
 import { getTabRootPath, isTabRootPath, ROOT_TAB_PATHS } from "@/lib/tabNavigation";
 import { attributePendingReferral } from "@/lib/referralAttribution";
+import { LoggingDateProvider } from "@/lib/LoggingDateContext";
 
 const tabs = [
   { to: "/today", icon: LayoutDashboard, label: "Today", end: true },
@@ -53,6 +54,7 @@ export default function AppLayout() {
   }, []);
 
   return (
+    <LoggingDateProvider>
     <div className="min-h-screen bg-bg text-foreground flex flex-col lg:bg-gradient-to-b lg:from-teal/10 lg:via-bg lg:to-panel2/60">
       <main id="main-content" tabIndex={-1} className={`mx-auto w-full max-w-md flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] lg:my-8 lg:min-h-[calc(100vh-4rem)] lg:flex-none lg:rounded-3xl lg:border lg:border-lineSoft lg:bg-bg lg:px-6 lg:pt-6 lg:shadow-xl ${isTabRoute ? "pb-28" : "pb-6"}`}>
         {ROOT_TAB_PATHS.filter((p) => cache.current[p]).map((p) => (
@@ -113,5 +115,6 @@ export default function AppLayout() {
         </nav>
       )}
     </div>
+    </LoggingDateProvider>
   );
 }
