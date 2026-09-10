@@ -95,6 +95,8 @@ export default function Today() {
         expand={state?.scrollTo === "habits-section"}
       />
 
+      <StreakBanner />
+
       <ThisWeekCard quests={quests} />
 
       <TodayProgressCard />

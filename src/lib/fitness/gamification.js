@@ -58,3 +58,125 @@ export function getBossBattle(trend) {
   if ((trend.calorie_adherence ?? 1) < 0.8) return { title: "Consistency before adjustment", countermove: "Plan one flexible meal and keep protein anchored." };
   return { title: "Hold the line", countermove: "Let the weekly review decide. No single day gets the steering wheel." };
 }
+
+// --- Streak engine ---
+// A streak counts consecutive days hitting nutrition + step targets. A single
+// missed day is absorbed ("frozen") once the run reaches FREEZE_THRESHOLD hits,
+// so one rest day doesn't erase weeks of consistency. All values are derived
+// from the log history — no persisted streak state is needed.
+
+function daysAgoKey(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+export function hitTargets(log, strategy) {
+  if (!log || !strategy) return false;
+  const cal = log.calories;
+  const protein = log.protein_g;
+  const steps = log.steps;
+  if (cal == null || protein == null) return false;
+  const calTarget = strategy.calorie_target;
+  const proteinTarget = strategy.protein_target_g;
+  const stepTarget = strategy.step_target;
+  const calOk = calTarget > 0 && cal >= calTarget * 0.85 && cal <= calTarget * 1.15;
+  const proteinOk = proteinTarget > 0 && protein >= proteinTarget * 0.9;
+  const stepsOk = stepTarget > 0 ? steps != null && steps >= stepTarget : true;
+  return calOk && proteinOk && stepsOk;
+}
+
+const FREEZE_THRESHOLD = 5;
+
+function scanRunBackward(byDate, strategy, startOffset) {
+  let length = 0;
+  let freezeUsed = false;
+  let frozenDate = null;
+  for (let i = startOffset; i < 400; i++) {
+    const log = byDate.get(daysAgoKey(i));
+    if (log && hitTargets(log, strategy)) {
+      length++;
+    } else if (log && !hitTargets(log, strategy)) {
+      if (!freezeUsed && length >= FREEZE_THRESHOLD) {
+        freezeUsed = true;
+        frozenDate = daysAgoKey(i);
+        length++;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+  return { length, freezeUsed, frozenDate };
+}
+
+function calculateLongestStreak(byDate, strategy) {
+  if (byDate.size === 0) return 0;
+  const sorted = [...byDate.keys()].sort();
+  const spanDays = Math.round(
+    (new Date(localTodayKey() + "T00:00:00") - new Date(sorted[0] + "T00:00:00")) / 86400000
+  );
+  let longest = 0;
+  let run = 0;
+  let freezeUsed = false;
+  for (let i = spanDays; i >= 0; i--) {
+    const log = byDate.get(daysAgoKey(i));
+    if (log && hitTargets(log, strategy)) {
+      run++;
+    } else if (log && !hitTargets(log, strategy)) {
+      if (!freezeUsed && run >= FREEZE_THRESHOLD) {
+        freezeUsed = true;
+        run++;
+      } else {
+        if (run > longest) longest = run;
+        run = 0;
+        freezeUsed = false;
+      }
+    } else {
+      if (run > longest) longest = run;
+      run = 0;
+      freezeUsed = false;
+    }
+  }
+  return Math.max(longest, run);
+}
+
+function findLastBrokenRun(byDate, strategy) {
+  for (let i = 0; i < 400; i++) {
+    const log = byDate.get(daysAgoKey(i));
+    if (log && hitTargets(log, strategy)) {
+      return scanRunBackward(byDate, strategy, i).length;
+    }
+  }
+  return 0;
+}
+
+export function calculateStreakStats(logs, strategy) {
+  if (!strategy) {
+    return { current: 0, longest: 0, lastBroken: 0, freezeUsed: false, freezeArmed: false, frozenDate: null };
+  }
+  const byDate = new Map();
+  for (const l of logs) byDate.set(l.date, l);
+  const todayLog = byDate.get(localTodayKey());
+
+  let currentRun;
+  if (todayLog && hitTargets(todayLog, strategy)) {
+    currentRun = scanRunBackward(byDate, strategy, 0);
+  } else if (todayLog && !hitTargets(todayLog, strategy)) {
+    currentRun = { length: 0, freezeUsed: false, frozenDate: null };
+  } else {
+    currentRun = scanRunBackward(byDate, strategy, 1);
+  }
+
+  const current = currentRun.length;
+  return {
+    current,
+    longest: calculateLongestStreak(byDate, strategy),
+    lastBroken: current === 0 ? findLastBrokenRun(byDate, strategy) : 0,
+    freezeUsed: currentRun.freezeUsed,
+    freezeArmed: current >= FREEZE_THRESHOLD && !currentRun.freezeUsed,
+    frozenDate: currentRun.frozenDate,
+  };
+}
