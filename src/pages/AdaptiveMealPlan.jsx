@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, ChevronDown, RefreshCw, ShoppingCart, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronDown, RefreshCw, Shuffle, ShoppingCart, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -59,6 +59,7 @@ export default function AdaptiveMealPlan() {
   const [error, setError] = useState("");
   const [checked, setChecked] = useState({});
   const [mode, setMode] = useState("deterministic");
+  const [swapping, setSwapping] = useState(null);
   const weekStart = useMemo(currentWeekStart, []);
 
   useEffect(dropLegacyPlanCache, []);
@@ -98,6 +99,44 @@ export default function AdaptiveMealPlan() {
     const next = { ...checked, [key]: !done };
     setChecked(next);
     writePlanCache(GROCERY_CACHE, userId, next);
+  };
+
+  const handleSwap = async (dayIndex, meal) => {
+    const swapKey = `${dayIndex}-${meal.slot}`;
+    setSwapping(swapKey);
+    try {
+      const dayMeals = plan.days[dayIndex].meals;
+      const avoidIds = dayMeals.map((m) => m.id).filter((id) => id !== meal.id);
+      const result = await base44.functions.invoke("swapAdaptiveMeal", {
+        mealId: meal.id,
+        dietStyle: plan.dietStyle,
+        servingScale: meal.servingScale,
+        avoidIds
+      });
+      const newMeal = result?.data?.meal ?? result?.meal;
+      if (!newMeal) throw new Error("No swap available for this meal.");
+
+      const nextDays = [...plan.days];
+      const nextDay = { ...nextDays[dayIndex] };
+      nextDay.meals = nextDay.meals.map((m) => (m.slot === meal.slot ? newMeal : m));
+      nextDay.totals = nextDay.meals.reduce(
+        (t, m) => ({
+          calories: t.calories + m.calories,
+          proteinG: t.proteinG + m.proteinG,
+          carbsG: t.carbsG + m.carbsG,
+          fatG: t.fatG + m.fatG
+        }),
+        { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
+      );
+      nextDays[dayIndex] = nextDay;
+      const nextPlan = { ...plan, days: nextDays };
+      setPlan(nextPlan);
+      writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSwapping(null);
+    }
   };
 
   return (
@@ -215,20 +254,38 @@ export default function AdaptiveMealPlan() {
                     <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
                   </summary>
                   <CardContent className="space-y-3 px-5 pb-5 pt-0">
-                    {day.meals.map((meal) => (
-                      <div key={meal.slot} className="rounded-lg bg-panel2 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{meal.slot}</p>
-                            <h3 className="text-sm font-medium">{meal.title}</h3>
+                    {day.meals.map((meal) => {
+                      const swapKey = `${index}-${meal.slot}`;
+                      const isSwappable = !meal.id?.startsWith("ai-");
+                      return (
+                        <div key={meal.slot} className="rounded-lg bg-panel2 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{meal.slot}</p>
+                              <h3 className="text-sm font-medium">{meal.title}</h3>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{meal.calories} kcal</span>
+                              {isSwappable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSwap(index, meal)}
+                                  disabled={swapping === swapKey}
+                                  aria-label={`Swap ${meal.slot}`}
+                                  className="flex min-h-9 items-center gap-1 rounded-md px-2 py-1 text-xs text-teal hover:bg-teal/10 disabled:opacity-50"
+                                >
+                                  <Shuffle className={`h-3 w-3 ${swapping === swapKey ? "animate-spin" : ""}`} aria-hidden="true" />
+                                  Swap
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span className="shrink-0 text-xs text-muted-foreground">{meal.calories} kcal</span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {meal.proteinG}p / {meal.carbsG}c / {meal.fatG}f · {meal.servingScale}× base portion
+                          </p>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {meal.proteinG}p / {meal.carbsG}c / {meal.fatG}f · {meal.servingScale}× base portion
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </details>
               </Card>

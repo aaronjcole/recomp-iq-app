@@ -487,7 +487,7 @@ function roundQuantity(value) {
   return Math.round(value * 4) / 4;
 }
 
-function scaleMeal(source, scale) {
+export function scaleMeal(source, scale) {
   return {
     id: source.id,
     slot: source.slot,

@@ -3,7 +3,8 @@ import test from "node:test";
 import {
   MealPlanRequestError,
   buildAdaptiveMealPlan,
-  normalizeMealPlanRequest
+  normalizeMealPlanRequest,
+  swapMeal
 } from "../../base44/shared/adaptiveMealPlanDomain.js";
 
 const STRATEGY = {
@@ -103,8 +104,10 @@ test("a lower-carb preference selects a lower-carb rotation", () => {
 
 test("meal-plan request dates are strict and invalid nutrition targets fail closed", () => {
   assert.deepEqual(normalizeMealPlanRequest({ weekStart: "2026-08-03" }), {
-    weekStart: "2026-08-03"
+    weekStart: "2026-08-03",
+    mode: "deterministic"
   });
+  assert.equal(normalizeMealPlanRequest({ weekStart: "2026-08-03", mode: "ai_variety" }).mode, "ai_variety");
   assert.throws(
     () => normalizeMealPlanRequest({ weekStart: "08/03/2026" }),
     (error) => error instanceof MealPlanRequestError
@@ -118,4 +121,21 @@ test("meal-plan request dates are strict and invalid nutrition targets fail clos
     }),
     (error) => error instanceof MealPlanRequestError
   );
+});
+
+test("swapMeal returns a different compatible meal from the same slot", () => {
+  const original = swapMeal("overnight-protein-oats", "omnivore", []);
+  assert.ok(original);
+  assert.notEqual(original.id, "overnight-protein-oats");
+  assert.equal(original.slot, "breakfast");
+
+  // Avoiding the swapped-in id yields yet another candidate
+  const second = swapMeal("overnight-protein-oats", "omnivore", [original.id]);
+  assert.ok(second);
+  assert.notEqual(second.id, "overnight-protein-oats");
+  assert.notEqual(second.id, original.id);
+});
+
+test("swapMeal returns null for an unknown meal id", () => {
+  assert.equal(swapMeal("does-not-exist", "omnivore", []), null);
 });
