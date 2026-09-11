@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useRecomp } from "@/lib/RecompContext";
-import RatingDrawer from "@/components/today/RatingDrawer";
+import RatingControl from "@/components/today/RatingControl";
 import { useToast } from "@/components/ui/use-toast";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 import { todayStr } from "@/lib/loggingDateUtils";
@@ -137,13 +137,13 @@ export default function QuickLogSheet({ open, onOpenChange, date = todayStr() })
 
           <Section label="Sleep & recovery">
             <Field label="Sleep hours" value={form.sleep_hours} onChange={(v) => set("sleep_hours", v)} type="number" min={0} max={24} />
-            <RatingDrawer label="Sleep quality (1-5)" value={form.sleep_quality} onChange={(v) => set("sleep_quality", v)} />
-            <RatingDrawer label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
-            <RatingDrawer label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
+            <RatingControl label="Sleep quality (1-5)" value={form.sleep_quality} onChange={(v) => set("sleep_quality", v)} />
+            <RatingControl label="Energy (1-5)" value={form.energy_rating} onChange={(v) => set("energy_rating", v)} />
+            <RatingControl label="Soreness (1-5)" value={form.soreness_rating} onChange={(v) => set("soreness_rating", v)} />
           </Section>
 
           <Section label="How you felt">
-            <RatingDrawer label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
+            <RatingControl label="Hunger (1-5)" value={form.hunger_rating} onChange={(v) => set("hunger_rating", v)} />
           </Section>
 
           <div className="space-y-1.5">
