@@ -56,7 +56,7 @@ export default function AppLayout() {
   return (
     <LoggingDateProvider>
     <div className="min-h-screen bg-bg text-foreground flex flex-col">
-      <main id="main-content" tabIndex={-1} className={`mx-auto w-full max-w-[480px] flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] lg:my-8 lg:min-h-[calc(100vh-4rem)] lg:flex-none lg:rounded-3xl lg:border lg:border-line lg:bg-panel lg:px-6 lg:pt-6 lg:shadow-2xl ${isTabRoute ? "pb-28" : "pb-6"}`}>
+      <main id="main-content" tabIndex={-1} className={`mx-auto w-full max-w-[480px] flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] ${isTabRoute ? "pb-28" : "pb-6"}`}>
         {ROOT_TAB_PATHS.filter((p) => cache.current[p]).map((p) => (
           <div key={p} className={isTabRoot && p === tabRootPath ? "" : "hidden"}>
             {cache.current[p]}
@@ -79,7 +79,7 @@ export default function AppLayout() {
         </MotionConfig>
       </main>
       {isTabRoute && (
-        <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 mx-auto max-w-[480px] border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)] lg:bottom-6 lg:overflow-hidden lg:rounded-2xl lg:border lg:shadow-lg">
+        <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 mx-auto max-w-[480px] border-t border-line bg-panel/95 backdrop-blur z-50 pb-[env(safe-area-inset-bottom)]">
           <div className="flex">
             {tabs.map(({ to, icon: Icon, label, end }) => (
               <NavLink
