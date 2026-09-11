@@ -124,13 +124,6 @@ function newestByKey(items, keyFor) {
   return [...selected.values()];
 }
 
-function mergeById(prev, next) {
-  const map = new Map();
-  for (const item of next) if (item?.id) map.set(item.id, item);
-  for (const item of prev) if (item?.id) map.set(item.id, item);
-  return [...map.values()];
-}
-
 function mergeDefined(previous, next) {
   const merged = { ...(previous ?? {}) };
   for (const [key, value] of Object.entries(next ?? {})) {
@@ -248,71 +241,36 @@ export function RecompProvider({ children }) {
     });
   }, []);
 
-  const loadHistory = useCallback(async () => {
-    // Best-effort background load of older history. Failures are non-fatal —
-    // the render-critical recent data from phase 1 is already on screen.
-    try {
-      const older = await Promise.all([
-        base44.entities.DailyLog.list("-date", 500),
-        base44.entities.ExerciseSession.list("-date", 300),
-        base44.entities.StrengthLog.list("-date", 500),
-        base44.entities.WeeklyCheckIn.list("-created_date", 100),
-        base44.entities.Recipe.list("-created_date", 100),
-        base44.entities.DecisionLedger.list("-date", 100),
-        base44.entities.HabitEntry.list("-date", 500),
-        featureFlags.itemizedFoodDiary
-          ? base44.entities.FoodLogEntry.list("-date", 500)
-          : Promise.resolve([])
-      ]);
-      setLogsCurrent((prev) =>
-        newestByKey([...prev, ...older[0]], (item) => item.date).sort((a, b) =>
-          b.date.localeCompare(a.date)
-        )
-      );
-      setSessionsCurrent((prev) => mergeById(prev, older[1]));
-      setStrengthLogsCurrent((prev) => mergeById(prev, older[2]));
-      setCheckIns(older[3]);
-      setRecipes(older[4]);
-      setDecisionLedger(older[5]);
-      setHabitEntriesCurrent((prev) =>
-        newestByKey([...prev, ...older[6]], (item) => `${item.habit_id}:${item.date}`)
-      );
-      setFoodLogEntriesCurrent((prev) => mergeById(prev, older[7]));
-    } catch (error) {
-      console.warn("Background history load failed; recent data is still usable.", error);
-    }
-  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
-
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      // Phase 1: render-critical recent data + reference data. Limited to the
-      // recent window so Today paints fast even for accounts with months of
-      // history; older records load in the background via loadHistory.
       const results = await Promise.all([
         base44.entities.UserProfile.list("-created_date", 1),
         base44.entities.UserPreferences.list("-created_date", 1),
         base44.entities.CurrentStrategy.list("-created_date", 1),
-        base44.entities.DailyLog.list("-date", 90),
-        base44.entities.ExerciseSession.list("-date", 30),
-        base44.entities.StrengthLog.list("-date", 90),
+        base44.entities.DailyLog.list("-date", 500),
+        base44.entities.ExerciseSession.list("-date", 200),
+        base44.entities.StrengthLog.list("-date", 500),
+        base44.entities.WeeklyCheckIn.list("-created_date", 100),
         base44.entities.FoodItem.list("-created_date", 200),
+        base44.entities.Recipe.list("-created_date", 100),
+        base44.entities.DecisionLedger.list("-date", 100),
         base44.entities.MealTemplate.list("-created_date", 200),
         base44.entities.Habit.list("-sort_order", 200),
-        base44.entities.HabitEntry.list("-date", 90),
+        base44.entities.HabitEntry.list("-date", 500),
         base44.entities.TrainingBlock.filter({ status: "active" }, "-created_date", 1).catch(() => []),
         featureFlags.itemizedFoodDiary
-          ? base44.entities.FoodLogEntry.list("-date", 90)
+          ? base44.entities.FoodLogEntry.list("-date", 500)
           : Promise.resolve([])
       ]);
       const loadedProfile = results[0][0] ?? null;
       const loadedPreferences = results[1][0] ?? null;
       const loadedStrategy = results[2][0] ?? null;
       const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
-      const loadedHabitEntries = newestByKey(results[9], (item) => `${item.habit_id}:${item.date}`);
-      const loadedActiveBlock = results[10]?.[0] ?? null;
-      const loadedFoodLogEntries = results[11] ?? [];
+      const loadedHabitEntries = newestByKey(results[12], (item) => `${item.habit_id}:${item.date}`);
+      const loadedActiveBlock = results[13]?.[0] ?? null;
+      const loadedFoodLogEntries = results[14] ?? [];
       profileRef.current = loadedProfile;
       preferencesRef.current = loadedPreferences;
       strategyRef.current = loadedStrategy;
@@ -322,10 +280,13 @@ export function RecompProvider({ children }) {
       setLogsCurrent(loadedLogs);
       setSessionsCurrent(results[4]);
       setStrengthLogsCurrent(results[5]);
-      setFoods(results[6]);
+      setCheckIns(results[6]);
+      setFoods(results[7]);
       setFoodLogEntriesCurrent(loadedFoodLogEntries);
-      setMealTemplates(results[7]);
-      let habitList = results[8];
+      setRecipes(results[8]);
+      setDecisionLedger(results[9]);
+      setMealTemplates(results[10]);
+      let habitList = results[11];
       let normalizedHabitEntries = loadedHabitEntries;
       activeBlockRef.current = loadedActiveBlock;
       setActiveBlock(loadedActiveBlock);
@@ -347,14 +308,10 @@ export function RecompProvider({ children }) {
       setHabitEntriesCurrent(normalizedHabitEntries);
     } catch (error) {
       setLoadError(error instanceof Error ? error : new Error("Unable to load your data."));
+    } finally {
       setLoading(false);
-      return;
     }
-    // Unblock render now; skeletons disappear with the recent data on screen.
-    setLoading(false);
-    // Phase 2: older history loads in the background and merges in.
-    loadHistory();
-  }, [loadHistory, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
+  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
   useEffect(() => {
     loadAll();

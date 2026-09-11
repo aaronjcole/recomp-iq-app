@@ -84,11 +84,8 @@ module.exports = {
   			mono: ['var(--font-mono)']
   		},
 		fontSize: {
-			micro: '0.6875rem',
-			label: '0.75rem',
-			body: '0.9375rem',
-			h1: ['1.375rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
-			monumental: ['2rem', { lineHeight: '1.05', letterSpacing: '-0.02em' }]
+			micro: '0.625rem',
+			label: '0.75rem'
 		},
   		keyframes: {
   			'accordion-down': {

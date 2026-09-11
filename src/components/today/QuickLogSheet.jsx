@@ -6,10 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useRecomp } from "@/lib/RecompContext";
-import { useLoggingDate } from "@/lib/LoggingDateContext";
 import RatingControl from "@/components/today/RatingControl";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
-import { formatLogDayLabel } from "@/lib/loggingDateUtils";
+import { todayStr } from "@/lib/loggingDateUtils";
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
@@ -30,14 +29,31 @@ const EMPTY_FORM = {
   notes: ""
 };
 
-export default function QuickLogSheet({ open, onOpenChange, date }) {
+/**
+ * @typedef {{
+ *   weight_lbs?: string | number,
+ *   calories?: string | number,
+ *   protein_g?: string | number,
+ *   carbs_g?: string | number,
+ *   fat_g?: string | number,
+ *   steps?: string | number,
+ *   waist_in?: string | number,
+ *   workout_completed?: boolean,
+ *   hunger_rating?: string | number,
+ *   energy_rating?: string | number,
+ *   soreness_rating?: string | number,
+ *   sleep_hours?: string | number,
+ *   sleep_quality?: string | number,
+ *   notes?: string,
+ * }} QuickLogForm
+ */
+
+export default function QuickLogSheet({ open, onOpenChange, date = todayStr() }) {
   const { logs, upsertDailyLog } = useRecomp();
-  const { isToday } = useLoggingDate();
-  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [form, setForm] = useState(/** @type {QuickLogForm} */ ({ ...EMPTY_FORM }));
   const [saving, setSaving] = useState(false);
 
   const logForDate = useMemo(() => logs.find((l) => l.date === date) ?? null, [logs, date]);
-  const dayLabel = formatLogDayLabel(date, isToday);
 
   useEffect(() => {
     if (open) {
@@ -92,10 +108,9 @@ export default function QuickLogSheet({ open, onOpenChange, date }) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Log {dayLabel}</SheetTitle>
-          <SheetDescription>Every signal. Empty fields stay unlogged.</SheetDescription>
+          <SheetTitle>Log today</SheetTitle>
+          <SheetDescription>Add the signals you have. Empty fields stay unlogged.</SheetDescription>
         </SheetHeader>
-
         <div className="space-y-5 px-4 py-4">
           <Section label="Body">
             <Field label="Weight (lb)" value={form.weight_lbs} onChange={(v) => set("weight_lbs", v)} type="number" min={40} max={1200} />
@@ -133,10 +148,9 @@ export default function QuickLogSheet({ open, onOpenChange, date }) {
             <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
           </div>
         </div>
-
         <SheetFooter className="px-4 pb-6">
           <Button className="w-full bg-teal text-buttonText hover:opacity-90" disabled={saving} onClick={handleSave}>
-            {saving ? "Saving…" : `Save ${dayLabel}`}
+            {saving ? "Saving…" : "Save today's log"}
           </Button>
         </SheetFooter>
       </SheetContent>
