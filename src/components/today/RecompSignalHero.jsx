@@ -78,7 +78,7 @@ export default function RecompSignalHero({ move, onLog }) {
   const coachLine = boss?.countermove || signal.copy;
 
   return (
-    <section aria-labelledby="recomp-signal-heading" className="rounded-xl bg-panel border border-line shadow-md p-4 space-y-3">
+    <section aria-labelledby="recomp-signal-heading" className="rounded-2xl bg-panel2 border border-teal/40 shadow-md p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 id="recomp-signal-heading" className="font-mono text-label uppercase tracking-wider text-muted-foreground">Recomp Signal</h2>
         <span className={`font-mono text-label uppercase tracking-wider px-2 py-0.5 rounded-full border ${chipClass}`}>

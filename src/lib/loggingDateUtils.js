@@ -77,6 +77,17 @@ export function formatShortDate(dateStr) {
 }
 
 /**
+ * Returns "today" when isToday is true, otherwise the full weekday name
+ * (e.g. "Friday") for use in date-aware labels like "Log Friday" / "Add to Friday".
+ */
+export function formatLogDayLabel(dateStr, isToday) {
+  if (isToday) return "today";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+/**
  * Computes the daily-log marker effects when a training session is moved from
  * oldDate to newDate. Returns null when the date is unchanged.
  *
