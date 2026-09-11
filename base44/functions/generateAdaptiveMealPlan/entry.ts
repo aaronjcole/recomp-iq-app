@@ -2,7 +2,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
 import {
   MealPlanRequestError,
   buildAdaptiveMealPlan,
-  normalizeMealPlanRequest
+  normalizeMealPlanRequest,
+  buildAiVarietyPrompt,
+  mergeAiMealsIntoPlan,
+  AI_VARIETY_SCHEMA
 } from "../../shared/adaptiveMealPlanDomain.js";
 import {
   PREMIUM_FEATURES,
@@ -113,12 +116,56 @@ export default async function(req) {
       }, { status: 409 });
     }
 
-    return json(buildAdaptiveMealPlan({
+    const deterministicPlan = buildAdaptiveMealPlan({
       weekStart: request.weekStart,
       strategy,
       preferences,
       checkIn: checkIns[0] ?? null
-    }));
+    });
+
+    if (request.mode !== "ai_variety") {
+      return json(deterministicPlan);
+    }
+
+    // AI variety path: a single guarded LLM call that spends credits only when
+    // the user explicitly requests it. The deterministic plan seeds the
+    // "avoid" list so the LLM does not echo the same rotation.
+    const avoidIds = deterministicPlan.days
+      .flatMap((day) => day.meals)
+      .map((meal) => meal.title);
+
+    let aiOutput;
+    try {
+      const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: buildAiVarietyPrompt({
+          dailyTargets: deterministicPlan.dailyTargets,
+          dietStyle: deterministicPlan.dietStyle,
+          checkIn: checkIns[0] ?? null,
+          avoidIds
+        }),
+        response_json_schema: AI_VARIETY_SCHEMA,
+        model: "automatic"
+      });
+      aiOutput = result;
+    } catch (error) {
+      console.error("generateAdaptiveMealPlan AI variety failed", safeErrorDetails(error));
+      return json({ ...deterministicPlan, aiVarietyError: "AI variety is unavailable right now; showing your deterministic plan." });
+    }
+
+    try {
+      return json(mergeAiMealsIntoPlan({
+        aiOutput,
+        weekStart: request.weekStart,
+        dietStyle: deterministicPlan.dietStyle,
+        dailyTargets: deterministicPlan.dailyTargets,
+        adaptation: deterministicPlan.adaptation
+      }));
+    } catch (error) {
+      if (error instanceof MealPlanRequestError) {
+        return json({ ...deterministicPlan, aiVarietyError: "AI variety could not be formatted; showing your deterministic plan." });
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof MealPlanRequestError) {
       return json({ error: error.message }, { status: 409 });

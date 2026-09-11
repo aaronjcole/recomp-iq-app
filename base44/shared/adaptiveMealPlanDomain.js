@@ -562,6 +562,121 @@ function groceryListFor(days) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// ── AI variety path ──
+// A single guarded LLM call that produces a genuinely varied week. The
+// deterministic expand+swap remains the free default; this path is an optional
+// premium upgrade that spends credits only when the user chooses it.
+
+export const AI_VARIETY_SCHEMA = Object.freeze({
+  type: "object",
+  properties: {
+    days: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          meals: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                slot: { type: "string" },
+                title: { type: "string" },
+                calories: { type: "number" },
+                proteinG: { type: "number" },
+                carbsG: { type: "number" },
+                fatG: { type: "number" },
+                ingredients: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      quantity: { type: "number" },
+                      unit: { type: "string" }
+                    },
+                    required: ["name", "quantity", "unit"]
+                  }
+                }
+              },
+              required: ["slot", "title", "calories", "proteinG", "carbsG", "fatG", "ingredients"]
+            }
+          }
+        },
+        required: ["meals"]
+      }
+    }
+  },
+  required: ["days"]
+});
+
+export function buildAiVarietyPrompt({ dailyTargets, dietStyle, checkIn, avoidIds }) {
+  const avoidList = Array.isArray(avoidIds) && avoidIds.length > 0
+    ? avoidIds.join(", ")
+    : "(none)";
+  const checkInSummary = checkIn?.recommendation_decision
+    ? `Latest check-in recommendation: ${checkIn.recommendation_decision.replace(/_/g, " ")}.`
+    : "No check-in data yet — use a balanced rotation.";
+  return [
+    `You are a sports-nutrition meal planner. Generate 7 days of varied meals for a ${dietStyle} diet.`,
+    `Daily targets: ${dailyTargets.calories} kcal, ${dailyTargets.proteinG}g protein, ${dailyTargets.carbsG}g carbs, ${dailyTargets.fatG}g fat.`,
+    checkInSummary,
+    `Each day must have exactly 4 meals: one breakfast, one lunch, one dinner, one snack.`,
+    `Vary the meals across all 7 days — avoid repeating the same meal title twice.`,
+    `Do NOT use these already-used meal concepts: ${avoidList}.`,
+    `Each meal needs a title, estimated calories, proteinG, carbsG, fatG, and a short ingredient list (name, quantity, unit).`,
+    `Keep portions realistic and close to the daily targets when summed across the 4 meals.`,
+    `Return only the JSON object matching the schema — no commentary.`
+  ].join(" ");
+}
+
+// Transforms the LLM output into the full plan shape, computing totals +
+// grocery list deterministically. Meals are kept as-returned by the LLM
+// (already scaled by the prompt); we only validate and aggregate.
+export function mergeAiMealsIntoPlan({ aiOutput, weekStart, dietStyle, dailyTargets, adaptation }) {
+  const rawDays = Array.isArray(aiOutput?.days) ? aiOutput.days.slice(0, 7) : [];
+  if (rawDays.length !== 7) {
+    throw new MealPlanRequestError("The AI variety response did not return 7 days");
+  }
+
+  const days = rawDays.map((rawDay, dayIndex) => {
+    const rawMeals = Array.isArray(rawDay?.meals) ? rawDay.meals : [];
+    const meals = rawMeals.map((raw) => ({
+      id: `ai-${dayIndex}-${raw.slot}`,
+      slot: raw.slot,
+      title: String(raw.title || "AI meal").slice(0, 80),
+      servingScale: 1,
+      calories: Math.round(Number(raw.calories) || 0),
+      proteinG: Math.round(Number(raw.proteinG) || 0),
+      carbsG: Math.round(Number(raw.carbsG) || 0),
+      fatG: Math.round(Number(raw.fatG) || 0),
+      ingredients: Array.isArray(raw.ingredients)
+        ? raw.ingredients.slice(0, 8).map((ing) => ({
+            name: String(ing.name || "ingredient").slice(0, 60),
+            quantity: Math.round((Number(ing.quantity) || 0) * 4) / 4,
+            unit: String(ing.unit || "serving").slice(0, 20)
+          }))
+        : []
+    }));
+    return {
+      date: addDays(weekStart, dayIndex),
+      meals,
+      totals: sumMeals(meals)
+    };
+  });
+
+  return {
+    weekStart,
+    dietStyle,
+    dailyTargets,
+    adaptation: { ...adaptation, mode: "ai_variety", summary: "This week was generated with AI variety to maximize meal diversity while staying on target." },
+    days,
+    groceryList: groceryListFor(days),
+    allergyNotice: "Review every ingredient for allergies, intolerances, medication interactions, and dietary restrictions before using this plan.",
+    nutritionNotice: "Calories and macros are estimates for planning—not medical advice. Confirm portions and labels when logging."
+  };
+}
+
 export function buildAdaptiveMealPlan({ weekStart, strategy, preferences, checkIn }) {
   normalizeMealPlanRequest({ weekStart });
   if (!strategy || typeof strategy !== "object") {

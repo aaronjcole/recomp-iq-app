@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, ChevronDown, RefreshCw, ShoppingCart } from "lucide-react";
+import { CalendarDays, ChevronDown, RefreshCw, ShoppingCart, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -58,6 +58,7 @@ export default function AdaptiveMealPlan() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
   const [checked, setChecked] = useState({});
+  const [mode, setMode] = useState("deterministic");
   const weekStart = useMemo(currentWeekStart, []);
 
   useEffect(dropLegacyPlanCache, []);
@@ -74,10 +75,13 @@ export default function AdaptiveMealPlan() {
     setIsGenerating(true);
     setError("");
     try {
-      const result = await base44.functions.invoke("generateAdaptiveMealPlan", { weekStart });
+      const result = await base44.functions.invoke("generateAdaptiveMealPlan", { weekStart, mode });
       const nextPlan = result?.data ?? result;
       if (!nextPlan || !Array.isArray(nextPlan.days) || !Array.isArray(nextPlan.groceryList)) {
         throw new Error("The meal planner returned an incomplete plan.");
+      }
+      if (nextPlan.aiVarietyError) {
+        setError(nextPlan.aiVarietyError);
       }
       setPlan(nextPlan);
       writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
@@ -127,19 +131,52 @@ export default function AdaptiveMealPlan() {
           )}
 
           {allowed && (
-            <Button
-              className="w-full bg-teal text-buttonText hover:opacity-90"
-              onClick={generate}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <><RefreshCw className="animate-spin" aria-hidden="true" /> Building your week…</>
-              ) : plan ? (
-                <><RefreshCw aria-hidden="true" /> Rebuild this week</>
-              ) : (
-                <><CalendarDays aria-hidden="true" /> Build this week</>
-              )}
-            </Button>
+            <>
+              <div role="group" aria-label="Meal plan variety mode" className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode("deterministic")}
+                  aria-pressed={mode === "deterministic"}
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    mode === "deterministic"
+                      ? "border-teal bg-teal/10 text-teal"
+                      : "border-line bg-panel2 text-muted-foreground"
+                  }`}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Rotation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("ai_variety")}
+                  aria-pressed={mode === "ai_variety"}
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    mode === "ai_variety"
+                      ? "border-teal bg-teal/10 text-teal"
+                      : "border-line bg-panel2 text-muted-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> AI variety
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {mode === "ai_variety"
+                  ? "AI variety spends credits to generate a fully unique week. Falls back to rotation if unavailable."
+                  : "Rotation builds a repeatable week from your meal catalog — no credits used."}
+              </p>
+              <Button
+                className="w-full bg-teal text-buttonText hover:opacity-90"
+                onClick={generate}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <><RefreshCw className="animate-spin" aria-hidden="true" /> Building your week…</>
+                ) : plan ? (
+                  <><RefreshCw aria-hidden="true" /> Rebuild this week</>
+                ) : (
+                  <><CalendarDays aria-hidden="true" /> Build this week</>
+                )}
+              </Button>
+            </>
           )}
 
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
