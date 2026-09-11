@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useRecomp } from "@/lib/RecompContext";
 import RatingControl from "@/components/today/RatingControl";
-import { useToast } from "@/components/ui/use-toast";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 import { todayStr } from "@/lib/loggingDateUtils";
 
@@ -51,7 +50,6 @@ const EMPTY_FORM = {
 
 export default function QuickLogSheet({ open, onOpenChange, date = todayStr() }) {
   const { logs, upsertDailyLog } = useRecomp();
-  const { toast } = useToast();
   const [form, setForm] = useState(/** @type {QuickLogForm} */ ({ ...EMPTY_FORM }));
   const [saving, setSaving] = useState(false);
 
@@ -100,7 +98,6 @@ export default function QuickLogSheet({ open, onOpenChange, date = todayStr() })
         notes: form.notes || undefined
       });
       triggerHaptic(HAPTIC_TRIGGERS.LOG_SAVED);
-      toast({ title: "Logged", description: date === todayStr() ? "Today's numbers are saved." : "Log saved." });
       onOpenChange(false);
     } finally {
       setSaving(false);

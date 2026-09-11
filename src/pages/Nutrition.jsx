@@ -23,7 +23,6 @@ import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, Calen
 // when the user actually opens a scanner.
 const BarcodeScanner = lazy(() => import("@/components/nutrition/BarcodeScanner"));
 const FoodPhotoScan = lazy(() => import("@/components/nutrition/FoodPhotoScan"));
-import { toast } from "@/components/ui/use-toast";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
 
@@ -89,7 +88,6 @@ export default function Nutrition() {
     if (addToToday) {
       await logToToday(food, showPhotoScan ? "photo" : "barcode", savedFood.id);
     }
-    toast({ title: `${food.name} ${addToToday ? "added to today" : "saved to library"}` });
     setShowScanner(false);
     setShowPhotoScan(false);
   };
@@ -98,7 +96,6 @@ export default function Nutrition() {
 
   const quickAddFood = async (f) => {
     await logToToday(f, "library", f.id);
-    toast({ title: `${f.name} added` });
   };
 
   if (!strategy) return (

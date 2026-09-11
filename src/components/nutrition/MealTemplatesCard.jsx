@@ -79,7 +79,6 @@ export default function MealTemplatesCard({ date = todayStr() }) {
 
   const log = async (tpl) => {
     await logMealTemplate(tpl, date);
-    toast({ title: "Logged", description: date === todayStr() ? `${tpl.name} added to today.` : `${tpl.name} added.` });
   };
 
   return (

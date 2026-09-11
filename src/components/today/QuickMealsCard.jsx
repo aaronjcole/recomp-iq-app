@@ -18,7 +18,6 @@ export function QuickMealsContent() {
     try {
       await logMealTemplate(tpl);
       triggerHaptic(HAPTIC_TRIGGERS.MEAL_LOGGED);
-      toast({ title: "Logged", description: `${tpl.name} added to today.` });
     } catch {
       toast({ title: "Could not log", description: "Please try again.", variant: "destructive" });
     }
