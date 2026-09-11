@@ -96,3 +96,35 @@ export function computeSessionDateMoveEffects(oldDate, newDate, remainingSession
     shouldClearOld: sessionsOnOldDate.length === 0
   };
 }
+
+/**
+ * Returns the Monday date string (YYYY-MM-DD) of the current week in the
+ * user's local timezone. Week runs Monday–Sunday.
+ */
+export function getCurrentWeekStart() {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  const local = new Date(monday.getTime() - monday.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns the weekday name for a YYYY-MM-DD string, e.g. "Friday".
+ */
+export function formatWeekdayName(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+/**
+ * Returns "today" if isToday is true, otherwise the weekday name.
+ * Used for date-aware labels like "Log today" vs "Log Friday".
+ */
+export function relativeDayLabel(dateStr, isToday) {
+  if (isToday) return "today";
+  return formatWeekdayName(dateStr);
+}

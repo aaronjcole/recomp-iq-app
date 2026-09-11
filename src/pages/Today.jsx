@@ -7,7 +7,7 @@ import TodayProgressCard from "@/components/today/TodayProgressCard";
 import TodayChecklist from "@/components/today/TodayChecklist";
 import ThisWeekCard from "@/components/today/ThisWeekCard";
 import RecompSignalHero from "@/components/today/RecompSignalHero";
-import StreakBanner from "@/components/today/StreakBanner";
+import StreakChip from "@/components/today/StreakChip";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { deriveBestMove, summarizeSleep } from "@/lib/fitness";
 import { useLoggingDate } from "@/lib/LoggingDateContext";
@@ -22,7 +22,7 @@ function greeting() {
 }
 
 export default function Today() {
-  const { preferences, signal, strategy, trend, quests, logs, reload } = useRecomp();
+  const { preferences, signal, strategy, trend, quests, logs, reload, ensureDateLoaded } = useRecomp();
   const { selectedDate, isToday } = useLoggingDate();
   const [logOpen, setLogOpen] = useState(false);
   const { state } = useLocation();
@@ -31,6 +31,11 @@ export default function Today() {
     const el = document.getElementById(state.scrollTo);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [state?.scrollTo]);
+
+  // Fetch on-demand data for historical dates outside the current-week batch.
+  useEffect(() => {
+    ensureDateLoaded?.(selectedDate);
+  }, [ensureDateLoaded, selectedDate]);
   const selectedLog = useMemo(
     () => logs.find((l) => l.date === selectedDate) ?? null,
     [logs, selectedDate]
@@ -70,7 +75,7 @@ export default function Today() {
           <h1 className="text-3xl font-bold tracking-tight">{isToday ? "Today" : "Log"}</h1>
           <p className="text-xs text-muted-foreground">{dateLabel}</p>
         </div>
-        <StreakBanner compact />
+        <StreakChip />
       </div>
 
       <LoggingDatePicker />
@@ -94,8 +99,6 @@ export default function Today() {
         onLog={() => setLogOpen(true)}
         expand={state?.scrollTo === "habits-section"}
       />
-
-      <StreakBanner />
 
       <ThisWeekCard quests={quests} />
 
