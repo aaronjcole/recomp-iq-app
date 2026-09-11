@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
-import { scoreNutritionQuality } from "@/lib/fitness";
 import { useLoggingDate } from "@/lib/LoggingDateContext";
 import { formatWeekdayName } from "@/lib/loggingDateUtils";
 import LoggingDatePicker from "@/components/LoggingDatePicker";
@@ -18,8 +17,10 @@ import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
 import FoodDiaryCard from "@/components/nutrition/FoodDiaryCard";
+import NutritionSignalCard from "@/components/nutrition/NutritionSignalCard";
+import QualityScoreBadge from "@/components/nutrition/QualityScoreBadge";
 import PremiumBadge from "@/components/premium/PremiumBadge";
-import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight } from "lucide-react";
+import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight, Pencil } from "lucide-react";
 // Loaded on demand so the ~110KB @zxing barcode decoder (and the flag-gated AI
 // food-photo scanner) stay out of the Fuel tab's initial chunk and only download
 // when the user actually opens a scanner.
@@ -51,6 +52,8 @@ export default function Nutrition() {
     return urlSeg === "library" || urlSeg === "tools" ? urlSeg : "diary";
   });
   const [showAllFoods, setShowAllFoods] = useState(false);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
+  const manualFormRef = useRef(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const selectedLog = useMemo(
@@ -137,6 +140,18 @@ export default function Nutrition() {
     await logToToday(f, "library", f.id);
   };
 
+  const handleNudge = useCallback((action) => {
+    if (!action) return;
+    if (action.type === "add_food" && action.food) {
+      quickAddFood(action.food);
+    } else if (action.type === "open_form") {
+      setManualFormOpen(true);
+      requestAnimationFrame(() => {
+        manualFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [quickAddFood]);
+
   if (!strategy) return (
     <div className="space-y-5">
       <div className="h-8 w-40 animate-pulse rounded-xl bg-panel2" />
@@ -198,56 +213,99 @@ export default function Nutrition() {
         <>
           {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} />}
 
+          <NutritionSignalCard onNudge={handleNudge} />
+
+          {/* Scan — fastest add path */}
           <Card className="bg-panel border-line">
             <CardContent className="p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-medium">Quick add food</h2>
-              </div>
-              {foods.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Recent</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: "none" }}>
-                    {foods.slice(0, 6).map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => quickAddFood(f)}
-                        className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity"
-                      >
-                        <div className="text-sm font-medium truncate">{f.name}</div>
-                        <div className="text-xs text-muted-foreground">{f.calories} kcal</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm text-muted-foreground">Or add manually</span>
-              </div>
+              <h2 className="font-medium">Scan food</h2>
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-1.5">
-                  <Label htmlFor={`${foodFormId}-name`}>Food name</Label>
-                  <Input id={`${foodFormId}-name`} className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${foodFormId}-serving`}>Serving</Label>
-                  <Input id={`${foodFormId}-serving`} className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${foodFormId}-grams`}>Grams</Label>
-                  <Input id={`${foodFormId}-grams`} className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
-                </div>
-                <Field id={`${foodFormId}-calories`} label="Calories" accessibleLabel="Food calories" v={form.calories} on={(v) => set("calories", v)} />
-                <Field id={`${foodFormId}-protein`} label="Protein (g)" accessibleLabel="Food protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
-                <Field id={`${foodFormId}-carbs`} label="Carbs (g)" accessibleLabel="Food carbs (g)" v={form.carbs_g} on={(v) => set("carbs_g", v)} />
-                <Field id={`${foodFormId}-fat`} label="Fat (g)" accessibleLabel="Food fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
-                <Field id={`${foodFormId}-fiber`} label="Fiber (g)" accessibleLabel="Food fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
-              </div>
-              <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
-                <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
-                <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
-                  <Plus className="w-4 h-4 mr-1" /> {addLabel}
+                {featureFlags.foodPhotoScan && (
+                  <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
+                    <Camera className="w-4 h-4 mr-1" /> Snap food
+                  </Button>
+                )}
+                <Button variant="outline" className="min-h-11" onClick={() => setShowScanner(true)}>
+                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent foods — one-tap quick add */}
+          {foods.length > 0 && (
+            <Card className="bg-panel border-line">
+              <CardContent className="p-5 space-y-3">
+                <h2 className="font-medium">Recent foods</h2>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: "none" }}>
+                  {foods.slice(0, 8).map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => quickAddFood(f)}
+                      className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity"
+                    >
+                      <div className="text-sm font-medium truncate">{f.name}</div>
+                      <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p</div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meal templates — one-tap multi-item add */}
+          <MealTemplatesCard date={selectedDate} />
+
+          {/* Manual form — collapsed under "Add manually" so the intimidating path is opt-in */}
+          <Card ref={manualFormRef} className="scroll-mt-4 bg-panel border-line">
+            <CardContent className="px-5 py-1">
+              <details
+                className="group"
+                open={manualFormOpen}
+                onToggle={(e) => setManualFormOpen(e.currentTarget.open)}
+              >
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-3 text-left">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span>
+                      <span className="block font-medium">Add manually</span>
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        Enter a food by hand
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="pb-5 pt-2 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 space-y-1.5">
+                      <Label htmlFor={`${foodFormId}-name`}>Food name</Label>
+                      <Input id={`${foodFormId}-name`} className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${foodFormId}-serving`}>Serving</Label>
+                      <Input id={`${foodFormId}-serving`} className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${foodFormId}-grams`}>Grams</Label>
+                      <Input id={`${foodFormId}-grams`} className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
+                    </div>
+                    <Field id={`${foodFormId}-calories`} label="Calories" accessibleLabel="Food calories" v={form.calories} on={(v) => set("calories", v)} />
+                    <Field id={`${foodFormId}-protein`} label="Protein (g)" accessibleLabel="Food protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
+                    <Field id={`${foodFormId}-carbs`} label="Carbs (g)" accessibleLabel="Food carbs (g)" v={form.carbs_g} on={(v) => set("carbs_g", v)} />
+                    <Field id={`${foodFormId}-fat`} label="Fat (g)" accessibleLabel="Food fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
+                    <Field id={`${foodFormId}-fiber`} label="Fiber (g)" accessibleLabel="Food fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
+                    <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
+                    <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
+                      <Plus className="w-4 h-4 mr-1" /> {addLabel}
+                    </Button>
+                  </div>
+                </div>
+              </details>
             </CardContent>
           </Card>
         </>
@@ -260,18 +318,23 @@ export default function Nutrition() {
             <CardContent className="p-5 space-y-3">
               <h2 className="font-medium">Food library</h2>
               {foods.length === 0 && <p className="text-sm text-muted-foreground">No foods saved yet.</p>}
-              {(showAllFoods ? foods : foods.slice(0, 12)).map((f) => {
-                const q = scoreNutritionQuality(f);
-                return (
-                  <div key={f.id} className="flex items-center justify-between gap-3 py-2 border-b border-lineSoft last:border-0">
+              {(showAllFoods ? foods : foods.slice(0, 12)).map((f) => (
+                <div key={f.id} className="space-y-1.5 py-2 border-b border-lineSoft last:border-0">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{f.name}</div>
                       <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p / {f.carbs_g}c / {f.fat_g}f</div>
                     </div>
-                    <Badge variant="outline" className="shrink-0">{q.score}</Badge>
+                    <button
+                      onClick={() => quickAddFood(f)}
+                      className="shrink-0 rounded-lg border border-line bg-panel2 px-2.5 py-1.5 text-xs font-medium text-foreground active:opacity-70 transition-opacity"
+                    >
+                      <Plus className="inline w-3 h-3 mr-0.5" />Add
+                    </button>
                   </div>
-                );
-              })}
+                  <QualityScoreBadge food={f} />
+                </div>
+              ))}
               {foods.length > 12 && (
                 <Button
                   variant="outline"

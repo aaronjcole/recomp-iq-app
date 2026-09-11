@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { triggerHaptic, HAPTIC_IMPACTS } from "@/lib/haptics";
 import { X, ScanLine, RefreshCw, Loader2, Plus, Bookmark, CameraOff } from "lucide-react";
+import QualityScoreBadge from "@/components/nutrition/QualityScoreBadge";
 
 const IDLE_TIMEOUT_MS = 8000;
 
@@ -289,6 +290,10 @@ export default function BarcodeScanner({ onClose, onResult }) {
                 Fiber {food.fiber_g}g{food.sodium_mg != null ? ` · Sodium ${food.sodium_mg}mg` : ""}
               </div>
             )}
+
+            <div className="mt-3">
+              <QualityScoreBadge food={food} />
+            </div>
 
             <div className="flex flex-col gap-2 mt-5">
               <Button
