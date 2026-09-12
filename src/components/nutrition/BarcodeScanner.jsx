@@ -31,7 +31,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
   const cameraStartIdRef = useRef(0);
   const scanHandledRef = useRef(false);
   const idleTimerRef = useRef(null);
-  const [status, setStatus] = useState("camera"); // camera | idle | looking-up | found | not-found | error
+  const [status, setStatus] = useState("starting"); // starting | camera | idle | looking-up | found | not-found | error
   const [barcode, setBarcode] = useState("");
   const [manual, setManual] = useState("");
   const [food, setFood] = useState(null);
@@ -90,7 +90,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
     const startId = ++cameraStartIdRef.current;
     scanHandledRef.current = false;
     stopCamera();
-    setStatus("camera");
+    setStatus("starting");
     setFood(null);
     setErr("");
     try {
@@ -113,6 +113,11 @@ export default function BarcodeScanner({ onClose, onResult }) {
         return;
       }
       controlsRef.current = controls;
+      // Ensure the video is actually playing — some browsers stall the
+      // stream without an explicit play() call, which means ZXing never
+      // gets frames to decode and the scan silently never fires.
+      try { await videoRef.current?.play(); } catch { /* autoplay can reject if already playing */ }
+      setStatus("camera");
       // If nothing is detected within the idle window, surface a nudge
       // without stopping the camera — the user can keep trying.
       idleTimerRef.current = setTimeout(() => {
@@ -187,7 +192,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
     lookup(manual.trim());
   };
 
-  const showCamera = status === "camera" || status === "idle";
+  const showCamera = status === "starting" || status === "camera" || status === "idle";
 
   return (
     <div
@@ -226,6 +231,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
           className={`w-full h-full object-cover ${showCamera ? "" : "hidden"}`}
           muted
           playsInline
+          autoPlay
           aria-hidden="true"
         />
 
@@ -246,6 +252,13 @@ export default function BarcodeScanner({ onClose, onResult }) {
                   animate={{ top: ["8%", "92%", "8%"] }}
                   transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
                 />
+              )}
+              {/* Camera initializing overlay */}
+              {status === "starting" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span className="text-xs">Starting camera…</span>
+                </div>
               )}
             </div>
           </div>

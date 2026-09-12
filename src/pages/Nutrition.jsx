@@ -17,6 +17,7 @@ import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
 import FoodDiaryCard from "@/components/nutrition/FoodDiaryCard";
+import FoodSearchCard from "@/components/nutrition/FoodSearchCard";
 import NutritionSignalCard from "@/components/nutrition/NutritionSignalCard";
 import QualityScoreBadge from "@/components/nutrition/QualityScoreBadge";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -127,13 +128,21 @@ export default function Nutrition() {
     ensureDateLoaded?.(selectedDate);
   }, [ensureDateLoaded, selectedDate]);
 
-  const handleScannedFood = async (food, addToToday) => {
+  const addAndLog = async (food, source, addToToday) => {
     const savedFood = await addFood(food);
     if (addToToday) {
-      await logToToday(food, showPhotoScan ? "photo" : "barcode", savedFood.id);
+      await logToToday(food, source, savedFood.id);
     }
+  };
+
+  const handleScannedFood = async (food, addToToday) => {
+    await addAndLog(food, showPhotoScan ? "photo" : "barcode", addToToday);
     setShowScanner(false);
     setShowPhotoScan(false);
+  };
+
+  const handleSearchAdd = async (food, addToToday) => {
+    await addAndLog(food, "search", addToToday);
   };
 
   const quickAddFood = async (f) => {
@@ -232,6 +241,9 @@ export default function Nutrition() {
             </CardContent>
           </Card>
 
+          {/* Search foods online — build the library from branded nutrition */}
+          <FoodSearchCard onAdd={handleSearchAdd} />
+
           {/* Recent foods — one-tap quick add */}
           {foods.length > 0 && (
             <Card className="bg-panel border-line">
@@ -314,6 +326,8 @@ export default function Nutrition() {
       {/* ── Library ── */}
       {segment === "library" && (
         <>
+          <FoodSearchCard onAdd={handleSearchAdd} />
+
           <Card className="bg-panel border-line">
             <CardContent className="p-5 space-y-3">
               <h2 className="font-medium">Food library</h2>

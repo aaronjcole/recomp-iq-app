@@ -18,7 +18,7 @@ export default async function(req) {
     if (statusOf(error) === 401 || statusOf(error) === 403) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.error("barcodeLookup auth check failed", error);
+    console.error("searchFoods auth check failed", error);
     return Response.json({ error: "Could not verify the account" }, { status: 500 });
   }
 
@@ -29,28 +29,30 @@ export default async function(req) {
     return Response.json({ error: "A JSON request body is required" }, { status: 400 });
   }
 
-  const barcode = typeof body?.barcode === "string" ? body.barcode.trim() : "";
-  if (!/^\d{8}(?:\d{4}|\d{5}|\d{6})?$/.test(barcode)) {
-    return Response.json({ error: "Enter a valid 8, 12, 13, or 14 digit barcode" }, { status: 400 });
+  const query = typeof body?.query === "string" ? body.query.trim().slice(0, 100) : "";
+  if (query.length < 2) {
+    return Response.json({ error: "Enter at least 2 characters" }, { status: 400 });
   }
 
   try {
-    const url = `${OFF_BASE}/product/${encodeURIComponent(barcode)}.json?fields=product_name,brands,serving_size,serving_quantity,nutriments`;
+    const fields = "product_name,brands,serving_size,serving_quantity,nutriments,code";
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=24&fields=${fields}`;
     const res = await fetchOff(url);
-    if (!res.ok) return Response.json({ error: "Lookup service unavailable" }, { status: 502 });
+    if (!res.ok) return Response.json({ error: "Search service unavailable" }, { status: 502 });
     const data = await res.json();
 
-    if (data.status !== 1 || !data.product) {
-      return Response.json({ found: false });
-    }
+    const products = Array.isArray(data?.products) ? data.products : [];
+    const foods = products
+      .map((p) => parseProduct(p, p.code))
+      .filter((f) => f.name && f.name !== `Product ${f.source_id}` && f.calories != null)
+      .slice(0, 24);
 
-    const food = parseProduct(data.product, barcode);
-    return Response.json({ food });
+    return Response.json({ foods });
   } catch (error) {
     if (error?.name === "AbortError") {
-      return Response.json({ error: "Lookup service timed out" }, { status: 504 });
+      return Response.json({ error: "Search service timed out" }, { status: 504 });
     }
-    console.error("barcodeLookup failed", error);
-    return Response.json({ error: "Lookup failed" }, { status: 500 });
+    console.error("searchFoods failed", error);
+    return Response.json({ error: "Search failed" }, { status: 500 });
   }
 }
