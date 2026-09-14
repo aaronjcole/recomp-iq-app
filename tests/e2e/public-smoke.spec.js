@@ -99,12 +99,37 @@ test("public pages lead visitors toward the Android beta and iOS availability", 
   const download = page.getByRole("region", { name: "Get RecompOne on your phone" });
   await expect(download.getByRole("heading", { name: "Google Play beta" })).toBeVisible();
   await expect(download.getByRole("heading", { name: "iPhone" })).toBeVisible();
-  await expect(download.getByText("Android beta is in progress.")).toBeVisible();
+  // The Android card is the same build-time branch as the SEO CTA below: a real
+  // store link once VITE_GOOGLE_PLAY_URL is configured, an honest "in progress"
+  // note until then. Assert the either-way invariant — the card always points
+  // visitors at the actual state of the Android beta — instead of pinning the
+  // unconfigured branch and flipping on an env var.
+  const playBetaLink = download.getByRole("link", { name: "Open Google Play beta", exact: true });
+  if (await playBetaLink.count()) {
+    await expect(playBetaLink).toHaveAttribute("href", /^https:\/\/play\.google\.com\//);
+  } else {
+    await expect(download.getByText("Android beta is in progress.")).toBeVisible();
+  }
   await expect(download.getByText("Available on the App Store.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
 
   await page.goto("/tools/tdee-calculator");
-  await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
+  // The SEO shell always offers an "Open RecompOne" entry point in its banner
+  // and footer, but the in-content app CTA changes label and destination with
+  // the build-time GOOGLE_PLAY_URL ("Open Google Play beta" -> the store when
+  // it is configured, "Open RecompOne" -> /login when it is not). Pinning one
+  // branch makes the assertion flip on an env var, so assert what must hold in
+  // either build: the shell reaches web sign-in, and the page carries exactly
+  // one in-content primary CTA that leads into the live product.
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Open RecompOne", exact: true })
+  ).toHaveAttribute("href", "/login");
+  const appCta = page
+    .getByRole("main")
+    .getByRole("link", { name: /^Open (RecompOne|Google Play beta)$/ });
+  await expect(appCta, "an SEO tool page needs exactly one primary app CTA").toHaveCount(1);
+  await expect(appCta).toBeVisible();
+  await expect(appCta).toHaveAttribute("href", /^(\/login$|https:\/\/play\.google\.com\/)/);
 
   assertNoPageErrors();
 });
