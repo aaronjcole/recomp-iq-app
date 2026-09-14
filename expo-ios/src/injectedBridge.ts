@@ -37,6 +37,19 @@ export function buildInjectedBridgeScript(): string {
         else callback.reject(new Error(detail.error || "Native purchase request failed"));
       });
 
+      // Deliberately named to match the Base44/Wix managed wrapper's own
+      // bridge object, not a real dependency on Wix code: src/lib/nativeIapBridge.js
+      // detects native IAP support by checking for window.wixMobileNativeBridge,
+      // so installing under that same name lets one web code path drive both
+      // Base44's Android wrapper and this custom iOS shell. The coupling risk
+      // is that "wixMobileNativeBridge" is an external contract this repo does
+      // not control: if Wix ever renames it, changes its shape, or starts
+      // populating it with something that isn't this bridge before this script
+      // runs, hasNativeIapBridge() could start returning true against an
+      // object that doesn't behave like ours (or this assignment could get
+      // clobbered/shadowed), and nothing in this repo's test suite would catch
+      // it. Re-verify this assumption on a real Base44 Android build whenever
+      // Base44/Wix ships a wrapper update.
       var bridge = window.wixMobileNativeBridge && typeof window.wixMobileNativeBridge === "object"
         ? window.wixMobileNativeBridge
         : {};

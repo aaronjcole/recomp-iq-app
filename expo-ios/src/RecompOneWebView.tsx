@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, StyleSheet, View } from "react-native";
 import {
   endConnection,
   ErrorCode,
@@ -12,7 +12,7 @@ import {
   requestPurchase,
   type Purchase
 } from "react-native-iap";
-import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 import {
   APP_ORIGIN,
@@ -214,6 +214,38 @@ export function RecompOneWebView() {
     }
   }, [rememberPurchase, sendResponse, storeReady]);
 
+  // This does not yet restrict navigation to APP_ORIGIN. handleMessage above
+  // already re-validates isTrustedAppUrl on every bridge message, so an
+  // off-origin page was never able to reach the IAP bridge — that part is not
+  // at risk. A navigation-origin allowlist would be additional defense-in-depth
+  // (an off-origin page currently can render in this authenticated,
+  // cookie-sharing session, and Apple review dislikes uncontrolled in-app
+  // browsing), but Base44 social sign-in (Google/Microsoft/Facebook/Apple,
+  // enabled in base44/auth/config.jsonc) runs as a top-level redirect through
+  // each provider's own domain before landing back on APP_ORIGIN, since this
+  // WebView is the top-level frame rather than an iframe. Enforcing a strict
+  // allowlist without first tracing all four providers' real redirect chains
+  // on a device risks silently locking users out of sign-in — worse than the
+  // gap it would close. So for now this only ever hands a well-understood,
+  // user-facing scheme to the OS (never an arbitrary/custom one): every
+  // `https:` URL keeps loading in the WebView exactly as before, `mailto:`/
+  // `tel:` open in the system handler via Linking.openURL, and anything else is
+  // refused outright. Add the APP_ORIGIN/auth-host allowlist once that device
+  // trace exists (see docs/release-checklist.md).
+  const handleShouldStartLoadWithRequest = useCallback((request: WebViewNavigation): boolean => {
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return false;
+    }
+    if (url.protocol === "https:") return true;
+    if (url.protocol === "mailto:" || url.protocol === "tel:") {
+      void Linking.openURL(request.url);
+    }
+    return false;
+  }, []);
+
   return (
     <View style={styles.container}>
       <WebView
@@ -223,6 +255,7 @@ export function RecompOneWebView() {
         injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
         injectedJavaScriptBeforeContentLoadedForMainFrameOnly
         onMessage={handleMessage}
+        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onNavigationStateChange={(state) => {
           currentUrlRef.current = state.url;
         }}
