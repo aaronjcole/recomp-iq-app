@@ -42,10 +42,17 @@ updates:
     # payment surface (react-native-iap, react-native-webview) this directory
     # exists to monitor.
     ignore:
-      # Major upgrades need isolated migration PRs and targeted regression tests.
+      # Patch-only for this directory. The native shell is the StoreKit
+      # payment surface, and CI can typecheck it and run expo-doctor but
+      # cannot build the app or exercise a purchase -- react-native-iap is a
+      # native module, so neither Expo Go nor a GitHub runner can test it
+      # (see expo-ios/README.md). A green check here therefore does not mean
+      # a minor bump is safe. Minors and majors now need a deliberate
+      # upgrade validated by an EAS build on a signed device.
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+          - version-update:semver-minor
 
   - package-ecosystem: github-actions
     directory: /
