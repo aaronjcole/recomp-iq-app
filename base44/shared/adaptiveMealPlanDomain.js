@@ -464,9 +464,9 @@ function sortCandidatesByPreference(candidates, preference) {
  * compatible candidate (different id) from the expanded catalog. This is a
  * client-side rotation over the catalog — no backend call, no credits.
  *
- * @param {string} mealId — the id of the meal to swap out
- * @param {string} dietStyle — normalized diet style
- * @param {string[]} [avoidIds] — additional meal ids to skip
+ * @param {string} mealId - the id of the meal to swap out
+ * @param {string} dietStyle - normalized diet style
+ * @param {string[]} [avoidIds] - additional meal ids to skip
  * @returns {object|null} the replacement catalog meal, or null if none available
  */
 export function swapMeal(mealId, dietStyle, avoidIds = []) {

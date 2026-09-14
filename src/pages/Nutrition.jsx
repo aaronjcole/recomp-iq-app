@@ -4,12 +4,11 @@ import { useRecomp } from "@/lib/RecompContext";
 import { useLoggingDate } from "@/lib/LoggingDateContext";
 import { formatWeekdayName } from "@/lib/loggingDateUtils";
 import LoggingDatePicker from "@/components/LoggingDatePicker";
-import FuelSegmentedControl from "@/components/nutrition/FuelSegmentedControl";
+import FuelSegmentedControl, { fuelPanelId, fuelTabId } from "@/components/nutrition/FuelSegmentedControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import MacroBar from "@/components/common/MacroBar";
 import MacroDonut from "@/components/common/MacroDonut";
 import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
@@ -219,7 +218,12 @@ export default function Nutrition() {
 
       {/* ── Diary ── */}
       {segment === "diary" && (
-        <>
+        <div
+          id={fuelPanelId("diary")}
+          role="tabpanel"
+          aria-labelledby={fuelTabId("diary")}
+          className="space-y-5"
+        >
           {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} />}
 
           <NutritionSignalCard onNudge={handleNudge} />
@@ -268,9 +272,36 @@ export default function Nutrition() {
           {/* Meal templates — one-tap multi-item add */}
           <MealTemplatesCard date={selectedDate} />
 
+          {/* Compact meal-planner entry point. The full card lives in Tools; Diary
+              is the logging surface, so this stays a single low-emphasis row. */}
+          <Card className="border-line bg-panel">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-panel2 text-teal">
+                  <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">Weekly meal plan</span>
+                    <PremiumBadge />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Seven days of meals from your targets.
+                  </p>
+                </div>
+              </div>
+              <Button asChild variant="outline" className="min-h-11 border-line">
+                <Link to="/nutrition/meal-plan">
+                  Open meal planner <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Manual form — collapsed under "Add manually" so the intimidating path is opt-in */}
           <Card ref={manualFormRef} className="scroll-mt-4 bg-panel border-line">
             <CardContent className="px-5 py-1">
+              <h2 className="pt-4 font-medium">Quick add food</h2>
               <details
                 className="group"
                 open={manualFormOpen}
@@ -320,12 +351,17 @@ export default function Nutrition() {
               </details>
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
 
       {/* ── Library ── */}
       {segment === "library" && (
-        <>
+        <div
+          id={fuelPanelId("library")}
+          role="tabpanel"
+          aria-labelledby={fuelTabId("library")}
+          className="space-y-5"
+        >
           <FoodSearchCard onAdd={handleSearchAdd} />
 
           <Card className="bg-panel border-line">
@@ -365,12 +401,17 @@ export default function Nutrition() {
           <div id="meal-templates-section">
             <MealTemplatesCard date={selectedDate} />
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Tools ── */}
       {segment === "tools" && (
-        <>
+        <div
+          id={fuelPanelId("tools")}
+          role="tabpanel"
+          aria-labelledby={fuelTabId("tools")}
+          className="space-y-5"
+        >
           {/* Scan card */}
           <Card className="bg-panel border-line">
             <CardContent className="p-5 space-y-3">
@@ -467,7 +508,7 @@ export default function Nutrition() {
             <GroceryListCard />
           </div>
           <AddRecipeCard />
-        </>
+        </div>
       )}
 
       {showScanner && (

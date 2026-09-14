@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { secrets } from 'base44:runtime';
 import { verifyAppleNotificationJws, verifyInnerJws } from "../../shared/appleJwsVerify.js";
 import { isAppleStoreProduct, mapAppleProductId } from "../../shared/premiumDomain.js";

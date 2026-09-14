@@ -345,7 +345,11 @@ export default function BarcodeScanner({ onClose, onResult }) {
         )}
 
         {status === "error" && (
-          <MessageCard title="Scanner problem" subtitle={err || "Couldn't access the camera."} />
+          <MessageCard
+            title="Scanner problem"
+            subtitle={err || "Couldn't access the camera."}
+            icon={<CameraOff className="w-8 h-8 mb-1 opacity-70" />}
+          />
         )}
       </div>
 

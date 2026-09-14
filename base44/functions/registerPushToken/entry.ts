@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 
 // Registers or refreshes a push notification device token for the signed-in user.
 // Called by the mobile app after obtaining an APNs/FCM token.

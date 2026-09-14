@@ -70,14 +70,14 @@ function goalTrendFromAdjustment(adjustment) {
 
 /**
  * @param {object} args
- * @param {object|null} args.log — the selected day's DailyLog (or null)
- * @param {Array} args.foodEntries — FoodLogEntry records for the selected day
- * @param {Array} args.foods — saved FoodItem records (for nudge suggestions)
- * @param {object} args.strategy — CurrentStrategy with macro targets
- * @param {object|null} args.profile — UserProfile (for check-in logic)
- * @param {object|null} args.preferences — UserPreferences (for check-in logic)
- * @param {Array} args.logs — all DailyLog records (for trend analysis)
- * @param {string} [args.referenceDate] — selected date (YYYY-MM-DD)
+ * @param {object|null} args.log - the selected day's DailyLog (or null)
+ * @param {Array} args.foodEntries - FoodLogEntry records for the selected day
+ * @param {Array} args.foods - saved FoodItem records (for nudge suggestions)
+ * @param {object} args.strategy - CurrentStrategy with macro targets
+ * @param {object|null} args.profile - UserProfile (for check-in logic)
+ * @param {object|null} args.preferences - UserPreferences (for check-in logic)
+ * @param {Array} args.logs - all DailyLog records (for trend analysis)
+ * @param {string} [args.referenceDate] - selected date (YYYY-MM-DD)
  * @returns {{grade:string,gradeLabel:string,score:number,summary:string,nudge:string,nudgeAction:object|null,goalTrendNote:string|null,goalTrendAction:object|null}}
  */
 export function computeNutritionSignal({

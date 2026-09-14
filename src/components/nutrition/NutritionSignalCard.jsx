@@ -49,7 +49,7 @@ export default function NutritionSignalCard({ onNudge }) {
             <span className={`font-mono text-3xl font-bold tabular-nums ${tone}`}>
               {signal.grade}
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
               {signal.score}/100
             </span>
           </div>

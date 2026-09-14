@@ -1,12 +1,9 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-
-function statusOf(error) {
-  return error?.status ?? error?.response?.status;
-}
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
+import { json, statusOf } from "../../shared/httpUtils.js";
 
 export default async function(req) {
   if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   const base44 = createClientFromRequest(req);
@@ -15,12 +12,12 @@ export default async function(req) {
     user = await base44.auth.me();
   } catch (error) {
     if ([401, 403].includes(statusOf(error))) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("getReferralStats auth check failed", error);
-    return Response.json({ error: "Could not verify the account" }, { status: 500 });
+    return json({ error: "Could not verify the account" }, { status: 500 });
   }
-  if (!user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const codes = await base44.asServiceRole.entities.ReferralCode.filter(
@@ -41,9 +38,9 @@ export default async function(req) {
     ).length;
     const rewarded = referrals.filter((r) => r.status === "rewarded").length;
 
-    return Response.json({ code, signups, converted, rewarded });
+    return json({ code, signups, converted, rewarded });
   } catch (error) {
     console.error("getReferralStats failed", error);
-    return Response.json({ error: "Could not load referral stats" }, { status: 500 });
+    return json({ error: "Could not load referral stats" }, { status: 500 });
   }
 }
