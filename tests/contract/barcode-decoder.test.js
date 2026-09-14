@@ -1,7 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import {
+import zxingLibrary from "@zxing/library";
+import zxingBrowser from "@zxing/browser";
+
+/**
+ * Both packages ship a CommonJS `main`, and how much of it Node can expose as
+ * named ESM imports varies between releases — @zxing/library 0.21.x permits
+ * `import { BarcodeFormat }`, 0.23.x does not. Vite resolves the `module`
+ * field and is unaffected either way, so a named-import failure here would be
+ * a fact about Node's CJS interop rather than about the app. Interop is
+ * normalized once, so the tests below measure decoding rather than packaging.
+ */
+function interop(mod) {
+  return mod?.default && !mod.BarcodeFormat && !mod.BrowserMultiFormatReader ? mod.default : mod;
+}
+
+const {
   MultiFormatReader,
   BinaryBitmap,
   HybridBinarizer,
@@ -9,8 +24,8 @@ import {
   DecodeHintType,
   BarcodeFormat,
   NotFoundException,
-} from "@zxing/library";
-import { BrowserMultiFormatReader } from "@zxing/browser";
+} = interop(zxingLibrary);
+const { BrowserMultiFormatReader } = interop(zxingBrowser);
 
 /**
  * Decoder coverage for the barcode scanner.
