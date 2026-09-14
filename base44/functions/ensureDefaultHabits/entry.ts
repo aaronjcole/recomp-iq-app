@@ -4,13 +4,10 @@ import {
   mergeDefaultHabitEntries,
   planDefaultHabitReconciliation
 } from "../../shared/defaultHabitsDomain.js";
+import { json, statusOf } from "../../shared/httpUtils.js";
 
 const inFlightEnsures = new Map();
 const ENTRY_PAGE_SIZE = 500;
-
-function statusOf(error) {
-  return error?.status ?? error?.response?.status;
-}
 
 function enqueueByUser(userId, work) {
   const previous = inFlightEnsures.get(userId) ?? Promise.resolve();
@@ -154,7 +151,7 @@ async function ensureDefaults(base44, user) {
 
 export default async function(req) {
   if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   const base44 = createClientFromRequest(req);
@@ -163,18 +160,18 @@ export default async function(req) {
     user = await base44.auth.me();
   } catch (error) {
     if ([401, 403].includes(statusOf(error))) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("ensureDefaultHabits auth check failed", error);
-    return Response.json({ error: "Could not verify the account" }, { status: 500 });
+    return json({ error: "Could not verify the account" }, { status: 500 });
   }
-  if (!user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const result = await enqueueByUser(user.id, () => ensureDefaults(base44, user));
-    return Response.json(result);
+    return json(result);
   } catch (error) {
     console.error("ensureDefaultHabits failed", { userId: user.id, error });
-    return Response.json({ error: "Default habits could not be prepared" }, { status: 500 });
+    return json({ error: "Default habits could not be prepared" }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   MealPlanRequestError,
   buildAdaptiveMealPlan,
@@ -11,6 +11,12 @@ import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
+import {
+  AI_FEATURE_QUOTAS,
+  AI_QUOTA_FEATURES,
+  quotaRetryAfterSeconds,
+  reserveFeatureRequest
+} from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 2_000;
 const ENTITLEMENT_PAGE_SIZE = 500;
@@ -128,8 +134,26 @@ export default async function(req) {
     }
 
     // AI variety path: a single guarded LLM call that spends credits only when
-    // the user explicitly requests it. The deterministic plan seeds the
-    // "avoid" list so the LLM does not echo the same rotation.
+    // the user explicitly requests it. Only this path is metered; the
+    // deterministic plan above costs nothing and stays unthrottled.
+    const quota = await reserveFeatureRequest(
+      base44.asServiceRole.entities.CoachRequestUsage,
+      user.id,
+      AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY,
+      AI_FEATURE_QUOTAS[AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY]
+    );
+    if (!quota.allowed) {
+      return json(
+        { error: "AI meal variety limit reached. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }
+        }
+      );
+    }
+
+    // The deterministic plan seeds the "avoid" list so the LLM does not echo
+    // the same rotation.
     const avoidIds = deterministicPlan.days
       .flatMap((day) => day.meals)
       .map((meal) => meal.title);

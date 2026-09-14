@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   COACH_RESPONSE_SCHEMA,
   CoachRequestError,
@@ -11,13 +11,14 @@ import {
   normalizeCoachRequest
 } from "../../shared/coachDomain.js";
 import {
-  COACH_DAILY_LIMIT,
-  evaluateCoachQuota
+  AI_QUOTA_FEATURES,
+  COACH_QUOTA,
+  quotaRetryAfterSeconds,
+  reserveFeatureRequest
 } from "../../shared/coachRateLimitDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 const MAX_REQUEST_BYTES = 24_000;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 async function ownedRecords(base44, entityName, userId, sort, limit) {
   return await base44.entities[entityName].filter(
@@ -28,32 +29,12 @@ async function ownedRecords(base44, entityName, userId, sort, limit) {
 }
 
 async function reserveCoachRequest(base44, ownerId) {
-  const now = Date.now();
-  const requestedAt = new Date(now).toISOString();
-  const dayCutoff = new Date(now - DAY_MS).toISOString();
-  const requestId = crypto.randomUUID();
-  const usage = base44.asServiceRole.entities.CoachRequestUsage;
-
-  await usage.deleteMany({
-    owner_id: ownerId,
-    requested_at: { $lt: dayCutoff }
-  });
-  const reservation = await usage.create({
-    owner_id: ownerId,
-    request_id: requestId,
-    requested_at: requestedAt
-  });
-  const recent = await usage.filter(
-    {
-      owner_id: ownerId,
-      requested_at: { $gte: dayCutoff, $lte: requestedAt }
-    },
-    "requested_at",
-    COACH_DAILY_LIMIT + 1
+  return await reserveFeatureRequest(
+    base44.asServiceRole.entities.CoachRequestUsage,
+    ownerId,
+    AI_QUOTA_FEATURES.COACH,
+    COACH_QUOTA
   );
-  const quota = evaluateCoachQuota(recent, requestId, now);
-  if (!quota.allowed) await usage.delete(reservation.id);
-  return quota;
 }
 
 export default async function(req) {
@@ -134,7 +115,7 @@ export default async function(req) {
         { error: "Coach request limit reached. Please try again later." },
         {
           status: 429,
-          headers: { "Retry-After": quota.reason === "daily" ? "86400" : "3600" }
+          headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }
         }
       );
     }
