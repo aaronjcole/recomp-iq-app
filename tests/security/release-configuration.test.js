@@ -129,7 +129,29 @@ test("mobile release flows prioritize primary actions and usable touch targets",
 
   const todaySource = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
   assert.match(todaySource, /<RecompSignalHero move=\{bestMove\}/);
-  assert.match(todaySource, /<StreakBanner compact/);
+  // Today used to render `<StreakBanner compact />`: the space-efficient streak
+  // variant, chosen so the streak never displaced the primary action in the
+  // first phone viewport. The banner is now StreakChip (header) plus
+  // StreakDetailSheet (tap to open), so assert the same invariant against the
+  // new pair — Today carries only the compact chip, above the hero, and the
+  // expanded streak detail stays behind the tap.
+  assert.match(todaySource, /<StreakChip \/>/);
+  assert.doesNotMatch(todaySource, /StreakBanner|StreakDetailSheet/);
+  assert.ok(
+    todaySource.indexOf("<StreakChip />") < todaySource.indexOf("<RecompSignalHero"),
+    "the streak should sit in the Today header, not between the hero and the logging modules"
+  );
+  const streakChipSource = readFileSync(resolve(repoRoot, "src/components/today/StreakChip.jsx"), "utf8");
+  assert.match(streakChipSource, /min-h-11 min-w-11/);
+  assert.match(streakChipSource, /day target streak\. Tap for details\./);
+  assert.match(streakChipSource, /<StreakDetailSheet open=\{open\}/);
+  const streakDetailSource = readFileSync(
+    resolve(repoRoot, "src/components/today/StreakDetailSheet.jsx"),
+    "utf8"
+  );
+  assert.match(streakDetailSource, /<Sheet open=\{open\} onOpenChange=\{onOpenChange\}>/);
+  assert.match(streakDetailSource, /Last 7 days/);
+  assert.match(streakDetailSource, /stats\.longest/);
   const signalHeroSource = readFileSync(resolve(repoRoot, "src/components/today/RecompSignalHero.jsx"), "utf8");
   assert.match(signalHeroSource, /<BestMoveCard move=\{move\} onLog=\{onLog\} embedded/);
   const bestMoveSource = readFileSync(resolve(repoRoot, "src/components\/today\/BestMoveCard.jsx"), "utf8");
