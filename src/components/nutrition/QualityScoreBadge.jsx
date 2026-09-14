@@ -23,8 +23,8 @@ const LABEL_COLORS = {
  * new computation. Free for all users.
  *
  * @param {object} props
- * @param {object} props.food — a FoodItem-like object with calories, protein_g, etc.
- * @param {boolean} [props.showScore] — include the numeric score in the badge (default true)
+ * @param {object} props.food - a FoodItem-like object with calories, protein_g, etc.
+ * @param {boolean} [props.showScore] - include the numeric score in the badge (default true)
  */
 export default function QualityScoreBadge({ food, showScore = true }) {
   const [open, setOpen] = useState(false);

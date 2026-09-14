@@ -116,7 +116,7 @@ function calculateLongestStreak(byDate, strategy) {
   if (byDate.size === 0) return 0;
   const sorted = [...byDate.keys()].sort();
   const spanDays = Math.round(
-    (new Date(localTodayKey() + "T00:00:00") - new Date(sorted[0] + "T00:00:00")) / 86400000
+    (new Date(localTodayKey() + "T00:00:00").getTime() - new Date(sorted[0] + "T00:00:00").getTime()) / 86400000
   );
   let longest = 0;
   let run = 0;
