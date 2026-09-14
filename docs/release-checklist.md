@@ -82,6 +82,16 @@ a primary owner and a backup who can access that entity and the support inbox at
 - [ ] Privacy, Terms, Support, and account-deletion pages load while signed out.
 - [ ] Keyboard navigation, focus restoration, and Escape work in dialogs.
 - [ ] Core flows render correctly on current iOS Safari and Android Chrome.
+- [ ] Before enforcing a navigation-origin allowlist in the RecompOne iOS shell's
+      `onShouldStartLoadWithRequest` (`expo-ios/src/RecompOneWebView.tsx`), trace the real on-device
+      redirect chain for all four Base44 sign-in providers (Google, Microsoft, Facebook, Apple) and
+      confirm every host each one touches; until then it deliberately allows all `https:` navigation
+      so social sign-in cannot regress.
+- [ ] In the RecompOne iOS shell (`expo-ios/`), `window.wixMobileNativeBridge` still exposes working
+      `requestPurchase`, `restorePurchases`, and `finishTransaction` functions after any Base44/Wix
+      wrapper update. This bridge name is borrowed from Base44's managed wrapper on purpose
+      (`expo-ios/src/injectedBridge.ts`); if Wix ever changes that object's shape, the purchase button
+      can silently stop working with no test in this repo to catch it.
 
 ## Release decision
 

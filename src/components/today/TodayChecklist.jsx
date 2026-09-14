@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, ChevronDown, Dumbbell, Moon, Repeat2 } from "lucide-react";
-import { useRecompHabits, todayStr } from "@/lib/RecompContext";
+import { useRecompHabits } from "@/lib/RecompContext";
+import { todayStr } from "@/lib/loggingDateUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import SleepCard from "@/components/today/SleepCard";
@@ -25,10 +26,10 @@ function StatusItem({ icon: Icon, label, value, complete }) {
   );
 }
 
-export default function TodayChecklist({ todayLog, sleepSummary, onLog, expand = false }) {
+export default function TodayChecklist({ todayLog, date = todayStr(), sleepSummary, onLog, expand = false }) {
   const { habits, habitEntries } = useRecompHabits();
   const [open, setOpen] = useState(Boolean(expand));
-  const today = todayStr();
+  const today = date;
 
   useEffect(() => {
     if (!expand) return;
@@ -94,7 +95,7 @@ export default function TodayChecklist({ todayLog, sleepSummary, onLog, expand =
                   </Link>
                 </div>
                 <SleepCard todayLog={todayLog} summary={sleepSummary} onLog={onLog} />
-                <HabitsCard />
+                <HabitsCard date={date} />
               </div>
             </CollapsibleContent>
           </CardContent>

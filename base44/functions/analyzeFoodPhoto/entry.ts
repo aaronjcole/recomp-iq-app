@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   FOOD_PHOTO_RESPONSE_SCHEMA,
   FoodPhotoRequestError,
@@ -6,6 +6,12 @@ import {
   normalizeFoodPhotoResult
 } from "../../shared/foodPhotoDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
+import {
+  AI_FEATURE_QUOTAS,
+  AI_QUOTA_FEATURES,
+  quotaRetryAfterSeconds,
+  reserveFeatureRequest
+} from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 4_000;
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -45,6 +51,27 @@ export default async function(req) {
   }
 
   try {
+    // The per-user quota is reserved before the signed link and the vision
+    // call so a scripted client cannot spend credits in a loop.
+    const quota = await reserveFeatureRequest(
+      base44.asServiceRole.entities.CoachRequestUsage,
+      user.id,
+      AI_QUOTA_FEATURES.FOOD_PHOTO,
+      AI_FEATURE_QUOTAS[AI_QUOTA_FEATURES.FOOD_PHOTO]
+    );
+    if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "Food photo estimate limit reached. Please try again later.";
+      return json(
+        { error: limitMessage, message: limitMessage },
+        {
+          status: 429,
+          headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }
+        }
+      );
+    }
+
     // The client uploads the photo to private storage (UploadPrivateFile) and
     // passes the opaque file_uri here. The server creates the short-lived
     // signed link and runs the vision LLM call under the service role so the

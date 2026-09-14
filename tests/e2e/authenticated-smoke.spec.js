@@ -150,9 +150,17 @@ test("free sleep insights update through the canonical daily log", async ({ page
 
   await sleep.getByRole("button", { name: "Update sleep" }).click();
   const sheet = page.getByRole("dialog", { name: "Log today" });
+  // Sleep quality lives in the sheet's Full detail level, and is now an inline
+  // pill group rather than a button that opened its own dialog. The named group
+  // plus per-option names are what make the most-repeated logging action
+  // operable, so drive it exactly as an assistive-tech user would.
+  await sheet.getByRole("tab", { name: "Full", exact: true }).click();
   await sheet.getByLabel("Sleep hours").fill("7.8");
-  await sheet.getByRole("button", { name: "Sleep quality (1-5)" }).click();
-  await page.getByRole("dialog", { name: "Sleep quality (1-5)" }).getByRole("button", { name: "5" }).click();
+  const sleepQuality = sheet.getByRole("group", { name: "Sleep quality (1-5)" });
+  await expect(sleepQuality).toBeVisible();
+  const qualityFive = sleepQuality.getByRole("button", { name: "Sleep quality (1-5) 5", exact: true });
+  await qualityFive.click();
+  await expect(qualityFive).toHaveAttribute("aria-pressed", "true");
   await sheet.getByRole("button", { name: /Save today's log/i }).click();
 
   await expect(sleep.getByText("7.8h", { exact: true })).toBeVisible();
@@ -321,7 +329,15 @@ test("custom mobile actions expose at least 44px touch targets", async ({ page }
   await page.goto("/more");
   await expectTouchSafe(page.getByRole("button", { name: /Premium features/i }), "More navigation row");
 
+  // Fuel splits into Diary / Library / Tools segments and renders only the
+  // active one, so the recipe builder is reached through the Tools tab. Drive
+  // the real tab rather than the ?segment= URL param so the tab itself — also a
+  // custom mobile action — is held to the same 44px bar.
   await page.goto("/nutrition");
+  const toolsTab = page.getByRole("tab", { name: "Tools", exact: true });
+  await expectTouchSafe(toolsTab, "Fuel Tools segment tab");
+  await toolsTab.click();
+  await expect(toolsTab).toHaveAttribute("aria-selected", "true");
   await expectTouchSafe(page.getByRole("button", { name: "Remove ingredient 1" }), "Recipe remove action");
 
   await page.goto("/training");
@@ -334,7 +350,14 @@ test("custom mobile actions expose at least 44px touch targets", async ({ page }
 test("primary nutrition, training, and habit forms expose descriptive field names", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
 
+  // Fuel now renders one of three segments at a time, and the manual food form
+  // is collapsed behind an "Add manually" disclosure. Every control below still
+  // has to carry a descriptive accessible name — reach each one the way a user
+  // does instead of dropping the ones that moved.
   await page.goto("/nutrition");
+  const diaryTab = page.getByRole("tab", { name: "Diary", exact: true });
+  await expect(diaryTab, "Diary is the default Fuel segment").toHaveAttribute("aria-selected", "true");
+  await page.getByText("Add manually", { exact: true }).click();
   for (const name of [
     "Food name",
     "Serving",
@@ -344,6 +367,12 @@ test("primary nutrition, training, and habit forms expose descriptive field name
     "Food carbs (g)",
     "Food fat (g)",
     "Food fiber (g)",
+  ]) {
+    await expect(page.getByLabel(name, { exact: true }), `${name} should name its control`).toBeVisible();
+  }
+
+  await page.getByRole("tab", { name: "Tools", exact: true }).click();
+  for (const name of [
     "Recipe title",
     "Recipe servings",
     "Ingredient 1 name",
@@ -416,6 +445,23 @@ test("appearance follows the system by default and preserves explicit overrides"
   await expect(page.locator("html")).toHaveClass(/\bdark\b/);
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+
+  assertNoPageErrors();
+});
+
+test("mobile appearance uses direct controls and persists an explicit choice", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.removeItem("recomp-theme"));
+  await page.goto("/more");
+
+  const appearance = page.getByRole("group", { name: "Appearance" });
+  await expect(appearance).toBeVisible();
+  await expect(appearance.getByRole("button", { name: "System", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await appearance.getByRole("button", { name: "Light", exact: true }).click();
+  await expect(appearance.getByRole("button", { name: "Light", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("recomp-theme"))).toBe("light");
 
   assertNoPageErrors();
 });

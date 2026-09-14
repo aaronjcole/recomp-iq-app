@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   LIFESTYLE_RESPONSE_SCHEMA,
   LIFESTYLE_COACH_HOURLY_LIMIT,
@@ -15,11 +15,18 @@ import {
   hasActiveSafetyFlags
 } from "../../shared/coachDomain.js";
 import { resolvePremiumAccess, PREMIUM_FEATURES } from "../../shared/premiumDomain.js";
+import {
+  AI_QUOTA_FEATURES,
+  quotaRetryAfterSeconds,
+  reserveFeatureRequest
+} from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 48_000;
-const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
 const CONVERSATION_MESSAGES_LIMIT = 100;
+const LIFESTYLE_COACH_QUOTA = {
+  hourly: LIFESTYLE_COACH_HOURLY_LIMIT,
+  daily: LIFESTYLE_COACH_DAILY_LIMIT
+};
 
 function statusOf(error: any) {
   return error?.status ?? error?.response?.status;
@@ -53,45 +60,12 @@ async function listAllEntitlements(base44: any, ownerId: string) {
 }
 
 async function reserveLifestyleRequest(base44: any, ownerId: string) {
-  const now = Date.now();
-  const requestedAt = new Date(now).toISOString();
-  const dayCutoff = new Date(now - DAY_MS).toISOString();
-  const requestId = crypto.randomUUID();
-  const usage = base44.asServiceRole.entities.CoachRequestUsage;
-
-  await usage.deleteMany({ owner_id: ownerId, requested_at: { $lt: dayCutoff } });
-  const reservation = await usage.create({ owner_id: ownerId, request_id: requestId, requested_at: requestedAt });
-
-  const recent = await usage.filter(
-    { owner_id: ownerId, requested_at: { $gte: dayCutoff, $lte: requestedAt } },
-    "requested_at",
-    LIFESTYLE_COACH_DAILY_LIMIT + 1
+  return await reserveFeatureRequest(
+    base44.asServiceRole.entities.CoachRequestUsage,
+    ownerId,
+    AI_QUOTA_FEATURES.COACH,
+    LIFESTYLE_COACH_QUOTA
   );
-
-  const valid = (Array.isArray(recent) ? recent : [])
-    .map((r: any) => ({ requestId: r?.request_id ?? "", requestedAt: Date.parse(r?.requested_at ?? "") }))
-    .filter((r: any) => r.requestId && Number.isFinite(r.requestedAt) && r.requestedAt >= now - DAY_MS)
-    .sort((a: any, b: any) => a.requestedAt - b.requestedAt || a.requestId.localeCompare(b.requestId));
-
-  if (!valid.some((r: any) => r.requestId === requestId)) {
-    return { allowed: false, reason: "reservation" };
-  }
-
-  const dailyIds = new Set(valid.slice(0, LIFESTYLE_COACH_DAILY_LIMIT).map((r: any) => r.requestId));
-  if (!dailyIds.has(requestId)) {
-    await usage.delete(reservation.id);
-    return { allowed: false, reason: "daily" };
-  }
-
-  const hourlyIds = new Set(
-    valid.filter((r: any) => r.requestedAt >= now - HOUR_MS).slice(0, LIFESTYLE_COACH_HOURLY_LIMIT).map((r: any) => r.requestId)
-  );
-  if (!hourlyIds.has(requestId)) {
-    await usage.delete(reservation.id);
-    return { allowed: false, reason: "hourly" };
-  }
-
-  return { allowed: true, reason: null };
 }
 
 export default async function(req: Request) {
@@ -161,9 +135,12 @@ export default async function(req: Request) {
 
     const quota = await reserveLifestyleRequest(base44, ownerId);
     if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "Coach request limit reached. Please try again later.";
       return json(
-        { error: "Coach request limit reached. Please try again later." },
-        { status: 429, headers: { "Retry-After": quota.reason === "daily" ? "86400" : "3600" } }
+        { error: limitMessage, message: limitMessage },
+        { status: 429, headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) } }
       );
     }
 

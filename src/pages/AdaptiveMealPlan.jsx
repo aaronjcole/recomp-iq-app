@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, ChevronDown, RefreshCw, ShoppingCart } from "lucide-react";
+import { CalendarDays, ChevronDown, RefreshCw, Shuffle, ShoppingCart, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -58,6 +58,8 @@ export default function AdaptiveMealPlan() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
   const [checked, setChecked] = useState({});
+  const [mode, setMode] = useState("deterministic");
+  const [swapping, setSwapping] = useState(null);
   const weekStart = useMemo(currentWeekStart, []);
 
   useEffect(dropLegacyPlanCache, []);
@@ -74,10 +76,13 @@ export default function AdaptiveMealPlan() {
     setIsGenerating(true);
     setError("");
     try {
-      const result = await base44.functions.invoke("generateAdaptiveMealPlan", { weekStart });
+      const result = await base44.functions.invoke("generateAdaptiveMealPlan", { weekStart, mode });
       const nextPlan = result?.data ?? result;
       if (!nextPlan || !Array.isArray(nextPlan.days) || !Array.isArray(nextPlan.groceryList)) {
         throw new Error("The meal planner returned an incomplete plan.");
+      }
+      if (nextPlan.aiVarietyError) {
+        setError(nextPlan.aiVarietyError);
       }
       setPlan(nextPlan);
       writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
@@ -94,6 +99,44 @@ export default function AdaptiveMealPlan() {
     const next = { ...checked, [key]: !done };
     setChecked(next);
     writePlanCache(GROCERY_CACHE, userId, next);
+  };
+
+  const handleSwap = async (dayIndex, meal) => {
+    const swapKey = `${dayIndex}-${meal.slot}`;
+    setSwapping(swapKey);
+    try {
+      const dayMeals = plan.days[dayIndex].meals;
+      const avoidIds = dayMeals.map((m) => m.id).filter((id) => id !== meal.id);
+      const result = await base44.functions.invoke("swapAdaptiveMeal", {
+        mealId: meal.id,
+        dietStyle: plan.dietStyle,
+        servingScale: meal.servingScale,
+        avoidIds
+      });
+      const newMeal = result?.data?.meal ?? result?.meal;
+      if (!newMeal) throw new Error("No swap available for this meal.");
+
+      const nextDays = [...plan.days];
+      const nextDay = { ...nextDays[dayIndex] };
+      nextDay.meals = nextDay.meals.map((m) => (m.slot === meal.slot ? newMeal : m));
+      nextDay.totals = nextDay.meals.reduce(
+        (t, m) => ({
+          calories: t.calories + m.calories,
+          proteinG: t.proteinG + m.proteinG,
+          carbsG: t.carbsG + m.carbsG,
+          fatG: t.fatG + m.fatG
+        }),
+        { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
+      );
+      nextDays[dayIndex] = nextDay;
+      const nextPlan = { ...plan, days: nextDays };
+      setPlan(nextPlan);
+      writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSwapping(null);
+    }
   };
 
   return (
@@ -127,19 +170,52 @@ export default function AdaptiveMealPlan() {
           )}
 
           {allowed && (
-            <Button
-              className="w-full bg-teal text-buttonText hover:opacity-90"
-              onClick={generate}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <><RefreshCw className="animate-spin" aria-hidden="true" /> Building your week…</>
-              ) : plan ? (
-                <><RefreshCw aria-hidden="true" /> Rebuild this week</>
-              ) : (
-                <><CalendarDays aria-hidden="true" /> Build this week</>
-              )}
-            </Button>
+            <>
+              <div role="group" aria-label="Meal plan variety mode" className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode("deterministic")}
+                  aria-pressed={mode === "deterministic"}
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    mode === "deterministic"
+                      ? "border-teal bg-teal/10 text-teal"
+                      : "border-line bg-panel2 text-muted-foreground"
+                  }`}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Rotation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("ai_variety")}
+                  aria-pressed={mode === "ai_variety"}
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    mode === "ai_variety"
+                      ? "border-teal bg-teal/10 text-teal"
+                      : "border-line bg-panel2 text-muted-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> AI variety
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {mode === "ai_variety"
+                  ? "AI variety spends credits to generate a fully unique week. Falls back to rotation if unavailable."
+                  : "Rotation builds a repeatable week from your meal catalog — no credits used."}
+              </p>
+              <Button
+                className="w-full bg-teal text-buttonText hover:opacity-90"
+                onClick={generate}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <><RefreshCw className="animate-spin" aria-hidden="true" /> Building your week…</>
+                ) : plan ? (
+                  <><RefreshCw aria-hidden="true" /> Rebuild this week</>
+                ) : (
+                  <><CalendarDays aria-hidden="true" /> Build this week</>
+                )}
+              </Button>
+            </>
           )}
 
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
@@ -178,20 +254,38 @@ export default function AdaptiveMealPlan() {
                     <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
                   </summary>
                   <CardContent className="space-y-3 px-5 pb-5 pt-0">
-                    {day.meals.map((meal) => (
-                      <div key={meal.slot} className="rounded-lg bg-panel2 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{meal.slot}</p>
-                            <h3 className="text-sm font-medium">{meal.title}</h3>
+                    {day.meals.map((meal) => {
+                      const swapKey = `${index}-${meal.slot}`;
+                      const isSwappable = !meal.id?.startsWith("ai-");
+                      return (
+                        <div key={meal.slot} className="rounded-lg bg-panel2 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{meal.slot}</p>
+                              <h3 className="text-sm font-medium">{meal.title}</h3>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{meal.calories} kcal</span>
+                              {isSwappable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSwap(index, meal)}
+                                  disabled={swapping === swapKey}
+                                  aria-label={`Swap ${meal.slot}`}
+                                  className="flex min-h-9 items-center gap-1 rounded-md px-2 py-1 text-xs text-teal hover:bg-teal/10 disabled:opacity-50"
+                                >
+                                  <Shuffle className={`h-3 w-3 ${swapping === swapKey ? "animate-spin" : ""}`} aria-hidden="true" />
+                                  Swap
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span className="shrink-0 text-xs text-muted-foreground">{meal.calories} kcal</span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {meal.proteinG}p / {meal.carbsG}c / {meal.fatG}f · {meal.servingScale}× base portion
+                          </p>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {meal.proteinG}p / {meal.carbsG}c / {meal.fatG}f · {meal.servingScale}× base portion
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </details>
               </Card>

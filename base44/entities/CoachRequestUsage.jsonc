@@ -13,6 +13,18 @@
       "maxLength": 128,
       "description": "Authenticated account identifier set only by the backend function."
     },
+    "feature": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 48,
+      "enum": [
+        "coach",
+        "meal_plan_ai_variety",
+        "body_composition",
+        "food_photo"
+      ],
+      "description": "Paid-inference feature this reservation belongs to, so one feature's quota cannot consume another's."
+    },
     "request_id": {
       "type": "string",
       "minLength": 1,
@@ -28,6 +40,7 @@
   },
   "required": [
     "owner_id",
+    "feature",
     "request_id",
     "requested_at"
   ],

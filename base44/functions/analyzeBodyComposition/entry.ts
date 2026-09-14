@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   BODY_COMPOSITION_RESPONSE_SCHEMA,
   BodyCompositionRequestError,
@@ -10,6 +10,12 @@ import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
+import {
+  AI_FEATURE_QUOTAS,
+  AI_QUOTA_FEATURES,
+  quotaRetryAfterSeconds,
+  reserveFeatureRequest
+} from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 10_000;
 const ENTITLEMENT_PAGE_SIZE = 500;
@@ -127,6 +133,27 @@ export default async function(req) {
       return json({
         error: "Photo-based estimates are paused while safety guidance is active. Use your progress trends and qualified guidance instead."
       }, { status: 409 });
+    }
+
+    // Per-user quota is reserved before any signed link or paid inference, so
+    // an entitled account cannot loop this expensive multi-photo vision call.
+    const quota = await reserveFeatureRequest(
+      base44.asServiceRole.entities.CoachRequestUsage,
+      user.id,
+      AI_QUOTA_FEATURES.BODY_COMPOSITION,
+      AI_FEATURE_QUOTAS[AI_QUOTA_FEATURES.BODY_COMPOSITION]
+    );
+    if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "Body-composition estimate limit reached. Please try again later.";
+      return json(
+        { error: limitMessage, message: limitMessage },
+        {
+          status: 429,
+          headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }
+        }
+      );
     }
 
     const fileUrls = await Promise.all(

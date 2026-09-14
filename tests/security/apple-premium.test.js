@@ -11,9 +11,11 @@ import {
   mapAppleProductId,
   resolvePremiumAccess
 } from "../../base44/shared/premiumDomain.js";
+import { deriveAppleAppAccountToken } from "../../base44/shared/appleAppAccountToken.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const NOW = Date.parse("2026-09-09T18:00:00.000Z");
+const APP_STORE_BUNDLE_ID = "com.base6a68bb922bf88da5ec767da3.app";
 
 test("monthly Apple StoreKit product maps to the recompone_premium entitlement", () => {
   assert.equal(
@@ -24,11 +26,12 @@ test("monthly Apple StoreKit product maps to the recompone_premium entitlement",
 });
 
 test("annual Apple StoreKit product maps to the recompone_premium entitlement", () => {
+  assert.equal(APPLE_STORE_PRODUCTS.ANNUAL, "recompone_premium_annual");
   assert.equal(
-    mapAppleProductId(APPLE_STORE_PRODUCTS.ANUAL),
+    mapAppleProductId(APPLE_STORE_PRODUCTS.ANNUAL),
     PREMIUM_PRODUCTS.BUNDLE
   );
-  assert.equal(isAppleStoreProduct(APPLE_STORE_PRODUCTS.ANUAL), true);
+  assert.equal(isAppleStoreProduct(APPLE_STORE_PRODUCTS.ANNUAL), true);
 });
 
 test("unknown Apple product IDs are rejected", () => {
@@ -88,6 +91,9 @@ test("verifyApplePurchase validates Apple product IDs, maps to the bundle, verif
   // Verifies bundle ID from transaction info.
   assert.match(source, /APPLE_BUNDLE_ID/);
   assert.match(source, /transactionInfo\.bundleId/);
+  // Missing configuration and missing bundle IDs must both fail closed.
+  assert.match(source, /typeof expectedBundleId !== "string"/);
+  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
   // Fails closed on invalid verification.
   assert.match(source, /Purchase is not active/);
   // Never trusts client-supplied user ID.
@@ -99,6 +105,76 @@ test("verifyApplePurchase validates Apple product IDs, maps to the bundle, verif
   assert.match(source, /product_id: entitlementProductId/);
   // Uses asServiceRole for entitlement writes.
   assert.match(source, /asServiceRole\.entities\.PremiumEntitlement/);
+  // TestFlight transactions fall back to Apple's sandbox endpoint only after
+  // the production lookup reports that the transaction was not found.
+  assert.match(source, /api\.storekit\.itunes\.apple\.com/);
+  assert.match(source, /api\.storekit-sandbox\.itunes\.apple\.com/);
+  assert.match(source, /candidate\.status === 404/);
+  // The verified subscription lineage is persisted and cross-account replay
+  // is rejected through the signed app-account-token check below.
+  assert.match(source, /external_transaction_id: verification\.originalTransactionId/);
+  assert.match(source, /Purchase is already linked to another account/);
+});
+
+test("Apple transactions are cryptographically bound to the authenticated app account", () => {
+  const verifier = readFileSync(
+    resolve(repoRoot, "base44/functions/verifyApplePurchase/entry.ts"),
+    "utf8"
+  );
+  const paywall = readFileSync(
+    resolve(repoRoot, "src/components/premium/PremiumPaywall.jsx"),
+    "utf8"
+  );
+  const protocol = readFileSync(
+    resolve(repoRoot, "expo-ios/src/bridgeProtocol.ts"),
+    "utf8"
+  );
+  const nativeShell = readFileSync(
+    resolve(repoRoot, "expo-ios/src/RecompOneWebView.tsx"),
+    "utf8"
+  );
+
+  // The client supplies a stable opaque UUID to StoreKit, but the server
+  // independently derives the expected value from the authenticated user.
+  assert.match(paywall, /deriveAppleAppAccountToken\(user\.id\)/);
+  assert.match(paywall, /requestPurchase\(productId, appAccountToken\)/);
+  assert.match(protocol, /appAccountToken: string/);
+  assert.match(nativeShell, /appAccountToken: request\.appAccountToken/);
+  assert.match(verifier, /deriveAppleAppAccountToken\(user\.id\)/);
+  assert.match(verifier, /transactionInfo\.appAccountToken/);
+  assert.match(verifier, /Purchase is already linked to another account/);
+  // Ownership is established by Apple's signed account token, not a racy
+  // filter-then-create scan over entitlement rows.
+  assert.doesNotMatch(verifier, /transactionClaims/);
+});
+
+test("Apple app-account tokens are stable, pseudonymous UUIDs scoped per user", async () => {
+  const first = await deriveAppleAppAccountToken("base44-user-a");
+  const repeated = await deriveAppleAppAccountToken("base44-user-a");
+  const second = await deriveAppleAppAccountToken("base44-user-b");
+
+  assert.equal(first, repeated);
+  assert.notEqual(first, second);
+  assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.doesNotMatch(first, /base44-user/);
+  await assert.rejects(() => deriveAppleAppAccountToken(""));
+});
+
+test("the Expo shell and StoreKit account-token namespace match the existing App Store app", () => {
+  const appConfig = JSON.parse(
+    readFileSync(resolve(repoRoot, "expo-ios/app.json"), "utf8")
+  );
+  const accountTokenSource = readFileSync(
+    resolve(repoRoot, "base44/shared/appleAppAccountToken.js"),
+    "utf8"
+  );
+
+  assert.equal(appConfig.expo.ios.bundleIdentifier, APP_STORE_BUNDLE_ID);
+  assert.equal(
+    appConfig.expo.extra.eas.projectId,
+    "df0b21a1-85f8-415f-9c8c-b465f7fbc1f0"
+  );
+  assert.match(accountTokenSource, new RegExp(`${APP_STORE_BUNDLE_ID.replaceAll(".", "\\.")}:storekit-account:v1:`));
 });
 
 test("appleStoreNotification matches by external_transaction_id and handles revoke, expire, and renew", () => {
@@ -111,8 +187,10 @@ test("appleStoreNotification matches by external_transaction_id and handles revo
   assert.match(source, /verifyAppleNotificationJws/);
   // Validates the Apple product ID.
   assert.match(source, /isAppleStoreProduct\(productId\)/);
-  // Matches by external_transaction_id, not Apple product_id.
-  assert.match(source, /external_transaction_id: originalTransactionId, source: "apple_store"/);
+  // Maps the Apple product ID to the internal bundle entitlement.
+  assert.match(source, /mapAppleProductId\(productId\)/);
+  // Matches by external_transaction_id + internal product_id + apple_store source.
+  assert.match(source, /external_transaction_id: originalTransactionId, product_id: entitlementProductId, source: "apple_store"/);
   assert.doesNotMatch(source, /product_id: productId, external_transaction_id/);
   // Handles revoke.
   assert.match(source, /REFUND.*REVOKE/);
@@ -125,6 +203,24 @@ test("appleStoreNotification matches by external_transaction_id and handles revo
   assert.match(source, /status: "active"/);
   // Idempotent: acknowledges even when no matching entitlement.
   assert.match(source, /return json\(\{ ok: true \}\)/);
+});
+
+test("appleStoreNotification rejects notifications with the wrong bundle ID and does not revoke on auto-renew off", () => {
+  const source = readFileSync(
+    resolve(repoRoot, "base44/functions/appleStoreNotification/entry.ts"),
+    "utf8"
+  );
+
+  // Verifies the signed transaction bundleId against the configured app.
+  assert.match(source, /secrets\.get\("APPLE_BUNDLE_ID"\)/);
+  assert.match(source, /typeof expectedBundleId !== "string"/);
+  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
+  // Acknowledges (does not process) when the bundle ID does not match.
+  assert.match(source, /return json\(\{ ok: true \}\)/);
+  // Only refunds/revocations revoke; only actual expiration expires.
+  // Auto-renew being turned off does NOT revoke or expire access.
+  assert.match(source, /REVOKE_TYPES = new Set\(\["REFUND", "REVOKE"\]\)/);
+  assert.match(source, /EXPIRE_TYPES = new Set\(\["EXPIRED", "GRACE_PERIOD_EXPIRED"\]\)/);
 });
 
 test("the PremiumEntitlement entity accepts apple_store as a source with admin-only RLS", () => {
@@ -142,7 +238,7 @@ test("the PremiumEntitlement entity accepts apple_store as a source with admin-o
   assert.equal(Object.hasOwn(schema.properties, "receipt"), false);
 });
 
-test("the paywall does not simulate purchases in the WebView and gates restore behind a native bridge", () => {
+test("the paywall verifies through the authenticated web client before finishing StoreKit", () => {
   const paywall = readFileSync(
     resolve(repoRoot, "src/components/premium/PremiumPaywall.jsx"),
     "utf8"
@@ -156,12 +252,56 @@ test("the paywall does not simulate purchases in the WebView and gates restore b
   assert.match(paywall, /hasNativeIapBridge/);
   // Purchase and restore are disabled without the bridge.
   assert.match(paywall, /disabled=\{!bridgeAvailable/);
-  // Does not call verifyApplePurchase directly from the client.
-  assert.doesNotMatch(paywall, /verifyApplePurchase/);
+  // The signed-in web client verifies the transaction, keeping the Base44
+  // access token out of the native shell.
+  assert.match(paywall, /base44\.functions\.invoke\("verifyApplePurchase"/);
+  // StoreKit is finished only after server verification returns.
+  assert.match(paywall, /await base44\.functions\.invoke\([\s\S]*await bridge\.finishTransaction/);
   // Does not set local flags or simulate success.
   assert.doesNotMatch(paywall, /localStorage|hasAccess\s*=\s*true/);
 
-  // Bridge detection checks for IAP-specific methods.
+  // A partial bridge cannot enable purchase controls.
   assert.match(bridge, /requestPurchase/);
   assert.match(bridge, /restorePurchases/);
+  assert.match(bridge, /finishTransaction/);
+  assert.match(bridge, /requestPurchase[\s\S]*&&[\s\S]*restorePurchases[\s\S]*&&[\s\S]*finishTransaction/);
+});
+
+test("the Expo shell strictly scopes bridge messages and native StoreKit products", () => {
+  const protocol = readFileSync(
+    resolve(repoRoot, "expo-ios/src/bridgeProtocol.ts"),
+    "utf8"
+  );
+  const nativeShell = readFileSync(
+    resolve(repoRoot, "expo-ios/src/RecompOneWebView.tsx"),
+    "utf8"
+  );
+  const injectedBridge = readFileSync(
+    resolve(repoRoot, "expo-ios/src/injectedBridge.ts"),
+    "utf8"
+  );
+
+  assert.match(protocol, /https:\/\/recomp-iq\.base44\.app/);
+  assert.match(protocol, /recompone_premium_monthly/);
+  assert.match(protocol, /recompone_premium_annual/);
+  assert.match(nativeShell, /isTrustedAppUrl\(event\.nativeEvent\.url/);
+  assert.match(nativeShell, /requestPurchase\([\s\S]*type: "subs"/);
+  assert.match(nativeShell, /getAvailablePurchases/);
+  assert.match(nativeShell, /finishTransaction\(\{ purchase, isConsumable: false \}\)/);
+  assert.doesNotMatch(nativeShell, /base44_access_token|Authorization|APPLE_PRIVATE_KEY/);
+  assert.doesNotMatch(injectedBridge, /base44_access_token|Authorization|APPLE_PRIVATE_KEY/);
+});
+
+test("the Expo shell terminates a pending request on a mismatched StoreKit update", () => {
+  const nativeShell = readFileSync(
+    resolve(repoRoot, "expo-ios/src/RecompOneWebView.tsx"),
+    "utf8"
+  );
+
+  assert.match(
+    nativeShell,
+    /result\.productId !== pending\.productId[\s\S]{0,500}pendingPurchaseRef\.current = null[\s\S]{0,500}ok: false/
+  );
+  assert.match(nativeShell, /Restore Purchases/);
+  assert.doesNotMatch(nativeShell, /setTimeout\([\s\S]{0,100}120000/);
 });

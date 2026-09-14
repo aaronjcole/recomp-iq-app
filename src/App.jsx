@@ -16,6 +16,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import RouteAccessibility from '@/components/RouteAccessibility';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { isNativeStoreShell } from '@/lib/nativeStoreShell';
+import { ThemeProvider } from '@/lib/useTheme';
 
 const PageNotFound = lazyWithRetry(() => import('./lib/PageNotFound'));
 const AppLayout = lazyWithRetry(() => import('@/components/AppLayout'));
@@ -141,28 +142,30 @@ const AuthenticatedApp = () => {
 function App() {
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <PremiumAccessProvider>
-          <ErrorBoundary>
-            <Router>
-              <RouteAccessibility />
-              <ScrollToTop />
-              <AndroidBackHandler />
-              <OfflineBanner />
-              <div id="app-content" tabIndex={-1}>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<AppSplash />}>
-                    <AuthenticatedApp />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </div>
-            </Router>
-          </ErrorBoundary>
-          <Toaster />
-        </PremiumAccessProvider>
-      </QueryClientProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <PremiumAccessProvider>
+            <ErrorBoundary>
+              <Router>
+                <RouteAccessibility />
+                <ScrollToTop />
+                <AndroidBackHandler />
+                <OfflineBanner />
+                <div id="app-content" tabIndex={-1}>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<AppSplash />}>
+                      <AuthenticatedApp />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </div>
+              </Router>
+            </ErrorBoundary>
+            <Toaster />
+          </PremiumAccessProvider>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   AiReportRequestError,
   normalizeAiReportRequest
@@ -92,7 +92,9 @@ export default async function(req) {
       return Number.isFinite(createdAt) && createdAt >= cutoff;
     }).length;
     if (recentCount >= MAX_REPORTS_PER_HOUR) {
-      return json({ error: "Too many reports. Please try again later." }, { status: 429 });
+      // The SDK reads data.message || data.detail, never data.error.
+      const limitMessage = "Too many reports. Please try again later.";
+      return json({ error: limitMessage, message: limitMessage }, { status: 429 });
     }
 
     const report = await reports.create({

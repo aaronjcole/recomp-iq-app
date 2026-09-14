@@ -35,6 +35,15 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Install iOS shell dependencies
+        run: npm ci --prefix expo-ios
+
+      - name: Typecheck iOS shell
+        run: npm run typecheck --prefix expo-ios
+
+      - name: Validate Expo configuration
+        run: npm run doctor --prefix expo-ios
+
       - name: Test fitness engine
         run: npm run test:fitness
 

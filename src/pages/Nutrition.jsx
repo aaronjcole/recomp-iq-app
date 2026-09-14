@@ -1,12 +1,14 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { useRecomp, todayStr } from "@/lib/RecompContext";
-import { scoreNutritionQuality } from "@/lib/fitness";
+import { useRecomp } from "@/lib/RecompContext";
+import { useLoggingDate } from "@/lib/LoggingDateContext";
+import { formatWeekdayName } from "@/lib/loggingDateUtils";
+import LoggingDatePicker from "@/components/LoggingDatePicker";
+import FuelSegmentedControl, { fuelPanelId, fuelTabId } from "@/components/nutrition/FuelSegmentedControl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import MacroBar from "@/components/common/MacroBar";
 import MacroDonut from "@/components/common/MacroDonut";
 import MealTemplatesCard from "@/components/nutrition/MealTemplatesCard";
@@ -14,14 +16,16 @@ import GroceryListCard from "@/components/nutrition/GroceryListCard";
 import AddRecipeCard from "@/components/nutrition/AddRecipeCard";
 import CustomTargetsCard from "@/components/nutrition/CustomTargetsCard";
 import FoodDiaryCard from "@/components/nutrition/FoodDiaryCard";
+import FoodSearchCard from "@/components/nutrition/FoodSearchCard";
+import NutritionSignalCard from "@/components/nutrition/NutritionSignalCard";
+import QualityScoreBadge from "@/components/nutrition/QualityScoreBadge";
 import PremiumBadge from "@/components/premium/PremiumBadge";
-import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight } from "lucide-react";
+import { Plus, ScanLine, Camera, ChartPie, ChevronDown, SlidersHorizontal, CalendarDays, ArrowRight, Pencil } from "lucide-react";
 // Loaded on demand so the ~110KB @zxing barcode decoder (and the flag-gated AI
 // food-photo scanner) stay out of the Fuel tab's initial chunk and only download
 // when the user actually opens a scanner.
 const BarcodeScanner = lazy(() => import("@/components/nutrition/BarcodeScanner"));
 const FoodPhotoScan = lazy(() => import("@/components/nutrition/FoodPhotoScan"));
-import { toast } from "@/components/ui/use-toast";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
 
@@ -29,11 +33,12 @@ const empty = { name: "", serving_description: "", serving_grams: "", calories: 
 const num = (v) => (v === "" ? null : Number(v));
 
 export default function Nutrition() {
-  const { strategy, todayLog, foods, addFood, logFoodEntry, upsertDailyLog, reload } = useRecomp();
+  const { strategy, logs, foods, addFood, logFoodEntry, upsertDailyLog, reload, ensureDateLoaded } = useRecomp();
+  const { selectedDate, isToday } = useLoggingDate();
   const [form, setForm] = useState(empty);
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { state } = useLocation();
   const detailsRef = useRef(null);
   const foodFormId = useId();
@@ -41,12 +46,45 @@ export default function Nutrition() {
   const [targetsExpanded, setTargetsExpanded] = useState(
     () => requestedPanel === "targets"
   );
+  const [segment, setSegment] = useState(() => {
+    if (requestedPanel === "targets") return "tools";
+    const urlSeg = searchParams.get("segment");
+    return urlSeg === "library" || urlSeg === "tools" ? urlSeg : "diary";
+  });
+  const [showAllFoods, setShowAllFoods] = useState(false);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
+  const manualFormRef = useRef(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const selectedLog = useMemo(
+    () => logs.find((l) => l.date === selectedDate) ?? null,
+    [logs, selectedDate]
+  );
+
+  const weekday = formatWeekdayName(selectedDate);
+  const addLabel = isToday ? "Add to today" : `Add to ${weekday}`;
+
+  const handleSegmentChange = useCallback((newSeg) => {
+    setSegment(newSeg);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("panel");
+        if (newSeg === "diary") {
+          next.delete("segment");
+        } else {
+          next.set("segment", newSeg);
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
 
   const logToToday = async (food, source, sourceFoodId) => {
     if (featureFlags.itemizedFoodDiary) {
       await logFoodEntry({
-        date: todayStr(), meal: "other", name: food.name,
+        date: selectedDate, meal: "other", name: food.name,
         serving_description: food.serving_description || "1 serving", quantity: 1,
         calories: food.calories ?? 0, protein_g: food.protein_g ?? 0,
         carbs_g: food.carbs_g ?? 0, fat_g: food.fat_g ?? 0, fiber_g: food.fiber_g ?? 0,
@@ -54,7 +92,7 @@ export default function Nutrition() {
       });
       return;
     }
-    await upsertDailyLog(todayStr(), (current) => ({
+    await upsertDailyLog(selectedDate, (current) => ({
       calories: (current?.calories ?? 0) + (food.calories ?? 0),
       protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
       carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
@@ -70,28 +108,57 @@ export default function Nutrition() {
     return () => window.clearTimeout(timer);
   }, [requestedPanel, strategy]);
 
+  // Auto-select Tools segment when ?panel=targets arrives while on the page.
+  useEffect(() => {
+    if (requestedPanel === "targets") {
+      setSegment("tools");
+      setTargetsExpanded(true);
+    }
+  }, [requestedPanel]);
+
   useEffect(() => {
     if (!state?.scrollTo) return;
     const el = document.getElementById(state.scrollTo);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [state?.scrollTo]);
 
-  const handleScannedFood = async (food, addToToday) => {
+  // Fetch on-demand data for historical dates outside the current-week batch.
+  useEffect(() => {
+    ensureDateLoaded?.(selectedDate);
+  }, [ensureDateLoaded, selectedDate]);
+
+  const addAndLog = async (food, source, addToToday) => {
     const savedFood = await addFood(food);
     if (addToToday) {
-      await logToToday(food, showPhotoScan ? "photo" : "barcode", savedFood.id);
+      await logToToday(food, source, savedFood.id);
     }
-    toast({ title: `${food.name} ${addToToday ? "added to today" : "saved to library"}` });
+  };
+
+  const handleScannedFood = async (food, addToToday) => {
+    await addAndLog(food, showPhotoScan ? "photo" : "barcode", addToToday);
     setShowScanner(false);
     setShowPhotoScan(false);
   };
 
-  const [showAllFoods, setShowAllFoods] = useState(false);
+  const handleSearchAdd = async (food, addToToday) => {
+    await addAndLog(food, "search", addToToday);
+  };
 
   const quickAddFood = async (f) => {
     await logToToday(f, "library", f.id);
-    toast({ title: `${f.name} added` });
   };
+
+  const handleNudge = useCallback((action) => {
+    if (!action) return;
+    if (action.type === "add_food" && action.food) {
+      quickAddFood(action.food);
+    } else if (action.type === "open_form") {
+      setManualFormOpen(true);
+      requestAnimationFrame(() => {
+        manualFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [quickAddFood]);
 
   if (!strategy) return (
     <div className="space-y-5">
@@ -103,10 +170,10 @@ export default function Nutrition() {
   );
 
   const consumed = {
-    calories: todayLog?.calories ?? 0,
-    protein: todayLog?.protein_g ?? 0,
-    carbs: todayLog?.carbs_g ?? 0,
-    fat: todayLog?.fat_g ?? 0
+    calories: selectedLog?.calories ?? 0,
+    protein: selectedLog?.protein_g ?? 0,
+    carbs: selectedLog?.carbs_g ?? 0,
+    fat: selectedLog?.fat_g ?? 0
   };
 
   const saveFood = async (addToToday) => {
@@ -135,6 +202,9 @@ export default function Nutrition() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Nutrition</h1>
 
+      <LoggingDatePicker />
+
+      {/* Macro bars — persistent above segments */}
       <Card className="bg-panel border-line">
         <CardContent className="p-5 space-y-3">
           <MacroBar label="Calories" value={consumed.calories} target={strategy.calorie_target} colorClass="bg-teal" />
@@ -144,180 +214,302 @@ export default function Nutrition() {
         </CardContent>
       </Card>
 
-      {featureFlags.itemizedFoodDiary && <FoodDiaryCard />}
+      <FuelSegmentedControl value={segment} onChange={handleSegmentChange} />
 
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-medium">Quick add food</h2>
-          </div>
-          {foods.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Recent</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: "none" }}>
-                {foods.slice(0, 6).map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => quickAddFood(f)}
-                    className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity"
-                  >
-                    <div className="text-sm font-medium truncate">{f.name}</div>
-                    <div className="text-xs text-muted-foreground">{f.calories} kcal</div>
-                  </button>
-                ))}
+      {/* ── Diary ── */}
+      {segment === "diary" && (
+        <div
+          id={fuelPanelId("diary")}
+          role="tabpanel"
+          aria-labelledby={fuelTabId("diary")}
+          className="space-y-5"
+        >
+          {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} />}
+
+          <NutritionSignalCard onNudge={handleNudge} />
+
+          {/* Scan — fastest add path */}
+          <Card className="bg-panel border-line">
+            <CardContent className="p-5 space-y-3">
+              <h2 className="font-medium">Scan food</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {featureFlags.foodPhotoScan && (
+                  <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
+                    <Camera className="w-4 h-4 mr-1" /> Snap food
+                  </Button>
+                )}
+                <Button variant="outline" className="min-h-11" onClick={() => setShowScanner(true)}>
+                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
+                </Button>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+
+          {/* Search foods online — build the library from branded nutrition */}
+          <FoodSearchCard onAdd={handleSearchAdd} />
+
+          {/* Recent foods — one-tap quick add */}
+          {foods.length > 0 && (
+            <Card className="bg-panel border-line">
+              <CardContent className="p-5 space-y-3">
+                <h2 className="font-medium">Recent foods</h2>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: "none" }}>
+                  {foods.slice(0, 8).map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => quickAddFood(f)}
+                      className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity"
+                    >
+                      <div className="text-sm font-medium truncate">{f.name}</div>
+                      <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p</div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm text-muted-foreground">Or add manually</span>
-            <div className="flex items-center gap-2">
-              {featureFlags.foodPhotoScan && (
-                <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
-                  <Camera className="w-4 h-4 mr-1" /> Snap food
+
+          {/* Meal templates — one-tap multi-item add */}
+          <MealTemplatesCard date={selectedDate} />
+
+          {/* Compact meal-planner entry point. The full card lives in Tools; Diary
+              is the logging surface, so this stays a single low-emphasis row. */}
+          <Card className="border-line bg-panel">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-panel2 text-teal">
+                  <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">Weekly meal plan</span>
+                    <PremiumBadge />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Seven days of meals from your targets.
+                  </p>
+                </div>
+              </div>
+              <Button asChild variant="outline" className="min-h-11 border-line">
+                <Link to="/nutrition/meal-plan">
+                  Open meal planner <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Manual form — collapsed under "Add manually" so the intimidating path is opt-in */}
+          <Card ref={manualFormRef} className="scroll-mt-4 bg-panel border-line">
+            <CardContent className="px-5 py-1">
+              <h2 className="pt-4 font-medium">Quick add food</h2>
+              <details
+                className="group"
+                open={manualFormOpen}
+                onToggle={(e) => setManualFormOpen(e.currentTarget.open)}
+              >
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-3 text-left">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span>
+                      <span className="block font-medium">Add manually</span>
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        Enter a food by hand
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="pb-5 pt-2 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 space-y-1.5">
+                      <Label htmlFor={`${foodFormId}-name`}>Food name</Label>
+                      <Input id={`${foodFormId}-name`} className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${foodFormId}-serving`}>Serving</Label>
+                      <Input id={`${foodFormId}-serving`} className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${foodFormId}-grams`}>Grams</Label>
+                      <Input id={`${foodFormId}-grams`} className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
+                    </div>
+                    <Field id={`${foodFormId}-calories`} label="Calories" accessibleLabel="Food calories" v={form.calories} on={(v) => set("calories", v)} />
+                    <Field id={`${foodFormId}-protein`} label="Protein (g)" accessibleLabel="Food protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
+                    <Field id={`${foodFormId}-carbs`} label="Carbs (g)" accessibleLabel="Food carbs (g)" v={form.carbs_g} on={(v) => set("carbs_g", v)} />
+                    <Field id={`${foodFormId}-fat`} label="Fat (g)" accessibleLabel="Food fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
+                    <Field id={`${foodFormId}-fiber`} label="Fiber (g)" accessibleLabel="Food fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
+                    <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
+                    <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
+                      <Plus className="w-4 h-4 mr-1" /> {addLabel}
+                    </Button>
+                  </div>
+                </div>
+              </details>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Library ── */}
+      {segment === "library" && (
+        <div
+          id={fuelPanelId("library")}
+          role="tabpanel"
+          aria-labelledby={fuelTabId("library")}
+          className="space-y-5"
+        >
+          <FoodSearchCard onAdd={handleSearchAdd} />
+
+          <Card className="bg-panel border-line">
+            <CardContent className="p-5 space-y-3">
+              <h2 className="font-medium">Food library</h2>
+              {foods.length === 0 && <p className="text-sm text-muted-foreground">No foods saved yet.</p>}
+              {(showAllFoods ? foods : foods.slice(0, 12)).map((f) => (
+                <div key={f.id} className="space-y-1.5 py-2 border-b border-lineSoft last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{f.name}</div>
+                      <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p / {f.carbs_g}c / {f.fat_g}f</div>
+                    </div>
+                    <button
+                      onClick={() => quickAddFood(f)}
+                      className="shrink-0 rounded-lg border border-line bg-panel2 px-2.5 py-1.5 text-xs font-medium text-foreground active:opacity-70 transition-opacity"
+                    >
+                      <Plus className="inline w-3 h-3 mr-0.5" />Add
+                    </button>
+                  </div>
+                  <QualityScoreBadge food={f} />
+                </div>
+              ))}
+              {foods.length > 12 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-line min-h-11"
+                  onClick={() => setShowAllFoods((v) => !v)}
+                >
+                  {showAllFoods ? "Show less" : `Show all ${foods.length} items`}
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="min-h-11" onClick={() => setShowScanner(true)}>
-                <ScanLine className="w-4 h-4 mr-1" /> Barcode
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor={`${foodFormId}-name`}>Food name</Label>
-              <Input id={`${foodFormId}-name`} className="h-11" value={form.name} onChange={(e) => set("name", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`${foodFormId}-serving`}>Serving</Label>
-              <Input id={`${foodFormId}-serving`} className="h-11" value={form.serving_description} onChange={(e) => set("serving_description", e.target.value)} placeholder="1 cup" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`${foodFormId}-grams`}>Grams</Label>
-              <Input id={`${foodFormId}-grams`} className="h-11" type="number" value={form.serving_grams} onChange={(e) => set("serving_grams", e.target.value)} />
-            </div>
-            <Field id={`${foodFormId}-calories`} label="Calories" accessibleLabel="Food calories" v={form.calories} on={(v) => set("calories", v)} />
-            <Field id={`${foodFormId}-protein`} label="Protein (g)" accessibleLabel="Food protein (g)" v={form.protein_g} on={(v) => set("protein_g", v)} />
-            <Field id={`${foodFormId}-carbs`} label="Carbs (g)" accessibleLabel="Food carbs (g)" v={form.carbs_g} on={(v) => set("carbs_g", v)} />
-            <Field id={`${foodFormId}-fat`} label="Fat (g)" accessibleLabel="Food fat (g)" v={form.fat_g} on={(v) => set("fat_g", v)} />
-            <Field id={`${foodFormId}-fiber`} label="Fiber (g)" accessibleLabel="Food fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
-          </div>
-          <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
-            <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
-            <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Add to today
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card className="bg-panel border-line">
-        <CardContent className="p-5 space-y-3">
-          <h2 className="font-medium">Food library</h2>
-          {foods.length === 0 && <p className="text-sm text-muted-foreground">No foods saved yet.</p>}
-          {(showAllFoods ? foods : foods.slice(0, 12)).map((f) => {
-            const q = scoreNutritionQuality(f);
-            return (
-              <div key={f.id} className="flex items-center justify-between gap-3 py-2 border-b border-lineSoft last:border-0">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{f.name}</div>
-                  <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p / {f.carbs_g}c / {f.fat_g}f</div>
+          <div id="meal-templates-section">
+            <MealTemplatesCard date={selectedDate} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Tools ── */}
+      {segment === "tools" && (
+        <div
+          id={fuelPanelId("tools")}
+          role="tabpanel"
+          aria-labelledby={fuelTabId("tools")}
+          className="space-y-5"
+        >
+          {/* Scan card */}
+          <Card className="bg-panel border-line">
+            <CardContent className="p-5 space-y-3">
+              <h2 className="font-medium">Scan food</h2>
+              <p className="text-sm text-muted-foreground">Use a barcode or photo to log food instantly.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {featureFlags.foodPhotoScan && (
+                  <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
+                    <Camera className="w-4 h-4 mr-1" /> Snap food
+                  </Button>
+                )}
+                <Button variant="outline" className="min-h-11" onClick={() => setShowScanner(true)}>
+                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Macro breakdown + Custom targets */}
+          <Card ref={detailsRef} className="scroll-mt-4 bg-panel border-line">
+            <CardContent className="px-5 py-1">
+              <details className="group border-b border-lineSoft">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-3 text-left">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
+                      <ChartPie className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span>
+                      <span className="block font-medium">Macro breakdown</span>
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        See {isToday ? "today's" : `${weekday}'s`} calorie split
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="pb-5 pt-2">
+                  <MacroDonut protein={consumed.protein} carbs={consumed.carbs} fat={consumed.fat} />
                 </div>
-                <Badge variant="outline" className="shrink-0">{q.score}</Badge>
-              </div>
-            );
-          })}
-          {foods.length > 12 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full border-line min-h-11"
-              onClick={() => setShowAllFoods((v) => !v)}
-            >
-              {showAllFoods ? "Show less" : `Show all ${foods.length} items`}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+              </details>
 
-      <Card ref={detailsRef} className="scroll-mt-4 bg-panel border-line">
-        <CardContent className="px-5 py-1">
-          <details className="group border-b border-lineSoft">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-3 text-left">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
-                  <ChartPie className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block font-medium">Macro breakdown</span>
-                  <span className="block text-xs font-normal text-muted-foreground">
-                    See today&apos;s calorie split
+              <details
+                className="group"
+                open={targetsExpanded}
+                onToggle={(event) => setTargetsExpanded(event.currentTarget.open)}
+              >
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-3 text-left">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
+                      <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span>
+                      <span className="block font-medium">Targets &amp; adaptive mode</span>
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        Review or override your plan
+                      </span>
+                    </span>
                   </span>
-                </span>
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-            </summary>
-            <div className="pb-5 pt-2">
-              <MacroDonut protein={consumed.protein} carbs={consumed.carbs} fat={consumed.fat} />
-            </div>
-          </details>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="pb-5 pt-2">
+                  <CustomTargetsCard embedded />
+                </div>
+              </details>
+            </CardContent>
+          </Card>
 
-          <details
-            className="group"
-            open={targetsExpanded}
-            onToggle={(event) => setTargetsExpanded(event.currentTarget.open)}
-          >
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between py-3 [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-3 text-left">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-panel2 text-teal">
-                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block font-medium">Targets &amp; adaptive mode</span>
-                  <span className="block text-xs font-normal text-muted-foreground">
-                    Review or override your plan
-                  </span>
-                </span>
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
-            </summary>
-            <div className="pb-5 pt-2">
-              <CustomTargetsCard embedded />
-            </div>
-          </details>
-        </CardContent>
-      </Card>
-
-      <Card className="border-line bg-panel">
-        <CardContent className="space-y-3 p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
-              <CalendarDays className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-medium">Adaptive weekly meal plan</h2>
-                <PremiumBadge />
+          {/* Adaptive weekly meal plan */}
+          <Card className="border-line bg-panel">
+            <CardContent className="space-y-3 p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15 text-teal">
+                  <CalendarDays className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-medium">Adaptive weekly meal plan</h2>
+                    <PremiumBadge />
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Turn your targets and last check-in into seven days of meals and one grocery list.
+                  </p>
+                </div>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Turn your targets and last check-in into seven days of meals and one grocery list.
-              </p>
-            </div>
+              <Button asChild variant="outline" className="w-full border-line">
+                <Link to="/nutrition/meal-plan">
+                  Open meal planner <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div id="grocery-list-section">
+            <GroceryListCard />
           </div>
-          <Button asChild variant="outline" className="w-full border-line">
-            <Link to="/nutrition/meal-plan">
-              Open meal planner <ArrowRight aria-hidden="true" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <div id="meal-templates-section">
-        <MealTemplatesCard />
-      </div>
-
-      <div id="grocery-list-section">
-        <GroceryListCard />
-      </div>
-      <AddRecipeCard />
+          <AddRecipeCard />
+        </div>
+      )}
 
       {showScanner && (
         <Suspense fallback={<ScannerLoading />}>

@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { resolvePremiumAccess, PREMIUM_PRODUCTS } from "../../shared/premiumDomain.js";
 
 const ENTITLEMENT_PAGE_SIZE = 500;

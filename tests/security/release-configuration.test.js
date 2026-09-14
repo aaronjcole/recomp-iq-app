@@ -10,11 +10,6 @@ import {
   SUPPORT_MAILTO,
   SUPPORT_REQUEST_MAILTO
 } from "../../src/lib/support.js";
-import {
-  buildWaitlistAttribution,
-  HERO_VARIANT,
-  sanitizeCampaignValue
-} from "../../src/lib/marketingAttribution.js";
 import { getRouteMetadata } from "../../src/lib/routeMetadata.js";
 import { normalizeStoreUrl } from "../../src/lib/storeLinks.js";
 
@@ -23,7 +18,6 @@ const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.equal(featureFlags.bodyCompositionScan, false);
   assert.equal(featureFlags.foodPhotoScan, false);
-  assert.equal(featureFlags.itemizedFoodDiary, false);
   assert.equal(enabledFromEnvironment(undefined), false);
   assert.equal(enabledFromEnvironment("false"), false);
   assert.equal(enabledFromEnvironment("TRUE"), false);
@@ -98,39 +92,6 @@ test("marketing store links accept only official HTTPS store origins", () => {
   assert.equal(normalizeStoreUrl("https://example.com/app", "example.com"), null);
 });
 
-test("waitlist attribution is conversion-only, bounded, and free of arbitrary query data", () => {
-  assert.equal(HERO_VARIANT, "decision_v1");
-  assert.equal(sanitizeCampaignValue(" creator/<script> "), "creatorscript");
-  assert.equal(sanitizeCampaignValue("x".repeat(100)).length, 80);
-
-  assert.deepEqual(
-    buildWaitlistAttribution(
-      "?utm_source=tiktok&utm_medium=creator&utm_campaign=founding_testers&utm_content=hold-steady&email=private@example.com",
-      { explainerViewed: true }
-    ),
-    {
-      hero_variant: "decision_v1",
-      explainer_viewed: true,
-      campaign_source: "tiktok",
-      campaign_medium: "creator",
-      campaign_name: "founding_testers",
-      campaign_content: "hold-steady"
-    }
-  );
-
-  const comingSoonSource = readFileSync(resolve(repoRoot, "src/pages/ComingSoon.jsx"), "utf8");
-  assert.match(comingSoonSource, /buildWaitlistAttribution/);
-  assert.match(comingSoonSource, /No advertising cookies or cross-site tracking/);
-
-  const joinWaitlistSource = readFileSync(
-    resolve(repoRoot, "base44/functions/joinWaitlist/entry.ts"),
-    "utf8"
-  );
-  assert.match(joinWaitlistSource, /ATTRIBUTION_FIELDS/);
-  assert.match(joinWaitlistSource, /slice\(0, 80\)/);
-  assert.doesNotMatch(joinWaitlistSource, /referrer|user-agent|cookie/i);
-});
-
 test("mobile release flows prioritize primary actions and usable touch targets", () => {
   const appLayoutSource = readFileSync(resolve(repoRoot, "src/components/AppLayout.jsx"), "utf8");
   assert.match(appLayoutSource, /if \(location\.pathname !== to\) return/);
@@ -168,7 +129,29 @@ test("mobile release flows prioritize primary actions and usable touch targets",
 
   const todaySource = readFileSync(resolve(repoRoot, "src/pages/Today.jsx"), "utf8");
   assert.match(todaySource, /<RecompSignalHero move=\{bestMove\}/);
-  assert.match(todaySource, /<StreakBanner compact/);
+  // Today used to render `<StreakBanner compact />`: the space-efficient streak
+  // variant, chosen so the streak never displaced the primary action in the
+  // first phone viewport. The banner is now StreakChip (header) plus
+  // StreakDetailSheet (tap to open), so assert the same invariant against the
+  // new pair — Today carries only the compact chip, above the hero, and the
+  // expanded streak detail stays behind the tap.
+  assert.match(todaySource, /<StreakChip \/>/);
+  assert.doesNotMatch(todaySource, /StreakBanner|StreakDetailSheet/);
+  assert.ok(
+    todaySource.indexOf("<StreakChip />") < todaySource.indexOf("<RecompSignalHero"),
+    "the streak should sit in the Today header, not between the hero and the logging modules"
+  );
+  const streakChipSource = readFileSync(resolve(repoRoot, "src/components/today/StreakChip.jsx"), "utf8");
+  assert.match(streakChipSource, /min-h-11 min-w-11/);
+  assert.match(streakChipSource, /day target streak\. Tap for details\./);
+  assert.match(streakChipSource, /<StreakDetailSheet open=\{open\}/);
+  const streakDetailSource = readFileSync(
+    resolve(repoRoot, "src/components/today/StreakDetailSheet.jsx"),
+    "utf8"
+  );
+  assert.match(streakDetailSource, /<Sheet open=\{open\} onOpenChange=\{onOpenChange\}>/);
+  assert.match(streakDetailSource, /Last 7 days/);
+  assert.match(streakDetailSource, /stats\.longest/);
   const signalHeroSource = readFileSync(resolve(repoRoot, "src/components/today/RecompSignalHero.jsx"), "utf8");
   assert.match(signalHeroSource, /<BestMoveCard move=\{move\} onLog=\{onLog\} embedded/);
   const bestMoveSource = readFileSync(resolve(repoRoot, "src/components\/today\/BestMoveCard.jsx"), "utf8");

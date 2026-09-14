@@ -19,11 +19,10 @@ export const featureFlags = Object.freeze({
   // deployment has opted in and declared it (Play Data Safety).
   telemetry: enabledFromEnvironment(import.meta.env?.VITE_ENABLE_TELEMETRY),
   // Itemized meals add a more granular nutrition record than the legacy daily
-  // totals. Keep collection off until a deployment explicitly opts into that
-  // data shape and updates its store/privacy declarations if required.
-  itemizedFoodDiary: enabledFromEnvironment(
-    import.meta.env?.VITE_ENABLE_ITEMIZED_FOOD_DIARY
-  ),
+  // totals. Enabled so users can browse and edit individual foods logged on
+  // any past day (like MyFitnessPal). Daily totals stay in sync automatically
+  // via adjustDailyNutrition whenever an entry is added, edited, or deleted.
+  itemizedFoodDiary: true,
   // The Lifestyle Coach is under active development. Keep the entry point locked
   // behind a "coming soon" state until the experience is ready to ship. This is
   // independent of the premium entitlement — paying users still unlock the rest

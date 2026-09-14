@@ -1,13 +1,22 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   MealPlanRequestError,
   buildAdaptiveMealPlan,
-  normalizeMealPlanRequest
+  normalizeMealPlanRequest,
+  buildAiVarietyPrompt,
+  mergeAiMealsIntoPlan,
+  AI_VARIETY_SCHEMA
 } from "../../shared/adaptiveMealPlanDomain.js";
 import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
+import {
+  AI_FEATURE_QUOTAS,
+  AI_QUOTA_FEATURES,
+  quotaRetryAfterSeconds,
+  reserveFeatureRequest
+} from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 2_000;
 const ENTITLEMENT_PAGE_SIZE = 500;
@@ -113,12 +122,77 @@ export default async function(req) {
       }, { status: 409 });
     }
 
-    return json(buildAdaptiveMealPlan({
+    const deterministicPlan = buildAdaptiveMealPlan({
       weekStart: request.weekStart,
       strategy,
       preferences,
       checkIn: checkIns[0] ?? null
-    }));
+    });
+
+    if (request.mode !== "ai_variety") {
+      return json(deterministicPlan);
+    }
+
+    // AI variety path: a single guarded LLM call that spends credits only when
+    // the user explicitly requests it. Only this path is metered; the
+    // deterministic plan above costs nothing and stays unthrottled.
+    const quota = await reserveFeatureRequest(
+      base44.asServiceRole.entities.CoachRequestUsage,
+      user.id,
+      AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY,
+      AI_FEATURE_QUOTAS[AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY]
+    );
+    if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "AI meal variety limit reached. Please try again later.";
+      return json(
+        { error: limitMessage, message: limitMessage },
+        {
+          status: 429,
+          headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }
+        }
+      );
+    }
+
+    // The deterministic plan seeds the "avoid" list so the LLM does not echo
+    // the same rotation.
+    const avoidIds = deterministicPlan.days
+      .flatMap((day) => day.meals)
+      .map((meal) => meal.title);
+
+    let aiOutput;
+    try {
+      const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: buildAiVarietyPrompt({
+          dailyTargets: deterministicPlan.dailyTargets,
+          dietStyle: deterministicPlan.dietStyle,
+          checkIn: checkIns[0] ?? null,
+          avoidIds
+        }),
+        response_json_schema: AI_VARIETY_SCHEMA,
+        model: "automatic"
+      });
+      aiOutput = result;
+    } catch (error) {
+      console.error("generateAdaptiveMealPlan AI variety failed", safeErrorDetails(error));
+      return json({ ...deterministicPlan, aiVarietyError: "AI variety is unavailable right now; showing your deterministic plan." });
+    }
+
+    try {
+      return json(mergeAiMealsIntoPlan({
+        aiOutput,
+        weekStart: request.weekStart,
+        dietStyle: deterministicPlan.dietStyle,
+        dailyTargets: deterministicPlan.dailyTargets,
+        adaptation: deterministicPlan.adaptation
+      }));
+    } catch (error) {
+      if (error instanceof MealPlanRequestError) {
+        return json({ ...deterministicPlan, aiVarietyError: "AI variety could not be formatted; showing your deterministic plan." });
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof MealPlanRequestError) {
       return json({ error: error.message }, { status: 409 });

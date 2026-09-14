@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CopyPlus, Pencil, Trash2, Utensils } from "lucide-react";
-import { useRecompActions, useRecompRef, todayStr } from "@/lib/RecompContext";
+import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
+import { todayStr, formatShortDate } from "@/lib/loggingDateUtils";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,14 +38,14 @@ function editState(entry) {
   };
 }
 
-export default function FoodDiaryCard() {
+export default function FoodDiaryCard({ date = todayStr() }) {
   const { foodLogEntries } = useRecompRef();
   const { deleteFoodLogEntry, repeatFoodLogEntry, restoreFoodLogEntry, updateFoodLogEntry } = useRecompActions();
   const { toast } = useToast();
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(editState(null));
   const [saving, setSaving] = useState(false);
-  const today = todayStr();
+  const today = date;
 
   const entries = useMemo(
     () => foodLogEntries.filter((entry) => entry.date === today),
@@ -64,7 +65,6 @@ export default function FoodDiaryCard() {
   const repeat = async (entry) => {
     try {
       await repeatFoodLogEntry(entry);
-      toast({ title: "Added again", description: `${entry.name} was copied to today.` });
     } catch {
       toast({ title: "Couldn't repeat food", variant: "destructive" });
     }
@@ -107,7 +107,6 @@ export default function FoodDiaryCard() {
         fat_g: Math.max(0, Number(draft.fat_g) || 0)
       });
       setEditing(null);
-      toast({ title: "Food updated" });
     } catch {
       toast({ title: "Couldn't update food", variant: "destructive" });
     } finally {
@@ -123,7 +122,7 @@ export default function FoodDiaryCard() {
             <div className="flex items-center gap-2">
               <Utensils className="h-4 w-4 text-teal" aria-hidden="true" />
               <div>
-                <h2 className="font-medium">Today&apos;s diary</h2>
+                <h2 className="font-medium">{date === todayStr() ? "Today's diary" : formatShortDate(date)}</h2>
                 <p className="text-xs text-muted-foreground">Every item stays editable.</p>
               </div>
             </div>
@@ -134,8 +133,8 @@ export default function FoodDiaryCard() {
 
           {entries.length === 0 ? (
             <div className="rounded-lg border border-dashed border-line px-4 py-5 text-center">
-              <p className="text-sm font-medium">Nothing logged yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">Add a recent food or use the form below to start today&apos;s diary.</p>
+              <p className="text-sm font-medium">Nothing logged for this day</p>
+              <p className="mt-1 text-xs text-muted-foreground">Add a recent food or use the form below to start the diary.</p>
             </div>
           ) : (
             <div className="space-y-4">

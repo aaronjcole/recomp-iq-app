@@ -24,6 +24,29 @@ updates:
         update-types:
           - version-update:semver-major
 
+  - package-ecosystem: npm
+    directory: /expo-ios
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    # No production/development-patches groups here: unlike the web app,
+    # Expo and React Native pin their own dependency graph (react,
+    # react-native, react-native-iap, react-native-webview, Nitro modules)
+    # to a narrow, mutually-compatible version window per Expo SDK release.
+    # Grouping patches together risks bundling an incompatible pair into one
+    # PR and masking which single bump broke a native build; one PR per
+    # dependency keeps each bump bisectable, which matters most for the
+    # payment surface (react-native-iap, react-native-webview) this directory
+    # exists to monitor.
+    ignore:
+      # Major upgrades need isolated migration PRs and targeted regression tests.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

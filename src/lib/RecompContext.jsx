@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
@@ -15,11 +15,9 @@ import {
 import { trackEvent } from "@/lib/telemetry";
 import { featureFlags } from "@/lib/featureFlags";
 import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
+import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggingDateUtils";
 
-const Ctx = createContext(null); // live/derived data: logs, todayLog, and everything computed from logs
-const RefCtx = createContext(null); // stable reference data that a daily-log write does not touch
-const ActionsCtx = createContext(null);
-const HabitsCtx = createContext(null);
+import { Ctx, RefCtx, ActionsCtx, HabitsCtx } from "@/lib/recompContexts";
 
 const FOOD_TOTAL_FIELDS = ["calories", "protein_g", "carbs_g", "fat_g"];
 
@@ -167,6 +165,7 @@ export function RecompProvider({ children }) {
   const [habits, setHabits] = useState([]);
   const [habitEntries, setHabitEntries] = useState([]);
   const [activeBlock, setActiveBlock] = useState(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const profileRef = useRef(profile);
   const preferencesRef = useRef(preferences);
@@ -178,6 +177,7 @@ export function RecompProvider({ children }) {
   const foodLogEntriesRef = useRef([]);
   const dailyQueues = useRef(new Map());
   const habitQueues = useRef(new Map());
+  const loadedDates = useRef(new Set());
 
   useEffect(() => {
     profileRef.current = profile;
@@ -243,36 +243,39 @@ export function RecompProvider({ children }) {
     });
   }, []);
 
-  const loadAll = useCallback(async () => {
+  // ── Batch 1: current week + reference data (blocking initial load) ──
+  // Fetches only the current week (Mon–Sun local timezone) of date-scoped
+  // entities so the Today screen renders fast even for users with months of
+  // history. Older data is loaded in the background by loadHistory().
+  const loadInitial = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    const weekStart = getCurrentWeekStart();
     try {
       const results = await Promise.all([
         base44.entities.UserProfile.list("-created_date", 1),
         base44.entities.UserPreferences.list("-created_date", 1),
         base44.entities.CurrentStrategy.list("-created_date", 1),
-        base44.entities.DailyLog.list("-date", 500),
-        base44.entities.ExerciseSession.list("-date", 200),
-        base44.entities.StrengthLog.list("-date", 500),
-        base44.entities.WeeklyCheckIn.list("-created_date", 100),
+        base44.entities.DailyLog.filter({ date: { $gte: weekStart } }, "-date", 100),
+        base44.entities.ExerciseSession.filter({ date: { $gte: weekStart } }, "-date", 100),
+        base44.entities.StrengthLog.filter({ date: { $gte: weekStart } }, "-date", 200),
         base44.entities.FoodItem.list("-created_date", 200),
         base44.entities.Recipe.list("-created_date", 100),
-        base44.entities.DecisionLedger.list("-date", 100),
         base44.entities.MealTemplate.list("-created_date", 200),
         base44.entities.Habit.list("-sort_order", 200),
-        base44.entities.HabitEntry.list("-date", 500),
+        base44.entities.HabitEntry.filter({ date: { $gte: weekStart } }, "-date", 200),
         base44.entities.TrainingBlock.filter({ status: "active" }, "-created_date", 1).catch(() => []),
         featureFlags.itemizedFoodDiary
-          ? base44.entities.FoodLogEntry.list("-date", 500)
+          ? base44.entities.FoodLogEntry.filter({ date: { $gte: weekStart } }, "-date", 200)
           : Promise.resolve([])
       ]);
       const loadedProfile = results[0][0] ?? null;
       const loadedPreferences = results[1][0] ?? null;
       const loadedStrategy = results[2][0] ?? null;
       const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
-      const loadedHabitEntries = newestByKey(results[12], (item) => `${item.habit_id}:${item.date}`);
-      const loadedActiveBlock = results[13]?.[0] ?? null;
-      const loadedFoodLogEntries = results[14] ?? [];
+      const loadedHabitEntries = newestByKey(results[10], (item) => `${item.habit_id}:${item.date}`);
+      const loadedActiveBlock = results[11]?.[0] ?? null;
+      const loadedFoodLogEntries = results[12] ?? [];
       profileRef.current = loadedProfile;
       preferencesRef.current = loadedPreferences;
       strategyRef.current = loadedStrategy;
@@ -282,13 +285,11 @@ export function RecompProvider({ children }) {
       setLogsCurrent(loadedLogs);
       setSessionsCurrent(results[4]);
       setStrengthLogsCurrent(results[5]);
-      setCheckIns(results[6]);
-      setFoods(results[7]);
+      setFoods(results[6]);
       setFoodLogEntriesCurrent(loadedFoodLogEntries);
-      setRecipes(results[8]);
-      setDecisionLedger(results[9]);
-      setMealTemplates(results[10]);
-      let habitList = results[11];
+      setRecipes(results[7]);
+      setMealTemplates(results[8]);
+      let habitList = results[9];
       let normalizedHabitEntries = loadedHabitEntries;
       activeBlockRef.current = loadedActiveBlock;
       setActiveBlock(loadedActiveBlock);
@@ -308,6 +309,8 @@ export function RecompProvider({ children }) {
       }
       setHabits(habitList);
       setHabitEntriesCurrent(normalizedHabitEntries);
+      // Mark current-week dates as loaded so on-demand fetches skip them.
+      loadedLogs.forEach((l) => loadedDates.current.add(l.date));
     } catch (error) {
       setLoadError(error instanceof Error ? error : new Error("Unable to load your data."));
     } finally {
@@ -315,9 +318,123 @@ export function RecompProvider({ children }) {
     }
   }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
+  // ── Batch 2: older history (background, non-blocking) ──
+  // Fetches older DailyLog/ExerciseSession/StrengthLog/HabitEntry/FoodLogEntry
+  // plus WeeklyCheckIn and DecisionLedger. Merges WITHOUT overwriting newer
+  // local or current-week state. Failures are logged but never block Today
+  // or prevent logging.
+  const loadHistory = useCallback(async () => {
+    const weekStart = getCurrentWeekStart();
+    try {
+      const results = await Promise.all([
+        base44.entities.DailyLog.filter({ date: { $lt: weekStart } }, "-date", 500),
+        base44.entities.ExerciseSession.filter({ date: { $lt: weekStart } }, "-date", 200),
+        base44.entities.StrengthLog.filter({ date: { $lt: weekStart } }, "-date", 500),
+        base44.entities.WeeklyCheckIn.list("-created_date", 100),
+        base44.entities.DecisionLedger.list("-date", 100),
+        base44.entities.HabitEntry.filter({ date: { $lt: weekStart } }, "-date", 500),
+        featureFlags.itemizedFoodDiary
+          ? base44.entities.FoodLogEntry.filter({ date: { $lt: weekStart } }, "-date", 500)
+          : Promise.resolve([])
+      ]);
+      // Merge older history WITHOUT overwriting current-week or newer local state.
+      setLogsCurrent((prev) => {
+        const existingDates = new Set(prev.map((l) => l.date));
+        const older = newestByKey(results[0], (item) => item.date).filter((l) => !existingDates.has(l.date));
+        return [...prev, ...older].sort((a, b) => b.date.localeCompare(a.date));
+      });
+      setSessionsCurrent((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        return [...prev, ...results[1].filter((s) => !existingIds.has(s.id))];
+      });
+      setStrengthLogsCurrent((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        return [...prev, ...results[2].filter((s) => !existingIds.has(s.id))];
+      });
+      setCheckIns(results[3]);
+      setDecisionLedger(results[4]);
+      setHabitEntriesCurrent((prev) => {
+        const existingKeys = new Set(prev.map((e) => `${e.habit_id}:${e.date}`));
+        const older = newestByKey(results[5], (item) => `${item.habit_id}:${item.date}`).filter(
+          (e) => !existingKeys.has(`${e.habit_id}:${e.date}`)
+        );
+        return [...prev, ...older];
+      });
+      if (featureFlags.itemizedFoodDiary) {
+        setFoodLogEntriesCurrent((prev) => {
+          const existingIds = new Set(prev.map((e) => e.id));
+          return [...prev, ...results[6].filter((e) => !existingIds.has(e.id))];
+        });
+      }
+      setHistoryLoaded(true);
+    } catch (error) {
+      // Background history failure must not block Today or prevent logging.
+      console.warn("Background history load failed; retrying unobtrusively.", error);
+      setHistoryLoaded(true);
+    }
+  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
+
+  // ── On-demand fetch for a specific historical date ──
+  // Called when the user selects a date outside the current-week batch.
+  // Fetches that date's log, food diary, habits, and sessions without
+  // blocking initial Today rendering.
+  const ensureDateLoaded = useCallback(async (date) => {
+    if (!date || loadedDates.current.has(date)) return;
+    loadedDates.current.add(date); // mark immediately to prevent duplicate fetches
+    try {
+      const [dayLogs, dayFoodEntries, daySessions, dayHabitEntries] = await Promise.all([
+        base44.entities.DailyLog.filter({ date }, "-date", 10),
+        featureFlags.itemizedFoodDiary
+          ? base44.entities.FoodLogEntry.filter({ date }, "-date", 100)
+          : Promise.resolve([]),
+        base44.entities.ExerciseSession.filter({ date }, "-date", 50),
+        base44.entities.HabitEntry.filter({ date }, "-date", 100)
+      ]);
+      if (dayLogs.length) {
+        const merged = newestByKey(dayLogs, (item) => item.date);
+        setLogsCurrent((prev) => {
+          const existingDates = new Set(prev.map((l) => l.date));
+          return [...prev, ...merged.filter((l) => !existingDates.has(l.date))].sort((a, b) =>
+            b.date.localeCompare(a.date)
+          );
+        });
+      }
+      if (dayFoodEntries.length) {
+        setFoodLogEntriesCurrent((prev) => {
+          const existingIds = new Set(prev.map((e) => e.id));
+          return [...prev, ...dayFoodEntries.filter((e) => !existingIds.has(e.id))];
+        });
+      }
+      if (daySessions.length) {
+        setSessionsCurrent((prev) => {
+          const existingIds = new Set(prev.map((s) => s.id));
+          return [...prev, ...daySessions.filter((s) => !existingIds.has(s.id))];
+        });
+      }
+      if (dayHabitEntries.length) {
+        const merged = newestByKey(dayHabitEntries, (item) => `${item.habit_id}:${item.date}`);
+        setHabitEntriesCurrent((prev) => {
+          const existingKeys = new Set(prev.map((e) => `${e.habit_id}:${e.date}`));
+          return [...prev, ...merged.filter((e) => !existingKeys.has(`${e.habit_id}:${e.date}`))];
+        });
+      }
+    } catch (error) {
+      // On-demand fetch failure: unmark so a retry is possible, but don't block.
+      loadedDates.current.delete(date);
+      console.warn(`On-demand load for ${date} failed.`, error);
+    }
+  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent]);
+
+  const reload = useCallback(async () => {
+    await loadInitial();
+    loadHistory();
+  }, [loadInitial, loadHistory]);
+
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    loadInitial().then(() => {
+      loadHistory();
+    });
+  }, [loadInitial, loadHistory]);
 
   const trend = useMemo(() => (strategy ? analyzeTrends(logs, strategy) : null), [logs, strategy]);
   const signal = useMemo(() => (trend ? calculateSignalStrength(trend) : null), [trend]);
@@ -740,25 +857,52 @@ export function RecompProvider({ children }) {
         }
       }
     } catch (e) {
-      await loadAll();
+      await reload();
       throw e;
     }
-  }, [loadAll, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
+  }, [reload, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const updateSession = useCallback(async ({ id, session, strengthEntries = [] }) => {
+    const previous = sessionsRef.current.find((item) => item.id === id) ?? null;
     const updated = await base44.entities.ExerciseSession.update(id, session);
     const oldLogs = await base44.entities.StrengthLog.filter({ session_id: id }, "-date", 500);
     await Promise.all(oldLogs.map((e) => base44.entities.StrengthLog.delete(e.id)));
     const newLogs = [];
     for (const entry of strengthEntries) {
-      const created = await base44.entities.StrengthLog.create({ ...entry, session_id: id });
+      const created = await base44.entities.StrengthLog.create({ ...entry, session_id: id, date: session.date });
       newLogs.push(created);
     }
     setSessionsCurrent((prev) => prev.map((s) => (s.id === id ? updated : s)));
     const oldLogIds = new Set(oldLogs.map((e) => e.id));
     setStrengthLogsCurrent((prev) => [...newLogs, ...prev.filter((e) => !oldLogIds.has(e.id))]);
+
+    // When the session moved to a different date, update daily-log workout
+    // markers on both the old and new dates.
+    if (previous && session.date && previous.date !== session.date) {
+      const remaining = sessionsRef.current.filter((s) => s.id !== id);
+      const effects = computeSessionDateMoveEffects(previous.date, session.date, remaining);
+      if (effects?.shouldClearOld) {
+        try {
+          await upsertDailyLog(effects.oldDate, {
+            workout_completed: false,
+            workout_type: undefined
+          });
+        } catch (error) {
+          console.warn("Session moved, but the old date's workout marker could not be cleared.", error);
+        }
+      }
+      try {
+        await upsertDailyLog(effects.newDate, {
+          workout_completed: true,
+          workout_type: session.type
+        });
+      } catch (error) {
+        console.warn("Session moved, but the new date's workout marker could not be set.", error);
+      }
+    }
+
     return { session: updated, strengthLogs: newLogs };
-  }, [setSessionsCurrent, setStrengthLogsCurrent]);
+  }, [setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const addFood = useCallback(async (data) => {
     const created = await base44.entities.FoodItem.create(data);
@@ -858,7 +1002,7 @@ export function RecompProvider({ children }) {
         try {
           restored = await base44.entities.FoodLogEntry.create(foodEntryPayload(previous));
         } catch {
-          await loadAll();
+          await reload();
         }
       }
       if (restored) {
@@ -866,7 +1010,7 @@ export function RecompProvider({ children }) {
       }
       throw error;
     }
-  }, [adjustDailyNutrition, loadAll, setFoodLogEntriesCurrent]);
+  }, [adjustDailyNutrition, reload, setFoodLogEntriesCurrent]);
 
   const repeatFoodLogEntry = useCallback(
     (entry, date = todayStr()) => logFoodEntry({
@@ -896,9 +1040,9 @@ export function RecompProvider({ children }) {
   }, []);
 
   const logMealTemplate = useCallback(
-    async (template) => {
+    async (template, date = todayStr()) => {
       if (!featureFlags.itemizedFoodDiary) {
-        await upsertDailyLog(todayStr(), (current) => ({
+        await upsertDailyLog(date, (current) => ({
           calories: (current?.calories ?? 0) + (template.total_calories ?? 0),
           protein_g: (current?.protein_g ?? 0) + (template.total_protein_g ?? 0),
           carbs_g: (current?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
@@ -907,7 +1051,7 @@ export function RecompProvider({ children }) {
         return;
       }
       await logFoodEntries((template.items ?? []).map((item) => ({
-        date: todayStr(),
+        date,
         meal: "other",
         name: item.name,
         serving_description: item.serving_description || "1 serving",
@@ -975,7 +1119,8 @@ export function RecompProvider({ children }) {
   // updates. Kept in their own memoized object + context.
   const actionsValue = useMemo(
     () => ({
-      reload: loadAll,
+      reload,
+      ensureDateLoaded,
       completeOnboarding,
       updateProfile,
       updatePreferences,
@@ -1006,7 +1151,8 @@ export function RecompProvider({ children }) {
       runCheckIn
     }),
     [
-      loadAll,
+      reload,
+      ensureDateLoaded,
       completeOnboarding,
       updateProfile,
       updatePreferences,
@@ -1056,7 +1202,8 @@ export function RecompProvider({ children }) {
       decisionLedger,
       mealTemplates,
       onboarded,
-      activeBlock
+      activeBlock,
+      historyLoaded
     }),
     [
       loading,
@@ -1073,7 +1220,8 @@ export function RecompProvider({ children }) {
       decisionLedger,
       mealTemplates,
       onboarded,
-      activeBlock
+      activeBlock,
+      historyLoaded
     ]
   );
 

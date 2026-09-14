@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "recomp-theme";
-const THEME_EVENT = "recomp-theme-change";
 const VALID_PREFERENCES = new Set(["system", "light", "dark"]);
+const ThemeContext = createContext(null);
 
 function initialPreference() {
   try {
@@ -19,7 +19,8 @@ function initialSystemTheme() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-export function useTheme() {
+/** @param {{ children: import("react").ReactNode }} props */
+export function ThemeProvider({ children }) {
   const [preference, setPreference] = useState(initialPreference);
   const [systemTheme, setSystemTheme] = useState(initialSystemTheme);
   const theme = preference === "system" ? systemTheme : preference;
@@ -33,19 +34,12 @@ export function useTheme() {
   }, []);
 
   useEffect(() => {
-    const syncPreference = (event) => {
-      if (VALID_PREFERENCES.has(event.detail)) setPreference(event.detail);
-    };
     const syncStorage = (event) => {
       if (event.key !== STORAGE_KEY) return;
       setPreference(VALID_PREFERENCES.has(event.newValue) ? event.newValue : "system");
     };
-    window.addEventListener(THEME_EVENT, syncPreference);
     window.addEventListener("storage", syncStorage);
-    return () => {
-      window.removeEventListener(THEME_EVENT, syncPreference);
-      window.removeEventListener("storage", syncStorage);
-    };
+    return () => window.removeEventListener("storage", syncStorage);
   }, []);
 
   useEffect(() => {
@@ -62,7 +56,6 @@ export function useTheme() {
       // Keep the in-memory preference working when storage is unavailable.
     }
     setPreference(nextPreference);
-    window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: nextPreference }));
   }, []);
 
   const toggle = useCallback(
@@ -70,5 +63,16 @@ export function useTheme() {
     [setTheme, theme]
   );
 
-  return { theme, preference, toggle, setTheme };
+  const value = useMemo(
+    () => ({ theme, preference, toggle, setTheme }),
+    [preference, setTheme, theme, toggle]
+  );
+
+  return createElement(ThemeContext.Provider, { value }, children);
+}
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) throw new Error("useTheme must be used within ThemeProvider");
+  return context;
 }

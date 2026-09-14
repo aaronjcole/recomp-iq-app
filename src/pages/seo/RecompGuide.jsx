@@ -116,7 +116,7 @@ export default function RecompGuide() {
         <p className="rounded-xl border border-teal/20 bg-teal/5 p-4">
           RecompOne turns your weight, waist, training, and adherence trends into one adaptive next
           move — so you can tell whether you're actually recomping or just spinning your wheels.{" "}
-          <Link to="/coming-soon" className="font-semibold text-teal hover:underline">See how it works</Link>.
+          <Link to="/login" className="font-semibold text-teal hover:underline">Open RecompOne</Link>.
         </p>
       </div>
     </SeoShell>

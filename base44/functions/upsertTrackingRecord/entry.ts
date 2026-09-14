@@ -1,16 +1,13 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.41';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   TrackingRequestError,
   normalizeTrackingRequest,
   reconcileTrackingRecords
 } from "../../shared/trackingRecordDomain.js";
+import { json, statusOf } from "../../shared/httpUtils.js";
 
 const MAX_REQUEST_BYTES = 16_384;
 const inFlightWrites = new Map();
-
-function statusOf(error) {
-  return error?.status ?? error?.response?.status;
-}
 
 function enqueueByKey(key, work) {
   const previous = inFlightWrites.get(key) ?? Promise.resolve();
@@ -98,12 +95,12 @@ async function persistTrackingRecord(base44, user, request) {
 
 export default async function(req) {
   if (req.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   const contentLength = Number(req.headers.get("content-length") || 0);
   if (contentLength > MAX_REQUEST_BYTES) {
-    return Response.json({ error: "Request is too large" }, { status: 413 });
+    return json({ error: "Request is too large" }, { status: 413 });
   }
 
   const base44 = createClientFromRequest(req);
@@ -112,18 +109,18 @@ export default async function(req) {
     user = await base44.auth.me();
   } catch (error) {
     if ([401, 403].includes(statusOf(error))) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("upsertTrackingRecord auth check failed", error);
-    return Response.json({ error: "Could not verify the account" }, { status: 500 });
+    return json({ error: "Could not verify the account" }, { status: 500 });
   }
-  if (!user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
 
   let body;
   try {
     body = await req.json();
   } catch {
-    return Response.json({ error: "A JSON request body is required" }, { status: 400 });
+    return json({ error: "A JSON request body is required" }, { status: 400 });
   }
 
   let request;
@@ -131,7 +128,7 @@ export default async function(req) {
     request = normalizeTrackingRequest(body);
   } catch (error) {
     if (error instanceof TrackingRequestError) {
-      return Response.json({ error: error.message }, { status: 400 });
+      return json({ error: error.message }, { status: 400 });
     }
     throw error;
   }
@@ -141,10 +138,10 @@ export default async function(req) {
     const result = await enqueueByKey(queueKey, () =>
       persistTrackingRecord(base44, user, request)
     );
-    return Response.json(result);
+    return json(result);
   } catch (error) {
     if (error instanceof TrackingRequestError) {
-      return Response.json({ error: error.message }, { status: 404 });
+      return json({ error: error.message }, { status: 404 });
     }
     console.error("upsertTrackingRecord failed", {
       userId: user.id,
@@ -152,6 +149,6 @@ export default async function(req) {
       key: request.queueKey,
       error
     });
-    return Response.json({ error: "The tracking update could not be saved" }, { status: 500 });
+    return json({ error: "The tracking update could not be saved" }, { status: 500 });
   }
 }

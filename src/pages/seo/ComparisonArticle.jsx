@@ -192,7 +192,7 @@ export default function ComparisonArticle() {
       <p className="mt-8 rounded-xl border border-teal/20 bg-teal/5 p-4">
         RecompOne turns your weight, waist, training, and adherence trends into one adaptive next
         move — so the comparison above becomes a plan you can actually follow.{" "}
-        <Link to="/coming-soon" className="font-semibold text-teal hover:underline">See how it works</Link>.
+        <Link to="/login" className="font-semibold text-teal hover:underline">Open RecompOne</Link>.
       </p>
 
       {related.length > 0 && (

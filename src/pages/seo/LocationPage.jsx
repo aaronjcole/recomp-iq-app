@@ -134,7 +134,7 @@ export default function LocationPage() {
       )}
 
       <p className="mt-8 rounded-xl border border-teal/20 bg-teal/5 p-4 text-sm">
-        Ready to start? <Link to="/coming-soon" className="font-semibold text-teal hover:underline">Get RecompOne</Link>{" "}
+        Ready to start? <Link to="/login" className="font-semibold text-teal hover:underline">Open RecompOne</Link>{" "}
         and turn your {loc.city} training and nutrition data into adaptive guidance.
       </p>
 
