@@ -38,7 +38,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "framer-motion": "^11.16.4",
-    "input-otp": "^1.4.2",
+    "input-otp": "^1.5.0",
     "lucide-react": "^0.475.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
