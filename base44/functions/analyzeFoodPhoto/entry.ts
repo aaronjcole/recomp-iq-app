@@ -60,8 +60,11 @@ export default async function(req) {
       AI_FEATURE_QUOTAS[AI_QUOTA_FEATURES.FOOD_PHOTO]
     );
     if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "Food photo estimate limit reached. Please try again later.";
       return json(
-        { error: "Food photo estimate limit reached. Please try again later." },
+        { error: limitMessage, message: limitMessage },
         {
           status: 429,
           headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }

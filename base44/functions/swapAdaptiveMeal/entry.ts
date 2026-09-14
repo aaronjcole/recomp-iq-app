@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { swapMeal, scaleMeal } from '../../shared/adaptiveMealPlanDomain.js';
-import { json } from "../../shared/httpUtils.js";
+import { json, safeErrorDetails } from "../../shared/httpUtils.js";
 
 function normalizeDietStyle(value) {
   const diet = String(value ?? '').trim().toLowerCase();
@@ -41,6 +41,9 @@ export default async function(req) {
     const scaled = scaleMeal(replacement, servingScale);
     return json({ meal: scaled });
   } catch (error) {
-    return json({ error: error.message }, { status: 500 });
+    console.error("swapAdaptiveMeal failed", safeErrorDetails(error));
+    // The SDK reads data.message || data.detail, never data.error.
+    const failureMessage = "The meal could not be swapped right now";
+    return json({ error: failureMessage, message: failureMessage }, { status: 500 });
   }
 }

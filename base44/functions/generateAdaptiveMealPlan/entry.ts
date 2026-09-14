@@ -143,8 +143,11 @@ export default async function(req) {
       AI_FEATURE_QUOTAS[AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY]
     );
     if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "AI meal variety limit reached. Please try again later.";
       return json(
-        { error: "AI meal variety limit reached. Please try again later." },
+        { error: limitMessage, message: limitMessage },
         {
           status: 429,
           headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) }

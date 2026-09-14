@@ -135,8 +135,11 @@ export default async function(req: Request) {
 
     const quota = await reserveLifestyleRequest(base44, ownerId);
     if (!quota.allowed) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const limitMessage = "Coach request limit reached. Please try again later.";
       return json(
-        { error: "Coach request limit reached. Please try again later." },
+        { error: limitMessage, message: limitMessage },
         { status: 429, headers: { "Retry-After": quotaRetryAfterSeconds(quota.reason) } }
       );
     }
