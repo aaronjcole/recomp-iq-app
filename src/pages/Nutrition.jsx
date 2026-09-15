@@ -28,6 +28,8 @@ const BarcodeScanner = lazy(() => import("@/components/nutrition/BarcodeScanner"
 const FoodPhotoScan = lazy(() => import("@/components/nutrition/FoodPhotoScan"));
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
+import { usePremiumAccess } from "@/lib/PremiumAccessContext";
+import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
 const num = (v) => (v === "" ? null : Number(v));
@@ -35,6 +37,11 @@ const num = (v) => (v === "" ? null : Number(v));
 export default function Nutrition() {
   const { strategy, logs, foods, addFood, logFoodEntry, upsertDailyLog, reload, ensureDateLoaded } = useRecomp();
   const { selectedDate, isToday } = useLoggingDate();
+  const { canAccess } = usePremiumAccess();
+  // The server is the authority (analyzeFoodPhoto returns 403 without the
+  // entitlement); this only keeps an unentitled user from uploading a photo to
+  // private storage before being refused.
+  const canUsePhotoScan = canAccess(PREMIUM_FEATURES.FOOD_PHOTO);
   const [form, setForm] = useState(empty);
   const [showScanner, setShowScanner] = useState(false);
   const [showPhotoScan, setShowPhotoScan] = useState(false);
@@ -233,7 +240,7 @@ export default function Nutrition() {
             <CardContent className="p-5 space-y-3">
               <h2 className="font-medium">Scan food</h2>
               <div className="grid grid-cols-2 gap-3">
-                {featureFlags.foodPhotoScan && (
+                {featureFlags.foodPhotoScan && canUsePhotoScan && (
                   <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
@@ -418,7 +425,7 @@ export default function Nutrition() {
               <h2 className="font-medium">Scan food</h2>
               <p className="text-sm text-muted-foreground">Use a barcode or photo to log food instantly.</p>
               <div className="grid grid-cols-2 gap-3">
-                {featureFlags.foodPhotoScan && (
+                {featureFlags.foodPhotoScan && canUsePhotoScan && (
                   <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>

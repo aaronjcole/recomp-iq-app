@@ -7,6 +7,11 @@ import {
 } from "../../shared/foodPhotoDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 import {
+  PREMIUM_FEATURES,
+  resolvePremiumAccess
+} from "../../shared/premiumDomain.js";
+import { listAllEntitlements } from "../../shared/entitlementAccess.js";
+import {
   AI_FEATURE_QUOTAS,
   AI_QUOTA_FEATURES,
   quotaRetryAfterSeconds,
@@ -51,6 +56,19 @@ export default async function(req) {
   }
 
   try {
+    // Entitlement is checked before the quota reservation, the signed link and
+    // the vision call: an account without premium must not consume its own
+    // quota, create a link to its photo, or reach paid inference at all.
+    // Ordering matters more than the check itself — a gate after
+    // reserveFeatureRequest would still bill the request.
+    const access = resolvePremiumAccess(await listAllEntitlements(base44, user.id));
+    if (access.features[PREMIUM_FEATURES.FOOD_PHOTO] !== true) {
+      // The SDK reads data.message || data.detail, never data.error, so the
+      // user-facing text must also appear under "message" to reach the client.
+      const lockedMessage = "Food photo estimates are a Premium feature.";
+      return json({ error: lockedMessage, message: lockedMessage }, { status: 403 });
+    }
+
     // The per-user quota is reserved before the signed link and the vision
     // call so a scripted client cannot spend credits in a loop.
     const quota = await reserveFeatureRequest(
