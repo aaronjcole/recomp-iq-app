@@ -1,0 +1,111 @@
+name: Base44 Builder PR
+
+# The Base44 Builder pushes straight to whatever branch it is pointed at. With
+# `main` protected, pointing it at this branch instead turns each Builder edit
+# into a reviewable pull request rather than a refused push.
+#
+# WHY CI IS WIRED THROUGH ci.yml's PUSH TRIGGER, NOT THIS PR:
+# A pull request opened with the repository's GITHUB_TOKEN does not create a
+# workflow run — GitHub suppresses events triggered by that token to prevent
+# recursion. So the PR this job opens would carry no checks at all, which is a
+# gate that gates nothing. Instead `base44-builder` is listed in ci.yml's
+# `push.branches`, so CI runs on the pushed commit and its check runs attach to
+# the head SHA that the pull request (and any required-status rule) reads.
+#
+# The tradeoff that leaves: a push-triggered run tests the branch tip, while a
+# pull_request-triggered run tests the merge of head and base. So integration
+# problems against a moved `main` are NOT caught here. To get real merge
+# testing, replace GITHUB_TOKEN below with a PAT or GitHub App token stored as
+# a secret — then the PR fires `pull_request` normally and this comment can go.
+#
+# Changing the branch name means editing the trigger here AND ci.yml's
+# push.branches list; `on.push.branches` cannot read an env var.
+
+on:
+  push:
+    branches:
+      - base44-builder
+
+permissions:
+  contents: read
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Open a pull request for the pushed Builder changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}/checks
+        run: |
+          set -euo pipefail
+
+          # An open PR already tracks every later push to its head branch, so
+          # finding one means there is nothing to do. Listed and filtered by
+          # head rather than searched: the search index lags by seconds to
+          # minutes and would open a duplicate on consecutive pushes.
+          existing=$(gh pr list \
+            --repo "$REPO" \
+            --head "$BRANCH" \
+            --base main \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$existing" ]; then
+            echo "PR #${existing} already open for ${BRANCH}; it now includes ${SHA}."
+            exit 0
+          fi
+
+          # A push that leaves no difference against main (a reset, or a
+          # re-push of already-merged work) has nothing to open a PR for. That
+          # is a normal state, not a failure.
+          #
+          # Captured and checked separately rather than inlined into the `if`:
+          # a failed API call inside a condition yields empty output, which
+          # would read as "no differences" and skip silently, leaving Builder
+          # work with no pull request and no one told. This fails loudly.
+          if ! changed=$(gh api "repos/${REPO}/compare/main...${BRANCH}" --jq '.files // [] | length'); then
+            echo "Could not compare ${BRANCH} against main." >&2
+            exit 1
+          fi
+          if [ "${changed:-0}" -eq 0 ]; then
+            echo "${BRANCH} has no file differences against main; nothing to open."
+            exit 0
+          fi
+
+          body=$(cat <<EOF
+          Opened automatically because the Base44 Builder pushed to \`${BRANCH}\`.
+
+          \`main\` is a protected branch, so Builder work arrives here as a pull
+          request instead of a direct push. Review the diff and squash-merge.
+
+          **Read the checks before merging.** CI runs from ci.yml's push trigger
+          on the pushed commit, not from this pull request — a PR opened with
+          GITHUB_TOKEN does not start a workflow run. The checks for this head
+          commit are at ${RUN_URL}.
+
+          Because those checks test the branch tip rather than the merge with
+          \`main\`, they do not prove this integrates with anything that landed on
+          \`main\` since. If \`main\` has moved, update the branch and let CI re-run
+          before merging.
+
+          Later Builder pushes to \`${BRANCH}\` land on this same pull request; a
+          new one is only opened after this is merged or closed.
+          EOF
+          )
+
+          gh pr create \
+            --repo "$REPO" \
+            --head "$BRANCH" \
+            --base main \
+            --title "Base44 Builder changes" \
+            --body "$body"
