@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Camera, CheckCircle2, Images, ScanLine, ShieldCheck } from "lucide-react";
+import { Camera, CircleCheck, Images, ScanLine, ShieldCheck } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Badge } from "@/components/ui/badge";
@@ -276,7 +276,7 @@ export default function VisualProgressCheck() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 {comparison.guidance.map((item) => (
                   <li key={item} className="flex gap-2">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
+                    <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}

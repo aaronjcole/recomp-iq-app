@@ -24,10 +24,10 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import {
-  CheckCircle2,
+  CircleCheck,
   ChevronDown,
   ChevronUp,
-  Loader2,
+  LoaderCircle,
   Play,
   Plus,
   Timer,
@@ -408,7 +408,7 @@ export default function WorkoutTracker() {
         <CardContent className="p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-teal" />
+              <CircleCheck className="w-4 h-4 text-teal" />
               <h2 className="font-medium">Review & save</h2>
             </div>
             <div className="font-mono text-sm tabular-nums text-muted-foreground">
@@ -522,7 +522,7 @@ export default function WorkoutTracker() {
               onClick={saveSession}
               disabled={saving}
             >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save workout"}
+              {saving ? <LoaderCircle className="w-4 h-4 animate-spin" /> : "Save workout"}
             </Button>
           </div>
           <button
@@ -614,7 +614,7 @@ export default function WorkoutTracker() {
             className="flex-1 min-h-11 bg-teal text-buttonText hover:opacity-90"
             onClick={enterReview}
           >
-            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+            <CircleCheck className="w-4 h-4 mr-1.5" />
             Finish workout
           </Button>
         </div>

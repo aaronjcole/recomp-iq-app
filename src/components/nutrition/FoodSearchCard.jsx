@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Loader2, Plus, Bookmark, X, Check } from "lucide-react";
+import { Search, LoaderCircle, Plus, Bookmark, X, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -98,7 +98,7 @@ export default function FoodSearchCard({ onAdd }) {
 
         {searching && (
           <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Searching…
+            <LoaderCircle className="w-4 h-4 mr-2 animate-spin" /> Searching…
           </div>
         )}
 

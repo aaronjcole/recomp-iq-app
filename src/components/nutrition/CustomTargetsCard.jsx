@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const FIELDS = [
@@ -136,7 +136,7 @@ export default function CustomTargetsCard({ embedded = false }) {
           <div className="space-y-1">
             {warnings.map((w, i) => (
               <div key={i} className="flex gap-2 text-xs text-gold bg-questComplete rounded-md p-2">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>{w}</span>
               </div>
             ))}
