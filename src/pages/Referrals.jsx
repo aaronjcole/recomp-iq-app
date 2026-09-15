@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gift, Copy, Check, Users, CheckCircle, Sparkles, Loader2, Share2 } from "lucide-react";
+import { Gift, Copy, Check, Users, CircleCheckBig, Sparkles, LoaderCircle, Share2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 export default function Referrals() {
@@ -87,7 +87,7 @@ export default function Referrals() {
           </div>
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Generating your link…
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> Generating your link…
             </div>
           ) : link ? (
             <>
@@ -127,7 +127,7 @@ export default function Referrals() {
         </Card>
         <Card className="bg-panel border-line">
           <CardContent className="p-4 text-center">
-            <CheckCircle className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
+            <CircleCheckBig className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
             <div className="mt-2 text-2xl font-bold tabular-nums">{converted}</div>
             <div className="text-xs text-muted-foreground">Paid first month</div>
           </CardContent>

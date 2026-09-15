@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { swapMeal, scaleMeal } from '../../shared/adaptiveMealPlanDomain.js';
+import { json, safeErrorDetails } from "../../shared/httpUtils.js";
 
 function normalizeDietStyle(value) {
   const diet = String(value ?? '').trim().toLowerCase();
@@ -15,7 +16,7 @@ export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const mealId = String(body?.mealId || '');
@@ -26,20 +27,23 @@ export default async function(req) {
       : [];
 
     if (!mealId) {
-      return Response.json({ error: 'mealId is required' }, { status: 400 });
+      return json({ error: 'mealId is required' }, { status: 400 });
     }
     if (!Number.isFinite(servingScale) || servingScale <= 0) {
-      return Response.json({ error: 'servingScale must be a positive number' }, { status: 400 });
+      return json({ error: 'servingScale must be a positive number' }, { status: 400 });
     }
 
     const replacement = swapMeal(mealId, dietStyle, avoidIds);
     if (!replacement) {
-      return Response.json({ error: 'No compatible swap available for this meal' }, { status: 404 });
+      return json({ error: 'No compatible swap available for this meal' }, { status: 404 });
     }
 
     const scaled = scaleMeal(replacement, servingScale);
-    return Response.json({ meal: scaled });
+    return json({ meal: scaled });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error("swapAdaptiveMeal failed", safeErrorDetails(error));
+    // The SDK reads data.message || data.detail, never data.error.
+    const failureMessage = "The meal could not be swapped right now";
+    return json({ error: failureMessage, message: failureMessage }, { status: 500 });
   }
 }

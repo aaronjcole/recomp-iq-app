@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Mail, Lock, Loader2 } from "lucide-react";
+import { UserPlus, Mail, Lock, LoaderCircle } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import AppleIcon from "@/components/AppleIcon";
@@ -118,7 +118,7 @@ export default function Register() {
         >
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
               Verifying...
             </>
           ) : (
@@ -236,7 +236,7 @@ export default function Register() {
         <Button type="submit" className="w-full h-11 font-medium" disabled={loading}>
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
               Creating account...
             </>
           ) : (

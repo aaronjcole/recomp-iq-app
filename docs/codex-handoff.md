@@ -84,10 +84,12 @@ npx playwright test --config pw.local.config.mjs --grep-invert @deployed --repor
 rm -f pw.local.config.mjs
 ```
 
-### Merge / CI rules (branch protection)
+### Merge / CI rules
 - Squash-merge only.
-- Required checks must be green: `verify` (lint, typecheck, test:fitness/security/contract, verify:android, build, test:e2e) + CodeRabbit + CodeQL "Analyze JavaScript and TypeScript".
-- **All review threads must be resolved** before merge — address or reply to every CodeRabbit comment.
+- Green before merge: `verify` (lint, typecheck, test:fitness/security/contract, verify:android, build, test:e2e), CodeQL, and "Analyze JavaScript and TypeScript".
+- **Read the CodeQL check, not just `verify`.** Two Dependabot PRs (#132, #135) each had a green `verify` while CodeQL failed with a configuration error, because they bumped `codeql-action/init` and `codeql-action/analyze` separately and those must move together. Merging either on a green `verify` would have put CodeQL red on `main`. "Green CI" is several facts, not one.
+- CodeRabbit **does not** gate merges. It posts on every PR that the repository "does not receive automatic reviews because it has fewer than 10 stars", so it never reports a review; `mergeable_state` on a green PR is `clean` without it. An earlier version of this doc listed it as a required check, which was wrong — do not wait on it. Its "Trigger review" checkbox requests a review manually if you want one.
+- **Pushes to `main` are not gated.** Only pull requests run against a merge with the base; a direct push runs CI *after* the fact and nothing blocks it. `main` was red for 18 consecutive commits (`c438328`..`fbc3cdb`) for exactly this reason — the Base44 Builder pushes straight to `main`, and each failure was visible only in the Actions tab. `ci.yml` now opens a tracked issue titled "CI is failing on main" on a red push and closes it when `main` goes green, so the state is announced rather than merely recorded. That is a smoke alarm, not a lock: the actual gate requires either pointing the Builder at a non-default branch in the Base44 dashboard, or enabling branch protection on `main` with `verify` as a required status check. Neither is configurable from this repository.
 - Feature flags stay **off by default** and gate on an explicit env var; anything touching sensitive data (photos, health metrics, telemetry) must not collect until a deploy opts in (Play Data Safety).
 
 ---

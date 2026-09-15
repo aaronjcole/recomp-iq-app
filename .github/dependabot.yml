@@ -24,6 +24,51 @@ updates:
         update-types:
           - version-update:semver-major
 
+  - package-ecosystem: npm
+    directory: /expo-ios
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    # No production/development-patches groups here: unlike the web app,
+    # Expo and React Native pin their own dependency graph (react,
+    # react-native, react-native-iap, react-native-webview, Nitro modules)
+    # to a narrow, mutually-compatible version window per Expo SDK release.
+    # Grouping patches together risks bundling an incompatible pair into one
+    # PR and masking which single bump broke a native build; one PR per
+    # dependency keeps each bump bisectable, which matters most for the
+    # payment surface (react-native-iap, react-native-webview) this directory
+    # exists to monitor.
+    ignore:
+      # Patch-only for this directory. The native shell is the StoreKit
+      # payment surface, and CI can typecheck it and run expo-doctor but
+      # cannot build the app or exercise a purchase -- react-native-iap is a
+      # native module, so neither Expo Go nor a GitHub runner can test it
+      # (see expo-ios/README.md). A green check here therefore does not mean
+      # a minor bump is safe. Minors and majors need a deliberate upgrade
+      # validated by an EAS build on a signed device.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+      # Patch-only is still not enough for the packages Expo pins itself.
+      # expo/bundledNativeModules.json fixes these to exact versions for the
+      # installed SDK, so moving any of them individually -- even by a patch
+      # -- breaks the "packages match versions required by installed Expo
+      # SDK" check, or the build. Both were demonstrated: #140 bumped react
+      # 19.2.3 -> 19.2.8 and expo-doctor failed because the SDK pins 19.2.3,
+      # and #139 bumped react-native-webview 13.16.1 -> 13.16.2 and tsc
+      # failed inside the library's own types. Their versions belong to the
+      # SDK, so they move via `npx expo install` or an SDK upgrade, not via
+      # individual dependency bumps.
+      - dependency-name: "react"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-webview"
+      - dependency-name: "expo-dev-client"
+      - dependency-name: "expo-status-bar"
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { triggerHaptic, HAPTIC_IMPACTS } from "@/lib/haptics";
-import { X, ScanLine, RefreshCw, Loader2, Plus, Bookmark, CameraOff } from "lucide-react";
+import { X, ScanLine, RefreshCw, LoaderCircle, Plus, Bookmark, CameraOff } from "lucide-react";
 import QualityScoreBadge from "@/components/nutrition/QualityScoreBadge";
 
 const IDLE_TIMEOUT_MS = 8000;
@@ -256,7 +256,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
               {/* Camera initializing overlay */}
               {status === "starting" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white">
-                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <LoaderCircle className="w-6 h-6 animate-spin" />
                   <span className="text-xs">Starting camera…</span>
                 </div>
               )}
@@ -278,7 +278,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
 
         {status === "looking-up" && (
           <div role="status" aria-live="polite" className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
-            <Loader2 className="w-8 h-8 animate-spin" />
+            <LoaderCircle className="w-8 h-8 animate-spin" />
             <p className="text-sm">Looking up {barcode}…</p>
           </div>
         )}
@@ -345,7 +345,11 @@ export default function BarcodeScanner({ onClose, onResult }) {
         )}
 
         {status === "error" && (
-          <MessageCard title="Scanner problem" subtitle={err || "Couldn't access the camera."} />
+          <MessageCard
+            title="Scanner problem"
+            subtitle={err || "Couldn't access the camera."}
+            icon={<CameraOff className="w-8 h-8 mb-1 opacity-70" />}
+          />
         )}
       </div>
 

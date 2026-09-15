@@ -91,8 +91,8 @@ const RECOMP_GOALS = new Set(["body_recomposition", "fat_loss_biased_recomp"]);
  * Beginners always start at Stabilization Endurance regardless of goal; advanced
  * trainees with gain goals can progress to Hypertrophy/Maximal Strength.
  *
- * @param {string} goal — one of the goal_type enum values
- * @param {string} experience — "beginner" | "intermediate" | "advanced"
+ * @param {string} goal - one of the goal_type enum values
+ * @param {string} experience - "beginner" | "intermediate" | "advanced"
  * @returns {object} the selected phase object from NASM_PHASES
  */
 export function selectNasmPhase(goal, experience) {
@@ -129,8 +129,8 @@ export function selectNasmPhase(goal, experience) {
  * adjusted slightly for equipment — bodyweight training skews toward the
  * higher end of the rep range since absolute load is harder to add.
  *
- * @param {string} phaseId — key into NASM_PHASES
- * @param {string} equipment — "bodyweight_home" | "dumbbells" | "full_gym"
+ * @param {string} phaseId - key into NASM_PHASES
+ * @param {string} equipment - "bodyweight_home" | "dumbbells" | "full_gym"
  * @returns {object} { phaseId, phaseName, reps, sets, restSeconds, tempo, intensityRange, loadGuidance, description }
  */
 export function getNasmAcuteVariables(phaseId, equipment) {

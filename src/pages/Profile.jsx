@@ -19,7 +19,7 @@ import {
   AlertDialogAction
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { LogOut, Trash2, Pencil, Loader2 } from "lucide-react";
+import { LogOut, Trash2, Pencil, LoaderCircle } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import { deletePhotosForUser } from "@/lib/progressPhotos";
 import { planCacheKeysForUser } from "@/lib/planCache";
@@ -382,7 +382,7 @@ export default function Profile() {
                 >
                   {bioSaving ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
                       Saving…
                     </>
                   ) : (

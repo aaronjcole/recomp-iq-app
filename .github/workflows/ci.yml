@@ -64,3 +64,82 @@ jobs:
 
       - name: Test public browser journeys
         run: npm run test:e2e
+
+  # Pushes straight to main are not gated by this workflow -- only pull
+  # requests are. main was red for 18 consecutive commits because the failure
+  # was visible solely to whoever opened the Actions tab. These two jobs make
+  # that state announce itself instead: one tracked issue, opened on the first
+  # red push, commented on for each subsequent one, and closed automatically
+  # once main is green again.
+  report-main-failure:
+    needs: verify
+    if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the red-main issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          PUSHED_BY: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          TITLE='CI is failing on main'
+          BODY=$(cat <<EOF
+          \`main\` is red.
+
+          - commit: \`${COMMIT_SHA}\`
+          - pushed by: ${PUSHED_BY}
+          - run: ${RUN_URL}
+
+          A push directly to \`main\` does not go through a pull request, so
+          nothing blocks it on CI. This issue exists so a failure does not
+          depend on someone thinking to check the Actions tab.
+
+          It closes itself once a push to \`main\` passes.
+          EOF
+          )
+          # Listing and filtering by exact title rather than using gh search:
+          # the search index lags behind by seconds to minutes, which would
+          # produce duplicate issues on consecutive red pushes.
+          EXISTING=$(gh issue list --state open --limit 100 \
+            --json number,title \
+            --jq "[.[] | select(.title == \"${TITLE}\") | .number] | first // empty")
+          if [ -n "${EXISTING}" ]; then
+            gh issue comment "${EXISTING}" --body "${BODY}"
+            echo "Commented on existing issue #${EXISTING}"
+          else
+            gh issue create --title "${TITLE}" --body "${BODY}"
+          fi
+
+  resolve-main-failure:
+    needs: verify
+    if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Close the red-main issue if one is open
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TITLE='CI is failing on main'
+          EXISTING=$(gh issue list --state open --limit 100 \
+            --json number,title \
+            --jq "[.[] | select(.title == \"${TITLE}\") | .number] | first // empty")
+          if [ -n "${EXISTING}" ]; then
+            gh issue close "${EXISTING}" \
+              --comment "\`main\` is green again on \`${COMMIT_SHA}\`: ${RUN_URL}"
+            echo "Closed issue #${EXISTING}"
+          else
+            echo "No open red-main issue; nothing to close."
+          fi

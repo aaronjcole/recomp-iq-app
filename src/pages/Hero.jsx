@@ -7,7 +7,7 @@ import PremiumBadge from "@/components/premium/PremiumBadge";
 import {
   Brain,
   Activity,
-  LineChart,
+  ChartLine,
   RefreshCw,
   ShieldCheck,
   ArrowRight,
@@ -22,7 +22,7 @@ import {
 const FEATURES = [
   { icon: Brain, title: "Adaptive engine", body: "Weekly check-ins recalculate your calories, macros, and steps from real adherence and trend data — not a static spreadsheet." },
   { icon: Activity, title: "Recomp signal", body: "A confidence-scored read on whether you're building muscle, losing fat, or stalling — with plain-English countermove guidance." },
-  { icon: LineChart, title: "Progress you can see", body: "Weight trend, strength 1RM sparklines, waist tracking, and progress photos on one instrument-panel dashboard." },
+  { icon: ChartLine, title: "Progress you can see", body: "Weight trend, strength 1RM sparklines, waist tracking, and progress photos on one instrument-panel dashboard." },
   { icon: RefreshCw, title: "Your data, wherever you train", body: "When you're online, signed-in data stays available across your devices." }
 ];
 

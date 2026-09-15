@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarRange, CheckCircle2, Circle, PlayCircle } from "lucide-react";
+import { CalendarRange, CircleCheck, Circle, CirclePlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -109,7 +109,7 @@ export default function ActiveBlockCard({ block }) {
               >
                 <span className="shrink-0 text-teal">
                   {isDone
-                    ? <CheckCircle2 className="h-4 w-4" aria-label="Completed" />
+                    ? <CircleCheck className="h-4 w-4" aria-label="Completed" />
                     : <Circle className="h-4 w-4 text-muted-foreground" aria-label="Upcoming" />}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -125,7 +125,7 @@ export default function ActiveBlockCard({ block }) {
                     className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg bg-teal/10 px-3 py-2 text-xs font-medium text-teal hover:bg-teal/20"
                     aria-label={`Start ${session.title}`}
                   >
-                    <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    <CirclePlay className="h-3.5 w-3.5" aria-hidden="true" />
                     {isNext ? "Start" : "Log"}
                   </button>
                 )}

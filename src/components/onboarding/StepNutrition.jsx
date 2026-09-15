@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { SelectField, StepHeader, Why, ChipGroup } from "./Fields";
 import { DIET_STYLES, PREFERRED_TRAINING, DISLIKED_STRATEGIES, KNOWN_BARRIERS, SAFETY_FLAGS } from "./constants";
-import { Check, AlertTriangle } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 
 export default function StepNutrition({ pref, setPref, showErrors }) {
   const toggle = (key) => (v) =>
@@ -86,7 +86,7 @@ export default function StepNutrition({ pref, setPref, showErrors }) {
         })}
         {pref.safety_flags.length > 0 && (
           <div className="flex items-start gap-2 rounded-lg bg-questComplete text-gold p-3 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
               Any aggressive goal will be softened, and we&apos;ll recommend checking with
               a qualified professional before pushing hard.

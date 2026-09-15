@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { uploadPrivateAnalysisImage, validateAnalysisImage } from "@/lib/analysisImages";
 import { Button } from "@/components/ui/button";
-import { X, Camera, Loader2, Plus, Bookmark, RefreshCw, Sparkles } from "lucide-react";
+import { X, Camera, LoaderCircle, Plus, Bookmark, RefreshCw, Sparkles } from "lucide-react";
 
 export default function FoodPhotoScan({ onClose, onResult }) {
   const inputRef = useRef(null);
@@ -192,7 +192,7 @@ export default function FoodPhotoScan({ onClose, onResult }) {
 
         {status === "analyzing" && (
           <div role="status" aria-live="polite" className="flex flex-col items-center justify-center text-white gap-3">
-            <Loader2 className="w-8 h-8 animate-spin" />
+            <LoaderCircle className="w-8 h-8 animate-spin" />
             <p className="text-sm">Estimating macros…</p>
           </div>
         )}
