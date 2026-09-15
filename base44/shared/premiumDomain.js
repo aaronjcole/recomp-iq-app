@@ -3,7 +3,11 @@ export const PREMIUM_FEATURES = Object.freeze({
   TRAINING_PLANNING: "training_planning",
   WEEKLY_AUTOPILOT: "weekly_autopilot",
   VISUAL_PROGRESS: "visual_progress",
-  AI_LIFESTYLE_COACH: "ai_lifestyle_coach"
+  AI_LIFESTYLE_COACH: "ai_lifestyle_coach",
+  // Food-photo estimates run a credit-consuming vision model per request.
+  // Bundle-only by design: there is no standalone product for it, so an
+  // add-on entitlement never unlocks it.
+  FOOD_PHOTO: "food_photo"
 });
 
 export const PREMIUM_PRODUCTS = Object.freeze({
@@ -40,7 +44,8 @@ const BUNDLE_FEATURES = Object.freeze([
   "training_planning",
   "weekly_autopilot",
   "visual_progress",
-  "ai_lifestyle_coach"
+  "ai_lifestyle_coach",
+  "food_photo"
 ]);
 const ALL_FEATURES = Object.freeze(Object.values(PREMIUM_FEATURES));
 const PRODUCT_FEATURES = Object.freeze({
