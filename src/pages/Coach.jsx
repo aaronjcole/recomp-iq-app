@@ -29,12 +29,12 @@ import {
   REPORT_CATEGORIES
 } from "@/lib/coachContract";
 import {
-  AlertTriangle,
+  TriangleAlert,
   ArrowLeft,
   Bot,
   ChevronRight,
   Flag,
-  Loader2,
+  LoaderCircle,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -231,7 +231,7 @@ export default function Coach() {
               <Bot className="w-4 h-4 text-buttonText" aria-hidden="true" />
             </div>
             <div className="bg-panel border border-line rounded-2xl px-3 py-2 text-sm flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Thinking…
+              <LoaderCircle className="w-4 h-4 animate-spin" aria-hidden="true" /> Thinking…
             </div>
           </div>
         )}
@@ -310,7 +310,7 @@ function CoachMessage({ message, onReport, onReviewAction, reported }) {
         )}
         {coach && message.safetyNote && (
           <div className="rounded-lg bg-questComplete text-gold p-2 flex items-start gap-2 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+            <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
             <span>{message.safetyNote}</span>
           </div>
         )}

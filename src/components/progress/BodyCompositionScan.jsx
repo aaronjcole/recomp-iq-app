@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Camera, Loader2, RefreshCw, ScanLine, X } from "lucide-react";
+import { TriangleAlert, Camera, LoaderCircle, RefreshCw, ScanLine, X } from "lucide-react";
 
 const POSES = Object.freeze([
   { key: "front", label: "Front" },
@@ -185,7 +185,7 @@ export default function BodyCompositionScan() {
           disabled={!allSet || analyzing}
         >
           {analyzing
-            ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />
+            ? <LoaderCircle className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />
             : <ScanLine className="mr-1 h-4 w-4" aria-hidden="true" />}
           {analyzing ? "Analyzing…" : "Estimate a range"}
         </Button>
@@ -198,7 +198,7 @@ export default function BodyCompositionScan() {
 
         {error && (
           <div className="flex items-start gap-2 text-xs text-destructive" role="alert">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}

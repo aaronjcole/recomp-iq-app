@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarRange, ChevronDown, Dumbbell, PlayCircle, RefreshCw, TrendingUp } from "lucide-react";
+import { CalendarRange, ChevronDown, Dumbbell, CirclePlay, RefreshCw, TrendingUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChildTopBar from "@/components/ChildTopBar";
 import PremiumBadge from "@/components/premium/PremiumBadge";
@@ -264,7 +264,7 @@ export default function AdaptiveTrainingBlock() {
                         onClick={() => handleStartSession(index, session)}
                         disabled={isSaving}
                       >
-                        <PlayCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                        <CirclePlay className="mr-2 h-4 w-4" aria-hidden="true" />
                         Start this session
                       </Button>
                     )}

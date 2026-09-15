@@ -8,8 +8,8 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
-  Camera, CheckCircle, Moon, Sun, LogOut, User, Crown, Gift,
-  ChevronRight, Loader2, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit
+  Camera, CircleCheckBig, Moon, Sun, LogOut, User, Crown, Gift,
+  ChevronRight, LoaderCircle, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit
 } from "lucide-react";
 import CheckInSheet from "@/components/more/CheckInSheet";
 import { SUPPORT_EMAIL } from "@/lib/support";
@@ -111,7 +111,7 @@ function Row({ item, first, onActivate, theme, themePreference, onThemeChange, l
         </span>
       )}
       {loading ? (
-        <Loader2 className="w-4 h-4 text-teal shrink-0 animate-spin" />
+        <LoaderCircle className="w-4 h-4 text-teal shrink-0 animate-spin" />
       ) : (
         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
       )}
@@ -205,7 +205,7 @@ export default function More() {
     },
     {
       title: "Habits",
-      items: [{ icon: CheckCircle, label: "Manage habits", to: "/today", state: { scrollTo: "habits-section" } }]
+      items: [{ icon: CircleCheckBig, label: "Manage habits", to: "/today", state: { scrollTo: "habits-section" } }]
     },
     {
       title: "App & account",

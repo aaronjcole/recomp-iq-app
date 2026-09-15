@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField, StepHeader } from "./Fields";
 import { COACH_TONES } from "@/lib/fitness";
 import { SAFETY_FLAGS, toneLabel } from "./constants";
-import { Check, AlertTriangle } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 
 export default function StepCoaching({ pref, setPref, showErrors }) {
   const toggleSafety = (id) =>
@@ -57,7 +57,7 @@ export default function StepCoaching({ pref, setPref, showErrors }) {
         })}
         {pref.safety_flags.length > 0 && (
           <div className="flex items-start gap-2 rounded-lg bg-questComplete text-gold p-3 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
               Any aggressive goal will be softened, and we&apos;ll recommend checking with
               a qualified professional before pushing hard.

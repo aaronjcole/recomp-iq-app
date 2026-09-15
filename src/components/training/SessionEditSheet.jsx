@@ -10,7 +10,7 @@ import {
   SelectContent,
   SelectItem
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { useRecompActions } from "@/lib/RecompContext";
 import { estimateOneRepMax } from "@/lib/fitness";
 import { useToast } from "@/components/ui/use-toast";
@@ -399,7 +399,7 @@ export default function SessionEditSheet({ session, open, onOpenChange }) {
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
+            {saving ? <LoaderCircle className="w-4 h-4 animate-spin" /> : "Save changes"}
           </Button>
         </SheetFooter>
       </SheetContent>
