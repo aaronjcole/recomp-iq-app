@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+      # The Base44 Builder pushes here (see base44-builder-pr.yml). Its pull
+      # request is opened with GITHUB_TOKEN, which does not start a workflow
+      # run, so this push trigger is what actually produces the check runs the
+      # pull request displays. Removing it leaves those PRs with no CI.
+      - base44-builder
 
 permissions:
   contents: read
