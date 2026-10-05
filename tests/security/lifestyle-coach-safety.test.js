@@ -29,7 +29,7 @@ test("lifestyleCoachReply refuses before entitlements, the LLM, or any write whi
   const killSwitch = source.indexOf("if (!LIFESTYLE_COACH_ENABLED)");
   assert.ok(killSwitch > source.indexOf("base44.auth.me()"));
   for (const later of [
-    "listAllEntitlements(base44, user.id)",
+    "loadPremiumAccessRecords(base44, user,",
     "req.json()",
     "integrations.Core.InvokeLLM",
     "LifestyleProfile.update",
@@ -40,9 +40,9 @@ test("lifestyleCoachReply refuses before entitlements, the LLM, or any write whi
   }
   assert.match(source, /status: 404/);
   // The paged, fail-closed shared reader replaces the old one-page local copy.
-  assert.match(source, /import \{ listAllEntitlements \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
+  assert.match(source, /import \{ loadPremiumAccessRecords \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
   assert.doesNotMatch(source, /async function listAllEntitlements/);
-  assert.match(source, /try \{\n[^}]*access = resolvePremiumAccess\(await listAllEntitlements\(base44, user\.id\)\)/);
+  assert.match(source, /try \{\n[^}]*access = resolvePremiumAccess\(await loadPremiumAccessRecords\(base44, user, /);
   assert.match(source, /actionable: result\.actionable/);
 });
 

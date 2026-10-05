@@ -21,7 +21,7 @@ import {
   quotaRetryAfterSeconds,
   reserveFeatureRequest
 } from "../../shared/coachRateLimitDomain.js";
-import { listAllEntitlements } from "../../shared/entitlementAccess.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 const MAX_REQUEST_BYTES = 48_000;
@@ -75,9 +75,9 @@ export default async function(req: Request) {
 
   let access: any;
   try {
-    // Fails closed: listAllEntitlements throws instead of returning a
+    // Fails closed: the shared loader throws instead of returning a
     // truncated list; the error becomes a clean JSON response, not a crash.
-    access = resolvePremiumAccess(await listAllEntitlements(base44, user.id));
+    access = resolvePremiumAccess(await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") }));
   } catch (error) {
     console.error("lifestyleCoachReply entitlement check failed", safeErrorDetails(error));
     return json({ error: "Could not verify premium access" }, { status: 500 });

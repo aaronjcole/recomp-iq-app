@@ -10,7 +10,7 @@ import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
-import { listAllEntitlements } from "../../shared/entitlementAccess.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 import {
   AI_FEATURE_QUOTAS,
   AI_QUOTA_FEATURES,
@@ -61,7 +61,7 @@ export default async function(req) {
     // quota, create a link to its photo, or reach paid inference at all.
     // Ordering matters more than the check itself — a gate after
     // reserveFeatureRequest would still bill the request.
-    const access = resolvePremiumAccess(await listAllEntitlements(base44, user.id));
+    const access = resolvePremiumAccess(await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") }));
     if (access.features[PREMIUM_FEATURES.FOOD_PHOTO] !== true) {
       // The SDK reads data.message || data.detail, never data.error, so the
       // user-facing text must also appear under "message" to reach the client.

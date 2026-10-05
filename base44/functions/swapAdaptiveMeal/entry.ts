@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { swapMeal, scaleMeal } from '../../shared/adaptiveMealPlanDomain.js';
 import { json, safeErrorDetails } from "../../shared/httpUtils.js";
+import { PREMIUM_FEATURES, resolvePremiumAccess } from "../../shared/premiumDomain.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 
 function normalizeDietStyle(value) {
   const diet = String(value ?? '').trim().toLowerCase();
@@ -17,6 +19,14 @@ export default async function(req) {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Same Premium gate as generateAdaptiveMealPlan, checked before the body is
+    // read. A failed entitlement read throws into the 500 below (fails closed).
+    const entitlements = await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") });
+    if (resolvePremiumAccess(entitlements).features[PREMIUM_FEATURES.MEAL_PLANNING] !== true) {
+      const locked = "Premium meal planning access is required";
+      return json({ error: locked, message: locked }, { status: 403 });
+    }
 
     const body = await req.json();
     const mealId = String(body?.mealId || '');

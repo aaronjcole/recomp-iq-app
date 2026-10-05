@@ -10,6 +10,7 @@ import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 import {
   AI_FEATURE_QUOTAS,
   AI_QUOTA_FEATURES,
@@ -18,8 +19,6 @@ import {
 } from "../../shared/coachRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 10_000;
-const ENTITLEMENT_PAGE_SIZE = 500;
-const MAX_ENTITLEMENT_RECORDS = 1_000;
 const SIGNED_URL_TTL_SECONDS = 300;
 const BODY_COMPOSITION_SCAN_DISABLED =
   Deno.env.get("ENABLE_BODY_COMPOSITION_SCAN") !== "true";
@@ -39,27 +38,6 @@ function safeErrorDetails(error) {
     status: statusOf(error) ?? null,
     name: typeof error?.name === "string" ? error.name.slice(0, 80) : "Error"
   };
-}
-
-async function listAllEntitlements(base44, ownerId) {
-  const records = [];
-  let skip = 0;
-  while (records.length < MAX_ENTITLEMENT_RECORDS) {
-    const remaining = MAX_ENTITLEMENT_RECORDS - records.length;
-    const pageSize = Math.min(ENTITLEMENT_PAGE_SIZE, remaining);
-    const page = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { owner_id: ownerId },
-      "-created_date",
-      pageSize,
-      skip,
-      ["product_id", "source", "status", "expires_at"]
-    );
-    if (!Array.isArray(page)) throw new Error("Invalid entitlement response");
-    records.push(...page);
-    if (page.length < pageSize) return records;
-    skip += page.length;
-  }
-  throw new Error("Entitlement response exceeded the safe record limit");
 }
 
 async function ownedRecords(base44, entityName, userId, sort, limit) {
@@ -112,7 +90,7 @@ export default async function(req) {
 
   try {
     // Premium authorization happens before profile records, photos, or paid inference are touched.
-    const entitlements = await listAllEntitlements(base44, user.id);
+    const entitlements = await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") });
     const access = resolvePremiumAccess(entitlements);
     if (access.features[PREMIUM_FEATURES.VISUAL_PROGRESS] !== true) {
       return json({ error: "Premium visual progress access is required" }, { status: 403 });
