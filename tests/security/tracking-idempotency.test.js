@@ -146,15 +146,10 @@ test("duplicate tracking records use the latest update for overlapping fields", 
 });
 
 test("tracking writes stay behind an authenticated user-scoped backend function", () => {
-  const backend = readFileSync(
-    resolve(repoRoot, "base44/functions/upsertTrackingRecord/entry.ts"),
-    "utf8"
-  );
   const client = readFileSync(resolve(repoRoot, "src/lib/RecompContext.jsx"), "utf8");
 
-  assert.match(backend, /user = await base44\.auth\.me\(\)/);
-  assert.match(backend, /`\$\{user\.id\}:\$\{request\.queueKey\}`/);
-  assert.doesNotMatch(backend, /asServiceRole/);
+  // The backend half (auth, per-user queue key, no service role) is asserted
+  // with the executed persistence tests in tracking-persistence.test.js.
   assert.equal(client.match(/functions\.invoke\("upsertTrackingRecord"/g)?.length, 2);
   assert.doesNotMatch(client, /DailyLog\.(?:create|update)\(/);
   assert.doesNotMatch(client, /HabitEntry\.(?:create|update)\(/);

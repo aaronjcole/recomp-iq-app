@@ -1,11 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   TrackingRequestError,
-  normalizeTrackingRequest,
-  reconcileTrackingRecords
+  normalizeTrackingRequest
 } from "../../shared/trackingRecordDomain.js";
+import { persistTrackingRecord } from "../../shared/trackingRecordPersistence.js";
 import { json, statusOf } from "../../shared/httpUtils.js";
-import { ownedQuery } from "../../shared/ownerScope.js";
 
 const MAX_REQUEST_BYTES = 16_384;
 const inFlightWrites = new Map();
@@ -23,82 +22,6 @@ function enqueueByKey(key, work) {
     }
   );
   return next;
-}
-
-async function verifyHabitOwnership(base44, user, habitId) {
-  let habit;
-  try {
-    habit = await base44.entities.Habit.get(habitId);
-  } catch (error) {
-    if ([401, 403, 404].includes(statusOf(error))) {
-      throw new TrackingRequestError("Habit not found");
-    }
-    throw error;
-  }
-  // RLS lets admins read any user's habit, so existence alone does not prove
-  // ownership. Report another owner's habit exactly like a missing one.
-  if (!habit?.id || habit.created_by_id !== user.id) {
-    throw new TrackingRequestError("Habit not found");
-  }
-}
-
-async function persistTrackingRecord(base44, user, request) {
-  if (request.kind === "habit_entry") {
-    await verifyHabitOwnership(base44, user, request.habitId);
-  }
-
-  const entity =
-    request.kind === "daily_log" ? base44.entities.DailyLog : base44.entities.HabitEntry;
-  // request.query is scoped to the caller (created_by_id) by
-  // normalizeTrackingRequest; never widen it here.
-  let records = await entity.filter(request.query, "created_date", 50);
-  let created = null;
-
-  if (records.length === 0) {
-    created = await entity.create(request.createData);
-    records = await entity.filter(request.query, "created_date", 50);
-    if (!records.some((record) => record.id === created.id)) records.push(created);
-  }
-
-  const { canonical, duplicates, fields, unsetFields } = reconcileTrackingRecords(
-    records,
-    request.fields,
-    request.mutableFields,
-    request.increments
-  );
-  if (!canonical?.id) throw new Error("The tracking record could not be resolved");
-
-  // Merge into the stable oldest record before removing redundant records. A
-  // failed cleanup is safe to retry because the next call reconciles again.
-  let record = canonical;
-  if (Object.keys(fields).length > 0) {
-    record = await entity.update(canonical.id, fields);
-  }
-  if (unsetFields.length > 0) {
-    await entity.updateMany(
-      ownedQuery(user.id, { id: canonical.id }),
-      { $unset: Object.fromEntries(unsetFields.map((field) => [field, ""])) }
-    );
-    record = await entity.get(canonical.id);
-  }
-  const cleanup = await Promise.allSettled(
-    duplicates.map((duplicate) => entity.delete(duplicate.id))
-  );
-  const cleanupPending = cleanup.filter((result) => result.status === "rejected").length;
-  if (cleanupPending > 0) {
-    console.warn("Tracking duplicate cleanup remains pending", {
-      userId: user.id,
-      kind: request.kind,
-      key: request.queueKey,
-      cleanupPending
-    });
-  }
-
-  return {
-    record,
-    observed_duplicates: duplicates.length,
-    cleanup_pending: cleanupPending
-  };
 }
 
 export default async function(req) {

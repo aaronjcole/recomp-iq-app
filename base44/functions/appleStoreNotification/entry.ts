@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { secrets } from 'base44:runtime';
 import { verifyAppleNotificationJws, verifyInnerJws } from "../../shared/appleJwsVerify.js";
-import { isAppleStoreProduct, mapAppleProductId } from "../../shared/premiumDomain.js";
+import { appleNotificationTarget, planAppleNotificationUpdates } from "../../shared/appleNotificationDomain.js";
 
 // App Store Server Notifications V2 webhook.
 // Configure in App Store Connect to POST to:
@@ -18,13 +18,6 @@ function json(body, init = {}) {
   headers.set("Cache-Control", "no-store");
   return Response.json(body, { ...init, headers });
 }
-
-// Apple notification types we act on. Turning auto-renew off does NOT
-// revoke or expire access — the user keeps premium until the period ends
-// and Apple sends EXPIRED. Only refunds/revocations revoke; only actual
-// expiration expires.
-const REVOKE_TYPES = new Set(["REFUND", "REVOKE"]);
-const EXPIRE_TYPES = new Set(["EXPIRED", "GRACE_PERIOD_EXPIRED"]);
 
 export default async function(req) {
   if (req.method !== "POST") {
@@ -66,75 +59,24 @@ export default async function(req) {
   // Nothing actionable without a transaction; acknowledge so Apple doesn't retry.
   if (!transactionInfo) return json({ ok: true });
 
-  const productId = transactionInfo.productId;
-  const originalTransactionId = transactionInfo.originalTransactionId;
-  if (!productId || !originalTransactionId) return json({ ok: true });
-  if (!isAppleStoreProduct(productId)) return json({ ok: true });
-
-  // Verify the signed transaction bundleId matches the configured app to
-  // prevent a legitimate Apple notification for a different app from
-  // revoking or expiring entitlements here.
-  const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
-  if (
-    typeof expectedBundleId !== "string" ||
-    expectedBundleId.length === 0 ||
-    transactionInfo.bundleId !== expectedBundleId
-  ) {
-    return json({ ok: true });
-  }
-
-  // Map the Apple StoreKit product to the internal recompone_premium
-  // entitlement before locating the record.
-  const entitlementProductId = mapAppleProductId(productId);
-  if (!entitlementProductId) return json({ ok: true });
+  // Unknown products, missing ids, and a bundleId that does not match the
+  // configured app (or a missing configuration) are acknowledged untouched.
+  const target = appleNotificationTarget(transactionInfo, secrets.get("APPLE_BUNDLE_ID"));
+  if (!target) return json({ ok: true });
 
   try {
-    // Match by external_transaction_id (Apple originalTransactionId), which is
-    // stable across notifications. The entitlement product_id is the internal
-    // recompone_premium ID, not the Apple StoreKit product ID.
     const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { external_transaction_id: originalTransactionId, product_id: entitlementProductId, source: "apple_store" },
+      target.query,
       "-created_date",
       50
     );
 
     if (!existing?.length) return json({ ok: true });
 
-    // Apple may deliver notifications late, retried, or out of order, and
-    // there is no stored "last applied signedDate", so ordering is enforced
-    // through expires_at: a renewal only ever moves expiry forward, and an
-    // expiration for an older period than the one on record is ignored.
-    const txnExpiresMs = Number(transactionInfo.expiresDate);
-    const txnRevoked = Boolean(transactionInfo.revocationDate || transactionInfo.revocationReason);
-
-    for (const record of existing) {
-      const recordExpiresMs = record.expires_at ? Date.parse(record.expires_at) : NaN;
-
-      if (REVOKE_TYPES.has(notificationType)) {
-        if (record.status === "revoked") continue;
-        await base44.asServiceRole.entities.PremiumEntitlement.update(record.id, { status: "revoked" });
-      } else if (EXPIRE_TYPES.has(notificationType)) {
-        // Never downgrade a revoked record, and ignore a stale EXPIRED for a
-        // period that a later renewal has already superseded.
-        if (record.status !== "active") continue;
-        if (
-          Number.isFinite(recordExpiresMs) &&
-          Number.isFinite(txnExpiresMs) &&
-          recordExpiresMs > txnExpiresMs
-        ) continue;
-        await base44.asServiceRole.entities.PremiumEntitlement.update(record.id, { status: "expired" });
-      } else if (notificationType === "DID_RENEW" && Number.isFinite(txnExpiresMs) && txnExpiresMs > 0) {
-        // A refunded/revoked entitlement is never re-activated by a renewal
-        // notification, and a revoked transaction never renews.
-        if (record.status === "revoked" || txnRevoked) continue;
-        // Only move expiry forward; an older (replayed or reordered) renewal
-        // must not shorten access or flip an expired record back on.
-        if (Number.isFinite(recordExpiresMs) && txnExpiresMs <= recordExpiresMs) continue;
-        await base44.asServiceRole.entities.PremiumEntitlement.update(record.id, {
-          status: "active",
-          expires_at: new Date(txnExpiresMs).toISOString()
-        });
-      }
+    // Revoke / expire / renew rules, including out-of-order and replayed
+    // notifications, are decided in the shared domain.
+    for (const update of planAppleNotificationUpdates(notificationType, transactionInfo, existing)) {
+      await base44.asServiceRole.entities.PremiumEntitlement.update(update.id, update.data);
     }
 
     return json({ ok: true });

@@ -29,6 +29,30 @@ export function recalculateTargets(profile, preferences = {}) {
   };
 }
 
+// The five targets a user can author by hand in CustomTargetsCard. While
+// strategy.manual_override is on they belong to the user, so recalculating from
+// biometrics or a goal change must leave them alone.
+export const MANUAL_TARGET_KEYS = Object.freeze([
+  "calorie_target",
+  "protein_target_g",
+  "carb_target_g",
+  "fat_target_g",
+  "step_target"
+]);
+
+/**
+ * The CurrentStrategy patch written after a profile edit (biometrics or goal):
+ * targets recalculated for `goal`, minus the user's own targets when
+ * `manualOverride` is on.
+ */
+export function recalculatedStrategyUpdate(profile, preferences, { goal, manualOverride }) {
+  const strat = recalculateTargets({ ...profile, goal }, preferences ?? {});
+  if (manualOverride) {
+    for (const key of MANUAL_TARGET_KEYS) delete strat[key];
+  }
+  return { ...strat, goal_type: goal };
+}
+
 export function runWeeklyCheckIn(args) {
   const referenceDate = normalizeDateKey(args.referenceDate) || localTodayKey();
   const trend = analyzeTrends(args.logs, args.strategy, { referenceDate });

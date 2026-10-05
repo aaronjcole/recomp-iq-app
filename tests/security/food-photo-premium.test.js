@@ -130,19 +130,10 @@ test("the 403 reaches the user through the message field", () => {
   assert.match(gateBlock, /error:/, "403 body must keep the error field");
 });
 
-test("entitlement reads fail closed rather than unlocking", () => {
-  // The shared loader (listAllEntitlements) throws on a malformed or over-long response instead of
-  // returning a partial list, and the surrounding try/catch returns a failure
-  // status. A truncated read must never look like "no gate needed".
-  const loader = readFileSync(
-    resolve(repoRoot, "base44/shared/entitlementAccess.js"),
-    "utf8"
-  );
-  assert.match(loader, /throw new Error\("Invalid entitlement response"\)/);
-  assert.match(loader, /throw new Error\("Entitlement response exceeded the safe record limit"\)/);
-  assert.match(loader, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
-  assert.match(loader, /return await listAllEntitlements\(base44, user\.id\)/);
-  // Owner scoping comes from the authenticated user, never the request body.
+test("analyzeFoodPhoto resolves access from the authenticated user through the shared loader", () => {
+  // The loader's fail-closed behavior (malformed page, read error, record cap)
+  // is executed in entitlement-loader.test.js; this pins only the wiring, so a
+  // truncated read can never look like "no gate needed" here.
   assert.match(server, /loadPremiumAccessRecords\(base44,\s*user,/);
   assert.doesNotMatch(server, /loadPremiumAccessRecords\(base44,\s*body/);
 });

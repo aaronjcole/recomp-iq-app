@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRecomp } from "@/lib/RecompContext";
-import { recalculateTargets, GOAL_LABELS, COACH_TONES, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
+import { recalculatedStrategyUpdate, GOAL_LABELS, COACH_TONES, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,17 +29,6 @@ import {
   inBiometricRange,
   optionalInBiometricRange
 } from "@/lib/biometricRanges";
-
-// The five targets a user can author by hand in CustomTargetsCard. While
-// strategy.manual_override is on they belong to the user, so recalculating from
-// biometrics must leave them alone.
-const MANUAL_TARGET_KEYS = [
-  "calorie_target",
-  "protein_target_g",
-  "carb_target_g",
-  "fat_target_g",
-  "step_target"
-];
 
 const GOAL_ORDER =["fat_loss", "aggressive_fat_loss", "fat_loss_biased_recomp", "body_recomposition", "strength_retention_cut", "maintenance", "lean_bulk", "muscle_gain", "aggressive_gain"];
 
@@ -128,15 +117,11 @@ export default function Profile() {
       const updated = await updateProfile(profile.id, profileData);
       const manual = Boolean(strategy?.manual_override);
       if (strategy?.id) {
-        const strat = recalculateTargets({ ...updated, goal: profile.goal }, preferences ?? {});
         // In manual mode the user's own calorie/macro/step numbers must survive a
         // biometrics edit — the same invariant the weekly check-in enforces.
-        if (manual) {
-          for (const key of MANUAL_TARGET_KEYS) delete strat[key];
-        }
         await updateStrategy(
           strategy.id,
-          { ...strat, goal_type: profile.goal },
+          recalculatedStrategyUpdate(updated, preferences, { goal: profile.goal, manualOverride: manual }),
           manual ? "Biometrics updated. Custom targets kept." : "Biometrics updated."
         );
       }
@@ -160,15 +145,11 @@ export default function Profile() {
       const updated = await updateProfile(profile.id, { goal: newGoal });
       if (strategy?.id) {
         const manual = Boolean(strategy.manual_override);
-        const strat = recalculateTargets({ ...updated, goal: newGoal }, preferences ?? {});
         // Manual mode keeps the user's own calorie/macro/step numbers, the same
         // rule saveEdits and the weekly check-in follow.
-        if (manual) {
-          for (const key of MANUAL_TARGET_KEYS) delete strat[key];
-        }
         await updateStrategy(
           strategy.id,
-          { ...strat, goal_type: newGoal },
+          recalculatedStrategyUpdate(updated, preferences, { goal: newGoal, manualOverride: manual }),
           manual ? `Goal changed to ${label}. Custom targets kept.` : `Goal changed to ${label}.`
         );
         if (manual) {

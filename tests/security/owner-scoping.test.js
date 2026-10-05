@@ -162,8 +162,11 @@ test("user-owned entity list/filter calls in functions and src always name the o
   assert.ok(owned.includes("DailyLog") && owned.includes("Habit"), "schema discovery works");
 
   const functionsDir = resolve(repoRoot, "base44/functions");
+  // base44/shared holds helpers moved out of entries (tracking persistence,
+  // default-habit provisioning), so it is scanned too.
   const files = [
     ...readdirSync(functionsDir).map((name) => join(functionsDir, name, "entry.ts")),
+    ...walk(resolve(repoRoot, "base44/shared")),
     ...walk(resolve(repoRoot, "src"))
   ];
   const ownedNames = owned.join("|");
@@ -200,11 +203,5 @@ test("user-owned entity list/filter calls in functions and src always name the o
   assert.deepEqual(violations, [], "unscoped user-owned entity reads");
 });
 
-test("the user-scoped tracking upsert verifies habit ownership, not just existence", () => {
-  const backend = readFileSync(
-    resolve(repoRoot, "base44/functions/upsertTrackingRecord/entry.ts"),
-    "utf8"
-  );
-  assert.match(backend, /habit\.created_by_id !== user\.id/);
-  assert.match(backend, /normalizeTrackingRequest\(body, user\.id\)/);
-});
+// Habit ownership in the tracking upsert (not just existence) is executed in
+// tracking-persistence.test.js against an admin-visibility fake client.

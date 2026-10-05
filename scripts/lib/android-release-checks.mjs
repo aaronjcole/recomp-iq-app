@@ -41,6 +41,19 @@ export function cspBlocksThirdPartyFraming(headerValue) {
   return frameAncestorsDirectives(headerValue).some(isRestrictiveFrameAncestors);
 }
 
+/**
+ * How the live root response blocks third-party framing: a restrictive CSP
+ * frame-ancestors policy, or (legacy) X-Frame-Options DENY/SAMEORIGIN.
+ * @param {string | null | undefined} contentSecurityPolicy
+ * @param {string | null | undefined} xFrameOptionsHeader
+ */
+export function framingProtection(contentSecurityPolicy, xFrameOptionsHeader) {
+  const xFrameOptions = (xFrameOptionsHeader || "").trim().toUpperCase();
+  const protectedByCsp = cspBlocksThirdPartyFraming(contentSecurityPolicy || "");
+  const protectedByLegacyHeader = ["DENY", "SAMEORIGIN"].includes(xFrameOptions);
+  return { protectedByCsp, protectedByLegacyHeader, xFrameOptions };
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

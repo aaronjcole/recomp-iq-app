@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { planCacheKeysForUser } from "../../src/lib/planCache.js";
+import {
+  MANUAL_TARGET_KEYS,
+  recalculateTargets,
+  recalculatedStrategyUpdate
+} from "../../src/lib/fitness/recalculate.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (relativePath) => readFileSync(resolve(repoRoot, relativePath), "utf8");
@@ -63,26 +68,44 @@ test("account deletion purges the locally cached plan output", () => {
   );
 });
 
-test("a biometrics edit preserves manually authored targets", () => {
-  const source = read("src/pages/Profile.jsx");
+test("a biometrics or goal edit preserves manually authored targets", () => {
+  const profile = {
+    sex: "male",
+    age: 35,
+    height_in: 70,
+    current_weight_lbs: 185,
+    job_activity: "sedentary",
+    average_steps: 6000,
+    training_days_per_week: 3,
+    cardio_days_per_week: 2
+  };
+  const recalculated = recalculatedStrategyUpdate(profile, null, { goal: "fat_loss", manualOverride: false });
+  for (const key of MANUAL_TARGET_KEYS) {
+    assert.equal(typeof recalculated[key], "number", `${key} is recalculated outside manual mode`);
+  }
+  assert.equal(recalculated.goal_type, "fat_loss");
+  assert.deepEqual(recalculated, { ...recalculateTargets({ ...profile, goal: "fat_loss" }, {}), goal_type: "fat_loss" });
 
   // Manual mode means the user typed these numbers themselves in
-  // CustomTargetsCard; recalculating from biometrics must not overwrite them.
-  assert.match(source, /const manual = Boolean\(strategy\?\.manual_override\)/);
-  assert.match(source, /if \(manual\) \{\s*for \(const key of MANUAL_TARGET_KEYS\) delete strat\[key\]/);
+  // CustomTargetsCard; the patch must not carry a value for any of them, so
+  // the stored ones survive the update.
+  const manual = recalculatedStrategyUpdate(profile, {}, { goal: "lean_bulk", manualOverride: true });
+  assert.deepEqual(
+    [...MANUAL_TARGET_KEYS].sort(),
+    ["calorie_target", "carb_target_g", "fat_target_g", "protein_target_g", "step_target"]
+  );
+  for (const key of MANUAL_TARGET_KEYS) assert.equal(Object.hasOwn(manual, key), false, key);
+  assert.equal(manual.goal_type, "lean_bulk");
+  assert.equal(manual.lifting_days_target, recalculated.lifting_days_target, "non-authored targets still update");
 
-  for (const key of [
-    "calorie_target",
-    "protein_target_g",
-    "carb_target_g",
-    "fat_target_g",
-    "step_target"
-  ]) {
-    assert.ok(
-      source.includes(`"${key}"`),
-      `${key} is user-authorable, so it must be listed in MANUAL_TARGET_KEYS`
-    );
-  }
+  // Wiring: both Profile edit paths write this patch with the strategy's flag.
+  const source = read("src/pages/Profile.jsx");
+  assert.match(source, /const manual = Boolean\(strategy\?\.manual_override\)/);
+  assert.equal(
+    source.match(/recalculatedStrategyUpdate\(updated, preferences, \{ goal: (?:profile\.goal|newGoal), manualOverride: manual \}\)/g)?.length,
+    2
+  );
+  assert.doesNotMatch(source, /recalculateTargets\(/, "no Profile path recalculates targets without the manual guard");
 });
 
 test("a failed weekly review refresh keeps the review already on screen", () => {

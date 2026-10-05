@@ -12,6 +12,17 @@ import {
   resolvePremiumAccess
 } from "../../base44/shared/premiumDomain.js";
 import { deriveAppleAppAccountToken } from "../../base44/shared/appleAppAccountToken.js";
+import {
+  appAccountTokenMatches,
+  appleEntitlementWrite,
+  appleTransactionVerification
+} from "../../base44/shared/applePurchaseDomain.js";
+import {
+  EXPIRE_TYPES,
+  REVOKE_TYPES,
+  appleNotificationTarget,
+  planAppleNotificationUpdates
+} from "../../base44/shared/appleNotificationDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const NOW = Date.parse("2026-09-09T18:00:00.000Z");
@@ -78,49 +89,142 @@ test("revoked and expired apple_store entitlements fail closed", () => {
   assert.equal(expired.hasAnyAccess, false);
 });
 
-test("verifyApplePurchase validates Apple product IDs, maps to the bundle, verifies the bundle ID, and fails closed", () => {
+const BUNDLE = "com.example.recompone";
+const PURCHASE_NOW = Date.parse("2026-09-09T18:00:00.000Z");
+const signedTransaction = (overrides = {}) => ({
+  productId: APPLE_STORE_PRODUCTS.MONTHLY,
+  bundleId: BUNDLE,
+  originalTransactionId: "orig-1",
+  expiresDate: PURCHASE_NOW + 30 * 24 * 60 * 60 * 1000,
+  appAccountToken: "token-a",
+  environment: "Production",
+  ...overrides
+});
+const verify = (transactionInfo, overrides = {}) => appleTransactionVerification(transactionInfo, {
+  transactionId: "txn-1",
+  expectedProductId: APPLE_STORE_PRODUCTS.MONTHLY,
+  expectedBundleId: BUNDLE,
+  nowMs: PURCHASE_NOW,
+  ...overrides
+});
+
+test("an active, matching Apple transaction verifies with its lineage, expiry and environment", () => {
+  assert.deepEqual(verify(signedTransaction()), {
+    isValid: true,
+    expiresAt: new Date(PURCHASE_NOW + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    originalTransactionId: "orig-1",
+    bundleId: BUNDLE,
+    appAccountToken: "token-a",
+    environment: "Production"
+  });
+  // A transaction without an originalTransactionId falls back to the id the client sent.
+  assert.equal(verify(signedTransaction({ originalTransactionId: undefined })).originalTransactionId, "txn-1");
+  // A non-expiring transaction stays valid with no expiry.
+  const lifetime = verify(signedTransaction({ expiresDate: undefined }));
+  assert.equal(lifetime.isValid, true);
+  assert.equal(lifetime.expiresAt, null);
+  // The signed environment wins; the answering endpoint is only the fallback.
+  assert.equal(verify(signedTransaction({ environment: "Sandbox" })).environment, "Sandbox");
+  assert.equal(verify(signedTransaction({ environment: undefined }), { answeredBySandbox: true }).environment, "Sandbox");
+  assert.equal(verify(signedTransaction({ environment: "" })).environment, "Production");
+});
+
+test("Apple transaction verification fails closed on product, bundle, revocation and expiry", () => {
+  assert.equal(verify(null).isValid, false, "no signed transaction");
+  assert.equal(
+    verify(signedTransaction({ productId: APPLE_STORE_PRODUCTS.ANNUAL })).isValid,
+    false,
+    "the transaction must be for the product the client claimed"
+  );
+  for (const expectedBundleId of [undefined, null, "", 42, "com.other.app"]) {
+    const result = verify(signedTransaction(), { expectedBundleId });
+    assert.equal(result.isValid, false, `bundle ${String(expectedBundleId)}`);
+    assert.equal(result.appAccountToken, null, "a cross-app transaction never carries an owner token");
+  }
+  assert.equal(verify(signedTransaction({ bundleId: undefined })).isValid, false, "a missing bundleId never matches");
+  assert.equal(verify(signedTransaction({ bundleId: "" }), { expectedBundleId: "" }).isValid, false, "empty config and bundleId");
+  assert.equal(verify(signedTransaction({ revocationDate: PURCHASE_NOW - 1 })).isValid, false, "refunded");
+  assert.equal(verify(signedTransaction({ revocationReason: 1 })).isValid, false, "revoked");
+  assert.equal(verify(signedTransaction({ expiresDate: PURCHASE_NOW })).isValid, false, "expired at now");
+  assert.equal(verify(signedTransaction({ expiresDate: PURCHASE_NOW - 1 })).isValid, false, "expired");
+  assert.equal(verify(signedTransaction({ expiresDate: PURCHASE_NOW + 1 })).isValid, true);
+});
+
+test("Apple transactions are bound to the authenticated account through the signed token", async () => {
+  const mine = await deriveAppleAppAccountToken("base44-user-a");
+  const theirs = await deriveAppleAppAccountToken("base44-user-b");
+  assert.equal(appAccountTokenMatches(mine, mine), true);
+  assert.equal(appAccountTokenMatches(mine.toUpperCase(), mine), true, "StoreKit may upper-case the UUID");
+  assert.equal(appAccountTokenMatches(theirs, mine), false, "another account's purchase is refused");
+  for (const missing of [null, undefined, "", 42, {}]) {
+    assert.equal(appAccountTokenMatches(missing, mine), false, `token ${JSON.stringify(missing)}`);
+  }
+  // The verified token travels from the signed transaction, never from the request.
+  assert.equal(verify(signedTransaction({ appAccountToken: mine })).appAccountToken, mine);
+  assert.equal(verify(signedTransaction({ appAccountToken: undefined })).appAccountToken, null);
+});
+
+test("a verified purchase writes the internal bundle entitlement for the caller, idempotently", () => {
+  const verification = verify(signedTransaction());
+  const entitlementProductId = mapAppleProductId(APPLE_STORE_PRODUCTS.MONTHLY);
+  assert.deepEqual(appleEntitlementWrite([], { ownerId: "user-1", entitlementProductId, verification }), {
+    op: "create",
+    data: {
+      owner_id: "user-1",
+      product_id: PREMIUM_PRODUCTS.BUNDLE,
+      source: "apple_store",
+      status: "active",
+      expires_at: verification.expiresAt,
+      external_transaction_id: "orig-1"
+    }
+  });
+  assert.deepEqual(
+    appleEntitlementWrite([{ id: "ent-new" }, { id: "ent-old" }], { ownerId: "user-1", entitlementProductId, verification }),
+    {
+      op: "update",
+      id: "ent-new",
+      data: { status: "active", expires_at: verification.expiresAt, external_transaction_id: "orig-1" }
+    }
+  );
+  // A non-expiring purchase does not write an expiry.
+  const lifetime = verify(signedTransaction({ expiresDate: undefined }));
+  const created = appleEntitlementWrite(null, { ownerId: "user-1", entitlementProductId, verification: lifetime });
+  assert.equal(Object.hasOwn(created.data, "expires_at"), false);
+});
+
+test("verifyApplePurchase wires the shared purchase decisions and never trusts the client", () => {
+  // Wiring only: the decisions themselves are executed in the tests above.
   const source = readFileSync(
     resolve(repoRoot, "base44/functions/verifyApplePurchase/entry.ts"),
     "utf8"
   );
+  const domain = readFileSync(resolve(repoRoot, "base44/shared/applePurchaseDomain.js"), "utf8");
 
-  // Uses isAppleStoreProduct for validation (not the old VALID_PRODUCT_IDS set).
   assert.match(source, /isAppleStoreProduct\(productId\)/);
-  // Maps Apple product to internal entitlement product.
   assert.match(source, /mapAppleProductId\(productId\)/);
-  // Verifies bundle ID from transaction info.
-  assert.match(source, /APPLE_BUNDLE_ID/);
-  assert.match(source, /transactionInfo\.bundleId/);
-  // Missing configuration and missing bundle IDs must both fail closed.
-  assert.match(source, /typeof expectedBundleId !== "string"/);
-  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
-  // Fails closed on invalid verification.
-  assert.match(source, /Purchase is not active/);
+  assert.match(source, /appleTransactionVerification\(transactionInfo, \{[\s\S]*?expectedBundleId: secrets\.get\("APPLE_BUNDLE_ID"\)/);
+  assert.match(source, /if \(!verification\.isValid\) \{\s*return json\(\{ error: "Purchase is not active" \}/);
+  assert.match(source, /deriveAppleAppAccountToken\(user\.id\)/);
+  assert.match(source, /appAccountTokenMatches\(verification\.appAccountToken, expectedAccountToken\)/);
+  assert.match(source, /Purchase is already linked to another account/);
+  assert.match(source, /appleEntitlementWrite\(existing, \{\s*ownerId: user\.id,/);
+  assert.match(source, /asServiceRole\.entities\.PremiumEntitlement/);
+  // Ownership is established by Apple's signed account token, not a racy
+  // filter-then-create scan over entitlement rows.
+  assert.doesNotMatch(source, /transactionClaims/);
   // Never trusts client-supplied user ID.
   assert.match(source, /user = await base44\.auth\.me\(\)/);
   assert.doesNotMatch(source, /body\?\.userId|body\?\.owner_id/);
   // Never stores raw receipt or health data.
-  assert.doesNotMatch(source, /receipt|health_data|email/i);
-  // Writes entitlement with the mapped product, not the Apple product ID.
-  assert.match(source, /product_id: entitlementProductId/);
-  // Uses asServiceRole for entitlement writes.
-  assert.match(source, /asServiceRole\.entities\.PremiumEntitlement/);
+  assert.doesNotMatch(source + domain, /receipt|health_data|email/i);
   // TestFlight transactions fall back to Apple's sandbox endpoint only after
   // the production lookup reports that the transaction was not found.
   assert.match(source, /api\.storekit\.itunes\.apple\.com/);
   assert.match(source, /api\.storekit-sandbox\.itunes\.apple\.com/);
   assert.match(source, /candidate\.status === 404/);
-  // The verified subscription lineage is persisted and cross-account replay
-  // is rejected through the signed app-account-token check below.
-  assert.match(source, /external_transaction_id: verification\.originalTransactionId/);
-  assert.match(source, /Purchase is already linked to another account/);
 });
 
-test("Apple transactions are cryptographically bound to the authenticated app account", () => {
-  const verifier = readFileSync(
-    resolve(repoRoot, "base44/functions/verifyApplePurchase/entry.ts"),
-    "utf8"
-  );
+test("the paywall and native shell pass the derived account token to StoreKit", () => {
   const paywall = readFileSync(
     resolve(repoRoot, "src/components/premium/PremiumPaywall.jsx"),
     "utf8"
@@ -140,12 +244,6 @@ test("Apple transactions are cryptographically bound to the authenticated app ac
   assert.match(paywall, /requestPurchase\(productId, appAccountToken\)/);
   assert.match(protocol, /appAccountToken: string/);
   assert.match(nativeShell, /appAccountToken: request\.appAccountToken/);
-  assert.match(verifier, /deriveAppleAppAccountToken\(user\.id\)/);
-  assert.match(verifier, /transactionInfo\.appAccountToken/);
-  assert.match(verifier, /Purchase is already linked to another account/);
-  // Ownership is established by Apple's signed account token, not a racy
-  // filter-then-create scan over entitlement rows.
-  assert.doesNotMatch(verifier, /transactionClaims/);
 });
 
 test("Apple app-account tokens are stable, pseudonymous UUIDs scoped per user", async () => {
@@ -177,56 +275,133 @@ test("the Expo shell and StoreKit account-token namespace match the existing App
   assert.match(accountTokenSource, new RegExp(`${APP_STORE_BUNDLE_ID.replaceAll(".", "\\.")}:storekit-account:v1:`));
 });
 
-test("appleStoreNotification matches by external_transaction_id and handles revoke, expire, and renew", () => {
-  const source = readFileSync(
-    resolve(repoRoot, "base44/functions/appleStoreNotification/entry.ts"),
-    "utf8"
-  );
-
-  // Verifies JWS signature before trusting the payload.
-  assert.match(source, /verifyAppleNotificationJws/);
-  // Validates the Apple product ID.
-  assert.match(source, /isAppleStoreProduct\(productId\)/);
-  // Maps the Apple product ID to the internal bundle entitlement.
-  assert.match(source, /mapAppleProductId\(productId\)/);
-  // Matches by external_transaction_id + internal product_id + apple_store source.
-  assert.match(source, /external_transaction_id: originalTransactionId, product_id: entitlementProductId, source: "apple_store"/);
-  assert.doesNotMatch(source, /product_id: productId, external_transaction_id/);
-  // Handles revoke.
-  assert.match(source, /REFUND.*REVOKE/);
-  assert.match(source, /status: "revoked"/);
-  // Handles expire.
-  assert.match(source, /EXPIRED.*GRACE_PERIOD_EXPIRED/);
-  assert.match(source, /status: "expired"/);
-  // Handles renewal.
-  assert.match(source, /DID_RENEW/);
-  assert.match(source, /status: "active"/);
-  // A renewal never re-activates a refunded/revoked entitlement and only
-  // moves expiry forward (out-of-order or replayed notifications).
-  assert.match(source, /DID_RENEW[\s\S]{0,400}record\.status === "revoked" \|\| txnRevoked\) continue/);
-  assert.match(source, /txnExpiresMs <= recordExpiresMs\) continue/);
-  // A stale EXPIRED for a superseded period is ignored.
-  assert.match(source, /recordExpiresMs > txnExpiresMs/);
-  // Idempotent: acknowledges even when no matching entitlement.
-  assert.match(source, /return json\(\{ ok: true \}\)/);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const T0 = Date.parse("2026-09-01T00:00:00.000Z");
+const iso = (ms) => new Date(ms).toISOString();
+const notifiedTransaction = (overrides = {}) => ({
+  productId: APPLE_STORE_PRODUCTS.ANNUAL,
+  originalTransactionId: "orig-9",
+  bundleId: APP_STORE_BUNDLE_ID,
+  expiresDate: T0 + 30 * DAY_MS,
+  ...overrides
+});
+const entitlementRow = (id, status, expiresMs) => ({
+  id,
+  status,
+  ...(expiresMs === undefined ? {} : { expires_at: iso(expiresMs) })
 });
 
-test("appleStoreNotification rejects notifications with the wrong bundle ID and does not revoke on auto-renew off", () => {
+test("appleStoreNotification looks up by original transaction, internal product and apple_store source", () => {
+  assert.deepEqual(appleNotificationTarget(notifiedTransaction(), APP_STORE_BUNDLE_ID), {
+    query: { external_transaction_id: "orig-9", product_id: PREMIUM_PRODUCTS.BUNDLE, source: "apple_store" },
+    originalTransactionId: "orig-9",
+    entitlementProductId: PREMIUM_PRODUCTS.BUNDLE
+  });
+});
+
+test("appleStoreNotification ignores other apps, unknown products and incomplete transactions", () => {
+  for (const expected of [undefined, null, "", 7]) {
+    assert.equal(appleNotificationTarget(notifiedTransaction(), expected), null, `config ${String(expected)}`);
+  }
+  assert.equal(appleNotificationTarget(notifiedTransaction({ bundleId: "com.other.app" }), APP_STORE_BUNDLE_ID), null);
+  assert.equal(appleNotificationTarget(notifiedTransaction({ bundleId: undefined }), APP_STORE_BUNDLE_ID), null);
+  assert.equal(appleNotificationTarget(notifiedTransaction({ bundleId: "" }), ""), null, "an empty config never matches an empty bundleId");
+  assert.equal(appleNotificationTarget(notifiedTransaction({ productId: "recompone_premium_lifetime" }), APP_STORE_BUNDLE_ID), null);
+  assert.equal(appleNotificationTarget(notifiedTransaction({ productId: PREMIUM_PRODUCTS.BUNDLE }), APP_STORE_BUNDLE_ID), null);
+  assert.equal(appleNotificationTarget(notifiedTransaction({ productId: "" }), APP_STORE_BUNDLE_ID), null);
+  assert.equal(appleNotificationTarget(notifiedTransaction({ originalTransactionId: "" }), APP_STORE_BUNDLE_ID), null);
+  assert.equal(appleNotificationTarget(null, APP_STORE_BUNDLE_ID), null);
+});
+
+test("refunds and revocations revoke every matching entitlement once", () => {
+  const rows = [entitlementRow("a", "active", T0 + 30 * DAY_MS), entitlementRow("b", "expired"), entitlementRow("c", "revoked")];
+  for (const type of ["REFUND", "REVOKE"]) {
+    assert.deepEqual(planAppleNotificationUpdates(type, notifiedTransaction(), rows), [
+      { id: "a", data: { status: "revoked" } },
+      { id: "b", data: { status: "revoked" } }
+    ], type);
+  }
+});
+
+test("expiration expires only active records and ignores a stale period", () => {
+  const txn = notifiedTransaction({ expiresDate: T0 + 30 * DAY_MS });
+  for (const type of ["EXPIRED", "GRACE_PERIOD_EXPIRED"]) {
+    assert.deepEqual(
+      planAppleNotificationUpdates(type, txn, [
+        entitlementRow("same-period", "active", T0 + 30 * DAY_MS),
+        entitlementRow("no-expiry", "active"),
+        entitlementRow("renewed-later", "active", T0 + 60 * DAY_MS),
+        entitlementRow("revoked", "revoked", T0 + 30 * DAY_MS),
+        entitlementRow("already-expired", "expired", T0)
+      ]),
+      [
+        { id: "same-period", data: { status: "expired" } },
+        { id: "no-expiry", data: { status: "expired" } }
+      ],
+      type
+    );
+  }
+  // Without a usable transaction expiry the stale check cannot apply.
+  assert.deepEqual(
+    planAppleNotificationUpdates("EXPIRED", notifiedTransaction({ expiresDate: undefined }), [entitlementRow("x", "active", T0 + 60 * DAY_MS)]),
+    [{ id: "x", data: { status: "expired" } }]
+  );
+});
+
+test("a renewal only moves expiry forward and never re-activates a revoked entitlement", () => {
+  const renewedTo = T0 + 60 * DAY_MS;
+  const txn = notifiedTransaction({ expiresDate: renewedTo });
+  assert.deepEqual(
+    planAppleNotificationUpdates("DID_RENEW", txn, [
+      entitlementRow("older", "active", T0 + 30 * DAY_MS),
+      entitlementRow("lapsed", "expired", T0),
+      entitlementRow("no-expiry", "active"),
+      entitlementRow("same", "active", renewedTo),
+      entitlementRow("newer", "active", T0 + 90 * DAY_MS),
+      entitlementRow("refunded", "revoked", T0)
+    ]),
+    [
+      { id: "older", data: { status: "active", expires_at: iso(renewedTo) } },
+      { id: "lapsed", data: { status: "active", expires_at: iso(renewedTo) } },
+      { id: "no-expiry", data: { status: "active", expires_at: iso(renewedTo) } }
+    ]
+  );
+  // A revoked transaction never renews, and a renewal without a real expiry is ignored.
+  const rows = [entitlementRow("older", "active", T0)];
+  assert.deepEqual(planAppleNotificationUpdates("DID_RENEW", notifiedTransaction({ expiresDate: renewedTo, revocationDate: T0 }), rows), []);
+  assert.deepEqual(planAppleNotificationUpdates("DID_RENEW", notifiedTransaction({ expiresDate: renewedTo, revocationReason: 1 }), rows), []);
+  for (const expiresDate of [undefined, 0, -5, "soon"]) {
+    assert.deepEqual(planAppleNotificationUpdates("DID_RENEW", notifiedTransaction({ expiresDate }), rows), [], String(expiresDate));
+  }
+});
+
+test("turning auto-renew off and other notification types change nothing", () => {
+  const rows = [entitlementRow("a", "active", T0 + 30 * DAY_MS)];
+  for (const type of ["DID_CHANGE_RENEWAL_STATUS", "DID_CHANGE_RENEWAL_PREF", "DID_FAIL_TO_RENEW", "SUBSCRIBED", "TEST", undefined]) {
+    assert.deepEqual(planAppleNotificationUpdates(type, notifiedTransaction(), rows), [], String(type));
+  }
+  assert.deepEqual([...REVOKE_TYPES].sort(), ["REFUND", "REVOKE"]);
+  assert.deepEqual([...EXPIRE_TYPES].sort(), ["EXPIRED", "GRACE_PERIOD_EXPIRED"]);
+});
+
+test("appleStoreNotification verifies signatures and applies only the shared plan", () => {
+  // Wiring only: the target and update rules are executed in the tests above.
   const source = readFileSync(
     resolve(repoRoot, "base44/functions/appleStoreNotification/entry.ts"),
     "utf8"
   );
-
-  // Verifies the signed transaction bundleId against the configured app.
-  assert.match(source, /secrets\.get\("APPLE_BUNDLE_ID"\)/);
-  assert.match(source, /typeof expectedBundleId !== "string"/);
-  assert.match(source, /transactionInfo\.bundleId !== expectedBundleId/);
-  // Acknowledges (does not process) when the bundle ID does not match.
-  assert.match(source, /return json\(\{ ok: true \}\)/);
-  // Only refunds/revocations revoke; only actual expiration expires.
-  // Auto-renew being turned off does NOT revoke or expire access.
-  assert.match(source, /REVOKE_TYPES = new Set\(\["REFUND", "REVOKE"\]\)/);
-  assert.match(source, /EXPIRE_TYPES = new Set\(\["EXPIRED", "GRACE_PERIOD_EXPIRED"\]\)/);
+  const verifyAt = source.indexOf("await verifyAppleNotificationJws(raw)");
+  const targetAt = source.indexOf('appleNotificationTarget(transactionInfo, secrets.get("APPLE_BUNDLE_ID"))');
+  const lookupAt = source.indexOf("PremiumEntitlement.filter(\n      target.query,");
+  const planAt = source.indexOf("planAppleNotificationUpdates(notificationType, transactionInfo, existing)");
+  assert.ok(verifyAt > 0 && targetAt > verifyAt && lookupAt > targetAt && planAt > lookupAt);
+  assert.match(source, /verifyInnerJws\(data\.signedTransactionInfo, leafKey\)/);
+  // Idempotent: unmatched or unknown notifications are acknowledged, not retried.
+  assert.match(source, /if \(!target\) return json\(\{ ok: true \}\)/);
+  assert.match(source, /if \(!existing\?\.length\) return json\(\{ ok: true \}\)/);
+  assert.match(source, /PremiumEntitlement\.update\(update\.id, update\.data\)/);
+  // The only entitlement write is the planned update.
+  assert.equal(source.match(/PremiumEntitlement\.(?:update|create|delete)\(/g).length, 1);
 });
 
 test("the PremiumEntitlement entity accepts apple_store as a source with admin-only RLS", () => {
