@@ -8,6 +8,11 @@ export const COACH_DAILY_LIMIT = 40;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
+// Rows older than the daily window are pruned only after this extra margin, so
+// a function instance whose clock runs ahead of another's can never delete a
+// row that the slower instance still counts inside its window.
+const PRUNE_MARGIN_MS = HOUR_MS;
+
 // Feature keys partition the reservation pool so one expensive feature cannot
 // drain another feature's allowance. Both coach surfaces deliberately share
 // the "coach" key: they answer the same conversational request and have always
@@ -48,62 +53,89 @@ function normalizeLimits(limits) {
   return { hourly, daily };
 }
 
-function validUsage(records, now) {
-  return records
-    .map((record) => ({
-      requestId: typeof record?.request_id === "string" ? record.request_id : "",
-      requestedAt: Date.parse(record?.requested_at ?? "")
-    }))
-    .filter((record) => (
-      record.requestId
-      && Number.isFinite(record.requestedAt)
-      && record.requestedAt >= now - DAY_MS
-      && record.requestedAt <= now
-    ))
-    .sort((left, right) => (
-      left.requestedAt - right.requestedAt
-      || left.requestId.localeCompare(right.requestId)
-    ));
+function parseTime(value) {
+  const parsed = typeof value === "string" ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Whether `row` is counted ahead of `own`. Ordering uses the server-assigned
+// created_date, which every concurrent request sees identically. A tie is
+// counted ahead on BOTH sides rather than broken by id: two rows created in the
+// same millisecond may each miss the other's insert, and an id tie-break would
+// then let both rank themselves inside the limit. Counting ties both ways can
+// only reject more, never admit more. A row without a usable created_date is
+// counted ahead of everyone (fail closed) rather than skipped.
+function ranksAhead(row, own) {
+  if (row.id === own.id) return false;
+  if (row.createdAt === null) return true;
+  return row.createdAt <= own.createdAt;
 }
 
 /**
- * Decide whether a persisted reservation is inside the hourly and daily
- * windows for one feature. Anything unexpected - a missing reservation,
- * unusable limits - denies the request so callers fail closed.
+ * Decide whether the reservation row `ownId` is inside the hourly and daily
+ * limits, given the rows a list returned AFTER that row was written.
+ *
+ * Rows are ranked by the server-assigned `created_date`, never by a
+ * function-computed timestamp, and the request is allowed only when fewer
+ * than `limit` rows rank ahead of it in each window (ties count as ahead).
+ * `requested_at` only decides window membership; it has no upper bound,
+ * because a concurrent row from an instance whose clock runs ahead must still
+ * be counted.
+ *
+ * `truncated` says the list hit its page size, so rows sorted after the last
+ * returned one may exist. Anything unexpected - unusable limits, a missing or
+ * undated own row, a page that may hide rows tied with it - denies the
+ * request so callers fail closed.
+ *
+ * @param {Array<object>} rows - CoachRequestUsage records for one owner and feature.
+ * @param {string} ownId - Server id of this request's reservation row.
+ * @param {{ hourly: number, daily: number }} limits - Window ceilings.
+ * @param {{ now?: number, truncated?: boolean }} [options]
+ * @returns {{ allowed: boolean, reason: null | "hourly" | "daily" | "reservation" }}
  */
-export function evaluateFeatureQuota(records, requestId, limits, now = Date.now()) {
+export function rankReservation(rows, ownId, limits, { now = Date.now(), truncated = false } = {}) {
   const resolved = normalizeLimits(limits);
-  if (!resolved || typeof requestId !== "string" || requestId === "") {
+  if (!resolved || typeof ownId !== "string" || ownId === "") {
     return { allowed: false, reason: "reservation" };
   }
 
-  const usage = validUsage(Array.isArray(records) ? records : [], now);
-  if (!usage.some((record) => record.requestId === requestId)) {
-    return { allowed: false, reason: "reservation" };
-  }
+  const dayStart = now - DAY_MS;
+  const hourStart = now - HOUR_MS;
+  const usage = (Array.isArray(rows) ? rows : [])
+    .filter((row) => typeof row?.id === "string" && row.id !== "")
+    .map((row) => ({
+      id: row.id,
+      createdAt: parseTime(row.created_date),
+      // An unparsable requested_at cannot be placed in a window, so it is
+      // treated as current and counted in both (fail closed).
+      requestedAt: parseTime(row.requested_at) ?? now
+    }))
+    .filter((row) => row.requestedAt >= dayStart);
 
-  const dailyIds = new Set(
-    usage.slice(0, resolved.daily).map((record) => record.requestId)
-  );
-  if (!dailyIds.has(requestId)) {
+  const own = usage.find((row) => row.id === ownId);
+  if (!own) {
+    // A full page sorted by created_date that does not include our row means
+    // at least page-size (> daily) rows rank ahead of it.
+    return { allowed: false, reason: truncated ? "daily" : "reservation" };
+  }
+  if (own.createdAt === null) return { allowed: false, reason: "reservation" };
+
+  // On a full page, rows the server sorted after the last returned one were
+  // cut off. If none of those can tie with ours, every row ranked ahead of
+  // ours is on the page; otherwise fail closed.
+  const latest = Math.max(...usage.map((row) => row.createdAt ?? Number.NEGATIVE_INFINITY));
+  if (truncated && latest <= own.createdAt) {
     return { allowed: false, reason: "daily" };
   }
 
-  const hourlyIds = new Set(
-    usage
-      .filter((record) => record.requestedAt >= now - HOUR_MS)
-      .slice(0, resolved.hourly)
-      .map((record) => record.requestId)
-  );
-  if (!hourlyIds.has(requestId)) {
+  const ahead = usage.filter((row) => ranksAhead(row, own));
+  if (ahead.length >= resolved.daily) {
+    return { allowed: false, reason: "daily" };
+  }
+  if (ahead.filter((row) => row.requestedAt >= hourStart).length >= resolved.hourly) {
     return { allowed: false, reason: "hourly" };
   }
-
   return { allowed: true, reason: null };
-}
-
-export function evaluateCoachQuota(records, requestId, now = Date.now()) {
-  return evaluateFeatureQuota(records, requestId, COACH_QUOTA, now);
 }
 
 /** Retry-After seconds for a rejected quota, as a header-ready string. */
@@ -115,10 +147,18 @@ export function quotaRetryAfterSeconds(reason) {
  * Reserve one paid request for a feature and report whether it fits the quota.
  *
  * `usage` is the service-role CoachRequestUsage entity accessor, injected by
- * the caller so this module never imports the SDK. The reservation is written
- * before it is counted, so concurrent invocations converge on the same ordered
- * window instead of each reading a stale count; a rejected reservation is
- * removed again so a throttled request does not consume the allowance.
+ * the caller so this module never imports the SDK.
+ *
+ * Concurrency: the reservation row is written first and only then are the
+ * window's rows listed, oldest created_date first. A request whose list does
+ * not yet show another request's row finished its own insert before that row
+ * became visible, so the other row's server-assigned created_date is the same
+ * or later. Rows strictly earlier are therefore always seen, and same-instant
+ * rows count against each other both ways, so of any `limit + 1` requests the
+ * one that listed last sees the other `limit` ahead of it: at most `limit` are
+ * allowed however many run in parallel. A rejected reservation is deleted so
+ * a throttled request does not consume the allowance; an allowed one is kept
+ * even if the paid call later fails.
  *
  * @param {object} usage - Service-role CoachRequestUsage entity accessor.
  * @param {string} ownerId - Authenticated account identifier.
@@ -130,33 +170,41 @@ export async function reserveFeatureRequest(usage, ownerId, feature, limits, now
   const resolved = normalizeLimits(limits);
   if (!resolved) return { allowed: false, reason: "reservation" };
 
-  const requestedAt = new Date(now).toISOString();
   const dayCutoff = new Date(now - DAY_MS).toISOString();
-  const requestId = crypto.randomUUID();
 
   // Pruning ignores the feature key so expired rows from every feature, and
   // from reservations written before feature keys existed, are cleaned up.
   await usage.deleteMany({
     owner_id: ownerId,
-    requested_at: { $lt: dayCutoff }
+    requested_at: { $lt: new Date(now - DAY_MS - PRUNE_MARGIN_MS).toISOString() }
   });
   const reservation = await usage.create({
     owner_id: ownerId,
     feature,
-    request_id: requestId,
-    requested_at: requestedAt
+    request_id: crypto.randomUUID(),
+    requested_at: new Date(now).toISOString()
   });
+  const ownId = typeof reservation?.id === "string" ? reservation.id : "";
+  if (!ownId) return { allowed: false, reason: "reservation" };
+
+  // Ascending created_date, one row more than the daily limit, so the page
+  // holds every row ranked ahead of ours unless more than `daily` already are
+  // (rankReservation fails closed on a full page).
+  const pageSize = resolved.daily + 1;
   const recent = await usage.filter(
     {
       owner_id: ownerId,
       feature,
-      requested_at: { $gte: dayCutoff, $lte: requestedAt }
+      requested_at: { $gte: dayCutoff }
     },
-    "requested_at",
-    resolved.daily + 1
+    "created_date",
+    pageSize
   );
 
-  const quota = evaluateFeatureQuota(recent, requestId, resolved, now);
-  if (!quota.allowed) await usage.delete(reservation.id);
+  const quota = rankReservation(recent, ownId, resolved, {
+    now,
+    truncated: Array.isArray(recent) && recent.length >= pageSize
+  });
+  if (!quota.allowed) await usage.delete(ownId);
   return quota;
 }
