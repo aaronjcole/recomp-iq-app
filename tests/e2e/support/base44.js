@@ -4,6 +4,10 @@ import {
   reconcileTrackingRecords
 } from "../../../base44/shared/trackingRecordDomain.js";
 import {
+  buildMealSwap,
+  normalizeSwapRequest
+} from "../../../base44/shared/adaptiveMealPlanDomain.js";
+import {
   AUTH_USER,
   ADAPTIVE_MEAL_PLAN,
   ADAPTIVE_TRAINING_BLOCK,
@@ -247,6 +251,19 @@ export async function installAuthenticatedBase44(page, options = {}) {
       if (url.includes("/functions/generateAdaptiveMealPlan")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
         return json(mealPlan);
+      }
+      // Run swapAdaptiveMeal's own validation and swap logic so the page is
+      // exercised against the real request contract.
+      if (url.includes("/functions/swapAdaptiveMeal")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        let swapped;
+        try {
+          swapped = buildMealSwap(normalizeSwapRequest(readBody(request)));
+        } catch (error) {
+          return json({ error: error.message, message: error.message }, 400);
+        }
+        if (!swapped) return json({ error: "No compatible swap available for this meal" }, 404);
+        return json({ meal: swapped });
       }
       if (url.includes("/functions/generateAdaptiveTrainingBlock")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);

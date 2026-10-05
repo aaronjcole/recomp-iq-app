@@ -167,7 +167,10 @@ export default async function(req) {
         weekStart: request.weekStart,
         dietStyle: deterministicPlan.dietStyle,
         dailyTargets: deterministicPlan.dailyTargets,
-        adaptation: deterministicPlan.adaptation
+        adaptation: deterministicPlan.adaptation,
+        // Any AI day that misses the targets or the diet is replaced by the
+        // matching deterministic day.
+        fallbackDays: deterministicPlan.days
       }));
     } catch (error) {
       if (error instanceof MealPlanRequestError) {
