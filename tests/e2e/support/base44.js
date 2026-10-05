@@ -116,7 +116,7 @@ function idFromEntityUrl(url) {
  * admins every row, so an unscoped query is rejected here as a contract bug.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[] }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[], functionErrors?: Record<string, number> }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
@@ -139,6 +139,8 @@ export async function installAuthenticatedBase44(page, options = {}) {
   const autopilotReview = options.autopilotReview ?? WEEKLY_AUTOPILOT_REVIEW;
   const bodyCompositionResult = options.bodyCompositionResult ?? BODY_COMPOSITION_RESULT;
   const failingEntities = new Set(options.failingEntities ?? []);
+  // Function name -> HTTP status, to force a backend function to fail.
+  const functionErrors = options.functionErrors ?? {};
   let privateUploadCount = 0;
 
   await page.addInitScript(() => {
@@ -217,6 +219,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
     }
 
     if (url.includes("/functions/")) {
+      const functionName = url.match(/\/functions\/([A-Za-z0-9_]+)/)?.[1];
+      if (functionName && functionErrors[functionName]) {
+        return json({ error: `${functionName} failed (forced by test)` }, functionErrors[functionName]);
+      }
       if (url.includes("/functions/ensureDefaultHabits")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
         if (ensureHabitsError) return json({ error: "Temporary repair outage" }, 503);
@@ -266,13 +272,15 @@ export async function installAuthenticatedBase44(page, options = {}) {
         const stored = existing.length
           ? existing
           : [{ id: `DailyLog-e2e-${body.date}`, ...tracking.createData, created_by_id: user.id, created_date: new Date().toISOString() }];
-        const { canonical, fields } = reconcileTrackingRecords(
+        const { canonical, fields, unsetFields } = reconcileTrackingRecords(
           stored,
           tracking.fields,
           tracking.mutableFields,
           tracking.increments
         );
         const saved = { ...canonical, ...fields };
+        // The function $unsets fields sent as null and returns the re-read record.
+        for (const field of unsetFields) delete saved[field];
         entities.DailyLog = [
           saved,
           ...entities.DailyLog.filter((row) => !stored.some((item) => item.id === row.id))

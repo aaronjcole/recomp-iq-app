@@ -37,23 +37,40 @@ export const HABIT_ENTRY_FIELDS = Object.freeze(["value", "done"]);
 // for a user typing their day's total directly.
 export const DAILY_LOG_INCREMENT_FIELDS = Object.freeze(["calories", "protein_g", "carbs_g", "fat_g"]);
 
+// Numeric ranges for daily-log fields, exported so the client can validate
+// the same bounds before sending (src/lib/dailyLogForm.js).
+export const DAILY_LOG_NUMBER_RANGES = Object.freeze({
+  weight_lbs: Object.freeze({ min: 40, max: 1200 }),
+  calories: Object.freeze({ min: 0, max: 20000 }),
+  protein_g: Object.freeze({ min: 0, max: 2000 }),
+  carbs_g: Object.freeze({ min: 0, max: 3000 }),
+  fat_g: Object.freeze({ min: 0, max: 2000 }),
+  steps: Object.freeze({ min: 0, max: 200000 }),
+  waist_in: Object.freeze({ min: 10, max: 150 }),
+  water_oz: Object.freeze({ min: 0, max: 2000 }),
+  hunger_rating: Object.freeze({ min: 1, max: 5 }),
+  energy_rating: Object.freeze({ min: 1, max: 5 }),
+  sleep_hours: Object.freeze({ min: 0, max: 24 }),
+  sleep_quality: Object.freeze({ min: 1, max: 5 }),
+  soreness_rating: Object.freeze({ min: 1, max: 5 })
+});
+
+export const DAILY_LOG_STRING_LIMITS = Object.freeze({
+  workout_type: 200,
+  notes: 4000
+});
+
 const dailyLogRules = {
-  weight_lbs: nullable(numberBetween(40, 1200)),
-  calories: nullable(numberBetween(0, 20000)),
-  protein_g: nullable(numberBetween(0, 2000)),
-  carbs_g: nullable(numberBetween(0, 3000)),
-  fat_g: nullable(numberBetween(0, 2000)),
-  steps: nullable(numberBetween(0, 200000)),
-  workout_completed: isBoolean,
-  workout_type: nullable(stringUpTo(200)),
-  waist_in: nullable(numberBetween(10, 150)),
-  water_oz: nullable(numberBetween(0, 2000)),
-  hunger_rating: nullable(numberBetween(1, 5)),
-  energy_rating: nullable(numberBetween(1, 5)),
-  sleep_hours: nullable(numberBetween(0, 24)),
-  sleep_quality: nullable(numberBetween(1, 5)),
-  soreness_rating: nullable(numberBetween(1, 5)),
-  notes: nullable(stringUpTo(4000))
+  ...Object.fromEntries(
+    Object.entries(DAILY_LOG_NUMBER_RANGES).map(([field, { min, max }]) => [
+      field,
+      nullable(numberBetween(min, max))
+    ])
+  ),
+  ...Object.fromEntries(
+    Object.entries(DAILY_LOG_STRING_LIMITS).map(([field, limit]) => [field, nullable(stringUpTo(limit))])
+  ),
+  workout_completed: isBoolean
 };
 
 const habitEntryRules = {

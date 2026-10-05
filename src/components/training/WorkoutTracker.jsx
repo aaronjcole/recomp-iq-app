@@ -35,6 +35,7 @@ import {
   X
 } from "lucide-react";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
+import { elapsedSecondsSince } from "@/lib/workoutTimer";
 
 const STORAGE_KEY = "recomp_active_workout";
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -96,10 +97,7 @@ export default function WorkoutTracker() {
   const [activeSession, setActiveSession] = useState(stored);
 
   // Timer
-  const [elapsed, setElapsed] = useState(() => {
-    if (!stored?.startTime) return 0;
-    return Math.floor((Date.now() - stored.startTime) / 1000);
-  });
+  const [elapsed, setElapsed] = useState(() => elapsedSecondsSince(stored?.startTime));
   const timerRef = useRef(null);
 
   // Review phase state (hydrated from activeSession when entering review)
@@ -117,12 +115,16 @@ export default function WorkoutTracker() {
 
   const isActive = !!activeSession && !reviewing;
 
+  const sessionStartTime = activeSession?.startTime ?? null;
+  const syncElapsed = useCallback(() => {
+    setElapsed(elapsedSecondsSince(sessionStartTime));
+  }, [sessionStartTime]);
+
   const startTimer = useCallback(() => {
     clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setElapsed((prev) => prev + 1);
-    }, 1000);
-  }, []);
+    syncElapsed();
+    timerRef.current = setInterval(syncElapsed, 1000);
+  }, [syncElapsed]);
 
   const stopTimer = useCallback(() => {
     clearInterval(timerRef.current);
@@ -133,6 +135,17 @@ export default function WorkoutTracker() {
     else stopTimer();
     return stopTimer;
   }, [isActive, startTimer, stopTimer]);
+
+  // Timers may not fire at all while hidden; catch up as soon as the page is
+  // visible again instead of waiting for the next tick.
+  useEffect(() => {
+    if (!isActive) return undefined;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") syncElapsed();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [isActive, syncElapsed]);
 
   // Sync active session changes to localStorage
   const updateSession = useCallback((updater) => {
@@ -212,7 +225,9 @@ export default function WorkoutTracker() {
 
   const enterReview = () => {
     if (!activeSession) return;
-    const durationMin = Math.round(elapsed / 60);
+    const elapsedNow = elapsedSecondsSince(activeSession.startTime);
+    setElapsed(elapsedNow);
+    const durationMin = Math.round(elapsedNow / 60);
     setReviewType(activeSession.type);
     setReviewTitle("");
     setReviewRpe("");
