@@ -54,3 +54,13 @@ Base44 publishes from the dashboard, and merging only synced the code. Work top 
 ## Known one-way effects
 - **Old photos** have no `AnalysisUpload` record, so they can't be re-analysed; users have to add them again.
 - **Referrals** from accounts older than 7 days are no longer attributed.
+
+## Follow-up: the test-debt PR
+The test-debt PR moves logic out of four functions into new shared modules, with the same behavior:
+- `upsertTrackingRecord` → `base44/shared/trackingRecordPersistence.js`
+- `ensureDefaultHabits` → `base44/shared/defaultHabitsProvisioning.js`
+- `appleStoreNotification` → `base44/shared/appleNotificationDomain.js`
+- `verifyApplePurchase` → `base44/shared/applePurchaseDomain.js`
+
+After it merges:
+- [ ] **Republish those four functions** with their new shared modules. Nothing else needs a deploy for it. It can go out with the steps above or separately.
