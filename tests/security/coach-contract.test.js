@@ -66,3 +66,11 @@ test("AI reports contain bounded AI output and no user context", () => {
   assert.deepEqual(Object.keys(request), ["messageId", "category", "reason", "reportedContent"]);
   assert.equal(toCoachHistory([{ role: "system", content: "private" }]).length, 0);
 });
+
+test("the unsafe-reply filter catches pain phrasing with and without an intensity word", async () => {
+  const { isUnsafeCoachReply } = await import("../../base44/shared/coachDomain.js");
+  for (const phrase of ["train through pain", "train through sharp pain", "train through severe pain"]) {
+    assert.equal(isUnsafeCoachReply({ summary: `You should ${phrase} today.` }), true, phrase);
+  }
+  assert.equal(isUnsafeCoachReply({ summary: "Stop if you feel sharp pain and rest." }), false);
+});

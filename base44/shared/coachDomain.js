@@ -53,7 +53,7 @@ const PROFESSIONAL_INPUT_PATTERNS = [
 const UNSAFE_REPLY_PATTERNS = [
   /\b(?:kill yourself|hurt yourself|self[- ]harm)\b/i,
   /\b(?:purge|make yourself vomit|starve yourself|stop eating)\b/i,
-  /\b(?:ignore (?:the )?pain|train through (?:sharp|severe )?pain)\b/i,
+  /\b(?:ignore (?:the )?pain|train through (?:(?:sharp|severe) )?pain)\b/i,
   /\b(?:stop taking|quit) (?:your )?(?:medication|prescription)\b/i,
   /\b(?:punish yourself|punishment workout|burn off (?:the )?(?:food|calories))\b/i,
   /\b(?:skip all meals|fast for \d+ days?)\b/i,
