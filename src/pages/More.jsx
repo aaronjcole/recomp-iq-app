@@ -4,7 +4,7 @@ import { useRecomp } from "@/lib/RecompContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/lib/useTheme";
 import { GOAL_LABELS } from "@/lib/fitness";
-import { base44 } from "@/api/base44Client";
+import { signOut } from "@/lib/signOut";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
@@ -163,7 +163,7 @@ export default function More() {
   const handlers = {
     checkin: runCheck,
     reload: () => reload(),
-    logout: () => base44.auth.logout(window.location.origin),
+    logout: () => signOut(window.location.origin),
     support: () => navigate("/support"),
     deleteAccount: () => navigate("/delete-account"),
     privacy: () => navigate("/privacy"),

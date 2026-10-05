@@ -94,7 +94,7 @@ export default function BodyCompositionScan() {
       const entries = await Promise.all(
         POSES.map(async ({ key }) => [
           key,
-          await uploadPrivateAnalysisImage(base44.integrations.Core, photos[key].file)
+          await uploadPrivateAnalysisImage(base44.functions, photos[key].file, "body_composition")
         ])
       );
       const response = await base44.functions.invoke("analyzeBodyComposition", {

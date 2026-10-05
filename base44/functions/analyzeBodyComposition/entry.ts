@@ -17,6 +17,10 @@ import {
   quotaRetryAfterSeconds,
   reserveFeatureRequest
 } from "../../shared/coachRateLimitDomain.js";
+import {
+  PhotoReferenceOwnershipError,
+  verifyPhotoReferenceOwnership
+} from "../../shared/analysisUploadDomain.js";
 
 const MAX_REQUEST_BYTES = 10_000;
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -134,6 +138,16 @@ export default async function(req) {
       );
     }
 
+    // The service role can sign any private file in the app, so every pose is
+    // signed only when uploadAnalysisPhoto recorded this account as its
+    // uploader. Another user's file_uri is refused (403 below) even if it
+    // was learned.
+    await verifyPhotoReferenceOwnership(
+      base44.asServiceRole.entities.AnalysisUpload,
+      user.id,
+      Object.values(request.photoRefs)
+    );
+
     const fileUrls = await Promise.all(
       ["front", "side", "back"].map(async (pose) => {
         const signed = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
@@ -153,6 +167,10 @@ export default async function(req) {
     });
     return json(normalizeBodyCompositionResult(rawResult, profile.current_weight_lbs));
   } catch (error) {
+    if (error instanceof PhotoReferenceOwnershipError) {
+      const ownershipMessage = "These photos were not uploaded by your account. Add them again.";
+      return json({ error: ownershipMessage, message: ownershipMessage }, { status: 403 });
+    }
     if (error instanceof BodyCompositionRequestError) {
       return json({ error: error.message }, { status: 502 });
     }

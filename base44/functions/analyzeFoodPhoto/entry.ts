@@ -7,6 +7,10 @@ import {
 } from "../../shared/foodPhotoDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 import {
+  PhotoReferenceOwnershipError,
+  verifyPhotoReferenceOwnership
+} from "../../shared/analysisUploadDomain.js";
+import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
@@ -90,10 +94,20 @@ export default async function(req) {
       );
     }
 
-    // The client uploads the photo to private storage (UploadPrivateFile) and
-    // passes the opaque file_uri here. The server creates the short-lived
-    // signed link and runs the vision LLM call under the service role so the
-    // credit-consuming integration never runs from the browser.
+    // The service role can sign any private file in the app, so the reference
+    // is signed only when uploadAnalysisPhoto recorded this account as its
+    // uploader. Another user's file_uri is refused (403 below) even if it
+    // was learned.
+    await verifyPhotoReferenceOwnership(
+      base44.asServiceRole.entities.AnalysisUpload,
+      user.id,
+      [photoUri]
+    );
+
+    // uploadAnalysisPhoto stores the photo in private storage and returns the
+    // opaque file_uri the client passes here. The server creates the
+    // short-lived signed link and runs the vision LLM call under the service
+    // role so the credit-consuming integration never runs from the browser.
     const signed = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
       file_uri: photoUri,
       expires_in: SIGNED_URL_TTL_SECONDS
@@ -108,6 +122,10 @@ export default async function(req) {
     });
     return json(normalizeFoodPhotoResult(rawResult));
   } catch (error) {
+    if (error instanceof PhotoReferenceOwnershipError) {
+      const ownershipMessage = "This photo was not uploaded by your account. Take the photo again.";
+      return json({ error: ownershipMessage, message: ownershipMessage }, { status: 403 });
+    }
     if (error instanceof FoodPhotoRequestError) {
       return json({ error: error.message }, { status: 502 });
     }

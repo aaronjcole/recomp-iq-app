@@ -116,7 +116,7 @@ function idFromEntityUrl(url) {
  * admins every row, so an unscoped query is rejected here as a contract bug.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[], functionErrors?: Record<string, number> }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[], functionErrors?: Record<string, number>, analysisUploads?: string[], foodPhotoResult?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
@@ -142,6 +142,11 @@ export async function installAuthenticatedBase44(page, options = {}) {
   // Function name -> HTTP status, to force a backend function to fail.
   const functionErrors = options.functionErrors ?? {};
   let privateUploadCount = 0;
+  // Mirrors the AnalysisUpload records uploadAnalysisPhoto writes: the analyze
+  // functions only accept references this signed-in user uploaded.
+  const analysisUploads = new Set(options.analysisUploads ?? []);
+  const refuseUnownedRefs = (refs) =>
+    refs.length === 0 || refs.some((ref) => typeof ref !== "string" || !analysisUploads.has(ref));
 
   await page.addInitScript(() => {
     try {
@@ -167,7 +172,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (url.includes("/analytics/")) return route.fulfill({ status: 204, body: "" });
     if (/\/entities\/User\/me\b/.test(url)) return json(user);
 
-    if (url.includes("/integration-endpoints/Core/UploadPrivateFile")) {
+    if (url.includes("/functions/uploadAnalysisPhoto")) {
       if (method !== "POST") return json({ error: "Method not allowed" }, 405);
       privateUploadCount += 1;
       // Derive the reference from the uploaded filename rather than from arrival
@@ -180,7 +185,9 @@ export async function installAuthenticatedBase44(page, options = {}) {
       const slug = uploadedName
         ? uploadedName.replace(/\.[^.]+$/, "")
         : `upload-${privateUploadCount}`;
-      return json({ file_uri: `private/user-test/${slug}.png` });
+      const fileUri = `private/${user.id}/${slug}.png`;
+      analysisUploads.add(fileUri);
+      return json({ file_uri: fileUri });
     }
 
     const entityMatch = url.match(/\/entities\/([A-Za-z0-9_]+)/);
@@ -251,7 +258,19 @@ export async function installAuthenticatedBase44(page, options = {}) {
       }
       if (url.includes("/functions/analyzeBodyComposition")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        if (refuseUnownedRefs(Object.values(readBody(request).photoRefs ?? {}))) {
+          return json({ error: "These photos were not uploaded by your account." }, 403);
+        }
         return json(bodyCompositionResult);
+      }
+      if (url.includes("/functions/analyzeFoodPhoto")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        if (refuseUnownedRefs([readBody(request).photoUri])) {
+          return json({ error: "This photo was not uploaded by your account." }, 403);
+        }
+        return json(options.foodPhotoResult ?? {
+          name: "Grilled chicken bowl", calories: 520, protein_g: 42, carbs_g: 48, fat_g: 16
+        });
       }
       // Mirror upsertTrackingRecord: the saved record has the request's
       // `fields` flattened onto it (value/done for a habit, macros for a log),

@@ -708,11 +708,13 @@ test("a Premium tester sees the deploy-enabled AI body-composition range in Prog
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZfN8AAAAASUVORK5CYII=",
     "base64"
   );
-  const uploadResponses = [];
-  page.on("response", (response) => {
-    if (response.url().includes("/integration-endpoints/Core/UploadPrivateFile")) {
-      uploadResponses.push(response);
-    }
+  const uploadRequests = [];
+  const directUploads = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/functions/uploadAnalysisPhoto")) uploadRequests.push(request);
+    // A direct browser upload has no server-written AnalysisUpload record, so
+    // the analyze function would refuse it.
+    if (request.url().includes("/integration-endpoints/Core/UploadPrivateFile")) directUploads.push(request);
   });
 
   await page.goto("/progress");
@@ -747,7 +749,15 @@ test("a Premium tester sees the deploy-enabled AI body-composition range in Prog
       back: "private/user-test/pose-2.png"
     }
   });
-  expect(uploadResponses).toHaveLength(3);
+  // Each photo went through the ownership-recording upload function (which the
+  // mock, like the backend, requires before it analyzes a reference).
+  expect(uploadRequests).toHaveLength(3);
+  for (const upload of uploadRequests) {
+    expect(upload.method()).toBe("POST");
+    expect(upload.postData() ?? "").toContain('name="purpose"');
+    expect(upload.postData() ?? "").toContain("body_composition");
+  }
+  expect(directUploads).toHaveLength(0);
   await expect(page.getByText("18–22%")).toBeVisible();
   await expect(page.getByText("141.2–148.4 lb")).toBeVisible();
   await expect(page.getByText(/three views support a broad visual estimate/i)).toBeVisible();

@@ -43,6 +43,7 @@ export const ACCOUNT_DELETION_CASCADE = Object.freeze([
   { entity: "UserProfile", filter: byCreator },
 
   { entity: "AiContentReport", filter: byOwner },
+  { entity: "AnalysisUpload", filter: byOwner },
   { entity: "CoachRequestUsage", filter: byOwner },
   { entity: "PremiumEntitlement", filter: byOwner },
   { entity: "PushDevice", filter: byOwner },
