@@ -100,16 +100,39 @@ export default async function(req) {
 
     if (!existing?.length) return json({ ok: true });
 
+    // Apple may deliver notifications late, retried, or out of order, and
+    // there is no stored "last applied signedDate", so ordering is enforced
+    // through expires_at: a renewal only ever moves expiry forward, and an
+    // expiration for an older period than the one on record is ignored.
+    const txnExpiresMs = Number(transactionInfo.expiresDate);
+    const txnRevoked = Boolean(transactionInfo.revocationDate || transactionInfo.revocationReason);
+
     for (const record of existing) {
+      const recordExpiresMs = record.expires_at ? Date.parse(record.expires_at) : NaN;
+
       if (REVOKE_TYPES.has(notificationType)) {
+        if (record.status === "revoked") continue;
         await base44.asServiceRole.entities.PremiumEntitlement.update(record.id, { status: "revoked" });
       } else if (EXPIRE_TYPES.has(notificationType)) {
+        // Never downgrade a revoked record, and ignore a stale EXPIRED for a
+        // period that a later renewal has already superseded.
+        if (record.status !== "active") continue;
+        if (
+          Number.isFinite(recordExpiresMs) &&
+          Number.isFinite(txnExpiresMs) &&
+          recordExpiresMs > txnExpiresMs
+        ) continue;
         await base44.asServiceRole.entities.PremiumEntitlement.update(record.id, { status: "expired" });
-      } else if (notificationType === "DID_RENEW" && transactionInfo.expiresDate) {
-        const expiresAt = new Date(Number(transactionInfo.expiresDate)).toISOString();
+      } else if (notificationType === "DID_RENEW" && Number.isFinite(txnExpiresMs) && txnExpiresMs > 0) {
+        // A refunded/revoked entitlement is never re-activated by a renewal
+        // notification, and a revoked transaction never renews.
+        if (record.status === "revoked" || txnRevoked) continue;
+        // Only move expiry forward; an older (replayed or reordered) renewal
+        // must not shorten access or flip an expired record back on.
+        if (Number.isFinite(recordExpiresMs) && txnExpiresMs <= recordExpiresMs) continue;
         await base44.asServiceRole.entities.PremiumEntitlement.update(record.id, {
           status: "active",
-          expires_at: expiresAt
+          expires_at: new Date(txnExpiresMs).toISOString()
         });
       }
     }
