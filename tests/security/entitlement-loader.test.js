@@ -195,7 +195,8 @@ test("swapAdaptiveMeal checks meal-planning Premium before reading the request",
   const source = functionSources.find((f) => f.name === "swapAdaptiveMeal").source;
   const auth = source.indexOf("base44.auth.me()");
   const gate = source.indexOf("PREMIUM_FEATURES.MEAL_PLANNING");
-  const locked = source.indexOf("status: 403");
+  // The 403 is either `status: 403` or the file's failure(message, 403) helper.
+  const locked = source.search(/status: 403|, 403\)/);
   const body = source.indexOf("req.json()");
   assert.ok(auth >= 0 && auth < gate && gate < locked && locked < body);
 });
