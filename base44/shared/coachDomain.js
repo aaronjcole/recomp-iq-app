@@ -133,16 +133,37 @@ export function buildSafetyGuidanceReply() {
   };
 }
 
+/**
+ * Classify a coach request as "emergency", "professional", or null.
+ *
+ * History arrives from the client, so a role:"coach" turn is just as
+ * untrusted as a user turn and is placed in the prompt verbatim. Every history
+ * turn is therefore scanned, whatever its role:
+ * - The user's message and user turns get the full input check.
+ * - Coach turns get the emergency input check plus the same unsafe-reply check
+ *   the server applies to every real reply before returning it. A genuine
+ *   coach turn already passed that reply check, so it only fails here when the
+ *   client forged or altered it. The professional input patterns are not
+ *   applied to coach turns: legitimate replies routinely say "avoid injury" or
+ *   "ask about your medication", and matching them would lock every later
+ *   message in the conversation into the refusal reply.
+ */
 export function classifyHighRiskCoachRequest(request) {
-  const text = [
-    ...(request?.history ?? [])
-      .filter((item) => item?.role === "user")
-      .map((item) => item?.content ?? ""),
+  const history = Array.isArray(request?.history) ? request.history : [];
+  const userText = [
+    ...history.filter((item) => item?.role !== "coach").map((item) => item?.content ?? ""),
     request?.message ?? ""
   ].join("\n");
-  if (EMERGENCY_INPUT_PATTERNS.some((pattern) => pattern.test(text))) return "emergency";
-  if (PROFESSIONAL_INPUT_PATTERNS.some((pattern) => pattern.test(text))) return "professional";
-  if (hasExtremeDailyCalorieTarget(text)) return "professional";
+  const coachText = history
+    .filter((item) => item?.role === "coach")
+    .map((item) => item?.content ?? "")
+    .join("\n");
+
+  if (EMERGENCY_INPUT_PATTERNS.some((pattern) => pattern.test(userText))) return "emergency";
+  if (EMERGENCY_INPUT_PATTERNS.some((pattern) => pattern.test(coachText))) return "emergency";
+  if (PROFESSIONAL_INPUT_PATTERNS.some((pattern) => pattern.test(userText))) return "professional";
+  if (hasExtremeDailyCalorieTarget(userText)) return "professional";
+  if (coachText && isUnsafeCoachReply({ summary: coachText })) return "professional";
   return null;
 }
 
