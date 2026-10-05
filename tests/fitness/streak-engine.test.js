@@ -179,3 +179,88 @@ test("missing strategy returns all zeros", () => {
   assert.equal(stats.longest, 0);
   assert.equal(stats.lastBroken, 0);
 });
+
+// --- Longest streak uses the same freeze rule as the current streak ---
+
+function logsFromPattern(pattern) {
+  // pattern is oldest → newest, ending today: "H" hit, "M" logged miss, "." unlogged
+  const logs = [];
+  const n = pattern.length;
+  for (let idx = 0; idx < n; idx++) {
+    const offset = n - 1 - idx;
+    if (pattern[idx] === "H") logs.push(hitDay(daysAgo(offset)));
+    else if (pattern[idx] === "M") logs.push(missDay(daysAgo(offset)));
+  }
+  return logs;
+}
+
+test("longest matches current when the freeze is earned by the newer five hits", () => {
+  // oldest → newest: hit, hit, miss, hit×5 (today). Previously current 8, longest 5.
+  const stats = calculateStreakStats(logsFromPattern("HHMHHHHH"), STRATEGY);
+  assert.equal(stats.current, 8);
+  assert.equal(stats.longest, 8, "Best can never read lower than the live streak");
+  assert.equal(stats.frozenDate, daysAgo(5));
+});
+
+test("mirror case: five older hits before a miss do not earn a freeze", () => {
+  // oldest → newest: hit×5, miss, hit, hit (today). Only 2 hits sit after the
+  // miss, so neither the current nor the historical run bridges it.
+  const stats = calculateStreakStats(logsFromPattern("HHHHHMHH"), STRATEGY);
+  assert.equal(stats.current, 2);
+  assert.equal(stats.longest, 5);
+  assert.equal(stats.freezeUsed, false);
+});
+
+test("longest streak across history applies the freeze to an older run", () => {
+  // older run: hit, miss, hit×5, then a gap, then a current run of 2
+  const stats = calculateStreakStats(logsFromPattern("HMHHHHH.HH"), STRATEGY);
+  assert.equal(stats.current, 2);
+  assert.equal(stats.longest, 7);
+});
+
+// Reference implementation over the pattern: try every hit as a run end.
+function referenceLongest(pattern) {
+  let best = 0;
+  for (let end = pattern.length - 1; end >= 0; end--) {
+    if (pattern[end] !== "H") continue;
+    let length = 0;
+    let freeze = false;
+    for (let j = end; j >= 0; j--) {
+      if (pattern[j] === "H") {
+        length++;
+      } else if (pattern[j] === "M" && !freeze && length >= 5) {
+        freeze = true;
+        length++;
+      } else {
+        break;
+      }
+    }
+    best = Math.max(best, length);
+  }
+  return best;
+}
+
+test("property: longest >= current over many random histories", () => {
+  // Deterministic LCG so failures are reproducible.
+  let seed = 12345;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  for (let trial = 0; trial < 1500; trial++) {
+    const len = 1 + Math.floor(rand() * 30);
+    const missRate = rand() * 0.4;
+    const gapRate = rand() * 0.15;
+    let pattern = "";
+    for (let k = 0; k < len; k++) {
+      const r = rand();
+      pattern += r < gapRate ? "." : r < gapRate + missRate ? "M" : "H";
+    }
+    const stats = calculateStreakStats(logsFromPattern(pattern), STRATEGY);
+    assert.ok(
+      stats.longest >= stats.current,
+      `pattern ${pattern}: longest ${stats.longest} < current ${stats.current}`
+    );
+    assert.equal(stats.longest, referenceLongest(pattern), `pattern ${pattern}`);
+  }
+});

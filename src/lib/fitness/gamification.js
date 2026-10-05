@@ -89,11 +89,14 @@ export function hitTargets(log, strategy) {
 
 const FREEZE_THRESHOLD = 5;
 
-function scanRunBackward(byDate, strategy, startOffset) {
+// Walks back from `startOffset` days ago. The freeze absorbs one miss only when
+// at least FREEZE_THRESHOLD hits sit on the newer side of it, so a run's
+// length depends on where it ends — the longest-streak search reuses this.
+function scanRunBackward(byDate, strategy, startOffset, maxOffset = 399) {
   let length = 0;
   let freezeUsed = false;
   let frozenDate = null;
-  for (let i = startOffset; i < 400; i++) {
+  for (let i = startOffset; i <= maxOffset; i++) {
     const log = byDate.get(daysAgoKey(i));
     if (log && hitTargets(log, strategy)) {
       length++;
@@ -112,6 +115,12 @@ function scanRunBackward(byDate, strategy, startOffset) {
   return { length, freezeUsed, frozenDate };
 }
 
+// Best run across the full history, using the same freeze rule as the current
+// streak: each candidate run end is scanned backward. Only hit days whose newer
+// neighbour is not a hit need trying — starting one day older than another hit
+// never yields a longer run (it sees the same days with one fewer hit, so the
+// freeze is never available sooner). Each scan stops at the second miss or the
+// first gap, so total work stays roughly linear in the history length.
 function calculateLongestStreak(byDate, strategy) {
   if (byDate.size === 0) return 0;
   const sorted = [...byDate.keys()].sort();
@@ -119,28 +128,17 @@ function calculateLongestStreak(byDate, strategy) {
     (new Date(localTodayKey() + "T00:00:00").getTime() - new Date(sorted[0] + "T00:00:00").getTime()) / 86400000
   );
   let longest = 0;
-  let run = 0;
-  let freezeUsed = false;
-  for (let i = spanDays; i >= 0; i--) {
+  let newerWasHit = false;
+  for (let i = 0; i <= spanDays; i++) {
     const log = byDate.get(daysAgoKey(i));
-    if (log && hitTargets(log, strategy)) {
-      run++;
-    } else if (log && !hitTargets(log, strategy)) {
-      if (!freezeUsed && run >= FREEZE_THRESHOLD) {
-        freezeUsed = true;
-        run++;
-      } else {
-        if (run > longest) longest = run;
-        run = 0;
-        freezeUsed = false;
-      }
-    } else {
-      if (run > longest) longest = run;
-      run = 0;
-      freezeUsed = false;
+    const isHit = Boolean(log) && hitTargets(log, strategy);
+    if (isHit && !newerWasHit) {
+      const { length } = scanRunBackward(byDate, strategy, i, spanDays);
+      if (length > longest) longest = length;
     }
+    newerWasHit = isHit;
   }
-  return Math.max(longest, run);
+  return longest;
 }
 
 function findLastBrokenRun(byDate, strategy) {
@@ -173,7 +171,9 @@ export function calculateStreakStats(logs, strategy) {
   const current = currentRun.length;
   return {
     current,
-    longest: calculateLongestStreak(byDate, strategy),
+    // The current run is always a candidate; max() keeps "Best" from ever
+    // reading lower than the live streak.
+    longest: Math.max(calculateLongestStreak(byDate, strategy), current),
     lastBroken: current === 0 ? findLastBrokenRun(byDate, strategy) : 0,
     freezeUsed: currentRun.freezeUsed,
     freezeArmed: current >= FREEZE_THRESHOLD && !currentRun.freezeUsed,
