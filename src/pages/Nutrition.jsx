@@ -99,12 +99,14 @@ export default function Nutrition() {
       });
       return;
     }
-    await upsertDailyLog(selectedDate, (current) => ({
-      calories: (current?.calories ?? 0) + (food.calories ?? 0),
-      protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
-      carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
-      fat_g: (current?.fat_g ?? 0) + (food.fat_g ?? 0)
-    }));
+    await upsertDailyLog(selectedDate, null, {
+      increments: {
+        calories: food.calories ?? 0,
+        protein_g: food.protein_g ?? 0,
+        carbs_g: food.carbs_g ?? 0,
+        fat_g: food.fat_g ?? 0
+      }
+    });
   };
 
   useEffect(() => {

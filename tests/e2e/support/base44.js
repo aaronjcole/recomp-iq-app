@@ -1,5 +1,9 @@
 import { expect } from "@playwright/test";
 import {
+  normalizeTrackingRequest,
+  reconcileTrackingRecords
+} from "../../../base44/shared/trackingRecordDomain.js";
+import {
   AUTH_USER,
   ADAPTIVE_MEAL_PLAN,
   ADAPTIVE_TRAINING_BLOCK,
@@ -112,7 +116,7 @@ function idFromEntityUrl(url) {
  * admins every row, so an unscoped query is rejected here as a contract bug.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[] }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
@@ -134,6 +138,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
   const trainingBlock = options.trainingBlock ?? ADAPTIVE_TRAINING_BLOCK;
   const autopilotReview = options.autopilotReview ?? WEEKLY_AUTOPILOT_REVIEW;
   const bodyCompositionResult = options.bodyCompositionResult ?? BODY_COMPOSITION_RESULT;
+  const failingEntities = new Set(options.failingEntities ?? []);
   let privateUploadCount = 0;
 
   await page.addInitScript(() => {
@@ -180,6 +185,9 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (entityMatch) {
       const name = entityMatch[1];
       const rows = entities[name] ?? [];
+      if (method === "GET" && failingEntities.has(name)) {
+        return json({ error: `${name} is unavailable` }, 503);
+      }
       if (method === "GET") {
         const recordId = idFromEntityUrl(url);
         if (recordId) {
@@ -238,6 +246,34 @@ export async function installAuthenticatedBase44(page, options = {}) {
       // `fields` flattened onto it (value/done for a habit, macros for a log),
       // so an optimistic write reconciles instead of reverting.
       const body = readBody(request);
+      if (body.kind === "daily_log") {
+        // Run the function's own request and reconcile logic against the
+        // fixture rows so `fields` replace values and `increments` add to the
+        // stored totals exactly as upsertTrackingRecord does.
+        let tracking;
+        try {
+          tracking = normalizeTrackingRequest(body, user.id);
+        } catch (error) {
+          return json({ error: error.message }, 400);
+        }
+        entities.DailyLog = entities.DailyLog ?? [];
+        const existing = entities.DailyLog.filter((row) => matchesQuery(row, tracking.query));
+        const stored = existing.length
+          ? existing
+          : [{ id: `DailyLog-e2e-${body.date}`, ...tracking.createData, created_by_id: user.id, created_date: new Date().toISOString() }];
+        const { canonical, fields } = reconcileTrackingRecords(
+          stored,
+          tracking.fields,
+          tracking.mutableFields,
+          tracking.increments
+        );
+        const saved = { ...canonical, ...fields };
+        entities.DailyLog = [
+          saved,
+          ...entities.DailyLog.filter((row) => !stored.some((item) => item.id === row.id))
+        ];
+        return json({ record: saved });
+      }
       const record = { id: "record-e2e", habit_id: body.habit_id, date: body.date, ...(body.fields || {}) };
       // The function's HTTP body is { record }; the SDK's invoke() wraps it as
       // { data: <body> }, which is why callers read result.data.record.
@@ -249,6 +285,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
     // is exactly the kind of regression this oracle should surface.
     return json({ error: `Unhandled Base44 mock route: ${method} ${url}` }, 404);
   });
+
+  // Tests that simulate another device writing to the backend mutate these
+  // rows directly; the app only sees the change through its own requests.
+  return { entities, user };
 }
 
 /**

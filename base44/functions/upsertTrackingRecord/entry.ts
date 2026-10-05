@@ -63,7 +63,8 @@ async function persistTrackingRecord(base44, user, request) {
   const { canonical, duplicates, fields, unsetFields } = reconcileTrackingRecords(
     records,
     request.fields,
-    request.mutableFields
+    request.mutableFields,
+    request.increments
   );
   if (!canonical?.id) throw new Error("The tracking record could not be resolved");
 

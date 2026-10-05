@@ -22,6 +22,35 @@ import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggin
 import { Ctx, RefCtx, ActionsCtx, HabitsCtx } from "@/lib/recompContexts";
 
 const FOOD_TOTAL_FIELDS = ["calories", "protein_g", "carbs_g", "fat_g"];
+const HISTORY_RETRY_DELAYS_MS = [2000, 5000, 15000];
+
+function roundNutrition(value) {
+  return Math.round(value * 10) / 10;
+}
+
+// Mirrors the server's increment rule in base44/shared/trackingRecordDomain.js
+// (floored at 0) so the optimistic value matches what the server will store.
+function applyNutritionIncrements(base, increments) {
+  const next = {};
+  for (const [field, amount] of Object.entries(increments ?? {})) {
+    next[field] = roundNutrition(Math.max(0, (Number(base?.[field]) || 0) + (Number(amount) || 0)));
+  }
+  return next;
+}
+
+function sumNutritionIncrements(list) {
+  const total = {};
+  for (const increments of list) {
+    for (const [field, amount] of Object.entries(increments ?? {})) {
+      total[field] = (total[field] ?? 0) + (Number(amount) || 0);
+    }
+  }
+  return total;
+}
+
+function negateIncrements(increments) {
+  return Object.fromEntries(Object.entries(increments ?? {}).map(([field, amount]) => [field, -amount]));
+}
 
 function foodTotals(items) {
   return FOOD_TOTAL_FIELDS.reduce((totals, field) => {
@@ -185,6 +214,8 @@ export function RecompProvider({ children }) {
   const dailyQueues = useRef(new Map());
   const habitQueues = useRef(new Map());
   const loadedDates = useRef(new Set());
+  const historyRetryTimer = useRef(null);
+  useEffect(() => () => clearTimeout(historyRetryTimer.current), []);
 
   // Keep the owner current for stable callbacks. Declared before the load
   // effect so the first load already sees the signed-in user's id.
@@ -265,6 +296,9 @@ export function RecompProvider({ children }) {
   const loadInitial = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    // loadInitial replaces date-scoped state with the current week, so any
+    // older date fetched on demand must be fetched again when next selected.
+    loadedDates.current = new Set();
     const weekStart = getCurrentWeekStart();
     try {
       const results = await Promise.all([
@@ -338,8 +372,12 @@ export function RecompProvider({ children }) {
   // plus WeeklyCheckIn and DecisionLedger. Merges WITHOUT overwriting newer
   // local or current-week state. Failures are logged but never block Today
   // or prevent logging.
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (attempt = 0) => {
     const weekStart = getCurrentWeekStart();
+    if (attempt === 0) {
+      clearTimeout(historyRetryTimer.current);
+      setHistoryLoaded(false);
+    }
     try {
       const results = await Promise.all([
         base44.entities.DailyLog.filter(own({ date: { $lt: weekStart } }), "-date", 500),
@@ -366,7 +404,15 @@ export function RecompProvider({ children }) {
         const existingIds = new Set(prev.map((s) => s.id));
         return [...prev, ...results[2].filter((s) => !existingIds.has(s.id))];
       });
-      setCheckIns(results[3]);
+      // Merge by id: a check-in created while this request was in flight
+      // must not be dropped by the older snapshot.
+      setCheckIns((prev) => {
+        const byId = new Map(results[3].map((item) => [item.id, item]));
+        for (const item of prev) byId.set(item.id, item);
+        return [...byId.values()].sort((a, b) =>
+          String(b.created_date ?? b.end_date ?? "").localeCompare(String(a.created_date ?? a.end_date ?? ""))
+        );
+      });
       setDecisionLedger(results[4]);
       setHabitEntriesCurrent((prev) => {
         const existingKeys = new Set(prev.map((e) => `${e.habit_id}:${e.date}`));
@@ -383,9 +429,18 @@ export function RecompProvider({ children }) {
       }
       setHistoryLoaded(true);
     } catch (error) {
-      // Background history failure must not block Today or prevent logging.
-      console.warn("Background history load failed; retrying unobtrusively.", error);
-      setHistoryLoaded(true);
+      // Background history failure must not block Today or prevent logging,
+      // but it must not be reported as loaded either: trends and the weekly
+      // check-in would otherwise run on the current week alone.
+      if (attempt < HISTORY_RETRY_DELAYS_MS.length) {
+        console.warn("Background history load failed; retrying.", error);
+        historyRetryTimer.current = setTimeout(
+          () => loadHistory(attempt + 1),
+          HISTORY_RETRY_DELAYS_MS[attempt]
+        );
+      } else {
+        console.warn("Background history load failed after retries.", error);
+      }
     }
   }, [own, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
@@ -545,14 +600,52 @@ export function RecompProvider({ children }) {
     [strategy]
   );
 
+  // Nutrition increments this client has sent (or queued) per date that the
+  // server has not answered yet.
+  const pendingIncrements = useRef(new Map());
+  const nextIncrementId = useRef(0);
+  const trackPendingIncrement = useCallback((date, increments) => {
+    const id = nextIncrementId.current++;
+    if (!pendingIncrements.current.has(date)) pendingIncrements.current.set(date, new Map());
+    pendingIncrements.current.get(date).set(id, increments);
+    return id;
+  }, []);
+  const settlePendingIncrement = useCallback((date, id) => {
+    const forDate = pendingIncrements.current.get(date);
+    if (!forDate) return;
+    forDate.delete(id);
+    if (forDate.size === 0) pendingIncrements.current.delete(date);
+  }, []);
+  const pendingIncrementsFor = useCallback(
+    (date) => sumNutritionIncrements([...(pendingIncrements.current.get(date)?.values() ?? [])]),
+    []
+  );
+
+  // `options.increments` adjusts nutrition totals by a signed amount instead
+  // of setting them. The server adds the increment to its stored value, so a
+  // stale or partially loaded local copy of the day can never overwrite
+  // totals written from another device or before this date was loaded.
   const upsertDailyLog = useCallback(
-    (date, fieldsOrUpdater) => {
+    (date, fieldsOrUpdater, options = {}) => {
+      const increments = options.increments
+        ? Object.fromEntries(
+          Object.entries(options.increments).filter(([, amount]) => Number(amount) !== 0)
+        )
+        : null;
+      if (increments && Object.keys(increments).length === 0) {
+        return Promise.resolve(logsRef.current.find((item) => item.date === date) ?? null);
+      }
       const previousLocal = logsRef.current.find((item) => item.date === date) ?? null;
-      const fields =
-        typeof fieldsOrUpdater === "function"
+      const fields = increments
+        ? {}
+        : typeof fieldsOrUpdater === "function"
           ? fieldsOrUpdater(previousLocal)
           : fieldsOrUpdater;
-      const optimistic = mergeDefined(previousLocal ?? { date }, fields);
+      const optimistic = mergeDefined(
+        previousLocal ?? { date },
+        increments ? applyNutritionIncrements(previousLocal, increments) : fields
+      );
+      const incrementId = increments ? trackPendingIncrement(date, increments) : null;
 
       setLogsCurrent((previous) =>
         [optimistic, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
@@ -568,15 +661,29 @@ export function RecompProvider({ children }) {
             [...remote, ...(local ? [local] : [])],
             (item) => item.date
           )[0] ?? null;
-          const result = await base44.functions.invoke("upsertTrackingRecord", {
-            kind: "daily_log",
-            date,
-            fields
-          });
+          const body = increments ? { kind: "daily_log", date, increments } : { kind: "daily_log", date, fields };
+          const result = await base44.functions.invoke("upsertTrackingRecord", body);
           const response = result?.data?.record;
           if (!response?.id) throw new Error("The daily log update returned no record");
           const current = logsRef.current.find((item) => item.date === date) ?? null;
-          const saved = mergeDefined(mergeDefined(existing, response), current);
+          let saved = mergeDefined(mergeDefined(existing, response), current);
+          if (incrementId !== null) {
+            settlePendingIncrement(date, incrementId);
+            // The server's totals are authoritative. Re-apply only this
+            // client's increments that are still queued behind this one.
+            const pending = pendingIncrementsFor(date);
+            saved = {
+              ...saved,
+              ...applyNutritionIncrements(
+                response,
+                Object.fromEntries(
+                  FOOD_TOTAL_FIELDS
+                    .filter((field) => response[field] != null || pending[field])
+                    .map((field) => [field, pending[field] ?? 0])
+                )
+              )
+            };
+          }
           setLogsCurrent((previous) =>
             [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
               b.date.localeCompare(a.date)
@@ -601,6 +708,20 @@ export function RecompProvider({ children }) {
           }
           return saved;
         } catch (error) {
+          if (incrementId !== null) {
+            settlePendingIncrement(date, incrementId);
+            // Undo exactly this request's increment; later increments and
+            // edits already applied on top of it stay in place.
+            setLogsCurrent((previous) => {
+              const current = previous.find((item) => item.date === date) ?? null;
+              if (!current) return previous;
+              const reverted = { ...current, ...applyNutritionIncrements(current, negateIncrements(increments)) };
+              return [reverted, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
+                b.date.localeCompare(a.date)
+              );
+            });
+            throw error;
+          }
           setLogsCurrent((previous) => {
             const current = previous.find((item) => item.date === date) ?? null;
             if (!current) return previous;
@@ -627,7 +748,7 @@ export function RecompProvider({ children }) {
         }
       });
     },
-    [own, setLogsCurrent]
+    [own, pendingIncrementsFor, setLogsCurrent, settlePendingIncrement, trackPendingIncrement]
   );
 
   const upsertHabitEntry = useCallback(
@@ -928,12 +1049,15 @@ export function RecompProvider({ children }) {
   }, []);
 
   const adjustDailyNutrition = useCallback(
-    (date, delta) => upsertDailyLog(date, (current) =>
-      FOOD_TOTAL_FIELDS.reduce((fields, field) => {
-        fields[field] = Math.max(0, (Number(current?.[field]) || 0) + (Number(delta?.[field]) || 0));
-        return fields;
-      }, {})
-    ),
+    (date, delta) => {
+      const increments = Object.fromEntries(
+        FOOD_TOTAL_FIELDS
+          .map((field) => [field, Number(delta?.[field]) || 0])
+          .filter(([, amount]) => amount !== 0)
+      );
+      if (Object.keys(increments).length === 0) return Promise.resolve(null);
+      return upsertDailyLog(date, null, { increments });
+    },
     [upsertDailyLog]
   );
 
@@ -1059,12 +1183,12 @@ export function RecompProvider({ children }) {
   const logMealTemplate = useCallback(
     async (template, date = todayStr()) => {
       if (!featureFlags.itemizedFoodDiary) {
-        await upsertDailyLog(date, (current) => ({
-          calories: (current?.calories ?? 0) + (template.total_calories ?? 0),
-          protein_g: (current?.protein_g ?? 0) + (template.total_protein_g ?? 0),
-          carbs_g: (current?.carbs_g ?? 0) + (template.total_carbs_g ?? 0),
-          fat_g: (current?.fat_g ?? 0) + (template.total_fat_g ?? 0)
-        }));
+        await adjustDailyNutrition(date, {
+          calories: template.total_calories ?? 0,
+          protein_g: template.total_protein_g ?? 0,
+          carbs_g: template.total_carbs_g ?? 0,
+          fat_g: template.total_fat_g ?? 0
+        });
         return;
       }
       await logFoodEntries((template.items ?? []).map((item) => ({
@@ -1081,7 +1205,7 @@ export function RecompProvider({ children }) {
         source: "template"
       })));
     },
-    [logFoodEntries, upsertDailyLog]
+    [adjustDailyNutrition, logFoodEntries]
   );
 
   const addRecipe = useCallback(async (data) => {
@@ -1092,6 +1216,9 @@ export function RecompProvider({ children }) {
 
   const runCheckIn = useCallback(async () => {
     if (!profile || !strategy) return null;
+    // Until older history loads, logs hold the current week only and the
+    // trend would be computed from a few days.
+    if (!historyLoaded) return null;
     const prefs = preferences ?? { tone: "direct" };
     const { trend: t, adjustment } = runWeeklyCheckIn({ logs, profile, preferences: prefs, strategy });
     const manual = !!strategy.manual_override;
@@ -1129,7 +1256,7 @@ export function RecompProvider({ children }) {
     }
     setCheckIns((prev) => [checkIn, ...prev]);
     return { trend: t, adjustment, checkIn, manual, advisory: manual ? adjustment.nextStrategy : null };
-  }, [profile, strategy, preferences, logs, updateStrategy]);
+  }, [profile, strategy, preferences, logs, updateStrategy, historyLoaded]);
 
   // Actions are stable across data changes (they are all useCallback'd), so a
   // component that only calls actions never needs to re-render when state

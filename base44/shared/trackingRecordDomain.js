@@ -30,6 +30,13 @@ export const DAILY_LOG_FIELDS = Object.freeze([
 
 export const HABIT_ENTRY_FIELDS = Object.freeze(["value", "done"]);
 
+// Nutrition totals that food-diary writes adjust by a signed amount. The
+// server adds each increment to the stored value, so a client never sends an
+// absolute total computed from its own (possibly stale or partial) copy of
+// the day. Absolute values for these fields are still accepted in `fields`,
+// for a user typing their day's total directly.
+export const DAILY_LOG_INCREMENT_FIELDS = Object.freeze(["calories", "protein_g", "carbs_g", "fat_g"]);
+
 const dailyLogRules = {
   weight_lbs: nullable(numberBetween(40, 1200)),
   calories: nullable(numberBetween(0, 20000)),
@@ -97,6 +104,32 @@ function sanitizeFields(fields, rules) {
   return sanitized;
 }
 
+// An increment is bounded by the field's own range so a single request can
+// neither add nor remove more than a whole valid value.
+const incrementLimits = {
+  calories: 20000,
+  protein_g: 2000,
+  carbs_g: 3000,
+  fat_g: 2000
+};
+
+function sanitizeIncrements(increments) {
+  if (increments === undefined) return {};
+  if (!isRecord(increments)) throw new TrackingRequestError("increments must be an object");
+  const sanitized = {};
+  for (const [key, value] of Object.entries(increments)) {
+    if (!DAILY_LOG_INCREMENT_FIELDS.includes(key)) {
+      throw new TrackingRequestError(`Unsupported increment: ${key}`);
+    }
+    const limit = incrementLimits[key];
+    if (typeof value !== "number" || !Number.isFinite(value) || Math.abs(value) > limit) {
+      throw new TrackingRequestError(`Invalid increment for ${key}`);
+    }
+    if (value !== 0) sanitized[key] = value;
+  }
+  return sanitized;
+}
+
 function fieldsForCreate(fields) {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null));
 }
@@ -113,7 +146,19 @@ export function normalizeTrackingRequest(body, ownerId) {
   if (!isIsoDate(body.date)) throw new TrackingRequestError("date must be a valid YYYY-MM-DD value");
 
   if (body.kind === "daily_log") {
-    const fields = sanitizeFields(body.fields, dailyLogRules);
+    const hasIncrements = body.increments !== undefined;
+    const fields = hasIncrements && body.fields === undefined
+      ? {}
+      : sanitizeFields(body.fields, dailyLogRules);
+    const increments = sanitizeIncrements(body.increments);
+    if (hasIncrements && Object.keys(fields).length === 0 && Object.keys(increments).length === 0) {
+      throw new TrackingRequestError("At least one field or non-zero increment is required");
+    }
+    for (const key of Object.keys(increments)) {
+      if (Object.prototype.hasOwnProperty.call(fields, key)) {
+        throw new TrackingRequestError(`${key} cannot be both set and incremented`);
+      }
+    }
     return {
       kind: body.kind,
       date: body.date,
@@ -121,6 +166,7 @@ export function normalizeTrackingRequest(body, ownerId) {
       query: ownedQuery(owner, { date: body.date }),
       createData: { date: body.date, ...fieldsForCreate(fields) },
       fields,
+      increments,
       mutableFields: DAILY_LOG_FIELDS
     };
   }
@@ -162,7 +208,17 @@ function compareCreatedRecords(left, right) {
   return String(left?.id ?? "").localeCompare(String(right?.id ?? ""));
 }
 
-export function reconcileTrackingRecords(records, incomingFields, mutableFields) {
+function roundTotal(value) {
+  return Math.round(value * 10) / 10;
+}
+
+/**
+ * Merges duplicate records into the oldest one, then applies the request:
+ * explicit `incomingFields` replace values (null unsets), and `increments`
+ * are added to the merged stored value, floored at 0 and capped at the
+ * field's valid maximum.
+ */
+export function reconcileTrackingRecords(records, incomingFields, mutableFields, increments = {}) {
   const unique = new Map();
   for (const record of records ?? []) {
     if (record?.id) unique.set(record.id, record);
@@ -185,6 +241,11 @@ export function reconcileTrackingRecords(records, incomingFields, mutableFields)
     } else if (incomingFields[field] !== undefined) {
       fields[field] = incomingFields[field];
     }
+  }
+
+  for (const [field, amount] of Object.entries(increments ?? {})) {
+    const base = Number(fields[field]) || 0;
+    fields[field] = roundTotal(Math.min(incrementLimits[field], Math.max(0, base + amount)));
   }
 
   return { canonical, duplicates: canonicalOrder.slice(1), fields, unsetFields };
