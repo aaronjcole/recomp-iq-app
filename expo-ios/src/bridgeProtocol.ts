@@ -109,6 +109,22 @@ export function parseBridgeRequest(raw: string): BridgeRequest | null {
   return null;
 }
 
+/**
+ * The requestId of a message from the app that parseBridgeRequest rejected,
+ * so the shell can answer it with an error instead of leaving the web
+ * promise to hang. Null when there is no usable id to answer.
+ */
+export function requestIdOf(raw: string): string | null {
+  try {
+    const value = JSON.parse(raw) as { source?: unknown; requestId?: unknown };
+    if (value?.source !== BRIDGE_SOURCE) return null;
+    const id = value.requestId;
+    return typeof id === "string" && id.length >= 1 && id.length <= 128 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export function isTrustedAppUrl(rawUrl: string): boolean {
   try {
     return new URL(rawUrl).origin === APP_ORIGIN;

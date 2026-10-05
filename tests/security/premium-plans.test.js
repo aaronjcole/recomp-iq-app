@@ -76,3 +76,11 @@ test("loading, missing products, web and older iOS builds", () => {
   assert.ok(legacy.every((plan) => plan.purchasable), "an older iOS build can still subscribe");
   assert.ok(legacy.every((plan) => plan.badge === null), "but no trial is promised without StoreKit's answer");
 });
+
+test("malformed bridge messages from the app can still be answered by id", async () => {
+  const { requestIdOf } = await import("../../expo-ios/src/bridgeProtocol.ts");
+  assert.equal(requestIdOf(JSON.stringify({ source: "recompone-native-iap", version: 1, requestId: "r9", action: "teleport" })), "r9");
+  assert.equal(requestIdOf(JSON.stringify({ source: "someone-else", requestId: "r9" })), null);
+  assert.equal(requestIdOf(JSON.stringify({ source: "recompone-native-iap", requestId: "x".repeat(129) })), null);
+  assert.equal(requestIdOf("not json"), null);
+});

@@ -24,6 +24,7 @@ import {
   isAppleProductId,
   isTrustedAppUrl,
   parseBridgeRequest,
+  requestIdOf,
   toProductInfo,
   type BridgeResponse,
   type ProductInfo,
@@ -41,6 +42,13 @@ type PendingPurchase = {
   requestId: string;
   productId: (typeof APPLE_PRODUCT_IDS)[number];
 };
+
+// After requestPurchase returns, how long to wait for StoreKit's transaction
+// or error event before treating the purchase as deferred (Ask to Buy, a
+// pending payment) and releasing it, so later purchases are not blocked.
+const PURCHASE_EVENT_GRACE_MS = 30_000;
+// Minimum gap between App Store connection retries.
+const STORE_RETRY_INTERVAL_MS = 10_000;
 
 const MAX_PENDING_TRANSACTIONS = 20;
 
@@ -67,6 +75,10 @@ export function RecompOneWebView() {
   const transactionsRef = useRef(new Map<string, Purchase>());
   const [storeReady, setStoreReady] = useState(false);
   const productsRef = useRef<ProductInfo[]>([]);
+  const connectStoreRef = useRef<(() => Promise<void>) | null>(null);
+  const connectingRef = useRef(false);
+  const lastConnectAttemptRef = useRef(0);
+  const purchaseGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const injectedJavaScriptBeforeContentLoaded = useMemo(buildInjectedBridgeScript, []);
 
   const sendResponse = useCallback((response: BridgeResponse) => {
@@ -132,7 +144,10 @@ export function RecompOneWebView() {
       });
     });
 
-    void (async () => {
+    connectStoreRef.current = async () => {
+      if (connectingRef.current) return;
+      connectingRef.current = true;
+      lastConnectAttemptRef.current = Date.now();
       try {
         await initConnection();
         const products = (await fetchProducts({ skus: [...APPLE_PRODUCT_IDS], type: "subs" })) ?? [];
@@ -153,11 +168,15 @@ export function RecompOneWebView() {
         if (mounted) setStoreReady(true);
       } catch {
         if (mounted) setStoreReady(false);
+      } finally {
+        connectingRef.current = false;
       }
-    })();
+    };
+    void connectStoreRef.current();
 
     return () => {
       mounted = false;
+      clearTimeout(purchaseGraceTimerRef.current ?? undefined);
       purchaseUpdate.remove();
       purchaseError.remove();
       void endConnection();
@@ -165,9 +184,23 @@ export function RecompOneWebView() {
   }, [rememberPurchase, sendResponse]);
 
   const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+    // Never answer an off-origin page: the reply would be injected into it.
+    // The web side's request timeout covers that case.
     if (!isTrustedAppUrl(event.nativeEvent.url || currentUrlRef.current)) return;
     const request = parseBridgeRequest(event.nativeEvent.data);
-    if (!request) return;
+    if (!request) {
+      const requestId = requestIdOf(event.nativeEvent.data);
+      if (requestId) {
+        sendResponse({
+          source: BRIDGE_SOURCE,
+          version: BRIDGE_VERSION,
+          requestId,
+          ok: false,
+          error: "This request is not supported by this version of the app"
+        });
+      }
+      return;
+    }
 
     const fail = (error: string) => sendResponse({
       source: BRIDGE_SOURCE,
@@ -178,6 +211,10 @@ export function RecompOneWebView() {
     });
 
     if (!storeReady) {
+      // A failed first connection is never retried otherwise.
+      if (Date.now() - lastConnectAttemptRef.current > STORE_RETRY_INTERVAL_MS) {
+        void connectStoreRef.current?.();
+      }
       fail("The App Store is still connecting. Try again in a moment.");
       return;
     }
@@ -211,6 +248,16 @@ export function RecompOneWebView() {
           },
           type: "subs"
         });
+        // The transaction normally arrives through purchaseUpdatedListener.
+        // A deferred purchase (Ask to Buy, pending payment) sends no event;
+        // release it so the web is answered and later purchases can start.
+        const requestId = request.requestId;
+        clearTimeout(purchaseGraceTimerRef.current ?? undefined);
+        purchaseGraceTimerRef.current = setTimeout(() => {
+          if (pendingPurchaseRef.current?.requestId !== requestId) return;
+          pendingPurchaseRef.current = null;
+          fail("Your purchase is waiting for approval. Once it is approved, use Restore Purchases.");
+        }, PURCHASE_EVENT_GRACE_MS);
         return;
       }
 
@@ -322,6 +369,12 @@ export function RecompOneWebView() {
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onNavigationStateChange={(state) => {
           currentUrlRef.current = state.url;
+        }}
+        onLoadStart={() => {
+          // A reload or navigation drops the page that was waiting on a
+          // purchase; keep it from blocking the next one.
+          pendingPurchaseRef.current = null;
+          clearTimeout(purchaseGraceTimerRef.current ?? undefined);
         }}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
