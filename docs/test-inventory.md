@@ -81,11 +81,11 @@ Of the 40 remaining **b** tests, 27 are b-wiring. Most of those pin the order of
 
 ## Class a (by file, after)
 
-account-deletion 9, adaptive-meal-plan 2, ai-coach-backend 10, ai-report-rate-limit 7, analysis-images 3, analysis-upload-ownership 6, android-back 3, android-release 3, apple-jws-verify 14, apple-premium 16, apple-sandbox-purchases 3, biometric-validation 4, coach-contract 8, coach-rate-limit 11, daily-nutrition-increments 7, default-habit-integrity 6, default-habit-provisioning 7, entitlement-loader 8, food-photo-premium 4, ios-native-auth 4, lifestyle-coach-safety 6, local-plan-cache 2, mobile-tab-navigation 1, native-store-entry 2, observability 13, onboarding-draft 8, owner-scoping 6, playwright-browser-fallback 15, premium-entitlements 4, premium-plans 6, referral-attribution 6, release-configuration 1, seo-indexability 3, tracking-idempotency 5, tracking-persistence 7, visual-progress 2, barcode-decoder 11.
+account-deletion 9, adaptive-meal-plan 2, ai-coach-backend 10, ai-report-rate-limit 7, analysis-images 3, analysis-upload-ownership 6, android-back 3, android-release 3, apple-jws-verify 15, apple-premium 16, apple-sandbox-purchases 3, biometric-validation 4, coach-contract 8, coach-rate-limit 11, daily-nutrition-increments 7, default-habit-integrity 6, default-habit-provisioning 7, entitlement-loader 8, food-photo-premium 4, ios-native-auth 4, lifestyle-coach-safety 6, local-plan-cache 2, mobile-tab-navigation 1, native-store-entry 2, observability 13, onboarding-draft 8, owner-scoping 6, playwright-browser-fallback 15, premium-entitlements 4, premium-plans 6, referral-attribution 6, release-configuration 1, seo-indexability 3, tracking-idempotency 5, tracking-persistence 7, visual-progress 2, barcode-decoder 11.
 
 ## Bugs found
 
 None. Every converted behavior already held when it was run. Two observations, neither changed:
 
-- `verifyApplePurchase` decodes `signedTransactionInfo` from the App Store Server API without checking its signature. It relies on the authenticated TLS response from Apple's API, which is acceptable but weaker than the webhook path, which verifies the signature.
+- `verifyApplePurchase` decoded `signedTransactionInfo` from the App Store Server API without checking its signature. This is now fixed: it verifies the signature and certificate chain the same way the webhook does (`verifiedTransactionInfo` in `applePurchaseDomain.js`).
 - The AI meal prompt asks for days within 10% of target, but validation accepts 15%. This is a deliberate margin, not a bug.
