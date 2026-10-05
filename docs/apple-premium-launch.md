@@ -61,6 +61,7 @@ Set these in the Base44 dashboard → Settings → Secrets:
 | `APPLE_PRIVATE_KEY` | Contents of the Apple .p8 private key (PEM body, no `-----` header/footer lines) | ✅ set |
 | `APPLE_APP_ID` | Numeric App Store Connect app ID (`6803546092`); reserved for integrations that require it | ✅ set |
 | `PREMIUM_TESTER_EMAILS` | Comma-separated tester emails (testing only — clear before launch) | ✅ already set |
+| `APPLE_SANDBOX_ALLOWED_USER_IDS` | Comma-separated Base44 **user ids** (not emails) that may get Premium from a sandbox (free) purchase: your testers and **the demo account you give App Review**, which purchases in the sandbox even against the live app. While unset, every sandbox purchase is accepted and logged. | ⬜ set before launch |
 
 ## How to configure App Store Server Notifications V2
 

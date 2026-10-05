@@ -108,3 +108,43 @@ export function resolvePremiumAccess(records, now = Date.now()) {
     sources: Object.freeze(sources)
   });
 }
+
+// Apple purchase environments that are not real money: sandbox (TestFlight,
+// sandbox Apple IDs, App Review) and local StoreKit testing.
+const NON_PRODUCTION_APPLE_ENVIRONMENTS = new Set(["sandbox", "xcode", "localtesting"]);
+
+export function parseIdAllowlist(raw) {
+  return new Set(
+    String(raw ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Whether a verified Apple transaction may grant Premium to this account.
+ *
+ * Production purchases always may. A sandbox purchase is free, so once
+ * APPLE_SANDBOX_ALLOWED_USER_IDS is configured only the Base44 accounts it
+ * lists (testers, and the demo account given to App Review, which purchases
+ * in the sandbox even against the live app) get Premium from one. While the
+ * secret is unset sandbox purchases are accepted, as before, so deploying
+ * this cannot lock App Review out; `unconfigured` lets the caller log that.
+ *
+ * Keyed by user id rather than email: verifyApplePurchase deliberately never
+ * handles email addresses (tests/security/apple-premium.test.js).
+ *
+ * @param {{ environment?: string | null, userId?: string | null, allowlistRaw?: string | null }} input
+ * @returns {{ allowed: boolean, sandbox: boolean, unconfigured: boolean }}
+ */
+export function appleEnvironmentDecision({ environment, userId, allowlistRaw }) {
+  const env = String(environment ?? "").trim().toLowerCase();
+  // Apple always reports an environment; a missing one is treated as sandbox.
+  const sandbox = env === "" || NON_PRODUCTION_APPLE_ENVIRONMENTS.has(env);
+  if (!sandbox) return { allowed: true, sandbox: false, unconfigured: false };
+  const allowlist = parseIdAllowlist(allowlistRaw);
+  if (allowlist.size === 0) return { allowed: true, sandbox: true, unconfigured: true };
+  const id = String(userId ?? "").trim();
+  return { allowed: id !== "" && allowlist.has(id), sandbox: true, unconfigured: false };
+}

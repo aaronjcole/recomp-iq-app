@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Linking, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   endConnection,
   ErrorCode,
@@ -378,6 +378,11 @@ export function RecompOneWebView() {
         }}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
+        // The barcode scanner's getUserMedia preview is a <video playsInline>.
+        // WKWebView ignores playsInline (and holds autoplay) unless these are
+        // set, so the camera preview would not show.
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
         javaScriptEnabled
         domStorageEnabled
         contentInsetAdjustmentBehavior="never"
@@ -389,9 +394,22 @@ export function RecompOneWebView() {
             <ActivityIndicator color="#46d8bc" />
           </View>
         )}
-        onError={() => {
-          Alert.alert("RecompOne is unavailable", "Check your connection and try again.");
-        }}
+        // A failed load (offline launch, dropped connection) shows this in
+        // place of react-native-webview's default error page, which has no
+        // way to try again short of force-quitting the app.
+        renderError={() => (
+          <View style={styles.error} accessibilityRole="alert">
+            <Text style={styles.errorTitle}>RecompOne couldn't load</Text>
+            <Text style={styles.errorBody}>Check your connection, then try again.</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => webViewRef.current?.reload()}
+              style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]}
+            >
+              <Text style={styles.retryLabel}>Try again</Text>
+            </Pressable>
+          </View>
+        )}
       />
     </View>
   );
@@ -409,5 +427,29 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0
   },
-  webView: { backgroundColor: "#07121d", flex: 1 }
+  webView: { backgroundColor: "#07121d", flex: 1 },
+  error: {
+    alignItems: "center",
+    backgroundColor: "#07121d",
+    bottom: 0,
+    gap: 12,
+    justifyContent: "center",
+    left: 0,
+    paddingHorizontal: 32,
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
+  errorTitle: { color: "#e6f1f5", fontSize: 20, fontWeight: "600", textAlign: "center" },
+  errorBody: { color: "#9fb3bf", fontSize: 16, textAlign: "center" },
+  retry: {
+    backgroundColor: "#46d8bc",
+    borderRadius: 12,
+    marginTop: 8,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 24
+  },
+  retryPressed: { opacity: 0.8 },
+  retryLabel: { color: "#07121d", fontSize: 16, fontWeight: "600" }
 });
