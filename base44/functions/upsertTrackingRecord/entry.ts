@@ -5,6 +5,7 @@ import {
   reconcileTrackingRecords
 } from "../../shared/trackingRecordDomain.js";
 import { json, statusOf } from "../../shared/httpUtils.js";
+import { ownedQuery } from "../../shared/ownerScope.js";
 
 const MAX_REQUEST_BYTES = 16_384;
 const inFlightWrites = new Map();
@@ -24,7 +25,7 @@ function enqueueByKey(key, work) {
   return next;
 }
 
-async function verifyHabitOwnership(base44, habitId) {
+async function verifyHabitOwnership(base44, user, habitId) {
   let habit;
   try {
     habit = await base44.entities.Habit.get(habitId);
@@ -34,16 +35,22 @@ async function verifyHabitOwnership(base44, habitId) {
     }
     throw error;
   }
-  if (!habit?.id) throw new TrackingRequestError("Habit not found");
+  // RLS lets admins read any user's habit, so existence alone does not prove
+  // ownership. Report another owner's habit exactly like a missing one.
+  if (!habit?.id || habit.created_by_id !== user.id) {
+    throw new TrackingRequestError("Habit not found");
+  }
 }
 
 async function persistTrackingRecord(base44, user, request) {
   if (request.kind === "habit_entry") {
-    await verifyHabitOwnership(base44, request.habitId);
+    await verifyHabitOwnership(base44, user, request.habitId);
   }
 
   const entity =
     request.kind === "daily_log" ? base44.entities.DailyLog : base44.entities.HabitEntry;
+  // request.query is scoped to the caller (created_by_id) by
+  // normalizeTrackingRequest; never widen it here.
   let records = await entity.filter(request.query, "created_date", 50);
   let created = null;
 
@@ -68,7 +75,7 @@ async function persistTrackingRecord(base44, user, request) {
   }
   if (unsetFields.length > 0) {
     await entity.updateMany(
-      { id: canonical.id },
+      ownedQuery(user.id, { id: canonical.id }),
       { $unset: Object.fromEntries(unsetFields.map((field) => [field, ""])) }
     );
     record = await entity.get(canonical.id);
@@ -125,7 +132,7 @@ export default async function(req) {
 
   let request;
   try {
-    request = normalizeTrackingRequest(body);
+    request = normalizeTrackingRequest(body, user.id);
   } catch (error) {
     if (error instanceof TrackingRequestError) {
       return json({ error: error.message }, { status: 400 });

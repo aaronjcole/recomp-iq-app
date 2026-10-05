@@ -15,6 +15,8 @@ import {
 import { trackEvent } from "@/lib/telemetry";
 import { featureFlags } from "@/lib/featureFlags";
 import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
+import { ownedQuery } from "../../base44/shared/ownerScope.js";
+import { useAuth } from "@/lib/AuthContext";
 import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggingDateUtils";
 
 import { Ctx, RefCtx, ActionsCtx, HabitsCtx } from "@/lib/recompContexts";
@@ -148,6 +150,11 @@ function enqueueByKey(queueRef, key, work) {
 }
 
 export function RecompProvider({ children }) {
+  // Entity RLS lets admins read every user's rows, so every list/filter below
+  // names the signed-in user as owner explicitly via own().
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const userIdRef = useRef(userId);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -178,6 +185,14 @@ export function RecompProvider({ children }) {
   const dailyQueues = useRef(new Map());
   const habitQueues = useRef(new Map());
   const loadedDates = useRef(new Set());
+
+  // Keep the owner current for stable callbacks. Declared before the load
+  // effect so the first load already sees the signed-in user's id.
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+  // Throws (fails closed) when no user id is known yet.
+  const own = useCallback((query) => ownedQuery(userIdRef.current, query), []);
 
   useEffect(() => {
     profileRef.current = profile;
@@ -253,20 +268,20 @@ export function RecompProvider({ children }) {
     const weekStart = getCurrentWeekStart();
     try {
       const results = await Promise.all([
-        base44.entities.UserProfile.list("-created_date", 1),
-        base44.entities.UserPreferences.list("-created_date", 1),
-        base44.entities.CurrentStrategy.list("-created_date", 1),
-        base44.entities.DailyLog.filter({ date: { $gte: weekStart } }, "-date", 100),
-        base44.entities.ExerciseSession.filter({ date: { $gte: weekStart } }, "-date", 100),
-        base44.entities.StrengthLog.filter({ date: { $gte: weekStart } }, "-date", 200),
-        base44.entities.FoodItem.list("-created_date", 200),
-        base44.entities.Recipe.list("-created_date", 100),
-        base44.entities.MealTemplate.list("-created_date", 200),
-        base44.entities.Habit.list("-sort_order", 200),
-        base44.entities.HabitEntry.filter({ date: { $gte: weekStart } }, "-date", 200),
-        base44.entities.TrainingBlock.filter({ status: "active" }, "-created_date", 1).catch(() => []),
+        base44.entities.UserProfile.filter(own(), "-created_date", 1),
+        base44.entities.UserPreferences.filter(own(), "-created_date", 1),
+        base44.entities.CurrentStrategy.filter(own(), "-created_date", 1),
+        base44.entities.DailyLog.filter(own({ date: { $gte: weekStart } }), "-date", 100),
+        base44.entities.ExerciseSession.filter(own({ date: { $gte: weekStart } }), "-date", 100),
+        base44.entities.StrengthLog.filter(own({ date: { $gte: weekStart } }), "-date", 200),
+        base44.entities.FoodItem.filter(own(), "-created_date", 200),
+        base44.entities.Recipe.filter(own(), "-created_date", 100),
+        base44.entities.MealTemplate.filter(own(), "-created_date", 200),
+        base44.entities.Habit.filter(own(), "-sort_order", 200),
+        base44.entities.HabitEntry.filter(own({ date: { $gte: weekStart } }), "-date", 200),
+        base44.entities.TrainingBlock.filter(own({ status: "active" }), "-created_date", 1).catch(() => []),
         featureFlags.itemizedFoodDiary
-          ? base44.entities.FoodLogEntry.filter({ date: { $gte: weekStart } }, "-date", 200)
+          ? base44.entities.FoodLogEntry.filter(own({ date: { $gte: weekStart } }), "-date", 200)
           : Promise.resolve([])
       ]);
       const loadedProfile = results[0][0] ?? null;
@@ -293,7 +308,7 @@ export function RecompProvider({ children }) {
       let normalizedHabitEntries = loadedHabitEntries;
       activeBlockRef.current = loadedActiveBlock;
       setActiveBlock(loadedActiveBlock);
-      if (needsDefaultHabitReconciliation(habitList)) {
+      if (needsDefaultHabitReconciliation(habitList, { ownerId: userIdRef.current })) {
         try {
           const ensured = await base44.functions.invoke("ensureDefaultHabits", {});
           habitList = ensured?.data?.habits ?? habitList;
@@ -316,7 +331,7 @@ export function RecompProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
+  }, [own, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
   // ── Batch 2: older history (background, non-blocking) ──
   // Fetches older DailyLog/ExerciseSession/StrengthLog/HabitEntry/FoodLogEntry
@@ -327,14 +342,14 @@ export function RecompProvider({ children }) {
     const weekStart = getCurrentWeekStart();
     try {
       const results = await Promise.all([
-        base44.entities.DailyLog.filter({ date: { $lt: weekStart } }, "-date", 500),
-        base44.entities.ExerciseSession.filter({ date: { $lt: weekStart } }, "-date", 200),
-        base44.entities.StrengthLog.filter({ date: { $lt: weekStart } }, "-date", 500),
-        base44.entities.WeeklyCheckIn.list("-created_date", 100),
-        base44.entities.DecisionLedger.list("-date", 100),
-        base44.entities.HabitEntry.filter({ date: { $lt: weekStart } }, "-date", 500),
+        base44.entities.DailyLog.filter(own({ date: { $lt: weekStart } }), "-date", 500),
+        base44.entities.ExerciseSession.filter(own({ date: { $lt: weekStart } }), "-date", 200),
+        base44.entities.StrengthLog.filter(own({ date: { $lt: weekStart } }), "-date", 500),
+        base44.entities.WeeklyCheckIn.filter(own(), "-created_date", 100),
+        base44.entities.DecisionLedger.filter(own(), "-date", 100),
+        base44.entities.HabitEntry.filter(own({ date: { $lt: weekStart } }), "-date", 500),
         featureFlags.itemizedFoodDiary
-          ? base44.entities.FoodLogEntry.filter({ date: { $lt: weekStart } }, "-date", 500)
+          ? base44.entities.FoodLogEntry.filter(own({ date: { $lt: weekStart } }), "-date", 500)
           : Promise.resolve([])
       ]);
       // Merge older history WITHOUT overwriting current-week or newer local state.
@@ -372,7 +387,7 @@ export function RecompProvider({ children }) {
       console.warn("Background history load failed; retrying unobtrusively.", error);
       setHistoryLoaded(true);
     }
-  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
+  }, [own, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
   // ── On-demand fetch for a specific historical date ──
   // Called when the user selects a date outside the current-week batch.
@@ -383,12 +398,12 @@ export function RecompProvider({ children }) {
     loadedDates.current.add(date); // mark immediately to prevent duplicate fetches
     try {
       const [dayLogs, dayFoodEntries, daySessions, dayHabitEntries] = await Promise.all([
-        base44.entities.DailyLog.filter({ date }, "-date", 10),
+        base44.entities.DailyLog.filter(own({ date }), "-date", 10),
         featureFlags.itemizedFoodDiary
-          ? base44.entities.FoodLogEntry.filter({ date }, "-date", 100)
+          ? base44.entities.FoodLogEntry.filter(own({ date }), "-date", 100)
           : Promise.resolve([]),
-        base44.entities.ExerciseSession.filter({ date }, "-date", 50),
-        base44.entities.HabitEntry.filter({ date }, "-date", 100)
+        base44.entities.ExerciseSession.filter(own({ date }), "-date", 50),
+        base44.entities.HabitEntry.filter(own({ date }), "-date", 100)
       ]);
       if (dayLogs.length) {
         const merged = newestByKey(dayLogs, (item) => item.date);
@@ -423,7 +438,7 @@ export function RecompProvider({ children }) {
       loadedDates.current.delete(date);
       console.warn(`On-demand load for ${date} failed.`, error);
     }
-  }, [setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent]);
+  }, [own, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent]);
 
   const reload = useCallback(async () => {
     await loadInitial();
@@ -431,10 +446,12 @@ export function RecompProvider({ children }) {
   }, [loadInitial, loadHistory]);
 
   useEffect(() => {
+    // Never query before the signed-in user's id is known.
+    if (!userId) return;
     loadInitial().then(() => {
       loadHistory();
     });
-  }, [loadInitial, loadHistory]);
+  }, [userId, loadInitial, loadHistory]);
 
   const trend = useMemo(() => (strategy ? analyzeTrends(logs, strategy) : null), [logs, strategy]);
   const signal = useMemo(() => (trend ? calculateSignalStrength(trend) : null), [trend]);
@@ -546,7 +563,7 @@ export function RecompProvider({ children }) {
       return enqueueByKey(dailyQueues, date, async () => {
         try {
           const local = logsRef.current.find((item) => item.date === date) ?? null;
-          const remote = await base44.entities.DailyLog.filter({ date }, "-created_date", 10);
+          const remote = await base44.entities.DailyLog.filter(own({ date }), "-created_date", 10);
           const existing = newestByKey(
             [...remote, ...(local ? [local] : [])],
             (item) => item.date
@@ -610,7 +627,7 @@ export function RecompProvider({ children }) {
         }
       });
     },
-    [setLogsCurrent]
+    [own, setLogsCurrent]
   );
 
   const upsertHabitEntry = useCallback(
@@ -636,7 +653,7 @@ export function RecompProvider({ children }) {
         try {
           const local = habitEntriesRef.current.find(matches) ?? null;
           const remote = await base44.entities.HabitEntry.filter(
-            { habit_id: habitId, date },
+            own({ habit_id: habitId, date }),
             "-created_date",
             10
           );
@@ -683,7 +700,7 @@ export function RecompProvider({ children }) {
         }
       });
     },
-    [setHabitEntriesCurrent]
+    [own, setHabitEntriesCurrent]
   );
 
   const addHabit = useCallback(async (data) => {
@@ -834,7 +851,7 @@ export function RecompProvider({ children }) {
   const deleteSession = useCallback(async (id) => {
     const session = sessionsRef.current.find((item) => item.id === id);
     try {
-      const linked = await base44.entities.StrengthLog.filter({ session_id: id }, "-date", 500);
+      const linked = await base44.entities.StrengthLog.filter(own({ session_id: id }), "-date", 500);
       // Remove child records first so a partial failure leaves the parent session
       // available for a safe retry instead of creating inaccessible orphans.
       await Promise.all(linked.map((entry) => base44.entities.StrengthLog.delete(entry.id)));
@@ -860,12 +877,12 @@ export function RecompProvider({ children }) {
       await reload();
       throw e;
     }
-  }, [reload, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
+  }, [own, reload, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const updateSession = useCallback(async ({ id, session, strengthEntries = [] }) => {
     const previous = sessionsRef.current.find((item) => item.id === id) ?? null;
     const updated = await base44.entities.ExerciseSession.update(id, session);
-    const oldLogs = await base44.entities.StrengthLog.filter({ session_id: id }, "-date", 500);
+    const oldLogs = await base44.entities.StrengthLog.filter(own({ session_id: id }), "-date", 500);
     await Promise.all(oldLogs.map((e) => base44.entities.StrengthLog.delete(e.id)));
     const newLogs = [];
     for (const entry of strengthEntries) {
@@ -902,7 +919,7 @@ export function RecompProvider({ children }) {
     }
 
     return { session: updated, strengthLogs: newLogs };
-  }, [setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
+  }, [own, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
   const addFood = useCallback(async (data) => {
     const created = await base44.entities.FoodItem.create(data);

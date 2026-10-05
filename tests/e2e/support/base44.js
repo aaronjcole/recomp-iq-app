@@ -5,6 +5,7 @@ import {
   ADAPTIVE_TRAINING_BLOCK,
   BODY_COMPOSITION_RESULT,
   ENTITY_FIXTURES,
+  FOREIGN_ENTITY_FIXTURES,
   PREMIUM_TESTER_ACCESS,
   PUBLIC_SETTINGS,
   WEEKLY_AUTOPILOT_REVIEW
@@ -56,6 +57,40 @@ function readBody(request) {
   }
 }
 
+function matchesCondition(value, condition) {
+  if (condition !== null && typeof condition === "object" && !Array.isArray(condition)) {
+    return Object.entries(condition).every(([operator, operand]) => {
+      switch (operator) {
+        case "$gte": return value != null && value >= operand;
+        case "$gt": return value != null && value > operand;
+        case "$lte": return value != null && value <= operand;
+        case "$lt": return value != null && value < operand;
+        case "$ne": return value !== operand;
+        case "$in": return Array.isArray(operand) && operand.includes(value);
+        default: throw new Error(`Unsupported mock query operator: ${operator}`);
+      }
+    });
+  }
+  return value === condition;
+}
+
+/** Apply a Base44 `q` filter (equality plus the comparison operators the app uses). */
+function matchesQuery(row, query) {
+  return Object.entries(query ?? {}).every(([field, condition]) =>
+    matchesCondition(row?.[field], condition)
+  );
+}
+
+function parseEntityQuery(url) {
+  const raw = new URL(url).searchParams.get("q");
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) ?? {};
+  } catch {
+    return null;
+  }
+}
+
 function idFromEntityUrl(url) {
   const m = url.match(/\/entities\/[A-Za-z0-9_]+\/([A-Za-z0-9_-]+)/);
   return m && m[1] !== "me" ? m[1] : null;
@@ -71,12 +106,28 @@ function idFromEntityUrl(url) {
  * screens a tab, the screen fails to render its heading or throws a page error.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
+ * Rows without `created_by_id` belong to the signed-in user. Another
+ * account's rows (`foreignEntities`) are served too, and every entity list or
+ * filter must name the signed-in user as `created_by_id`: Base44 RLS grants
+ * admins every row, so an unscoped query is rejected here as a contract bug.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
-  const entities = options.entities ?? ENTITY_FIXTURES;
-  const ensuredHabits = options.ensuredHabits ?? entities.Habit ?? [];
+  const own = (rows) => (rows ?? []).map((row) => ({ created_by_id: user.id, ...row }));
+  const ownedEntities = Object.fromEntries(
+    Object.entries(options.entities ?? ENTITY_FIXTURES).map(([name, rows]) => [name, own(rows)])
+  );
+  const foreignEntities = options.foreignEntities ?? FOREIGN_ENTITY_FIXTURES;
+  const entities = Object.fromEntries(
+    [...new Set([...Object.keys(ownedEntities), ...Object.keys(foreignEntities)])].map((name) => [
+      name,
+      [...(ownedEntities[name] ?? []), ...(foreignEntities[name] ?? [])]
+    ])
+  );
+  const ensuredHabits = own(options.ensuredHabits ?? ownedEntities.Habit);
   const ensureHabitsError = options.ensureHabitsError ?? false;
   const premiumAccess = options.premiumAccess ?? PREMIUM_TESTER_ACCESS;
   const mealPlan = options.mealPlan ?? ADAPTIVE_MEAL_PLAN;
@@ -129,8 +180,23 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (entityMatch) {
       const name = entityMatch[1];
       const rows = entities[name] ?? [];
-      if (method === "GET") return json(rows);
-      if (method === "POST") return json({ id: `${name}-e2e-created`, ...readBody(request) });
+      if (method === "GET") {
+        const recordId = idFromEntityUrl(url);
+        if (recordId) {
+          const row = rows.find((item) => item.id === recordId);
+          return row?.created_by_id === user.id ? json(row) : json({ error: "Not found" }, 404);
+        }
+        const query = parseEntityQuery(url);
+        if (query?.created_by_id !== user.id) {
+          return json({
+            error: `Unscoped ${name} query: user-owned entity reads must filter by created_by_id`
+          }, 400);
+        }
+        return json(rows.filter((row) => matchesQuery(row, query)));
+      }
+      if (method === "POST") {
+        return json({ id: `${name}-e2e-created`, ...readBody(request), created_by_id: user.id });
+      }
       if (method === "PUT" || method === "PATCH") {
         return json({ id: idFromEntityUrl(url) ?? `${name}-e2e`, ...readBody(request) });
       }
@@ -143,7 +209,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
         if (ensureHabitsError) return json({ error: "Temporary repair outage" }, 503);
         return json({
           habits: ensuredHabits,
-          habit_entries: entities.HabitEntry ?? [],
+          habit_entries: ownedEntities.HabitEntry ?? [],
           observed_duplicates: 0,
           cleanup_pending: 0
         });

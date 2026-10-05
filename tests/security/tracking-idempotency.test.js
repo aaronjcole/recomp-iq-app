@@ -18,8 +18,8 @@ test("tracking requests are normalized into server-controlled domain keys", () =
     kind: "daily_log",
     date: "2026-08-01",
     fields: { calories: 1900, workout_completed: true }
-  });
-  assert.deepEqual(daily.query, { date: "2026-08-01" });
+  }, "user-1");
+  assert.deepEqual(daily.query, { date: "2026-08-01", created_by_id: "user-1" });
   assert.deepEqual(daily.createData, {
     date: "2026-08-01",
     calories: 1900,
@@ -33,8 +33,12 @@ test("tracking requests are normalized into server-controlled domain keys", () =
     habit_id: " habit-123 ",
     date: "2026-08-01",
     fields: { value: 80, done: false }
+  }, "user-1");
+  assert.deepEqual(habit.query, {
+    habit_id: "habit-123",
+    date: "2026-08-01",
+    created_by_id: "user-1"
   });
-  assert.deepEqual(habit.query, { habit_id: "habit-123", date: "2026-08-01" });
   assert.equal(habit.queueKey, "habit_entry:habit-123:2026-08-01");
   assert.equal(habit.mutableFields, HABIT_ENTRY_FIELDS);
 });
@@ -51,7 +55,7 @@ test("tracking requests reject invalid dates, fields, and schema bounds", () => 
   ];
 
   for (const request of invalidRequests) {
-    assert.throws(() => normalizeTrackingRequest(request), TrackingRequestError);
+    assert.throws(() => normalizeTrackingRequest(request, "user-1"), TrackingRequestError);
   }
 });
 
@@ -60,7 +64,7 @@ test("daily log nulls are represented as explicit field removals", () => {
     kind: "daily_log",
     date: "2026-08-01",
     fields: { weight_lbs: null, calories: 1800 }
-  });
+  }, "user-1");
   const result = reconcileTrackingRecords(
     [{ id: "record-a", weight_lbs: 190, calories: 1700 }],
     request.fields,

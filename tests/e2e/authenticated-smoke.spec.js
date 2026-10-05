@@ -30,6 +30,18 @@ test("the signed-in shell reaches Today with data, not login or onboarding", asy
   assertNoPageErrors();
 });
 
+test("another account's rows never reach the signed-in user's Today", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/today");
+
+  await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+  await page.getByRole("button", { name: "Show today's checklist" }).click();
+  await expect(page.getByRole("button", { name: "Increase Water" })).toHaveCount(1);
+  await expect(page.getByText("Foreign account habit")).toHaveCount(0);
+  await expect(page.getByText("4321", { exact: true })).toHaveCount(0);
+  assertNoPageErrors();
+});
+
 test("Today brings the first daily logging module into the initial phone viewport", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });

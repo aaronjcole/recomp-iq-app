@@ -1,5 +1,7 @@
 // Shared by Base44 functions and Node regression tests. Base44 packages modules
 // from base44/shared with each importing function deployment.
+import { ownedQuery, requireOwnerId } from "./ownerScope.js";
+
 export class TrackingRequestError extends Error {
   constructor(message) {
     super(message);
@@ -99,7 +101,14 @@ function fieldsForCreate(fields) {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null));
 }
 
-export function normalizeTrackingRequest(body) {
+/**
+ * `ownerId` is the authenticated caller. RLS lets admins read every user's
+ * rows, so the lookup query must name the owner explicitly; otherwise an
+ * admin's upsert would reconcile (and delete) other users' records.
+ */
+export function normalizeTrackingRequest(body, ownerId) {
+  // A missing owner is a programming error, not a client error: fail closed.
+  const owner = requireOwnerId(ownerId);
   if (!isRecord(body)) throw new TrackingRequestError("A JSON request body is required");
   if (!isIsoDate(body.date)) throw new TrackingRequestError("date must be a valid YYYY-MM-DD value");
 
@@ -109,7 +118,7 @@ export function normalizeTrackingRequest(body) {
       kind: body.kind,
       date: body.date,
       queueKey: `daily_log:${body.date}`,
-      query: { date: body.date },
+      query: ownedQuery(owner, { date: body.date }),
       createData: { date: body.date, ...fieldsForCreate(fields) },
       fields,
       mutableFields: DAILY_LOG_FIELDS
@@ -127,7 +136,7 @@ export function normalizeTrackingRequest(body) {
       date: body.date,
       habitId,
       queueKey: `habit_entry:${habitId}:${body.date}`,
-      query: { habit_id: habitId, date: body.date },
+      query: ownedQuery(owner, { habit_id: habitId, date: body.date }),
       createData: { habit_id: habitId, date: body.date, ...fieldsForCreate(fields) },
       fields,
       mutableFields: HABIT_ENTRY_FIELDS

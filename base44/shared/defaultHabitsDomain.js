@@ -1,3 +1,5 @@
+import { isOwnedBy } from "./ownerScope.js";
+
 export const DEFAULT_HABITS = Object.freeze([
   Object.freeze({
     system_key: "default_water",
@@ -40,12 +42,27 @@ function matchesLegacyDefault(habit, definition) {
   return habit.target_value == null && !String(habit.unit ?? "").trim();
 }
 
+// RLS lets admins read every user's rows. When the caller's id is known, only
+// that caller's records may take part in (destructive) reconciliation, even if
+// a query upstream accidentally returned someone else's rows.
+function ownedRecords(records, ownerId) {
+  const list = Array.isArray(records) ? records.filter((record) => record?.id) : [];
+  if (ownerId === undefined) return list;
+  return list.filter((record) => isOwnedBy(record, ownerId));
+}
+
 /**
  * Recognize only the exact legacy starter trio. Requiring the complete trio
  * keeps a deliberately duplicated custom habit out of automatic cleanup.
+ *
+ * Pass `{ ownerId }` (the authenticated caller) so habits owned by anyone
+ * else are ignored rather than merged or deleted.
+ *
+ * @param {any[]} habits
+ * @param {{ ownerId?: string | null }} [options]
  */
-export function planDefaultHabitReconciliation(habits) {
-  const records = Array.isArray(habits) ? habits.filter((habit) => habit?.id) : [];
+export function planDefaultHabitReconciliation(habits, { ownerId } = {}) {
+  const records = ownedRecords(habits, ownerId);
   const exactGroups = new Map(
     DEFAULT_HABITS.map((definition) => [
       definition.system_key,
@@ -86,15 +103,24 @@ export function planDefaultHabitReconciliation(habits) {
   });
 }
 
-export function needsDefaultHabitReconciliation(habits) {
+/**
+ * @param {any[]} habits
+ * @param {{ ownerId?: string | null }} [options]
+ */
+export function needsDefaultHabitReconciliation(habits, { ownerId } = {}) {
   if (!Array.isArray(habits) || habits.length === 0) return true;
-  return planDefaultHabitReconciliation(habits).some(
+  return planDefaultHabitReconciliation(habits, { ownerId }).some(
     (group) => group.canonicalNeedsKey || group.duplicates.length > 0
   );
 }
 
-export function mergeDefaultHabitEntries(entries, habit) {
-  const records = Array.isArray(entries) ? entries.filter((entry) => entry?.id && entry?.date) : [];
+/**
+ * @param {any[]} entries
+ * @param {any} habit
+ * @param {{ ownerId?: string | null }} [options]
+ */
+export function mergeDefaultHabitEntries(entries, habit, { ownerId } = {}) {
+  const records = ownedRecords(entries, ownerId).filter((entry) => entry.date);
   if (records.length === 0) return null;
   const sorted = [...records].sort(oldestFirst);
   const canonical = sorted[0];
