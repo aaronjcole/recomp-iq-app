@@ -23,6 +23,7 @@ import {
   normalizeAiReportRequest
 } from "../../base44/shared/aiReportDomain.js";
 import { json as jsonResponse } from "../../base44/shared/httpUtils.js";
+import { accountDeletionPlan } from "../../base44/shared/accountDeletionDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -293,9 +294,10 @@ test("AI reports are owner-readable, moderator-controlled, and included in accou
   ]);
   assert.deepEqual(schema.properties.category.enum, AI_REPORT_CATEGORIES);
 
-  const deletion = readFileSync(
-    resolve(repoRoot, "base44/functions/deleteAccount/entry.ts"),
-    "utf8"
+  assert.ok(
+    accountDeletionPlan({ id: "user-1" }).some(
+      (step) => step.entity === "AiContentReport" && step.query.owner_id === "user-1"
+    ),
+    "AiContentReport must be deleted with the account by owner_id"
   );
-  assert.match(deletion, /AiContentReport\.deleteMany\(\{ owner_id: user\.id \}\)/);
 });

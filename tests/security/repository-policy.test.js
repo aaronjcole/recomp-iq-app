@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { accountDeletionPlan } from "../../base44/shared/accountDeletionDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const entityDirectory = join(repoRoot, "base44/entities");
@@ -124,7 +125,13 @@ test("service-role account deletion stays scoped to the authenticated user", () 
   const source = readFileSync(join(repoRoot, "base44/functions/deleteAccount/entry.ts"), "utf8");
 
   assert.match(source, /user = await base44\.auth\.me\(\)/);
-  assert.match(source, /deleteMany\(\{ created_by_id: user\.id \}\)/);
+  assert.match(source, /runAccountDeletionCascade\(base44\.asServiceRole\.entities, user\)/);
+  for (const step of accountDeletionPlan({ id: "user-1", email: "a@example.com" })) {
+    assert.ok(
+      Object.values(step.query).every((value) => value === "user-1" || value === "a@example.com"),
+      `${step.entity} deletion filter must be bound to the authenticated user`
+    );
+  }
   assert.match(source, /confirmation !== "DELETE"/);
   assert.doesNotMatch(source, /deleteMany\(\{\s*\}\)/);
 });

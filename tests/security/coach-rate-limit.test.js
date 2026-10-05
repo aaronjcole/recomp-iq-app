@@ -8,6 +8,7 @@ import {
   COACH_HOURLY_LIMIT,
   evaluateCoachQuota
 } from "../../base44/shared/coachRateLimitDomain.js";
+import { accountDeletionPlan } from "../../base44/shared/accountDeletionDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const NOW = Date.parse("2026-08-03T18:00:00.000Z");
@@ -54,10 +55,6 @@ test("coach rate limiting is shared, precedes paid inference, and is deleted wit
     resolve(repoRoot, "base44/functions/coachReply/entry.ts"),
     "utf8"
   );
-  const deletion = readFileSync(
-    resolve(repoRoot, "base44/functions/deleteAccount/entry.ts"),
-    "utf8"
-  );
   const schema = JSON.parse(
     readFileSync(resolve(repoRoot, "base44/entities/CoachRequestUsage.jsonc"), "utf8")
   );
@@ -68,7 +65,12 @@ test("coach rate limiting is shared, precedes paid inference, and is deleted wit
     coach.indexOf("const quota = await reserveCoachRequest")
       < coach.indexOf("integrations.Core.InvokeLLM")
   );
-  assert.match(deletion, /CoachRequestUsage\.deleteMany\(\{ owner_id: user\.id \}\)/);
+  assert.ok(
+    accountDeletionPlan({ id: "user-1" }).some(
+      (step) => step.entity === "CoachRequestUsage" && step.query.owner_id === "user-1"
+    ),
+    "CoachRequestUsage must be deleted with the account by owner_id"
+  );
   assert.equal(schema.properties.owner_id.maxLength, 128);
   assert.equal(schema.properties.request_id.maxLength, 64);
   assert.deepEqual(schema.rls.read, { user_condition: { role: "admin" } });
