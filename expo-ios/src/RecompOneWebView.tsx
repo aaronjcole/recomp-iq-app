@@ -7,6 +7,7 @@ import {
   finishTransaction,
   getAvailablePurchases,
   initConnection,
+  isEligibleForIntroOfferIOS,
   purchaseErrorListener,
   purchaseUpdatedListener,
   requestPurchase,
@@ -23,7 +24,9 @@ import {
   isAppleProductId,
   isTrustedAppUrl,
   parseBridgeRequest,
+  toProductInfo,
   type BridgeResponse,
+  type ProductInfo,
   type PurchaseResult
 } from "./bridgeProtocol";
 import { buildInjectedBridgeScript, IAP_RESPONSE_EVENT } from "./injectedBridge";
@@ -63,6 +66,7 @@ export function RecompOneWebView() {
   const pendingPurchaseRef = useRef<PendingPurchase | null>(null);
   const transactionsRef = useRef(new Map<string, Purchase>());
   const [storeReady, setStoreReady] = useState(false);
+  const productsRef = useRef<ProductInfo[]>([]);
   const injectedJavaScriptBeforeContentLoaded = useMemo(buildInjectedBridgeScript, []);
 
   const sendResponse = useCallback((response: BridgeResponse) => {
@@ -131,7 +135,21 @@ export function RecompOneWebView() {
     void (async () => {
       try {
         await initConnection();
-        await fetchProducts({ skus: [...APPLE_PRODUCT_IDS], type: "subs" });
+        const products = (await fetchProducts({ skus: [...APPLE_PRODUCT_IDS], type: "subs" })) ?? [];
+        // Trial eligibility is per Apple ID and subscription group; a failed
+        // check reports no trial rather than promising one.
+        const eligibility = new Map<string, boolean | null>();
+        for (const product of products) {
+          const groupId = (product as { subscriptionGroupIdIOS?: string | null }).subscriptionGroupIdIOS;
+          if (!groupId || eligibility.has(groupId)) continue;
+          eligibility.set(groupId, await isEligibleForIntroOfferIOS(groupId).catch(() => null));
+        }
+        productsRef.current = products
+          .map((product) => toProductInfo(
+            product,
+            eligibility.get((product as { subscriptionGroupIdIOS?: string | null }).subscriptionGroupIdIOS ?? "") ?? null
+          ))
+          .filter((product): product is ProductInfo => product !== null);
         if (mounted) setStoreReady(true);
       } catch {
         if (mounted) setStoreReady(false);
@@ -165,6 +183,16 @@ export function RecompOneWebView() {
     }
 
     try {
+      if (request.action === "getProducts") {
+        sendResponse({
+          source: BRIDGE_SOURCE,
+          version: BRIDGE_VERSION,
+          requestId: request.requestId,
+          ok: true,
+          result: { products: productsRef.current }
+        });
+        return;
+      }
       if (request.action === "requestPurchase") {
         if (pendingPurchaseRef.current) {
           fail("Another purchase is already in progress");

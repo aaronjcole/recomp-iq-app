@@ -65,6 +65,9 @@ export function buildInjectedBridgeScript(): string {
       bridge.finishTransaction = function (transactionId) {
         return send("finishTransaction", { transactionId: transactionId });
       };
+      bridge.getProducts = function () {
+        return send("getProducts");
+      };
       window.wixMobileNativeBridge = bridge;
       window.dispatchEvent(new Event("recompone:iap-ready"));
       return true;
