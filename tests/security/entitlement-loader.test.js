@@ -102,6 +102,16 @@ test("owner scoping comes from the authenticated user and a missing id is refuse
   assert.equal(base44.calls.length, 0);
 });
 
+test("entitlements are read in bounded pages of 500, at most 1,000 rows, newest first", async () => {
+  assert.equal(ENTITLEMENT_PAGE_SIZE, 500);
+  assert.equal(MAX_ENTITLEMENT_RECORDS, 1_000);
+  const base44 = fakeBase44({ rows: [activeRow("user-1")] });
+  await loadPremiumAccessRecords(base44, { id: "user-1" }, {});
+  assert.deepEqual(base44.calls.map(({ query, sort, limit, skip }) => ({ query, sort, limit, skip })), [
+    { query: { owner_id: "user-1" }, sort: "-created_date", limit: ENTITLEMENT_PAGE_SIZE, skip: 0 }
+  ]);
+});
+
 test("pagination reads beyond the first page", async () => {
   const rows = Array.from({ length: ENTITLEMENT_PAGE_SIZE + 3 }, (_, index) =>
     activeRow("user-1", { status: "expired", source: "google_play", id: index })

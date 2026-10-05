@@ -3,6 +3,11 @@ import { secrets } from 'base44:runtime';
 import { deriveAppleAppAccountToken } from "../../shared/appleAppAccountToken.js";
 import { appleEnvironmentDecision, mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
+import {
+  appAccountTokenMatches,
+  appleEntitlementWrite,
+  appleTransactionVerification
+} from "../../shared/applePurchaseDomain.js";
 
 // Required Base44 app Secrets (set before going live):
 //   APPLE_BUNDLE_ID      — iOS app bundle ID configured in App Store Connect
@@ -117,45 +122,14 @@ async function verifyWithApple(transactionId, expectedProductId) {
   const transactionInfo = body?.signedTransactionInfo
     ? decodeJwsPayload(body.signedTransactionInfo)
     : null;
-  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
-
-  // Verify the product ID matches what the client claims.
-  if (transactionInfo.productId !== expectedProductId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
-  }
-
-  // Verify the bundle ID matches the configured app to prevent cross-app replay.
-  const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
-  if (
-    typeof expectedBundleId !== "string" ||
-    expectedBundleId.length === 0 ||
-    transactionInfo.bundleId !== expectedBundleId
-  ) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId, appAccountToken: null };
-  }
-
-  // Revocation indicates a refund or voided purchase.
-  const revoked = Boolean(transactionInfo.revocationDate || transactionInfo.revocationReason);
-  const expiresMs = transactionInfo.expiresDate ? Number(transactionInfo.expiresDate) : null;
-  const expired = expiresMs !== null && Number.isFinite(expiresMs) && expiresMs <= Date.now();
-
-  const isValid = !revoked && !expired;
-  const expiresAt = expiresMs !== null && Number.isFinite(expiresMs)
-    ? new Date(expiresMs).toISOString()
-    : null;
-
-  return {
-    isValid,
-    expiresAt,
-    originalTransactionId: transactionInfo.originalTransactionId ?? transactionId,
-    bundleId: transactionInfo.bundleId ?? null,
-    appAccountToken: transactionInfo.appAccountToken ?? null,
-    // Apple signs the environment into the transaction; the endpoint that
-    // answered is the fallback if it is ever absent.
-    environment: typeof transactionInfo.environment === "string" && transactionInfo.environment
-      ? transactionInfo.environment
-      : answeredBySandbox ? "Sandbox" : "Production"
-  };
+  // Product, bundle ID, revocation and expiry checks fail closed in the
+  // shared domain.
+  return appleTransactionVerification(transactionInfo, {
+    transactionId,
+    expectedProductId,
+    expectedBundleId: secrets.get("APPLE_BUNDLE_ID"),
+    answeredBySandbox
+  });
 }
 
 export default async function(req) {
@@ -220,10 +194,7 @@ export default async function(req) {
   // the ownership authority: a transaction for one account cannot be replayed
   // onto another account, including during concurrent requests.
   const expectedAccountToken = await deriveAppleAppAccountToken(user.id);
-  if (
-    typeof verification.appAccountToken !== "string" ||
-    verification.appAccountToken.toLowerCase() !== expectedAccountToken
-  ) {
+  if (!appAccountTokenMatches(verification.appAccountToken, expectedAccountToken)) {
     return json({ error: "Purchase is already linked to another account" }, { status: 409 });
   }
 
@@ -252,21 +223,15 @@ export default async function(req) {
       1
     );
 
-    if (existing?.length) {
-      await base44.asServiceRole.entities.PremiumEntitlement.update(existing[0].id, {
-        status: "active",
-        expires_at: verification.expiresAt ?? undefined,
-        external_transaction_id: verification.originalTransactionId ?? undefined
-      });
+    const write = appleEntitlementWrite(existing, {
+      ownerId: user.id,
+      entitlementProductId,
+      verification
+    });
+    if (write.op === "update") {
+      await base44.asServiceRole.entities.PremiumEntitlement.update(write.id, write.data);
     } else {
-      await base44.asServiceRole.entities.PremiumEntitlement.create({
-        owner_id: user.id,
-        product_id: entitlementProductId,
-        source: "apple_store",
-        status: "active",
-        ...(verification.expiresAt ? { expires_at: verification.expiresAt } : {}),
-        ...(verification.originalTransactionId ? { external_transaction_id: verification.originalTransactionId } : {})
-      });
+      await base44.asServiceRole.entities.PremiumEntitlement.create(write.data);
     }
 
     return json({ ok: true, entitlementProductId });

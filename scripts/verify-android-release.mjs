@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cspBlocksThirdPartyFraming,
+  framingProtection,
   moduleScriptPaths,
   publicRouteProblems,
   referencedChunkPaths,
@@ -161,12 +161,10 @@ async function verifyLiveDeployment() {
   const rootUrl = new URL("/", config.webOrigin);
   const rootResponse = await fetch(rootUrl, { redirect: "manual" });
   check(rootResponse.status === 200, `${rootUrl} must return 200 to verify response headers`);
-  const contentSecurityPolicy = rootResponse.headers.get("content-security-policy") || "";
-  const xFrameOptions = (rootResponse.headers.get("x-frame-options") || "")
-    .trim()
-    .toUpperCase();
-  const protectedByCsp = cspBlocksThirdPartyFraming(contentSecurityPolicy);
-  const protectedByLegacyHeader = ["DENY", "SAMEORIGIN"].includes(xFrameOptions);
+  const { protectedByCsp, protectedByLegacyHeader, xFrameOptions } = framingProtection(
+    rootResponse.headers.get("content-security-policy"),
+    rootResponse.headers.get("x-frame-options"),
+  );
   check(
     protectedByCsp || protectedByLegacyHeader,
     `${rootUrl} must block third-party framing with CSP frame-ancestors or X-Frame-Options`,

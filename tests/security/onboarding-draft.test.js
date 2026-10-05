@@ -14,6 +14,7 @@ import {
   sanitizeOnboardingDraft,
   saveOnboardingDraft
 } from "../../src/lib/onboardingDraft.js";
+import { signOutWith } from "../../src/lib/signOutCore.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -131,10 +132,36 @@ test("storage failures never throw", () => {
   assert.doesNotThrow(() => clearAllOnboardingDrafts(null));
 });
 
-test("every logout path goes through signOut, which clears onboarding drafts", () => {
+test("signing out clears every onboarding draft before the SDK logout runs", () => {
+  for (const redirectUrl of [undefined, "https://example.test/login"]) {
+    const storage = memoryStorage({ unrelated: "keep" });
+    saveOnboardingDraft(storage, "user-a", draft);
+    saveOnboardingDraft(storage, "user-b", draft);
+    storage.setItem(LEGACY_ONBOARDING_DRAFT_KEY, "{}");
+    const calls = [];
+    const auth = {
+      logout(...args) {
+        // Logout can navigate away immediately, so the drafts must already be gone.
+        calls.push({ args, keysAtLogout: [...storage.map.keys()] });
+      }
+    };
+    signOutWith(auth, storage, redirectUrl);
+    assert.deepEqual(calls, [{
+      args: redirectUrl === undefined ? [] : [redirectUrl],
+      keysAtLogout: ["unrelated"]
+    }]);
+  }
+  // Blocked storage never prevents the logout itself.
+  const calls = [];
+  signOutWith({ logout: () => calls.push("logout") }, null);
+  assert.deepEqual(calls, ["logout"]);
+});
+
+test("every logout path goes through signOut, which uses the shared sequence", () => {
+  // Wiring only: the clearing order is executed in the test above.
   const signOut = read("src/lib/signOut.js");
-  assert.match(signOut, /clearAllOnboardingDrafts\(/);
-  assert.ok(signOut.indexOf("clearAllOnboardingDrafts(") < signOut.indexOf("base44.auth.logout("));
+  assert.match(signOut, /signOutWith\(base44\.auth, browserStorage\(\), redirectUrl\)/);
+  assert.doesNotMatch(signOut, /auth\.logout\(/);
   for (const path of ["src/pages/More.jsx", "src/pages/Profile.jsx", "src/lib/AuthContext.jsx"]) {
     const source = read(path);
     assert.doesNotMatch(source, /auth\.logout\(/, `${path} must log out through signOut`);

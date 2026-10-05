@@ -1,5 +1,5 @@
 import { base44 } from "@/api/base44Client";
-import { clearAllOnboardingDrafts } from "@/lib/onboardingDraft";
+import { signOutWith } from "@/lib/signOutCore";
 
 function browserStorage() {
   try {
@@ -12,15 +12,10 @@ function browserStorage() {
 /**
  * The single logout path. The SDK's logout only removes auth tokens, so
  * device-local data that must not outlive the session (the onboarding draft
- * with health answers) is cleared here first.
+ * with health answers) is cleared here first (see signOutWith).
  *
  * @param {string} [redirectUrl] Where Base44 returns after logout; omit to only drop the token.
  */
 export function signOut(redirectUrl) {
-  clearAllOnboardingDrafts(browserStorage());
-  if (redirectUrl === undefined) {
-    base44.auth.logout();
-  } else {
-    base44.auth.logout(redirectUrl);
-  }
+  signOutWith(base44.auth, browserStorage(), redirectUrl);
 }

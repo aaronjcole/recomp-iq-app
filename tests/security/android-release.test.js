@@ -7,6 +7,7 @@ import {
   bundleDeclaresRoute,
   cspBlocksThirdPartyFraming,
   frameAncestorsDirectives,
+  framingProtection,
   isRestrictiveFrameAncestors,
   moduleScriptPaths,
   publicRouteProblems,
@@ -78,14 +79,31 @@ test("Android release config rejects undeclared sensitive native capabilities", 
 });
 
 test("live release verification rejects a frameable production origin", () => {
+  const blocked = (csp, xfo) => {
+    const result = framingProtection(csp, xfo);
+    return result.protectedByCsp || result.protectedByLegacyHeader;
+  };
+  assert.equal(blocked(null, null), false, "no header at all is frameable");
+  assert.equal(blocked("default-src 'self'", ""), false);
+  assert.equal(blocked("frame-ancestors *", "ALLOWALL"), false);
+  assert.equal(blocked("frame-ancestors 'none'", null), true);
+  for (const xfo of ["DENY", " sameorigin ", "deny"]) {
+    const result = framingProtection("", xfo);
+    assert.equal(result.protectedByLegacyHeader, true, xfo);
+    assert.equal(result.protectedByCsp, false, "legacy-only protection is reported so a note is emitted");
+  }
+  assert.equal(framingProtection(undefined, "ALLOW-FROM https://example.com").protectedByLegacyHeader, false);
+
+  // Wiring: the live check reads both headers from the production root.
   const verifier = readFileSync(
     resolve(repoRoot, "scripts/verify-android-release.mjs"),
     "utf8",
   );
-  assert.match(verifier, /content-security-policy/i);
-  assert.match(verifier, /frame-ancestors/i);
-  assert.match(verifier, /x-frame-options/i);
-  assert.match(verifier, /DENY|SAMEORIGIN/);
+  assert.match(
+    verifier,
+    /framingProtection\(\s*rootResponse\.headers\.get\("content-security-policy"\),\s*rootResponse\.headers\.get\("x-frame-options"\),?\s*\)/,
+  );
+  assert.match(verifier, /check\(\s*protectedByCsp \|\| protectedByLegacyHeader,/);
 });
 
 test("Play submission routes remain public and machine-listed", () => {
