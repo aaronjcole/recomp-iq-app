@@ -16,6 +16,8 @@ import { trackEvent } from "@/lib/telemetry";
 import { featureFlags } from "@/lib/featureFlags";
 import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
 import { ownedQuery } from "../../base44/shared/ownerScope.js";
+import { parseCompletedSessions, withCompletedSession } from "@/lib/fitness/trainingBlockProgress";
+import { replaceSessionStrengthLogs } from "@/lib/sessionEdit";
 import { useAuth } from "@/lib/AuthContext";
 import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggingDateUtils";
 
@@ -869,10 +871,17 @@ export function RecompProvider({ children }) {
   const completeBlockSession = useCallback(async (blockId, dayIndex, sessionId) => {
     const block = activeBlockRef.current;
     if (!block?.id || block.id !== blockId) return;
-    let existing = [];
-    try { existing = JSON.parse(block.completed_sessions ?? "[]"); } catch { existing = []; }
-    if (existing.some((s) => s.day_index === dayIndex)) return;
-    const next = [...existing, { day_index: dayIndex, session_id: sessionId, completed_date: todayStr() }];
+    let plan = null;
+    try { plan = JSON.parse(block.plan_json ?? "null"); } catch { plan = null; }
+    // Keyed by (block week, day): the same schedule day repeats every week.
+    const next = withCompletedSession(parseCompletedSessions(block.completed_sessions), {
+      weekStart: block.week_start,
+      blockWeeks: block.block_length_weeks ?? plan?.blockLengthWeeks ?? 4,
+      dayIndex,
+      sessionId,
+      date: todayStr()
+    });
+    if (!next) return;
     const updated = await base44.entities.TrainingBlock.update(blockId, {
       completed_sessions: JSON.stringify(next)
     });
@@ -1002,13 +1011,19 @@ export function RecompProvider({ children }) {
 
   const updateSession = useCallback(async ({ id, session, strengthEntries = [] }) => {
     const previous = sessionsRef.current.find((item) => item.id === id) ?? null;
-    const updated = await base44.entities.ExerciseSession.update(id, session);
-    const oldLogs = await base44.entities.StrengthLog.filter(own({ session_id: id }), "-date", 500);
-    await Promise.all(oldLogs.map((e) => base44.entities.StrengthLog.delete(e.id)));
-    const newLogs = [];
-    for (const entry of strengthEntries) {
-      const created = await base44.entities.StrengthLog.create({ ...entry, session_id: id, date: session.date });
-      newLogs.push(created);
+    const { updated, newLogs, oldLogs, leftover } = await replaceSessionStrengthLogs(base44.entities, {
+      id,
+      session,
+      strengthEntries,
+      own
+    });
+    if (leftover.length > 0) {
+      // The edit is saved; only removing the replaced logs failed. They are
+      // dropped from view and the next edit of this session removes them.
+      console.warn("Session updated, but some replaced strength logs could not be removed.", {
+        sessionId: id,
+        pending: leftover.length
+      });
     }
     setSessionsCurrent((prev) => prev.map((s) => (s.id === id ? updated : s)));
     const oldLogIds = new Set(oldLogs.map((e) => e.id));
