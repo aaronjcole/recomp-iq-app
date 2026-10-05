@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "@/lib/AuthContext";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
-import { addPhoto, listPhotos, getPhotoBlob, deletePhoto, estimateUsage } from "@/lib/progressPhotos";
+import { addPhoto, listPhotos, getPhotoBlob, deletePhoto, photoUsageBytes } from "@/lib/progressPhotos";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,9 +48,10 @@ export default function ProgressPhotos() {
   const refresh = useCallback(async () => {
     if (!userId) return;
     try {
-      const [list, bytes] = await Promise.all([listPhotos(userId), estimateUsage()]);
+      // One metadata-only pass over this user's photos feeds the grid and usage.
+      const list = await listPhotos(userId);
       setPhotos(list);
-      setUsageBytes(bytes);
+      setUsageBytes(photoUsageBytes(list));
     } catch {
       /* ignore */
     }

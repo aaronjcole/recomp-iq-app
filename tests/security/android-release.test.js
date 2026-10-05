@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import {
+  bundleDeclaresRoute,
+  cspBlocksThirdPartyFraming,
+  frameAncestorsDirectives,
+  isRestrictiveFrameAncestors,
+  moduleScriptPaths,
+  publicRouteProblems,
+  referencedChunkPaths,
+} from "../../scripts/lib/android-release-checks.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -122,5 +131,108 @@ test("Play listing core images use Google's required dimensions", () => {
     const source = readFileSync(resolve(repoRoot, path), "utf8");
     assert.match(source, /BrandMark/);
     assert.doesNotMatch(source, /<Target/);
+  }
+});
+
+test("frame-ancestors passes only for 'none' or 'self' plus exact https origins", () => {
+  for (const restrictive of [
+    "'none'",
+    "'self'",
+    "'SELF'",
+    "'self' https://app.base44.com",
+    "'self' https://partner.example.com:8443",
+  ]) {
+    assert.equal(isRestrictiveFrameAncestors(restrictive), true, restrictive);
+  }
+  for (const permissive of [
+    "",
+    "*",
+    "https:",
+    "https: 'self'",
+    "'self' https:",
+    "https://*",
+    "'self' https://*",
+    "*.com",
+    "'self' *.com",
+    "'self' https://*.example.com",
+    "'self' http://example.com",
+    "'self' https://example.com/embed",
+    "https://example.com",
+    "'none' https://example.com",
+  ]) {
+    assert.equal(isRestrictiveFrameAncestors(permissive), false, permissive);
+  }
+
+  assert.deepEqual(
+    frameAncestorsDirectives("default-src 'self'; frame-ancestors 'none'; img-src *"),
+    ["'none'"],
+  );
+  assert.equal(cspBlocksThirdPartyFraming("default-src 'self'"), false);
+  assert.equal(cspBlocksThirdPartyFraming("frame-ancestors https: 'self'"), false);
+  assert.equal(cspBlocksThirdPartyFraming("frame-ancestors *, frame-ancestors 'self'"), true);
+  assert.equal(cspBlocksThirdPartyFraming(null), false);
+});
+
+test("public route check distinguishes a real route from the SPA catch-all", () => {
+  const html = `<!doctype html><script type="application/ld+json">{}</script>
+    <script type="module" crossorigin src="/assets/index-B5UiyPWm.js"></script>`;
+  assert.deepEqual(moduleScriptPaths(html), ["/assets/index-B5UiyPWm.js"]);
+
+  const routeEntry = 'h.jsx(I,{path:"/delete-account",element:h.jsx(fm,{})}),';
+  const entry = [
+    'const fm=F(()=>B(()=>import("./DeleteAccount-LMlwP1kH.js"),__vite__mapDeps([1])));',
+    'const m=["assets/Privacy-C8HqJJ-Y.js"];',
+    'h.jsx(I,{path:"/privacy",element:h.jsx(pm,{})}),',
+    routeEntry,
+    'h.jsx(I,{path:"*",element:h.jsx(NotFound,{})})',
+  ].join("");
+  assert.equal(bundleDeclaresRoute(entry, "/delete-account"), true);
+  assert.equal(bundleDeclaresRoute(entry, "/delete"), false);
+  assert.deepEqual(referencedChunkPaths(entry).sort(), [
+    "./DeleteAccount-LMlwP1kH.js",
+    "assets/Privacy-C8HqJJ-Y.js",
+  ]);
+
+  const title = "Delete your RecompOne account";
+  const pageChunk = `return e.jsxs(o,{title:"${title}",children:[]})`;
+  const path = "/delete-account";
+  assert.deepEqual(
+    publicRouteProblems({ entrySources: [entry], chunkSources: [pageChunk], path, title }),
+    [],
+  );
+
+  // A removed route still gets the catch-all's 200 HTML, but the router and
+  // chunks no longer carry it.
+  assert.equal(
+    publicRouteProblems({
+      entrySources: [entry.replace(routeEntry, "")],
+      chunkSources: [],
+      path,
+      title,
+    }).length,
+    2,
+  );
+  assert.notDeepEqual(
+    publicRouteProblems({
+      entrySources: [entry],
+      chunkSources: ['children:"Page not found"'],
+      path,
+      title,
+    }),
+    [],
+  );
+  assert.notDeepEqual(
+    publicRouteProblems({ entrySources: [entry], chunkSources: [pageChunk], path }),
+    [],
+  );
+});
+
+test("every Play submission route has an expected page title for the live check", () => {
+  assert.deepEqual(
+    Object.keys(release.requiredPublicPageTitles).sort(),
+    [...release.requiredPublicPaths].sort(),
+  );
+  for (const title of Object.values(release.requiredPublicPageTitles)) {
+    assert.ok(title.length >= 8, `${title} is too generic to identify a page`);
   }
 });

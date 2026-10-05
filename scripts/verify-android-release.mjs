@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  cspBlocksThirdPartyFraming,
+  moduleScriptPaths,
+  publicRouteProblems,
+  referencedChunkPaths,
+} from "./lib/android-release-checks.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -133,22 +139,33 @@ for (const requirement of [
   );
 }
 
+const appSource = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
+for (const path of config.requiredPublicPaths) {
+  const title = config.requiredPublicPageTitles?.[path];
+  check(Boolean(title), `android/play-release.json needs requiredPublicPageTitles["${path}"]`);
+  const routeMatch = appSource.match(
+    new RegExp(`path=["']${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']\\s+element=\\{<(\\w+)`),
+  );
+  check(Boolean(routeMatch), `src/App.jsx must route ${path}`);
+  const pagePath = routeMatch && resolve(repoRoot, "src/pages", `${routeMatch[1]}.jsx`);
+  if (pagePath) check(existsSync(pagePath), `src/pages/${routeMatch[1]}.jsx is missing for ${path}`);
+  if (title && pagePath && existsSync(pagePath)) {
+    check(
+      readFileSync(pagePath, "utf8").includes(`"${title}"`),
+      `${routeMatch[1]}.jsx must render the title "${title}" for ${path}`,
+    );
+  }
+}
+
 async function verifyLiveDeployment() {
   const rootUrl = new URL("/", config.webOrigin);
   const rootResponse = await fetch(rootUrl, { redirect: "manual" });
   check(rootResponse.status === 200, `${rootUrl} must return 200 to verify response headers`);
   const contentSecurityPolicy = rootResponse.headers.get("content-security-policy") || "";
-  const frameAncestors = contentSecurityPolicy.match(
-    /(?:^|;)\s*frame-ancestors\s+([^;]+)/i,
-  )?.[1]?.trim();
   const xFrameOptions = (rootResponse.headers.get("x-frame-options") || "")
     .trim()
     .toUpperCase();
-  const protectedByCsp = Boolean(
-    frameAncestors
-    && !/(?:^|\s)\*(?:\s|$)/.test(frameAncestors)
-    && !/\bhttps?:\s*(?:;|$)/i.test(frameAncestors),
-  );
+  const protectedByCsp = cspBlocksThirdPartyFraming(contentSecurityPolicy);
   const protectedByLegacyHeader = ["DENY", "SAMEORIGIN"].includes(xFrameOptions);
   check(
     protectedByCsp || protectedByLegacyHeader,
@@ -260,6 +277,24 @@ async function verifyLiveDeployment() {
     }
   }
 
+  // The SPA answers every path with the same 200 index.html, so status and
+  // content type alone cannot tell a real route from the catch-all. Require the
+  // deployed router to declare each route and its page chunk to carry the title.
+  const sourceCache = new Map();
+  async function fetchSource(url, { required = true } = {}) {
+    const key = url.toString();
+    if (!sourceCache.has(key)) {
+      sourceCache.set(key, fetch(url).then(async (response) => ({
+        ok: response.ok,
+        status: response.status,
+        text: response.ok ? await response.text() : "",
+      })).catch((error) => ({ ok: false, status: error.message, text: "" })));
+    }
+    const result = await sourceCache.get(key);
+    if (required) check(result.ok, `${url} returned ${result.status}`);
+    return result.text;
+  }
+
   for (const path of config.requiredPublicPaths) {
     const url = new URL(path, config.webOrigin);
     const response = await fetch(url, { redirect: "manual" });
@@ -268,6 +303,31 @@ async function verifyLiveDeployment() {
       response.headers.get("content-type")?.includes("text/html"),
       `${url} must return HTML`,
     );
+    if (response.status !== 200) continue;
+
+    const html = await response.text();
+    const entryUrls = moduleScriptPaths(html).map((src) => new URL(src, url));
+    check(entryUrls.length > 0, `${url} does not load a module entry script`);
+    const entrySources = await Promise.all(entryUrls.map((entryUrl) => fetchSource(entryUrl)));
+    const chunkUrls = new Set();
+    entrySources.forEach((source, index) => {
+      for (const chunkPath of referencedChunkPaths(source)) {
+        const base = chunkPath.startsWith("assets/") ? new URL("/", url) : entryUrls[index];
+        chunkUrls.add(new URL(chunkPath, base).toString());
+      }
+    });
+    // Chunk misses are not failures on their own: the title check below decides.
+    const chunkSources = await Promise.all(
+      [...chunkUrls].map((chunkUrl) => fetchSource(new URL(chunkUrl), { required: false })),
+    );
+    for (const problem of publicRouteProblems({
+      entrySources,
+      chunkSources,
+      path,
+      title: config.requiredPublicPageTitles?.[path],
+    })) {
+      failures.push(`${url}: ${problem}`);
+    }
   }
 }
 
