@@ -13,6 +13,7 @@ import {
   type Purchase
 } from "react-native-iap";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
+import * as WebBrowser from "expo-web-browser";
 
 import {
   APP_ORIGIN,
@@ -26,6 +27,12 @@ import {
   type PurchaseResult
 } from "./bridgeProtocol";
 import { buildInjectedBridgeScript, IAP_RESPONSE_EVENT } from "./injectedBridge";
+import {
+  isProviderLoginUrl,
+  NATIVE_AUTH_CALLBACK,
+  nativeLoginUrl,
+  webViewUrlForCallback
+} from "./nativeAuth";
 
 type PendingPurchase = {
   requestId: string;
@@ -220,23 +227,52 @@ export function RecompOneWebView() {
   // at risk. A navigation-origin allowlist would be additional defense-in-depth
   // (an off-origin page currently can render in this authenticated,
   // cookie-sharing session, and Apple review dislikes uncontrolled in-app
-  // browsing), but Base44 social sign-in (Google/Microsoft/Facebook/Apple,
-  // enabled in base44/auth/config.jsonc) runs as a top-level redirect through
-  // each provider's own domain before landing back on APP_ORIGIN, since this
-  // WebView is the top-level frame rather than an iframe. Enforcing a strict
-  // allowlist without first tracing all four providers' real redirect chains
-  // on a device risks silently locking users out of sign-in — worse than the
-  // gap it would close. So for now this only ever hands a well-understood,
+  // browsing). Base44 social sign-in (Google/Microsoft/Facebook/Apple, enabled
+  // in base44/auth/config.jsonc) and SSO now run in an ASWebAuthenticationSession
+  // (startNativeSignIn above), so their redirects no longer pass through this
+  // WebView. Enforcing a strict allowlist still needs a device trace of every
+  // other off-origin navigation first; a wrong allowlist would silently lock
+  // users out — worse than the gap it would close. So for now this only ever hands a well-understood,
   // user-facing scheme to the OS (never an arbitrary/custom one): every
   // `https:` URL keeps loading in the WebView exactly as before, `mailto:`/
   // `tel:` open in the system handler via Linking.openURL, and anything else is
   // refused outright. Add the APP_ORIGIN/auth-host allowlist once that device
   // trace exists (see docs/release-checklist.md).
-  const handleShouldStartLoadWithRequest = useCallback((request: WebViewNavigation): boolean => {
+  // Google and Facebook block OAuth inside an embedded WKWebView, so provider
+  // sign-in runs in ASWebAuthenticationSession and the resulting token is
+  // handed back to this WebView (see nativeAuth.ts for the full flow).
+  const authSessionOpenRef = useRef(false);
+  const startNativeSignIn = useCallback(async (loginUrl: string) => {
+    if (authSessionOpenRef.current) return;
+    const sessionUrl = nativeLoginUrl(loginUrl, APP_ORIGIN);
+    if (!sessionUrl) return;
+    authSessionOpenRef.current = true;
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(sessionUrl, NATIVE_AUTH_CALLBACK);
+      if (result.type !== "success") return;
+      const target = webViewUrlForCallback(result.url, APP_ORIGIN);
+      if (!target) {
+        Alert.alert("Sign-in did not finish", "Please try again.");
+        return;
+      }
+      webViewRef.current?.injectJavaScript(`window.location.replace(${JSON.stringify(target)}); true;`);
+    } catch {
+      Alert.alert("Sign-in is unavailable", "Check your connection and try again.");
+    } finally {
+      authSessionOpenRef.current = false;
+    }
+  }, []);
+
+  // react-native-webview passes isTopFrame on iOS but does not export the type.
+  const handleShouldStartLoadWithRequest = useCallback((request: WebViewNavigation & { isTopFrame?: boolean }): boolean => {
     let url: URL;
     try {
       url = new URL(request.url);
     } catch {
+      return false;
+    }
+    if (request.isTopFrame !== false && isProviderLoginUrl(request.url, APP_ORIGIN)) {
+      void startNativeSignIn(request.url);
       return false;
     }
     if (url.protocol === "https:") return true;
@@ -244,7 +280,7 @@ export function RecompOneWebView() {
       void Linking.openURL(request.url);
     }
     return false;
-  }, []);
+  }, [startNativeSignIn]);
 
   return (
     <View style={styles.container}>
