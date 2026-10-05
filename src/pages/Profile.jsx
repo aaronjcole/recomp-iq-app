@@ -154,10 +154,31 @@ export default function Profile() {
 
   const changeGoal = async (newGoal) => {
     setSaving(true);
+    const label = GOAL_LABELS[newGoal].label;
     try {
       const updated = await updateProfile(profile.id, { goal: newGoal });
-      const strat = recalculateTargets({ ...updated, goal: newGoal }, preferences ?? {});
-      await updateStrategy(strategy.id, { ...strat, goal_type: newGoal }, `Goal changed to ${GOAL_LABELS[newGoal].label}.`);
+      if (strategy?.id) {
+        const manual = Boolean(strategy.manual_override);
+        const strat = recalculateTargets({ ...updated, goal: newGoal }, preferences ?? {});
+        // Manual mode keeps the user's own calorie/macro/step numbers, the same
+        // rule saveEdits and the weekly check-in follow.
+        if (manual) {
+          for (const key of MANUAL_TARGET_KEYS) delete strat[key];
+        }
+        await updateStrategy(
+          strategy.id,
+          { ...strat, goal_type: newGoal },
+          manual ? `Goal changed to ${label}. Custom targets kept.` : `Goal changed to ${label}.`
+        );
+        if (manual) {
+          toast({ title: `Goal set to ${label}`, description: "Your custom targets were kept." });
+        }
+      }
+    } catch {
+      toast({
+        title: "Could not change your goal",
+        description: "Your goal and targets may be out of sync. Please try again."
+      });
     } finally {
       setSaving(false);
     }

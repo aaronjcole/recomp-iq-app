@@ -1,6 +1,10 @@
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MEAL_SLOTS = Object.freeze(["breakfast", "lunch", "dinner", "snack"]);
 
+// Mirrors CALORIE_TARGET_MIN in src/lib/fitness/calculators.js: the app never
+// plans meals below this, even when a manual target is lower.
+export const MEAL_PLAN_CALORIE_FLOOR = 1500;
+
 export class MealPlanRequestError extends Error {
   constructor(message) {
     super(message);
@@ -360,8 +364,8 @@ export function normalizeMealPlanRequest(value) {
   return { weekStart: value.weekStart, mode };
 }
 
-function targetNumber(primary, fallback, minimum, maximum, label) {
-  const candidate = Number(primary ?? fallback);
+function targetNumber(value, minimum, maximum, label) {
+  const candidate = Number(value);
   if (!Number.isFinite(candidate) || candidate < minimum || candidate > maximum) {
     throw new MealPlanRequestError(`${label} is outside the supported range`);
   }
@@ -390,6 +394,9 @@ function isCompatible(mealDiet, dietStyle) {
 }
 
 function adherenceRatio(value) {
+  // Unlogged check-in fields are null; Number(null) is 0, which would read
+  // "not logged" as "0% adherence" and force the simplified week.
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) return null;
   return number > 1 && number <= 100 ? number / 100 : Math.min(number, 1);
@@ -406,18 +413,18 @@ function adaptationFor(checkIn) {
   // mix and portions toward the goal. Reuses the existing decision tree —
   // no new thresholds invented here.
   const decision = checkIn?.recommendation_decision;
+  // The decision only steers the food mix. Its calorie change is already in
+  // the current strategy (runCheckIn applies it), so scaling portions again
+  // here would apply the same adjustment twice.
   let foodPreference = null; // "lower_calorie" | "higher_calorie" | null
-  let portionAdjustment = 1;
   let goalAdaptationNote = "";
 
   if (decision === "reduce_calories") {
     foodPreference = "lower_calorie";
-    portionAdjustment = 0.95;
-    goalAdaptationNote = " Portions lean slightly smaller and toward higher-satiety picks to break a plateau.";
+    goalAdaptationNote = " Meals lean toward higher-satiety picks to help break a plateau.";
   } else if (decision === "increase_calories") {
     foodPreference = "higher_calorie";
-    portionAdjustment = 1.05;
-    goalAdaptationNote = " Portions nudge slightly larger to support your gain goal.";
+    goalAdaptationNote = " Meals lean toward denser picks to support your gain goal.";
   } else if (decision === "increase_steps") {
     goalAdaptationNote = " The plan keeps food steady while your step target steps up.";
   }
@@ -426,22 +433,19 @@ function adaptationFor(checkIn) {
     return {
       mode: "simplified_repetition",
       foodPreference,
-      portionAdjustment,
       summary: "Last week's adherence signal favors a simpler rotation with repeated ingredients and fewer decisions." + goalAdaptationNote
     };
   }
-  if (checkIn?.targets_for_next_week) {
+  if (checkIn) {
     return {
       mode: "balanced_variety",
       foodPreference,
-      portionAdjustment,
-      summary: "Portions use the targets from your latest weekly review while keeping a balanced meal rotation." + goalAdaptationNote
+      summary: "Portions use your current targets, and the rotation responds to your latest weekly review." + goalAdaptationNote
     };
   }
   return {
     mode: "balanced_variety",
     foodPreference,
-    portionAdjustment,
     summary: "This first plan uses your current targets and a balanced meal rotation; future weeks can respond to check-in trends." + goalAdaptationNote
   };
 }
@@ -683,15 +687,28 @@ export function buildAdaptiveMealPlan({ weekStart, strategy, preferences, checkI
     throw new MealPlanRequestError("A current nutrition strategy is required");
   }
 
-  const nextTargets = checkIn?.targets_for_next_week ?? {};
+  // The live strategy is the only source of targets. A check-in's
+  // targets_for_next_week is a snapshot: in automatic mode runCheckIn already
+  // copied it into the strategy, and in manual mode it is advisory only, so
+  // reading it here would override the user's own targets and any edit made
+  // since that check-in.
+  const requestedCalories = Math.round(
+    targetNumber(strategy.calorie_target, 1000, 6000, "Calorie target")
+  );
   const dailyTargets = {
-    calories: Math.round(targetNumber(nextTargets.calorie_target, strategy.calorie_target, 1000, 6000, "Calorie target")),
-    proteinG: Math.round(targetNumber(nextTargets.protein_target_g, strategy.protein_target_g, 20, 500, "Protein target")),
-    carbsG: Math.round(targetNumber(nextTargets.carb_target_g, strategy.carb_target_g, 20, 1000, "Carbohydrate target")),
-    fatG: Math.round(targetNumber(nextTargets.fat_target_g, strategy.fat_target_g, 20, 300, "Fat target"))
+    calories: Math.max(MEAL_PLAN_CALORIE_FLOOR, requestedCalories),
+    proteinG: Math.round(targetNumber(strategy.protein_target_g, 20, 500, "Protein target")),
+    carbsG: Math.round(targetNumber(strategy.carb_target_g, 20, 1000, "Carbohydrate target")),
+    fatG: Math.round(targetNumber(strategy.fat_target_g, 20, 300, "Fat target"))
   };
   const dietStyle = normalizeDietStyle(preferences?.diet_style);
-  const adaptation = adaptationFor(checkIn);
+  const baseAdaptation = adaptationFor(checkIn);
+  const adaptation = requestedCalories < MEAL_PLAN_CALORIE_FLOOR
+    ? {
+      ...baseAdaptation,
+      summary: `${baseAdaptation.summary} Your calorie target is below ${MEAL_PLAN_CALORIE_FLOOR} kcal, so meals are planned at ${MEAL_PLAN_CALORIE_FLOOR}; talk to a clinician before eating less.`
+    }
+    : baseAdaptation;
   const candidates = Object.fromEntries(MEAL_SLOTS.map((slot) => [
     slot,
     sortCandidatesByPreference(
@@ -712,7 +729,7 @@ export function buildAdaptiveMealPlan({ weekStart, strategy, preferences, checkI
     });
     const sources = withProteinBoost(selectedSources, dailyTargets, dietStyle);
     const baseCalories = sources.reduce((total, source) => total + source.calories, 0);
-    const scale = (dailyTargets.calories / baseCalories) * (adaptation.portionAdjustment ?? 1);
+    const scale = dailyTargets.calories / baseCalories;
     const meals = sources.map((source) => scaleMeal(source, scale));
     return {
       date: addDays(weekStart, dayIndex),

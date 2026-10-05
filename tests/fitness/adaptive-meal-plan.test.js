@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MealPlanRequestError,
+  MEAL_PLAN_CALORIE_FLOOR,
   buildAdaptiveMealPlan,
   normalizeMealPlanRequest,
   swapMeal
@@ -41,7 +42,7 @@ test("adaptive meal planning creates seven target-scaled days and one grocery li
   assert.equal(new Set(groceryKeys).size, groceryKeys.length);
 });
 
-test("the latest weekly target snapshot takes precedence and low adherence simplifies the week", () => {
+test("the live strategy sets targets even when a check-in snapshot differs, and low adherence simplifies the week", () => {
   const plan = buildAdaptiveMealPlan({
     weekStart: "2026-08-03",
     strategy: STRATEGY,
@@ -59,8 +60,10 @@ test("the latest weekly target snapshot takes precedence and low adherence simpl
     }
   });
 
-  assert.equal(plan.dailyTargets.calories, 2050);
-  assert.equal(plan.dailyTargets.proteinG, 165);
+  // A manual-mode user's own targets (or an edit since the check-in) win
+  // over the check-in's advisory snapshot.
+  assert.equal(plan.dailyTargets.calories, STRATEGY.calorie_target);
+  assert.equal(plan.dailyTargets.proteinG, STRATEGY.protein_target_g);
   assert.equal(plan.adaptation.mode, "simplified_repetition");
   assert.match(plan.adaptation.summary, /adherence/i);
 
@@ -138,4 +141,50 @@ test("swapMeal returns a different compatible meal from the same slot", () => {
 
 test("swapMeal returns null for an unknown meal id", () => {
   assert.equal(swapMeal("does-not-exist", "omnivore", []), null);
+});
+test("a reduce_calories decision steers the food mix without shrinking portions a second time", () => {
+  const strategy = { ...STRATEGY, calorie_target: 2200 };
+  const plan = buildAdaptiveMealPlan({
+    weekStart: "2026-08-03",
+    strategy,
+    preferences: { diet_style: "Omnivore" },
+    checkIn: { recommendation_decision: "reduce_calories", calorie_adherence: 0.95, protein_adherence: 0.95 }
+  });
+  assert.equal(plan.dailyTargets.calories, 2200);
+  for (const day of plan.days) {
+    assert.ok(Math.abs(day.totals.calories - 2200) <= 2200 * 0.03, `day total ${day.totals.calories} should match the 2200 target`);
+  }
+  assert.equal(plan.adaptation.portionAdjustment, undefined);
+});
+
+test("meal plans never go below the app's 1500 kcal floor", () => {
+  const atFloor = buildAdaptiveMealPlan({
+    weekStart: "2026-08-03",
+    strategy: { ...STRATEGY, calorie_target: 1500 },
+    preferences: { diet_style: "Omnivore" },
+    checkIn: { recommendation_decision: "reduce_calories", calorie_adherence: 0.95, protein_adherence: 0.95 }
+  });
+  assert.equal(atFloor.dailyTargets.calories, MEAL_PLAN_CALORIE_FLOOR);
+  for (const day of atFloor.days) {
+    assert.ok(day.totals.calories >= MEAL_PLAN_CALORIE_FLOOR * 0.97, `day total ${day.totals.calories} fell below the floor`);
+  }
+
+  const belowFloor = buildAdaptiveMealPlan({
+    weekStart: "2026-08-03",
+    strategy: { ...STRATEGY, calorie_target: 1200 },
+    preferences: { diet_style: "Omnivore" },
+    checkIn: null
+  });
+  assert.equal(belowFloor.dailyTargets.calories, MEAL_PLAN_CALORIE_FLOOR);
+  assert.match(belowFloor.adaptation.summary, /below 1500 kcal/);
+});
+
+test("unlogged adherence does not count as zero adherence", () => {
+  const plan = buildAdaptiveMealPlan({
+    weekStart: "2026-08-03",
+    strategy: STRATEGY,
+    preferences: { diet_style: "Omnivore" },
+    checkIn: { calorie_adherence: null, protein_adherence: null, recommendation_decision: "keep_plan" }
+  });
+  assert.equal(plan.adaptation.mode, "balanced_variety");
 });

@@ -206,7 +206,12 @@ export async function installAuthenticatedBase44(page, options = {}) {
         return json({ id: `${name}-e2e-created`, ...readBody(request), created_by_id: user.id });
       }
       if (method === "PUT" || method === "PATCH") {
-        return json({ id: idFromEntityUrl(url) ?? `${name}-e2e`, ...readBody(request) });
+        // Base44 returns the whole updated record, not only the changed fields.
+        const recordId = idFromEntityUrl(url) ?? `${name}-e2e`;
+        const existing = rows.find((item) => item.id === recordId && item.created_by_id === user.id);
+        const updated = { ...(existing ?? {}), id: recordId, ...readBody(request) };
+        if (existing) entities[name] = rows.map((item) => (item === existing ? updated : item));
+        return json(updated);
       }
       if (method === "DELETE") return json({ success: true });
     }
