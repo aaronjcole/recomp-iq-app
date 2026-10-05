@@ -1,3 +1,5 @@
+import { LIFESTYLE_COACH_ENABLED } from "../../base44/shared/lifestyleCoachDomain.js";
+
 export function enabledFromEnvironment(value) {
   return value === "true";
 }
@@ -27,5 +29,7 @@ export const featureFlags = Object.freeze({
   // behind a "coming soon" state until the experience is ready to ship. This is
   // independent of the premium entitlement — paying users still unlock the rest
   // of the premium bundle; this flag only controls whether the coach UI is usable.
-  lifestyleCoach: false
+  // It is the same constant the lifestyleCoachReply function checks server side
+  // (base44/shared/lifestyleCoachDomain.js), so the UI and backend cannot drift.
+  lifestyleCoach: LIFESTYLE_COACH_ENABLED
 });

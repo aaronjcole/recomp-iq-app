@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
+  LIFESTYLE_COACH_ENABLED,
   LIFESTYLE_RESPONSE_SCHEMA,
   LIFESTYLE_COACH_HOURLY_LIMIT,
   LIFESTYLE_COACH_DAILY_LIMIT,
@@ -20,6 +21,8 @@ import {
   quotaRetryAfterSeconds,
   reserveFeatureRequest
 } from "../../shared/coachRateLimitDomain.js";
+import { listAllEntitlements } from "../../shared/entitlementAccess.js";
+import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 const MAX_REQUEST_BYTES = 48_000;
 const CONVERSATION_MESSAGES_LIMIT = 100;
@@ -28,35 +31,8 @@ const LIFESTYLE_COACH_QUOTA = {
   daily: LIFESTYLE_COACH_DAILY_LIMIT
 };
 
-function statusOf(error: any) {
-  return error?.status ?? error?.response?.status;
-}
-
-function json(body: unknown, init: ResponseInit = {}) {
-  const headers = new Headers(init.headers);
-  headers.set("Cache-Control", "no-store");
-  return Response.json(body, { ...init, headers });
-}
-
-function safeErrorDetails(error: any) {
-  return {
-    status: statusOf(error) ?? null,
-    name: typeof error?.name === "string" ? error.name.slice(0, 80) : "Error"
-  };
-}
-
 async function ownedRecords(base44: any, entityName: string, userId: string, sort: string, limit: number) {
   return await base44.entities[entityName].filter({ created_by_id: userId }, sort, limit);
-}
-
-async function listAllEntitlements(base44: any, ownerId: string) {
-  return await base44.asServiceRole.entities.PremiumEntitlement.filter(
-    { owner_id: ownerId },
-    "-created_date",
-    500,
-    0,
-    ["product_id", "source", "status", "expires_at"]
-  );
 }
 
 async function reserveLifestyleRequest(base44: any, ownerId: string) {
@@ -89,8 +65,23 @@ export default async function(req: Request) {
   }
   if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlements = await listAllEntitlements(base44, user.id);
-  const access = resolvePremiumAccess(entitlements);
+  // Kill switch: checked before entitlements, the LLM, or any entity write.
+  // The client hides the page via featureFlags.lifestyleCoach (the same
+  // constant), but this function is deployed and callable directly.
+  if (!LIFESTYLE_COACH_ENABLED) {
+    const unavailable = "AI Lifestyle Coach is not available yet";
+    return json({ error: unavailable, message: unavailable }, { status: 404 });
+  }
+
+  let access: any;
+  try {
+    // Fails closed: listAllEntitlements throws instead of returning a
+    // truncated list; the error becomes a clean JSON response, not a crash.
+    access = resolvePremiumAccess(await listAllEntitlements(base44, user.id));
+  } catch (error) {
+    console.error("lifestyleCoachReply entitlement check failed", safeErrorDetails(error));
+    return json({ error: "Could not verify premium access" }, { status: 500 });
+  }
   if (!access.features[PREMIUM_FEATURES.AI_LIFESTYLE_COACH]) {
     return json({ error: "AI Lifestyle Coach requires the Lifestyle Coach premium plan" }, { status: 403 });
   }
@@ -162,10 +153,13 @@ export default async function(req: Request) {
       prompt,
       response_json_schema: LIFESTYLE_RESPONSE_SCHEMA
     });
+    // Applies coachDomain's isUnsafeCoachReply check and the plan-adjustment
+    // range validation; an unsafe reply comes back as professional guidance
+    // with no adjustments or lifestyle updates.
     const result = normalizeLifestyleReply(rawReply);
 
     // Persist lifestyle profile updates extracted from this conversation turn
-    if (result.lifestyleUpdates) {
+    if (result.actionable && result.lifestyleUpdates) {
       const updates = {
         ...result.lifestyleUpdates,
         last_updated: new Date().toISOString()
@@ -179,7 +173,7 @@ export default async function(req: Request) {
 
     return json({
       messageId: crypto.randomUUID(),
-      actionable: !!(result.summary && result.actions.length > 0),
+      actionable: result.actionable,
       reply: {
         summary: result.summary,
         actions: result.actions,
