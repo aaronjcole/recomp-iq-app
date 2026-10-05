@@ -40,7 +40,10 @@ export function parseProduct(p, barcode = null) {
     carbs_g: round(pick(nutriments, "carbohydrates", servingG)),
     fat_g: round(pick(nutriments, "fat", servingG)),
     fiber_g: round(pick(nutriments, "fiber", servingG)),
-    added_sugar_g: round(pick(nutriments, "sugars", servingG)),
+    // Only OFF's added-sugars field maps here. `sugars` is total sugar (fruit,
+    // milk lactose, …); treating it as added sugar flagged juice and raisins.
+    // Without added-sugar data the value stays unknown (null).
+    added_sugar_g: round(pick(nutriments, "added-sugars", servingG)),
     saturated_fat_g: round(pick(nutriments, "saturated-fat", servingG)),
     // Open Food Facts reports sodium in grams; the FoodItem entity stores mg.
     sodium_mg: sodiumG == null ? null : round(Number(sodiumG) * 1000, 0),

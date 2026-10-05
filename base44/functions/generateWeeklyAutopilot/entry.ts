@@ -8,9 +8,9 @@ import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 
 const MAX_REQUEST_BYTES = 2_000;
-const ENTITLEMENT_PAGE_SIZE = 500;
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -27,24 +27,6 @@ function safeErrorDetails(error) {
     status: statusOf(error) ?? null,
     name: typeof error?.name === "string" ? error.name.slice(0, 80) : "Error"
   };
-}
-
-async function listAllEntitlements(base44, ownerId) {
-  const records = [];
-  let skip = 0;
-  while (true) {
-    const page = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { owner_id: ownerId },
-      "-created_date",
-      ENTITLEMENT_PAGE_SIZE,
-      skip,
-      ["product_id", "source", "status", "expires_at"]
-    );
-    if (!Array.isArray(page)) throw new Error("Invalid entitlement response");
-    records.push(...page);
-    if (page.length < ENTITLEMENT_PAGE_SIZE) return records;
-    skip += page.length;
-  }
 }
 
 async function ownedRecords(base44, entityName, userId, sort, limit) {
@@ -89,7 +71,7 @@ export default async function(req) {
 
   try {
     // The backend entitlement is checked before any personal fitness data is read.
-    const entitlements = await listAllEntitlements(base44, user.id);
+    const entitlements = await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") });
     const access = resolvePremiumAccess(entitlements);
     if (access.features[PREMIUM_FEATURES.WEEKLY_AUTOPILOT] !== true) {
       return json({ error: "Premium Weekly Autopilot access is required" }, { status: 403 });

@@ -2,6 +2,9 @@ export const COACH_MESSAGE_MAX = 1000;
 export const COACH_HISTORY_MAX = 12;
 export const COACH_HISTORY_CONTENT_MAX = 1200;
 export const COACH_HISTORY_TOTAL_MAX = 9000;
+// Mirrors the server's reply summary limit (MAX_SUMMARY_LENGTH in
+// base44/shared/coachDomain.js) so a full reply is displayed and kept intact.
+export const COACH_REPLY_SUMMARY_MAX = 1800;
 export const REPORT_REASON_MAX = 500;
 export const REPORT_MESSAGE_ID_MAX = 128;
 export const REPORT_CONTENT_MAX = 2000;
@@ -19,6 +22,26 @@ export function boundedText(value, max) {
   return String(value ?? "").trim().slice(0, max);
 }
 
+const ELLIPSIS = "…";
+
+/**
+ * Trim and bound text to `max` characters. Text that fits is returned as-is;
+ * longer text is cut at the last word boundary that leaves room for an
+ * ellipsis (a single overlong word is hard-cut), so a clipped result never
+ * ends mid-word and never exceeds `max`.
+ */
+export function clipAtWord(value, max) {
+  const text = String(value ?? "").trim();
+  if (text.length <= max) return text;
+  if (max <= ELLIPSIS.length) return text.slice(0, max);
+  const room = max - ELLIPSIS.length;
+  // Include one extra character so a word ending exactly at `room` is kept.
+  const head = text.slice(0, room + 1);
+  const boundary = head.search(/\s\S*$/);
+  const cut = boundary > 0 ? head.slice(0, boundary) : text.slice(0, room);
+  return `${cut.trimEnd()}${ELLIPSIS}`;
+}
+
 function messageContent(message) {
   if (message.role === "coach") {
     const actions = Array.isArray(message.actions) ? message.actions.join(" ") : "";
@@ -33,7 +56,7 @@ export function toCoachHistory(messages) {
     .slice(-COACH_HISTORY_MAX)
     .map((message) => ({
       role: message.role,
-      content: boundedText(messageContent(message), COACH_HISTORY_CONTENT_MAX)
+      content: clipAtWord(messageContent(message), COACH_HISTORY_CONTENT_MAX)
     }))
     .filter((message) => message.content);
 
@@ -49,11 +72,11 @@ export function toCoachHistory(messages) {
 export function normalizeCoachReply(payload) {
   const data = payload?.data ?? payload ?? {};
   const reply = data.reply ?? data.response ?? data;
-  const summary = boundedText(
+  const summary = clipAtWord(
     typeof reply === "string"
       ? reply
       : reply.summary ?? reply.content ?? reply.message,
-    COACH_HISTORY_CONTENT_MAX
+    COACH_REPLY_SUMMARY_MAX
   );
   if (!summary) throw new Error("The coach returned an empty response");
 
@@ -85,7 +108,7 @@ export function makeReportRequest({ messageId, category, reason, reportedContent
   const boundedMessageId = boundedText(messageId, REPORT_MESSAGE_ID_MAX);
   if (!boundedMessageId) throw new Error("This response cannot be reported because it has no message ID");
   if (!categoryValues.has(category)) throw new Error("Choose a valid report category");
-  const boundedReportedContent = boundedText(reportedContent, REPORT_CONTENT_MAX);
+  const boundedReportedContent = clipAtWord(reportedContent, REPORT_CONTENT_MAX);
   if (!boundedReportedContent) throw new Error("The reported coach response is empty");
   return {
     messageId: boundedMessageId,

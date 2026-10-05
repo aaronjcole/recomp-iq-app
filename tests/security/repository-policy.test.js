@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { accountDeletionPlan } from "../../base44/shared/accountDeletionDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const entityDirectory = join(repoRoot, "base44/entities");
@@ -124,7 +125,13 @@ test("service-role account deletion stays scoped to the authenticated user", () 
   const source = readFileSync(join(repoRoot, "base44/functions/deleteAccount/entry.ts"), "utf8");
 
   assert.match(source, /user = await base44\.auth\.me\(\)/);
-  assert.match(source, /deleteMany\(\{ created_by_id: user\.id \}\)/);
+  assert.match(source, /runAccountDeletionCascade\(base44\.asServiceRole\.entities, user\)/);
+  for (const step of accountDeletionPlan({ id: "user-1", email: "a@example.com" })) {
+    assert.ok(
+      Object.values(step.query).every((value) => value === "user-1" || value === "a@example.com"),
+      `${step.entity} deletion filter must be bound to the authenticated user`
+    );
+  }
   assert.match(source, /confirmation !== "DELETE"/);
   assert.doesNotMatch(source, /deleteMany\(\{\s*\}\)/);
 });
@@ -142,6 +149,41 @@ test("AI analysis features never use Base44 public file storage", () => {
       source,
       /createPrivateAnalysisUrl|uploadPrivateAnalysisImage/,
       `${path} must use private analysis storage`
+    );
+  }
+});
+
+function pushBranches(workflowPath) {
+  const source = readFileSync(join(repoRoot, workflowPath), "utf8");
+  const lines = source.split(/\r?\n/);
+  const pushIndex = lines.findIndex((line) => /^ {2}push:\s*$/.test(line));
+  assert.notEqual(pushIndex, -1, `${workflowPath} must declare an on.push trigger`);
+  const branches = [];
+  let inBranches = false;
+  for (const line of lines.slice(pushIndex + 1)) {
+    if (/^\s*(#.*)?$/.test(line)) continue;
+    if (/^ {0,3}\S/.test(line)) break; // next trigger or top-level key
+    if (/^ {4}branches:\s*$/.test(line)) {
+      inBranches = true;
+      continue;
+    }
+    if (/^ {4}\S/.test(line)) {
+      inBranches = false;
+      continue;
+    }
+    const branch = line.match(/^ {6}- ["']?([^"'\s#]+)/);
+    if (inBranches && branch) branches.push(branch[1]);
+  }
+  return branches;
+}
+
+test("CI and CodeQL run on Base44 Builder pushes, whose GITHUB_TOKEN PRs start no workflows", () => {
+  for (const workflow of [".github/workflows/ci.yml", ".github/workflows/codeql.yml"]) {
+    const branches = pushBranches(workflow);
+    assert.ok(branches.includes("main"), `${workflow} must run on pushes to main`);
+    assert.ok(
+      branches.includes("base44-builder"),
+      `${workflow} must run on pushes to base44-builder`
     );
   }
 });

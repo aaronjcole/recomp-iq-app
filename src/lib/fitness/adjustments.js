@@ -25,6 +25,35 @@ function fatLossPlateauLever(profile, strategy) {
   };
 }
 
+// A calorie change must move the macro targets with it, or the macros keep
+// adding up to the old calories (three -150 cuts leave them ~29% over).
+// Protein is kept as set; carbs absorb the change first, then fat, without
+// dropping below floors that keep the targets realistic.
+const MIN_CARB_G = 50;
+const MIN_FAT_G = 40;
+
+export function rebalanceMacrosForCalories(strategy, calorieTarget) {
+  const previous = Number(strategy.calorie_target);
+  if (!Number.isFinite(previous) || calorieTarget === previous) return {};
+  const carbs = Number(strategy.carb_target_g);
+  const fat = Number(strategy.fat_target_g);
+  if (!Number.isFinite(carbs) || !Number.isFinite(fat)) return {};
+
+  let remaining = calorieTarget - previous;
+  let nextCarbs = carbs + remaining / 4;
+  if (nextCarbs < MIN_CARB_G) {
+    remaining = (nextCarbs - MIN_CARB_G) * 4;
+    nextCarbs = MIN_CARB_G;
+  } else {
+    remaining = 0;
+  }
+  const nextFat = Math.max(MIN_FAT_G, fat + remaining / 9);
+  return {
+    carb_target_g: Math.round(Math.min(nextCarbs, 3000)),
+    fat_target_g: Math.round(Math.min(nextFat, 2000))
+  };
+}
+
 export function decideWeeklyAdjustment(input) {
   const { trend, profile, preferences, strategy } = input;
   const safetyRedFlag = (preferences?.safety_flags ?? []).length > 0;
@@ -133,6 +162,10 @@ export function decideWeeklyAdjustment(input) {
       nextStrategy = { ...nextStrategy, ...plateau.updates };
       behaviorFocus = plateau.behaviorFocus;
     }
+  }
+
+  if (nextStrategy.calorie_target !== strategy.calorie_target) {
+    nextStrategy = { ...nextStrategy, ...rebalanceMacrosForCalories(strategy, nextStrategy.calorie_target) };
   }
 
   return { decision, reason, nextStrategy: { ...nextStrategy, behavior_focus: behaviorFocus }, behaviorFocus };

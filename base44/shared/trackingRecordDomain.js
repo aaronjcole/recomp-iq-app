@@ -1,5 +1,7 @@
 // Shared by Base44 functions and Node regression tests. Base44 packages modules
 // from base44/shared with each importing function deployment.
+import { ownedQuery, requireOwnerId } from "./ownerScope.js";
+
 export class TrackingRequestError extends Error {
   constructor(message) {
     super(message);
@@ -28,23 +30,47 @@ export const DAILY_LOG_FIELDS = Object.freeze([
 
 export const HABIT_ENTRY_FIELDS = Object.freeze(["value", "done"]);
 
+// Nutrition totals that food-diary writes adjust by a signed amount. The
+// server adds each increment to the stored value, so a client never sends an
+// absolute total computed from its own (possibly stale or partial) copy of
+// the day. Absolute values for these fields are still accepted in `fields`,
+// for a user typing their day's total directly.
+export const DAILY_LOG_INCREMENT_FIELDS = Object.freeze(["calories", "protein_g", "carbs_g", "fat_g"]);
+
+// Numeric ranges for daily-log fields, exported so the client can validate
+// the same bounds before sending (src/lib/dailyLogForm.js).
+export const DAILY_LOG_NUMBER_RANGES = Object.freeze({
+  weight_lbs: Object.freeze({ min: 40, max: 1200 }),
+  calories: Object.freeze({ min: 0, max: 20000 }),
+  protein_g: Object.freeze({ min: 0, max: 2000 }),
+  carbs_g: Object.freeze({ min: 0, max: 3000 }),
+  fat_g: Object.freeze({ min: 0, max: 2000 }),
+  steps: Object.freeze({ min: 0, max: 200000 }),
+  waist_in: Object.freeze({ min: 10, max: 150 }),
+  water_oz: Object.freeze({ min: 0, max: 2000 }),
+  hunger_rating: Object.freeze({ min: 1, max: 5 }),
+  energy_rating: Object.freeze({ min: 1, max: 5 }),
+  sleep_hours: Object.freeze({ min: 0, max: 24 }),
+  sleep_quality: Object.freeze({ min: 1, max: 5 }),
+  soreness_rating: Object.freeze({ min: 1, max: 5 })
+});
+
+export const DAILY_LOG_STRING_LIMITS = Object.freeze({
+  workout_type: 200,
+  notes: 4000
+});
+
 const dailyLogRules = {
-  weight_lbs: nullable(numberBetween(40, 1200)),
-  calories: nullable(numberBetween(0, 20000)),
-  protein_g: nullable(numberBetween(0, 2000)),
-  carbs_g: nullable(numberBetween(0, 3000)),
-  fat_g: nullable(numberBetween(0, 2000)),
-  steps: nullable(numberBetween(0, 200000)),
-  workout_completed: isBoolean,
-  workout_type: nullable(stringUpTo(200)),
-  waist_in: nullable(numberBetween(10, 150)),
-  water_oz: nullable(numberBetween(0, 2000)),
-  hunger_rating: nullable(numberBetween(1, 5)),
-  energy_rating: nullable(numberBetween(1, 5)),
-  sleep_hours: nullable(numberBetween(0, 24)),
-  sleep_quality: nullable(numberBetween(1, 5)),
-  soreness_rating: nullable(numberBetween(1, 5)),
-  notes: nullable(stringUpTo(4000))
+  ...Object.fromEntries(
+    Object.entries(DAILY_LOG_NUMBER_RANGES).map(([field, { min, max }]) => [
+      field,
+      nullable(numberBetween(min, max))
+    ])
+  ),
+  ...Object.fromEntries(
+    Object.entries(DAILY_LOG_STRING_LIMITS).map(([field, limit]) => [field, nullable(stringUpTo(limit))])
+  ),
+  workout_completed: isBoolean
 };
 
 const habitEntryRules = {
@@ -95,23 +121,69 @@ function sanitizeFields(fields, rules) {
   return sanitized;
 }
 
+// An increment is bounded by the field's own range so a single request can
+// neither add nor remove more than a whole valid value.
+const incrementLimits = {
+  calories: 20000,
+  protein_g: 2000,
+  carbs_g: 3000,
+  fat_g: 2000
+};
+
+function sanitizeIncrements(increments) {
+  if (increments === undefined) return {};
+  if (!isRecord(increments)) throw new TrackingRequestError("increments must be an object");
+  const sanitized = {};
+  for (const [key, value] of Object.entries(increments)) {
+    if (!DAILY_LOG_INCREMENT_FIELDS.includes(key)) {
+      throw new TrackingRequestError(`Unsupported increment: ${key}`);
+    }
+    const limit = incrementLimits[key];
+    if (typeof value !== "number" || !Number.isFinite(value) || Math.abs(value) > limit) {
+      throw new TrackingRequestError(`Invalid increment for ${key}`);
+    }
+    if (value !== 0) sanitized[key] = value;
+  }
+  return sanitized;
+}
+
 function fieldsForCreate(fields) {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null));
 }
 
-export function normalizeTrackingRequest(body) {
+/**
+ * `ownerId` is the authenticated caller. RLS lets admins read every user's
+ * rows, so the lookup query must name the owner explicitly; otherwise an
+ * admin's upsert would reconcile (and delete) other users' records.
+ */
+export function normalizeTrackingRequest(body, ownerId) {
+  // A missing owner is a programming error, not a client error: fail closed.
+  const owner = requireOwnerId(ownerId);
   if (!isRecord(body)) throw new TrackingRequestError("A JSON request body is required");
   if (!isIsoDate(body.date)) throw new TrackingRequestError("date must be a valid YYYY-MM-DD value");
 
   if (body.kind === "daily_log") {
-    const fields = sanitizeFields(body.fields, dailyLogRules);
+    const hasIncrements = body.increments !== undefined;
+    const fields = hasIncrements && body.fields === undefined
+      ? {}
+      : sanitizeFields(body.fields, dailyLogRules);
+    const increments = sanitizeIncrements(body.increments);
+    if (hasIncrements && Object.keys(fields).length === 0 && Object.keys(increments).length === 0) {
+      throw new TrackingRequestError("At least one field or non-zero increment is required");
+    }
+    for (const key of Object.keys(increments)) {
+      if (Object.prototype.hasOwnProperty.call(fields, key)) {
+        throw new TrackingRequestError(`${key} cannot be both set and incremented`);
+      }
+    }
     return {
       kind: body.kind,
       date: body.date,
       queueKey: `daily_log:${body.date}`,
-      query: { date: body.date },
+      query: ownedQuery(owner, { date: body.date }),
       createData: { date: body.date, ...fieldsForCreate(fields) },
       fields,
+      increments,
       mutableFields: DAILY_LOG_FIELDS
     };
   }
@@ -127,7 +199,7 @@ export function normalizeTrackingRequest(body) {
       date: body.date,
       habitId,
       queueKey: `habit_entry:${habitId}:${body.date}`,
-      query: { habit_id: habitId, date: body.date },
+      query: ownedQuery(owner, { habit_id: habitId, date: body.date }),
       createData: { habit_id: habitId, date: body.date, ...fieldsForCreate(fields) },
       fields,
       mutableFields: HABIT_ENTRY_FIELDS
@@ -153,7 +225,17 @@ function compareCreatedRecords(left, right) {
   return String(left?.id ?? "").localeCompare(String(right?.id ?? ""));
 }
 
-export function reconcileTrackingRecords(records, incomingFields, mutableFields) {
+function roundTotal(value) {
+  return Math.round(value * 10) / 10;
+}
+
+/**
+ * Merges duplicate records into the oldest one, then applies the request:
+ * explicit `incomingFields` replace values (null unsets), and `increments`
+ * are added to the merged stored value, floored at 0 and capped at the
+ * field's valid maximum.
+ */
+export function reconcileTrackingRecords(records, incomingFields, mutableFields, increments = {}) {
   const unique = new Map();
   for (const record of records ?? []) {
     if (record?.id) unique.set(record.id, record);
@@ -176,6 +258,11 @@ export function reconcileTrackingRecords(records, incomingFields, mutableFields)
     } else if (incomingFields[field] !== undefined) {
       fields[field] = incomingFields[field];
     }
+  }
+
+  for (const [field, amount] of Object.entries(increments ?? {})) {
+    const base = Number(fields[field]) || 0;
+    fields[field] = roundTotal(Math.min(incrementLimits[field], Math.max(0, base + amount)));
   }
 
   return { canonical, duplicates: canonicalOrder.slice(1), fields, unsetFields };

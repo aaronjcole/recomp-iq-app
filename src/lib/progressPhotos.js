@@ -18,8 +18,13 @@ function genId() {
   return `p_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// One shared connection per page. It is dropped (and reopened on next use) when
+// another tab upgrades or deletes the database, or the browser closes it.
+let dbPromise = null;
+
 function openDB() {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+  const pending = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -27,9 +32,25 @@ function openDB() {
         db.createObjectStore(STORE, { keyPath: "id" }).createIndex("userId", "userId", { unique: false });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error("Storage unavailable"));
+    req.onsuccess = () => {
+      const db = req.result;
+      const forget = () => {
+        if (dbPromise === pending) dbPromise = null;
+      };
+      db.onversionchange = () => {
+        forget();
+        db.close();
+      };
+      db.onclose = forget;
+      resolve(db);
+    };
+    req.onerror = () => {
+      if (dbPromise === pending) dbPromise = null;
+      reject(req.error || new Error("Storage unavailable"));
+    };
   });
+  dbPromise = pending;
+  return pending;
 }
 
 function store(db, mode) {
@@ -41,6 +62,33 @@ function reqPromise(request) {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+// Walk only this user's records through the userId index, keeping metadata.
+async function eachUserRecord(userId, visit) {
+  if (!userId) return;
+  const db = await openDB();
+  await new Promise((resolve, reject) => {
+    const request = store(db, "readonly").index("userId").openCursor(IDBKeyRange.only(userId));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      visit(meta(cursor.value));
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error || new Error("Could not read progress photos"));
+  });
+}
+
+export function sortPhotosNewestFirst(photos) {
+  return [...photos].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+}
+
+export function photoUsageBytes(photos) {
+  return photos.reduce((sum, p) => sum + (Number(p?.sizeBytes) || 0), 0);
 }
 
 async function loadBitmap(file) {
@@ -87,7 +135,7 @@ async function compress(file, maxDim, quality) {
   });
 }
 
-function meta(record) {
+export function meta(record) {
   const { fullBlob, thumbBlob, ...rest } = record;
   return rest;
 }
@@ -129,12 +177,9 @@ export async function addPhoto(userId, file, opts = {}) {
 }
 
 export async function listPhotos(userId) {
-  const db = await openDB();
-  const all = (await reqPromise(store(db, "readonly").getAll())) || [];
-  return all
-    .filter((p) => p.userId === userId)
-    .sort((a, b) => b.created_at - a.created_at)
-    .map(meta);
+  const photos = [];
+  await eachUserRecord(userId, (photo) => photos.push(photo));
+  return sortPhotosNewestFirst(photos);
 }
 
 export async function getPhotoBlob(id, kind = "full") {
@@ -167,23 +212,21 @@ export async function deletePhotosForUser(userId) {
       cursor.continue();
     };
     request.onerror = () => tx.abort();
-    tx.oncomplete = () => {
-      db.close();
-      resolve(deleted);
-    };
+    tx.oncomplete = () => resolve(deleted);
     tx.onerror = () => {
-      db.close();
       reject(tx.error || request.error || new Error("Could not delete progress photos"));
     };
     tx.onabort = () => {
-      db.close();
       reject(tx.error || request.error || new Error("Could not delete progress photos"));
     };
   });
 }
 
-export async function estimateUsage() {
-  const db = await openDB();
-  const all = (await reqPromise(store(db, "readonly").getAll())) || [];
-  return all.reduce((sum, p) => sum + (p.sizeBytes || 0), 0);
+// Bytes used by this user's photos only (other accounts on the device excluded).
+export async function estimateUsage(userId) {
+  let bytes = 0;
+  await eachUserRecord(userId, (photo) => {
+    bytes += Number(photo.sizeBytes) || 0;
+  });
+  return bytes;
 }

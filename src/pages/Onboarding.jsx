@@ -3,14 +3,19 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Target } from "lucide-react";
 import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  clearOnboardingDraft,
+  loadOnboardingDraft,
+  pickPreferenceDraftFields,
+  pickProfileDraftFields,
+  saveOnboardingDraft
+} from "@/lib/onboardingDraft";
 import { calculateInitialStrategy } from "@/lib/fitness";
 import StepGoal from "@/components/onboarding/StepGoal";
 import StepAboutActivity from "@/components/onboarding/StepAboutActivity";
 import StepNutrition from "@/components/onboarding/StepNutrition";
 import StepReview from "@/components/onboarding/StepReview";
-
-// Keep the legacy key so existing users retain onboarding progress through the rebrand.
-const STORAGE_KEY = "recompiq_onboarding_v1";
 
 const STEPS = [
   { label: "Goal" },
@@ -66,10 +71,9 @@ const STEP_MESSAGES = [
   ""
 ];
 
-function loadState() {
+function browserStorage() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return window.localStorage;
   } catch {
     return null;
   }
@@ -81,7 +85,15 @@ function inRange(value, min, max) {
   return Number.isFinite(number) && number >= min && number <= max;
 }
 
+// The draft is scoped to the signed-in account. Keying the form by user id
+// remounts it (and re-reads that account's draft) if the account changes.
 export default function Onboarding() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  return <OnboardingForm key={userId ?? "anonymous"} userId={userId} />;
+}
+
+function OnboardingForm({ userId }) {
   const {
     completeOnboarding,
     upsertDailyLog,
@@ -94,14 +106,14 @@ export default function Onboarding() {
   } = useRecomp();
   const navigate = useNavigate();
 
-  const saved = useMemo(() => loadState(), []);
+  const saved = useMemo(() => loadOnboardingDraft(browserStorage(), userId), [userId]);
   const [searchParams, setSearchParams] = useSearchParams();
   const step = Math.min(
     STEPS.length - 1,
     Math.max(0, Number(searchParams.get("step") ?? saved?.step ?? 0) || 0)
   );
-  const [p, setP] = useState(saved?.p ?? DEFAULTS.p);
-  const [pref, setPrefRaw] = useState(saved?.pref ?? DEFAULTS.pref);
+  const [p, setP] = useState(() => (saved ? { ...DEFAULTS.p, ...saved.p } : DEFAULTS.p));
+  const [pref, setPrefRaw] = useState(() => (saved ? { ...DEFAULTS.pref, ...saved.pref } : DEFAULTS.pref));
   const [units, setUnits] = useState(saved?.units ?? DEFAULTS.units);
   const [saving, setSaving] = useState(false);
   const [errorStep, setErrorStep] = useState(null);
@@ -114,38 +126,20 @@ export default function Onboarding() {
     if (loading || saved || restoredPartialSetup.current) return;
     restoredPartialSetup.current = true;
 
+    // Only allowlisted form fields are copied from the server records, so
+    // record metadata (id, created_by email, created_by_id) never enters form
+    // state or the stored draft. Numeric fields become input strings.
     if (profile) {
-      setP((current) => ({
-        ...current,
-        ...profile,
-        age: String(profile.age ?? current.age),
-        height_in: String(profile.height_in ?? current.height_in),
-        current_weight_lbs: String(profile.current_weight_lbs ?? current.current_weight_lbs),
-        goal_weight_lbs: String(profile.goal_weight_lbs ?? current.goal_weight_lbs),
-        average_steps: String(profile.average_steps ?? current.average_steps),
-        training_days_per_week: String(
-          profile.training_days_per_week ?? current.training_days_per_week
-        ),
-        cardio_days_per_week: String(
-          profile.cardio_days_per_week ?? current.cardio_days_per_week
-        )
-      }));
+      setP((current) => ({ ...current, ...pickProfileDraftFields(profile) }));
     }
     if (preferences) {
-      setPrefRaw((current) => ({
-        ...current,
-        ...preferences
-      }));
+      setPrefRaw((current) => ({ ...current, ...pickPreferenceDraftFields(preferences) }));
     }
   }, [loading, preferences, profile, saved]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ p, pref, units, step }));
-    } catch {
-      /* ignore quota / privacy mode */
-    }
-  }, [p, pref, units, step]);
+    saveOnboardingDraft(browserStorage(), userId, { p, pref, units, step });
+  }, [p, pref, units, step, userId]);
 
   useEffect(() => {
     if (!loading && onboarded && !saving) navigate("/today", { replace: true });
@@ -249,7 +243,7 @@ export default function Onboarding() {
           console.warn("Plan created, but the baseline waist measurement was not saved.", error);
         }
       }
-      localStorage.removeItem(STORAGE_KEY);
+      clearOnboardingDraft(browserStorage(), userId);
       navigate("/today", { replace: true });
     } catch (error) {
       console.error("Unable to complete onboarding", error);

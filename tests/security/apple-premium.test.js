@@ -201,6 +201,12 @@ test("appleStoreNotification matches by external_transaction_id and handles revo
   // Handles renewal.
   assert.match(source, /DID_RENEW/);
   assert.match(source, /status: "active"/);
+  // A renewal never re-activates a refunded/revoked entitlement and only
+  // moves expiry forward (out-of-order or replayed notifications).
+  assert.match(source, /DID_RENEW[\s\S]{0,400}record\.status === "revoked" \|\| txnRevoked\) continue/);
+  assert.match(source, /txnExpiresMs <= recordExpiresMs\) continue/);
+  // A stale EXPIRED for a superseded period is ignored.
+  assert.match(source, /recordExpiresMs > txnExpiresMs/);
   // Idempotent: acknowledges even when no matching entitlement.
   assert.match(source, /return json\(\{ ok: true \}\)/);
 });

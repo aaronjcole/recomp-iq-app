@@ -20,10 +20,23 @@ export function validateAnalysisImage(file) {
   }
 }
 
-export async function uploadPrivateAnalysisImage(core, file) {
+/**
+ * Upload an analysis photo through the uploadAnalysisPhoto backend function,
+ * which stores it privately and records this account as its uploader. The
+ * analyze functions refuse any reference without that record, so the browser
+ * must not upload analysis photos with Core.UploadPrivateFile directly.
+ *
+ * @param {{ invoke: (name: string, data: object) => Promise<any> }} functions base44.functions
+ * @param {File} file
+ * @param {"food_photo" | "body_composition"} purpose
+ */
+export async function uploadPrivateAnalysisImage(functions, file, purpose) {
   validateAnalysisImage(file);
 
-  const { file_uri: fileUri } = await core.UploadPrivateFile({ file });
-  if (!fileUri) throw new Error("Private image upload did not return a file reference.");
+  const response = await functions.invoke("uploadAnalysisPhoto", { file, purpose });
+  const fileUri = (response?.data ?? response)?.file_uri;
+  if (typeof fileUri !== "string" || !fileUri) {
+    throw new Error("Private image upload did not return a file reference.");
+  }
   return fileUri;
 }

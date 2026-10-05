@@ -9,6 +9,7 @@ import {
   PREMIUM_PRODUCTS,
   resolvePremiumAccess
 } from "../../base44/shared/premiumDomain.js";
+import { accountDeletionPlan } from "../../base44/shared/accountDeletionDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const NOW = Date.parse("2026-08-03T18:00:00.000Z");
@@ -86,10 +87,7 @@ test("premium access is server-authorized, admin-owned, and removed with the acc
     resolve(repoRoot, "base44/functions/getPremiumAccess/entry.ts"),
     "utf8"
   );
-  const deletion = readFileSync(
-    resolve(repoRoot, "base44/functions/deleteAccount/entry.ts"),
-    "utf8"
-  );
+  const loader = readFileSync(resolve(repoRoot, "base44/shared/entitlementAccess.js"), "utf8");
   const app = readFileSync(resolve(repoRoot, "src/App.jsx"), "utf8");
   const flags = readFileSync(resolve(repoRoot, "src/lib/featureFlags.js"), "utf8");
   const schema = JSON.parse(
@@ -97,19 +95,29 @@ test("premium access is server-authorized, admin-owned, and removed with the acc
   );
 
   assert.match(server, /user = await base44\.auth\.me\(\)/);
-  assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
-  assert.match(server, /owner_id:\s*ownerId/);
-  assert.match(server, /listAllEntitlements\(base44, user\.id\)/);
+  // The paged read (and the tester bypass) live in the shared loader that
+  // every gated function also uses.
+  assert.match(server, /import \{ loadPremiumAccessRecords \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
+  assert.match(server, /loadPremiumAccessRecords\(base44, user,/);
+  assert.doesNotMatch(server, /async function listAllEntitlements/);
+  assert.match(loader, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
+  assert.match(loader, /owner_id:\s*ownerId/);
+  assert.match(loader, /listAllEntitlements\(base44, user\.id\)/);
   assert.match(server, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
   assert.match(server, /releaseFlags:\s*\{[\s\S]*bodyCompositionScan/);
   assert.match(server, /Cache-Control", "no-store"/);
-  assert.match(server, /const ENTITLEMENT_PAGE_SIZE = 500/);
-  assert.match(server, /const MAX_ENTITLEMENT_RECORDS = 1_000/);
-  assert.match(server, /while \(records\.length < MAX_ENTITLEMENT_RECORDS\)/);
-  assert.match(server, /skip \+= page\.length/);
-  assert.doesNotMatch(server, /while \(true\)/);
-  assert.doesNotMatch(server, /PremiumEntitlement\.filter\([\s\S]*?\n\s*20\s*\n/);
-  assert.match(deletion, /PremiumEntitlement\.deleteMany\(\{ owner_id: user\.id \}\)/);
+  assert.match(loader, /const ENTITLEMENT_PAGE_SIZE = 500/);
+  assert.match(loader, /const MAX_ENTITLEMENT_RECORDS = 1_000/);
+  assert.match(loader, /while \(records\.length < MAX_ENTITLEMENT_RECORDS\)/);
+  assert.match(loader, /skip \+= page\.length/);
+  assert.doesNotMatch(loader, /while \(true\)/);
+  assert.doesNotMatch(loader, /PremiumEntitlement\.filter\([\s\S]*?\n\s*20\s*\n/);
+  assert.ok(
+    accountDeletionPlan({ id: "user-1" }).some(
+      (step) => step.entity === "PremiumEntitlement" && step.query.owner_id === "user-1"
+    ),
+    "PremiumEntitlement must be deleted with the account by owner_id"
+  );
   assert.match(app, /<PremiumAccessProvider>/);
   assert.match(app, /path=["']\/more\/premium["']/);
   assert.doesNotMatch(flags, /VITE_(?:ENABLE_)?(?:PREMIUM|TESTER|ENTITLEMENT)/i);

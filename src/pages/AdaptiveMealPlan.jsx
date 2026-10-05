@@ -20,6 +20,7 @@ import {
   writePlanCache
 } from "@/lib/planCache";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+import { groceryListFor, proteinBoostScoopsOf } from "../../base44/shared/adaptiveMealPlanDomain.js";
 
 function currentWeekStart() {
   const date = new Date();
@@ -102,15 +103,21 @@ export default function AdaptiveMealPlan() {
   };
 
   const handleSwap = async (dayIndex, meal) => {
+    // One swap at a time (every Swap button disables while one is in flight):
+    // each swap rebuilds the week and grocery list from the current plan.
     const swapKey = `${dayIndex}-${meal.slot}`;
     setSwapping(swapKey);
     try {
       const dayMeals = plan.days[dayIndex].meals;
       const avoidIds = dayMeals.map((m) => m.id).filter((id) => id !== meal.id);
+      // The swap is keyed by slot and calories, so AI-variety meals swap too,
+      // and a "+ protein boost" snack keeps its boost.
       const result = await base44.functions.invoke("swapAdaptiveMeal", {
         mealId: meal.id,
+        slot: meal.slot,
         dietStyle: plan.dietStyle,
-        servingScale: meal.servingScale,
+        targetCalories: meal.calories,
+        proteinBoostScoops: proteinBoostScoopsOf(meal),
         avoidIds
       });
       const newMeal = result?.data?.meal ?? result?.meal;
@@ -129,9 +136,21 @@ export default function AdaptiveMealPlan() {
         { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
       );
       nextDays[dayIndex] = nextDay;
-      const nextPlan = { ...plan, days: nextDays };
+      // Rebuild the grocery list from the updated week with the same function
+      // the planner uses, so swapped-out ingredients leave the list.
+      const groceryList = groceryListFor(nextDays);
+      const nextPlan = { ...plan, days: nextDays, groceryList };
       setPlan(nextPlan);
       writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
+      // Keep a tick only while its line is unchanged: a removed item, or one
+      // whose quantity the swap changed, needs a fresh look.
+      const previous = new Map(plan.groceryList.map((item) => [`${item.name}|${item.unit}`, item.quantity]));
+      const unchanged = new Set(groceryList
+        .filter((item) => previous.get(`${item.name}|${item.unit}`) === item.quantity)
+        .map((item) => `${item.name}|${item.unit}`));
+      const nextChecked = Object.fromEntries(Object.entries(checked).filter(([key]) => unchanged.has(key)));
+      setChecked(nextChecked);
+      writePlanCache(GROCERY_CACHE, userId, nextChecked);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -256,7 +275,6 @@ export default function AdaptiveMealPlan() {
                   <CardContent className="space-y-3 px-5 pb-5 pt-0">
                     {day.meals.map((meal) => {
                       const swapKey = `${index}-${meal.slot}`;
-                      const isSwappable = !meal.id?.startsWith("ai-");
                       return (
                         <div key={meal.slot} className="rounded-lg bg-panel2 p-3">
                           <div className="flex items-start justify-between gap-3">
@@ -266,18 +284,16 @@ export default function AdaptiveMealPlan() {
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               <span className="text-xs text-muted-foreground">{meal.calories} kcal</span>
-                              {isSwappable && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSwap(index, meal)}
-                                  disabled={swapping === swapKey}
-                                  aria-label={`Swap ${meal.slot}`}
-                                  className="flex min-h-9 items-center gap-1 rounded-md px-2 py-1 text-xs text-teal hover:bg-teal/10 disabled:opacity-50"
-                                >
-                                  <Shuffle className={`h-3 w-3 ${swapping === swapKey ? "animate-spin" : ""}`} aria-hidden="true" />
-                                  Swap
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleSwap(index, meal)}
+                                disabled={swapping !== null}
+                                aria-label={`Swap ${meal.slot}`}
+                                className="flex min-h-9 items-center gap-1 rounded-md px-2 py-1 text-xs text-teal hover:bg-teal/10 disabled:opacity-50"
+                              >
+                                <Shuffle className={`h-3 w-3 ${swapping === swapKey ? "animate-spin" : ""}`} aria-hidden="true" />
+                                Swap
+                              </button>
                             </div>
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">

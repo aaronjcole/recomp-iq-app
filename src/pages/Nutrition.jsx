@@ -99,12 +99,14 @@ export default function Nutrition() {
       });
       return;
     }
-    await upsertDailyLog(selectedDate, (current) => ({
-      calories: (current?.calories ?? 0) + (food.calories ?? 0),
-      protein_g: (current?.protein_g ?? 0) + (food.protein_g ?? 0),
-      carbs_g: (current?.carbs_g ?? 0) + (food.carbs_g ?? 0),
-      fat_g: (current?.fat_g ?? 0) + (food.fat_g ?? 0)
-    }));
+    await upsertDailyLog(selectedDate, null, {
+      increments: {
+        calories: food.calories ?? 0,
+        protein_g: food.protein_g ?? 0,
+        carbs_g: food.carbs_g ?? 0,
+        fat_g: food.fat_g ?? 0
+      }
+    });
   };
 
   useEffect(() => {
@@ -147,8 +149,18 @@ export default function Nutrition() {
     setShowPhotoScan(false);
   };
 
-  const handleSearchAdd = async (food, addToToday) => {
-    await addAndLog(food, "search", addToToday);
+  // Reuses a FoodItem saved on an earlier tap (savedFoodId) so a retry after a
+  // failed diary write, or "Today" after "Library", never duplicates it.
+  /** @param {{ savedFoodId?: string, onSaved?: (id: string) => void }} [options] */
+  const handleSearchAdd = async (food, addToToday, options = {}) => {
+    let foodId = options.savedFoodId;
+    if (!foodId) {
+      foodId = (await addFood(food)).id;
+      options.onSaved?.(foodId);
+    }
+    if (addToToday) {
+      await logToToday(food, "search", foodId);
+    }
   };
 
   const quickAddFood = async (f) => {

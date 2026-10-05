@@ -4,7 +4,7 @@ import { useRecomp } from "@/lib/RecompContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/lib/useTheme";
 import { GOAL_LABELS } from "@/lib/fitness";
-import { base44 } from "@/api/base44Client";
+import { signOut } from "@/lib/signOut";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
@@ -120,7 +120,7 @@ function Row({ item, first, onActivate, theme, themePreference, onThemeChange, l
 }
 
 export default function More() {
-  const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, mealTemplates } = useRecomp();
+  const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, mealTemplates, historyLoaded } = useRecomp();
   const { user } = useAuth();
   const { theme, preference: themePreference, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -130,7 +130,9 @@ export default function More() {
   const [running, setRunning] = useState(false);
 
   const lastCheckIn = checkIns[0];
-  const checkinDue = !lastCheckIn || daysSince(lastCheckIn.end_date) >= 6;
+  // Check-ins load with older history; until then "no check-in" only means
+  // "not loaded yet", and a check-in would run on the current week alone.
+  const checkinDue = historyLoaded && (!lastCheckIn || daysSince(lastCheckIn.end_date) >= 6);
 
   const goalLabel =
     (profile && GOAL_LABELS[profile.goal]?.label) ||
@@ -145,9 +147,11 @@ export default function More() {
   const initials = initialsFrom(fullName, email);
 
   const runCheck = async () => {
+    if (!historyLoaded || running) return;
     setRunning(true);
     try {
       const r = await runCheckIn();
+      if (!r) return;
       setCheckinResult(r);
       triggerHaptic(HAPTIC_TRIGGERS.WEEKLY_CHECK_IN_SUBMITTED);
       setCheckinOpen(true);
@@ -159,7 +163,7 @@ export default function More() {
   const handlers = {
     checkin: runCheck,
     reload: () => reload(),
-    logout: () => base44.auth.logout(window.location.origin),
+    logout: () => signOut(window.location.origin),
     support: () => navigate("/support"),
     deleteAccount: () => navigate("/delete-account"),
     privacy: () => navigate("/privacy"),
@@ -181,6 +185,8 @@ export default function More() {
           badge: checkinDue ? "Due" : null,
           subtitle: running
             ? "Analyzing…"
+            : !historyLoaded
+            ? "Loading your history…"
             : lastCheckIn
             ? `Last ${lastCheckIn.end_date}`
             : "Run the adaptive engine"

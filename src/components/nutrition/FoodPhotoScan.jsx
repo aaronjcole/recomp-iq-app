@@ -101,8 +101,9 @@ export default function FoodPhotoScan({ onClose, onResult }) {
     setErr("");
     try {
       const fileUri = await uploadPrivateAnalysisImage(
-        base44.integrations.Core,
-        photo.file
+        base44.functions,
+        photo.file,
+        "food_photo"
       );
       if (!mountedRef.current) return;
 

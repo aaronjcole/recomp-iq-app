@@ -82,6 +82,15 @@ a primary owner and a backup who can access that entity and the support inbox at
 - [ ] Privacy, Terms, Support, and account-deletion pages load while signed out.
 - [ ] Keyboard navigation, focus restoration, and Escape work in dialogs.
 - [ ] Core flows render correctly on current iOS Safari and Android Chrome.
+- [ ] In a physical-device build of the RecompOne iOS shell, Continue with Google and Continue
+      with Apple each open the system sign-in sheet (ASWebAuthenticationSession), complete, and
+      land signed in on the page sign-in started from. Cancelling the sheet leaves the user on the
+      login page. This flow goes through `public/auth/native-return.html`
+      (`expo-ios/src/nativeAuth.ts`), so check it after any change to Base44 auth URLs.
+- [ ] In the same build, with a sandbox Apple ID under Ask to Buy (or StoreKit's "Interrupted
+      purchase" testing), a subscription that waits for approval releases the paywall within about
+      30 seconds with the "waiting for approval" message. A second Subscribe tap must not report
+      "Another purchase is already in progress".
 - [ ] Before enforcing a navigation-origin allowlist in the RecompOne iOS shell's
       `onShouldStartLoadWithRequest` (`expo-ios/src/RecompOneWebView.tsx`), trace the real on-device
       redirect chain for all four Base44 sign-in providers (Google, Microsoft, Facebook, Apple) and

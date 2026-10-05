@@ -42,7 +42,7 @@ test("adaptive training builds the requested 4–6 week block with a final deloa
     strategy: STRATEGY,
     sessions: SESSIONS,
     strengthLogs: STRENGTH_LOGS,
-    checkIn: { workout_adherence: 0.8, energy_average: 4, sleep_average: 4 }
+    checkIn: { workout_adherence: 0.8, energy_average: 4, sleep_average: 7.5 }
   });
 
   assert.equal(plan.blockLengthWeeks, 5);
@@ -100,7 +100,7 @@ test("low adherence and high exertion reduce starting volume", () => {
     strategy: STRATEGY,
     sessions: SESSIONS.map((session) => ({ ...session, perceived_exertion: 9 })),
     strengthLogs: STRENGTH_LOGS,
-    checkIn: { workout_adherence: 0.45, energy_average: 2, sleep_average: 2 }
+    checkIn: { workout_adherence: 0.45, energy_average: 2, sleep_average: 5 }
   });
 
   assert.equal(fatigued.adaptation.mode, "recovery_biased");
@@ -126,4 +126,40 @@ test("training-plan requests strictly validate date, equipment, and block length
     () => normalizeTrainingPlanRequest({ weekStart: "2026-08-03", equipment: "full_gym", blockLengthWeeks: 7 }),
     (error) => error instanceof TrainingPlanRequestError
   );
+});
+
+test("check-in fields that were not logged do not make a healthy block recovery-biased", () => {
+  const build = (checkIn) => buildAdaptiveTrainingBlock({
+    request: { weekStart: "2026-08-03", equipment: "full_gym", blockLengthWeeks: 5 },
+    profile: PROFILE,
+    preferences: {},
+    strategy: STRATEGY,
+    sessions: SESSIONS,
+    strengthLogs: STRENGTH_LOGS,
+    checkIn
+  });
+  const healthy = build({ workout_adherence: 0.8, energy_average: 4, sleep_average: 7.5 });
+  assert.notEqual(healthy.adaptation.mode, "recovery_biased");
+  for (const missing of [
+    { workout_adherence: 0.8, energy_average: null, sleep_average: 7.5 },
+    { workout_adherence: 0.8, energy_average: 4, sleep_average: null },
+    { workout_adherence: null, energy_average: 4, sleep_average: 7.5 },
+    { workout_adherence: "", energy_average: undefined, sleep_average: null }
+  ]) {
+    assert.equal(build(missing).adaptation.mode, healthy.adaptation.mode, JSON.stringify(missing));
+  }
+});
+
+test("sleep is judged in hours: under 6 h biases recovery, 6.5 h does not", () => {
+  const build = (sleepHours) => buildAdaptiveTrainingBlock({
+    request: { weekStart: "2026-08-03", equipment: "full_gym", blockLengthWeeks: 5 },
+    profile: PROFILE,
+    preferences: {},
+    strategy: STRATEGY,
+    sessions: SESSIONS,
+    strengthLogs: STRENGTH_LOGS,
+    checkIn: { workout_adherence: 0.8, energy_average: 4, sleep_average: sleepHours }
+  });
+  assert.equal(build(4.5).adaptation.mode, "recovery_biased");
+  assert.notEqual(build(6.5).adaptation.mode, "recovery_biased");
 });

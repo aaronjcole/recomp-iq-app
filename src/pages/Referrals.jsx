@@ -154,8 +154,7 @@ export default function Referrals() {
             </li>
             <li>
               <span className="font-medium text-foreground">2. They sign up.</span> Friends who
-              register with your link get 30% off their first month of premium
-              <span className="text-muted-foreground"> (discount applies once web checkout is live).</span>
+              register with your link get 30% off their first month of premium.
             </li>
             <li>
               <span className="font-medium text-foreground">3. You earn a free month.</span> When a

@@ -131,7 +131,7 @@ test("the 403 reaches the user through the message field", () => {
 });
 
 test("entitlement reads fail closed rather than unlocking", () => {
-  // listAllEntitlements throws on a malformed or over-long response instead of
+  // The shared loader (listAllEntitlements) throws on a malformed or over-long response instead of
   // returning a partial list, and the surrounding try/catch returns a failure
   // status. A truncated read must never look like "no gate needed".
   const loader = readFileSync(
@@ -141,9 +141,10 @@ test("entitlement reads fail closed rather than unlocking", () => {
   assert.match(loader, /throw new Error\("Invalid entitlement response"\)/);
   assert.match(loader, /throw new Error\("Entitlement response exceeded the safe record limit"\)/);
   assert.match(loader, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
+  assert.match(loader, /return await listAllEntitlements\(base44, user\.id\)/);
   // Owner scoping comes from the authenticated user, never the request body.
-  assert.match(server, /listAllEntitlements\(base44,\s*user\.id\)/);
-  assert.doesNotMatch(server, /listAllEntitlements\(base44,\s*body/);
+  assert.match(server, /loadPremiumAccessRecords\(base44,\s*user,/);
+  assert.doesNotMatch(server, /loadPremiumAccessRecords\(base44,\s*body/);
 });
 
 // --- Client -----------------------------------------------------------------

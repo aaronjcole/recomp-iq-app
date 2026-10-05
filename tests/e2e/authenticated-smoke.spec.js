@@ -30,6 +30,18 @@ test("the signed-in shell reaches Today with data, not login or onboarding", asy
   assertNoPageErrors();
 });
 
+test("another account's rows never reach the signed-in user's Today", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/today");
+
+  await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+  await page.getByRole("button", { name: "Show today's checklist" }).click();
+  await expect(page.getByRole("button", { name: "Increase Water" })).toHaveCount(1);
+  await expect(page.getByText("Foreign account habit")).toHaveCount(0);
+  await expect(page.getByText("4321", { exact: true })).toHaveCount(0);
+  assertNoPageErrors();
+});
+
 test("Today brings the first daily logging module into the initial phone viewport", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -696,11 +708,13 @@ test("a Premium tester sees the deploy-enabled AI body-composition range in Prog
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZfN8AAAAASUVORK5CYII=",
     "base64"
   );
-  const uploadResponses = [];
-  page.on("response", (response) => {
-    if (response.url().includes("/integration-endpoints/Core/UploadPrivateFile")) {
-      uploadResponses.push(response);
-    }
+  const uploadRequests = [];
+  const directUploads = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/functions/uploadAnalysisPhoto")) uploadRequests.push(request);
+    // A direct browser upload has no server-written AnalysisUpload record, so
+    // the analyze function would refuse it.
+    if (request.url().includes("/integration-endpoints/Core/UploadPrivateFile")) directUploads.push(request);
   });
 
   await page.goto("/progress");
@@ -735,7 +749,15 @@ test("a Premium tester sees the deploy-enabled AI body-composition range in Prog
       back: "private/user-test/pose-2.png"
     }
   });
-  expect(uploadResponses).toHaveLength(3);
+  // Each photo went through the ownership-recording upload function (which the
+  // mock, like the backend, requires before it analyzes a reference).
+  expect(uploadRequests).toHaveLength(3);
+  for (const upload of uploadRequests) {
+    expect(upload.method()).toBe("POST");
+    expect(upload.postData() ?? "").toContain('name="purpose"');
+    expect(upload.postData() ?? "").toContain("body_composition");
+  }
+  expect(directUploads).toHaveLength(0);
   await expect(page.getByText("18–22%")).toBeVisible();
   await expect(page.getByText("141.2–148.4 lb")).toBeVisible();
   await expect(page.getByText(/three views support a broad visual estimate/i)).toBeVisible();

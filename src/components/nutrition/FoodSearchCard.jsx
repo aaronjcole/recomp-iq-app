@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
 const DEBOUNCE_MS = 400;
 const MIN_QUERY = 2;
@@ -14,6 +15,10 @@ export default function FoodSearchCard({ onAdd }) {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [added, setAdded] = useState({});
+  const { toast } = useToast();
+  // source_id -> FoodItem id already created, so retries reuse it.
+  const savedIdsRef = useRef({});
+  const inFlightRef = useRef(new Set());
   const debounceRef = useRef(null);
   const requestIdRef = useRef(0);
 
@@ -53,12 +58,26 @@ export default function FoodSearchCard({ onAdd }) {
   }, [query]);
 
   const handleAdd = async (food, addToToday) => {
-    if (added[food.source_id]) return;
-    setAdded((prev) => ({ ...prev, [food.source_id]: addToToday ? "today" : "library" }));
+    const key = food.source_id;
+    const current = added[key];
+    if (inFlightRef.current.has(key) || current === "today") return;
+    if (!addToToday && current === "library") return;
+    inFlightRef.current.add(key);
+    setAdded((prev) => ({ ...prev, [key]: addToToday ? "today" : "library" }));
     try {
-      await onAdd?.(food, addToToday);
+      await onAdd?.(food, addToToday, {
+        savedFoodId: savedIdsRef.current[key],
+        onSaved: (id) => { savedIdsRef.current[key] = id; }
+      });
     } catch {
-      setAdded((prev) => ({ ...prev, [food.source_id]: undefined }));
+      // If the FoodItem was saved but the diary write failed, show it as saved.
+      setAdded((prev) => ({ ...prev, [key]: savedIdsRef.current[key] ? "library" : undefined }));
+      toast({
+        title: addToToday ? "Couldn't add food to today" : "Couldn't save food",
+        variant: "destructive"
+      });
+    } finally {
+      inFlightRef.current.delete(key);
     }
   };
 

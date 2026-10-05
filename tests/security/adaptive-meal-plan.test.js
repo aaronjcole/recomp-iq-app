@@ -50,13 +50,13 @@ test("adaptive meal planning verifies server entitlement before reading nutritio
   assert.match(server, /req\.method !== "POST"/);
   assert.match(server, /user = await base44\.auth\.me\(\)/);
   assert.match(server, /Cache-Control", "no-store"/);
-  assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
+  assert.match(server, /import \{ loadPremiumAccessRecords \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
   assert.match(server, /PREMIUM_FEATURES\.MEAL_PLANNING/);
   assert.match(server, /created_by_id:\s*userId/);
   assert.match(server, /preferences\?\.safety_flags/);
   assert.doesNotMatch(server, /\bemail\b/i);
 
-  const authorization = server.indexOf("const entitlements = await listAllEntitlements");
+  const authorization = server.indexOf("const entitlements = await loadPremiumAccessRecords(base44, user,");
   const nutritionRead = server.indexOf('ownedRecords(base44, "CurrentStrategy"');
   assert.ok(authorization >= 0 && authorization < nutritionRead);
 });
@@ -182,11 +182,45 @@ test("the AI variety prompt carries only macro targets, diet style, a decision e
   }
 
   // Everything the model returns is clamped and bounded before it is trusted.
-  const merge = domain.slice(domain.indexOf("export function mergeAiMealsIntoPlan("));
+  // The merge step and the per-meal / per-day validators it calls.
+  const mergeStart = domain.indexOf("function boundedNumber(");
+  assert.ok(mergeStart >= 0 && mergeStart < domain.indexOf("export function mergeAiMealsIntoPlan("));
+  const merge = domain.slice(mergeStart, domain.indexOf("export function buildAdaptiveMealPlan("));
   assert.match(merge, /did not return 7 days/, "the merge step must reject a short or long week");
   assert.match(merge, /String\(raw\.title \|\| "AI meal"\)\.slice\(0, 80\)/, "meal titles must be coerced and length-capped");
-  assert.match(merge, /Math\.round\(Number\(raw\.calories\) \|\| 0\)/, "returned macros must be coerced to numbers");
-  assert.match(merge, /raw\.ingredients\.slice\(0, 8\)/, "ingredient lists must be bounded");
+  assert.doesNotMatch(merge, /\|\| 0\)/, "returned macros must be rejected when not finite, never coerced to 0");
+  assert.match(merge, /raw\.ingredients\.slice\(0, MAX_AI_INGREDIENTS\)/, "ingredient lists must be bounded");
+  assert.match(domain, /const MAX_AI_INGREDIENTS = \d+;/);
+
+  // Each AI day is validated against the slots, targets, floor and diet the
+  // deterministic plan enforces, and falls back to the deterministic day.
+  const validator = domain.slice(domain.indexOf("function validAiDay("), domain.indexOf("export function mergeAiMealsIntoPlan("));
+  assert.match(domain, /MEAL_SLOTS\.includes\(raw\.slot\)/, "unknown AI meal slots must be rejected");
+  assert.match(validator, /MEAL_PLAN_CALORIE_FLOOR/, "AI days must not go under the calorie floor");
+  assert.match(validator, /AI_DAY_CALORIE_TOLERANCE/, "AI day totals must stay near the target");
+  assert.match(validator, /aiMealFitsDiet\(/, "AI ingredients must fit the diet");
+  assert.match(domain, /return isCompatible\(ingredientDiet\(names\)/, "AI diet checks reuse the catalog's isCompatible rules");
+  assert.match(merge, /fallbackDays\[dayIndex\]/, "an invalid AI day falls back to the deterministic day");
+  assert.match(server, /fallbackDays: deterministicPlan\.days/, "the server supplies the deterministic week as the fallback");
+});
+
+test("meal swaps validate a bounded request and do not require a catalog id", () => {
+  const server = read("base44/functions/swapAdaptiveMeal/entry.ts");
+  assert.match(server, /user = await base44\.auth\.me\(\)/);
+  assert.match(server, /normalizeSwapRequest\(await req\.json\(\)\)/, "the swap body must go through the shared validator");
+  assert.match(server, /status: 400|failure\(error\.message, 400\)/);
+  assert.doesNotMatch(server, /\bemail\b/i);
+
+  const domain = read("base44/shared/adaptiveMealPlanDomain.js");
+  const validator = balancedSource(domain, domain.indexOf("export function normalizeSwapRequest("), "{", "}");
+  assert.match(validator, /SWAP_MEAL_ID_PATTERN\.test\(mealId\)/);
+  assert.match(validator, /MEAL_SLOTS\.includes\(slot\)/);
+  assert.match(validator, /Number\.isFinite\(targetCalories\)/);
+  assert.match(validator, /MAX_SWAP_AVOID_IDS/);
+
+  const page = read("src/pages/AdaptiveMealPlan.jsx");
+  assert.match(page, /groceryListFor\(nextDays\)/, "a swap must rebuild the grocery list from the updated week");
+  assert.doesNotMatch(page, /startsWith\("ai-"\)/, "AI-variety meals are swappable");
 });
 
 test("meal planning is exposed inside Fuel and remains gated in both UI and backend", () => {

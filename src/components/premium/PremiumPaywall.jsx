@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarDays,
   Dumbbell,
@@ -18,14 +19,11 @@ import { useAuth } from "@/lib/AuthContext";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { getNativeIapBridge, hasNativeIapBridge } from "@/lib/nativeIapBridge";
 import { useToast } from "@/components/ui/use-toast";
+import { APPLE_PRODUCT_ANNUAL, APPLE_PRODUCT_MONTHLY, premiumPlans } from "@/lib/premiumPlans";
 
 // Apple App Store StoreKit product IDs. Both map to the same recompone_premium
 // entitlement on the server (see base44/shared/premiumDomain.js and
-// base44/functions/verifyApplePurchase/entry.ts). Inlined here because frontend
-// code cannot import from base44/shared/.
-const APPLE_PRODUCT_MONTHLY = "recompone_premium_monthly";
-const APPLE_PRODUCT_ANNUAL = "recompone_premium_annual";
-
+// base44/functions/verifyApplePurchase/entry.ts).
 const PAYWALL_FEATURES = [
   { icon: CalendarDays, title: "Adaptive meal plans & grocery lists" },
   { icon: Dumbbell, title: "4–6-week adaptive training blocks" },
@@ -33,25 +31,6 @@ const PAYWALL_FEATURES = [
   { icon: TrendingUp, title: "Advanced cross-signal insights" },
   { icon: Bot, title: "Lifestyle Coach" },
   { icon: ScanLine, title: "Visual Progress tools" }
-];
-
-const PLANS = [
-  {
-    productId: APPLE_PRODUCT_MONTHLY,
-    label: "Monthly",
-    price: "$4.99",
-    period: "/month",
-    description: "Billed monthly. Cancel anytime."
-  },
-  {
-    productId: APPLE_PRODUCT_ANNUAL,
-    label: "Annual",
-    price: "$39.99",
-    period: "/year",
-    description: "14-day free trial, then $39.99/year.",
-    badge: "14-day free trial",
-    highlighted: true
-  }
 ];
 
 function isNativePurchase(value) {
@@ -78,6 +57,39 @@ export default function PremiumPaywall() {
   const { toast } = useToast();
   const [isBusy, setIsBusy] = useState(false);
   const bridgeAvailable = hasNativeIapBridge();
+  // Localized prices and trial eligibility come from StoreKit; null = loading.
+  const [products, setProducts] = useState(null);
+  const [pricesUnavailable, setPricesUnavailable] = useState(false);
+  // An iOS build without getProducts, or StoreKit not answering, keeps the
+  // reference prices purchasable as before; Apple's sheet shows the real price.
+  const legacyBridge = bridgeAvailable
+    && (pricesUnavailable || typeof getNativeIapBridge()?.getProducts !== "function");
+
+  useEffect(() => {
+    const bridge = getNativeIapBridge();
+    if (!bridge || typeof bridge.getProducts !== "function") return undefined;
+    let active = true;
+    let timer = null;
+    // The App Store connection can still be starting when the paywall opens.
+    const attempt = (remaining) => {
+      bridge.getProducts()
+        .then((result) => {
+          if (active) setProducts(Array.isArray(result?.products) ? result.products : []);
+        })
+        .catch(() => {
+          if (!active) return;
+          if (remaining > 0) timer = setTimeout(() => attempt(remaining - 1), 1500);
+          else setPricesUnavailable(true);
+        });
+    };
+    attempt(3);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const plans = premiumPlans({ storeKit: bridgeAvailable, products, legacyBridge });
 
   async function handlePlanSelect(productId) {
     if (!bridgeAvailable || isBusy) return;
@@ -172,7 +184,7 @@ export default function PremiumPaywall() {
       </Card>
 
       <div className="space-y-3" aria-label="Premium plans">
-        {PLANS.map((plan) => (
+        {plans.map((plan) => (
           <Card
             key={plan.productId}
             className={`border-line bg-panel ${plan.highlighted ? "ring-2 ring-teal" : ""}`}
@@ -184,8 +196,8 @@ export default function PremiumPaywall() {
                   <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-semibold">{plan.price}</p>
-                  <p className="text-xs text-muted-foreground">{plan.period}</p>
+                  <p className="text-lg font-semibold">{plan.priceLabel}</p>
+                  <p className="text-xs text-muted-foreground">{plan.periodLabel}</p>
                 </div>
               </div>
               {plan.badge && (
@@ -195,7 +207,7 @@ export default function PremiumPaywall() {
               )}
               <Button
                 className="w-full"
-                disabled={!bridgeAvailable || isBusy}
+                disabled={!bridgeAvailable || isBusy || !plan.purchasable}
                 onClick={() => handlePlanSelect(plan.productId)}
               >
                 {bridgeAvailable ? `Subscribe ${plan.label}` : "Available in the iOS app"}
@@ -214,6 +226,21 @@ export default function PremiumPaywall() {
         <RotateCcw className="h-4 w-4" aria-hidden="true" />
         {bridgeAvailable ? "Restore Purchases" : "Restore Purchases (in iOS app)"}
       </Button>
+
+      <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
+        <p>
+          RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
+          to your Apple ID at confirmation of purchase. The subscription renews automatically at
+          the price shown unless it is cancelled at least 24 hours before the end of the current
+          period, and your account is charged for renewal within the 24 hours before the period
+          ends. Manage or cancel it in your Apple ID's subscription settings. Any unused part of a
+          free trial ends when you buy a subscription.
+        </p>
+        <p className="flex flex-wrap gap-x-4 gap-y-1">
+          <Link to="/terms" className="underline underline-offset-2">Terms of Use</Link>
+          <Link to="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
+        </p>
+      </div>
 
       {!bridgeAvailable && (
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">

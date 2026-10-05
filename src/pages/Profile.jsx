@@ -23,6 +23,7 @@ import { LogOut, Trash2, Pencil, LoaderCircle } from "lucide-react";
 import ChildTopBar from "@/components/ChildTopBar";
 import { deletePhotosForUser } from "@/lib/progressPhotos";
 import { planCacheKeysForUser } from "@/lib/planCache";
+import { signOut } from "@/lib/signOut";
 import {
   BIOMETRIC_RANGES,
   inBiometricRange,
@@ -154,10 +155,31 @@ export default function Profile() {
 
   const changeGoal = async (newGoal) => {
     setSaving(true);
+    const label = GOAL_LABELS[newGoal].label;
     try {
       const updated = await updateProfile(profile.id, { goal: newGoal });
-      const strat = recalculateTargets({ ...updated, goal: newGoal }, preferences ?? {});
-      await updateStrategy(strategy.id, { ...strat, goal_type: newGoal }, `Goal changed to ${GOAL_LABELS[newGoal].label}.`);
+      if (strategy?.id) {
+        const manual = Boolean(strategy.manual_override);
+        const strat = recalculateTargets({ ...updated, goal: newGoal }, preferences ?? {});
+        // Manual mode keeps the user's own calorie/macro/step numbers, the same
+        // rule saveEdits and the weekly check-in follow.
+        if (manual) {
+          for (const key of MANUAL_TARGET_KEYS) delete strat[key];
+        }
+        await updateStrategy(
+          strategy.id,
+          { ...strat, goal_type: newGoal },
+          manual ? `Goal changed to ${label}. Custom targets kept.` : `Goal changed to ${label}.`
+        );
+        if (manual) {
+          toast({ title: `Goal set to ${label}`, description: "Your custom targets were kept." });
+        }
+      }
+    } catch {
+      toast({
+        title: "Could not change your goal",
+        description: "Your goal and targets may be out of sync. Please try again."
+      });
     } finally {
       setSaving(false);
     }
@@ -187,7 +209,6 @@ export default function Profile() {
           `recompiq_bf_scan_${me.id}`,
           `recomp-grocery-checked-${me.id}`,
           ...planCacheKeysForUser(me.id),
-          "recompiq_onboarding_v1",
           "recomp-demo-ids"
         ]) {
           localStorage.removeItem(key);
@@ -196,7 +217,8 @@ export default function Profile() {
         // The hosted account is already deleted; logout must still complete.
       }
 
-      base44.auth.logout(window.location.origin);
+      // signOut also removes every onboarding draft, including the legacy key.
+      signOut(window.location.origin);
     } catch (e) {
       const serverMessage = e?.response?.data?.error;
       toast({
@@ -461,7 +483,7 @@ export default function Profile() {
         </Card>
       )}
 
-      <Button variant="outline" className="w-full border-line text-muted-foreground" onClick={() => base44.auth.logout(window.location.origin)}>
+      <Button variant="outline" className="w-full border-line text-muted-foreground" onClick={() => signOut(window.location.origin)}>
         <LogOut className="w-4 h-4 mr-2" /> Log out
       </Button>
 
