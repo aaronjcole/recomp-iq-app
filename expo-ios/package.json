@@ -10,7 +10,7 @@
     "doctor": "npx expo-doctor"
   },
   "dependencies": {
-    "expo": "~57.0.26",
+    "expo": "~57.0.27",
     "expo-dev-client": "~57.0.19",
     "expo-status-bar": "~57.0.1",
     "expo-web-browser": "~57.0.3",
