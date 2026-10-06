@@ -64,3 +64,8 @@ The test-debt PR moves logic out of four functions into new shared modules, with
 
 After it merges:
 - [ ] **Republish those four functions** with their new shared modules. Nothing else needs a deploy for it. It can go out with the steps above or separately.
+
+## Follow-up: the purchase signature check
+`verifyApplePurchase` now verifies the signature on the transaction Apple's API returns before granting Premium.
+- [ ] **Republish `verifyApplePurchase`** together with `base44/shared/applePurchaseDomain.js` and `base44/shared/appleJwsVerify.js`.
+- [ ] **Make one sandbox purchase** after publishing and confirm Premium unlocks. If the logs show `AppleSignatureError`, roll back `verifyApplePurchase`: every purchase would be failing with a 502.

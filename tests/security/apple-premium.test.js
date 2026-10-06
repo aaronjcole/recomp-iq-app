@@ -202,6 +202,9 @@ test("verifyApplePurchase wires the shared purchase decisions and never trusts t
 
   assert.match(source, /isAppleStoreProduct\(productId\)/);
   assert.match(source, /mapAppleProductId\(productId\)/);
+  // The API's signed transaction is verified, never just base64-decoded.
+  assert.match(source, /const transactionInfo = await verifiedTransactionInfo\(body\?\.signedTransactionInfo\);/);
+  assert.doesNotMatch(source, /decodeJwsPayload|atob\(b64\)/);
   assert.match(source, /appleTransactionVerification\(transactionInfo, \{[\s\S]*?expectedBundleId: secrets\.get\("APPLE_BUNDLE_ID"\)/);
   assert.match(source, /if \(!verification\.isValid\) \{\s*return json\(\{ error: "Purchase is not active" \}/);
   assert.match(source, /deriveAppleAppAccountToken\(user\.id\)/);

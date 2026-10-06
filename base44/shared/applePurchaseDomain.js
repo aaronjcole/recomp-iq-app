@@ -3,6 +3,29 @@
 // entitlement; what counts as a valid, owned purchase and what gets written
 // is decided here so it can be tested.
 
+import { verifyAppleNotificationJws } from "./appleJwsVerify.js";
+
+/**
+ * Verifies the signedTransactionInfo the App Store Server API returned and
+ * returns its decoded payload, or null when Apple sent none. The JWS must
+ * carry an x5c chain that ends at the pinned Apple Root CA G3 and verify
+ * with its leaf key, the same check appleStoreNotification applies, so a
+ * response that did not come from Apple (a TLS-intercepting proxy, a spoofed
+ * host) can never grant Premium. Any failure throws an AppleSignatureError.
+ *
+ * `options` exists for tests only (see verifyAppleNotificationJws).
+ */
+export async function verifiedTransactionInfo(signedTransactionInfo, options = {}) {
+  if (!signedTransactionInfo) return null;
+  try {
+    return (await verifyAppleNotificationJws(signedTransactionInfo, options)).payload;
+  } catch (cause) {
+    const error = new Error("signedTransactionInfo failed signature verification", { cause });
+    error.name = "AppleSignatureError";
+    throw error;
+  }
+}
+
 /**
  * Turns the decoded transaction Apple returned (or null) into the
  * verification result the entry acts on. Fails closed: a product other than

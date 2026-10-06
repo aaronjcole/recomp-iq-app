@@ -6,7 +6,8 @@ import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 import {
   appAccountTokenMatches,
   appleEntitlementWrite,
-  appleTransactionVerification
+  appleTransactionVerification,
+  verifiedTransactionInfo
 } from "../../shared/applePurchaseDomain.js";
 
 // Required Base44 app Secrets (set before going live):
@@ -33,13 +34,6 @@ import {
 
 function b64url(obj) {
   return btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-
-function decodeJwsPayload(jws) {
-  const parts = String(jws).split(".");
-  if (parts.length < 2) throw new Error("Invalid JWS");
-  const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(atob(b64));
 }
 
 // Signs an App Store Server API JWT (ES256) using the Apple .p8 key.
@@ -87,7 +81,7 @@ async function makeAppleServerJwt() {
   return `${signingInput}.${sigB64}`;
 }
 
-// Fetches transaction info from the App Store Server API and decodes the signed payload.
+// Fetches transaction info from the App Store Server API and verifies the signed payload.
 // Returns the verified transaction fields needed for entitlement ownership.
 // Docs: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
 async function verifyWithApple(transactionId, expectedProductId) {
@@ -119,9 +113,10 @@ async function verifyWithApple(transactionId, expectedProductId) {
   if (!res.ok) throw new Error(`App Store Server API returned ${res.status}`);
 
   const body = await res.json();
-  const transactionInfo = body?.signedTransactionInfo
-    ? decodeJwsPayload(body.signedTransactionInfo)
-    : null;
+  // Apple signs the transaction; verify the signature and certificate chain
+  // before trusting any field in it. A failure throws, so the caller answers
+  // 502 and never grants Premium.
+  const transactionInfo = await verifiedTransactionInfo(body?.signedTransactionInfo);
   // Product, bundle ID, revocation and expiry checks fail closed in the
   // shared domain.
   return appleTransactionVerification(transactionInfo, {

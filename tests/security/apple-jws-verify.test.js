@@ -14,6 +14,10 @@ import {
   verifyAppleNotificationJws,
   verifyInnerJws
 } from "../../base44/shared/appleJwsVerify.js";
+import {
+  appleTransactionVerification,
+  verifiedTransactionInfo
+} from "../../base44/shared/applePurchaseDomain.js";
 
 const fixtures = resolve(fileURLToPath(new URL("../fixtures/apple-jws", import.meta.url)));
 const pemB64 = (name) =>
@@ -167,6 +171,43 @@ test("inner JWS verifies with the outer leaf key and rejects tampering or wrong 
   await assert.rejects(() => verifyInnerJws(`${hx}.${forged}.${sx}`, leafKey, OPTS));
   const wrongAlg = await makeJws({ alg: "HS256" }, txn);
   await assert.rejects(() => verifyInnerJws(wrongAlg, leafKey, OPTS), /Unsupported JWS algorithm/);
+});
+
+test("verifyApplePurchase trusts the API's signedTransactionInfo only when Apple signed it", async () => {
+  const txn = {
+    transactionId: "2000000000000001",
+    originalTransactionId: "2000000000000001",
+    productId: "recompone_premium_monthly",
+    bundleId: "com.example.app",
+    expiresDate: NOW + 86_400_000,
+    environment: "Production",
+    signedDate: NOW - 1_000
+  };
+  const signed = await makeJws({ alg: "ES256", x5c: [LEAF, INTER, ROOT] }, txn);
+  const payload = await verifiedTransactionInfo(signed, OPTS);
+  assert.deepEqual(payload, txn);
+  const verification = appleTransactionVerification(payload, {
+    transactionId: txn.transactionId,
+    expectedProductId: txn.productId,
+    expectedBundleId: txn.bundleId,
+    nowMs: NOW
+  });
+  assert.equal(verification.isValid, true);
+
+  // No signedTransactionInfo: nothing to verify, and the purchase is not valid.
+  assert.equal(await verifiedTransactionInfo(undefined, OPTS), null);
+
+  // A payload that was decodable before but is unsigned, forged, chained to
+  // a root other than Apple's, or not a JWS at all is rejected.
+  const [h, , s] = signed.split(".");
+  const forged = b64url(Buffer.from(JSON.stringify({ ...txn, expiresDate: NOW + 10 * 365 * 86_400_000 })));
+  const unsigned = `${b64url(Buffer.from(JSON.stringify({ alg: "none" })))}.${b64url(Buffer.from(JSON.stringify(txn)))}.x`;
+  const noChain = await makeJws({ alg: "ES256" }, txn);
+  for (const bad of [`${h}.${forged}.${s}`, unsigned, noChain, "not-a-jws", "{}"]) {
+    await assert.rejects(() => verifiedTransactionInfo(bad, OPTS), { name: "AppleSignatureError" });
+  }
+  // Production callers pass no options, so the test chain is not trusted.
+  await assert.rejects(() => verifiedTransactionInfo(signed), { name: "AppleSignatureError" });
 });
 
 test("DER ECDSA signatures convert to fixed-width raw r||s", () => {
