@@ -1,6 +1,7 @@
+// Shared by the app (via src/lib/fitness) and Base44 functions.
 // Ported 1:1 from RecompOne src/lib/fitness/trends.ts. Pure functions.
 
-import { summarizeAdherence } from "./adherence.js";
+import { summarizeAdherence } from "./fitnessAdherence.js";
 
 const DAY_MS = 86400000;
 

@@ -1,3 +1,4 @@
+// Shared by the app (via src/lib/fitness) and Base44 functions.
 // Ported 1:1 from RecompOne src/lib/fitness/adherence.ts. Pure functions.
 
 function averageAcrossExpectedDays(scores, expectedDays) {

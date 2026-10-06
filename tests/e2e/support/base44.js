@@ -7,6 +7,8 @@ import {
   buildMealSwap,
   normalizeSwapRequest
 } from "../../../base44/shared/adaptiveMealPlanDomain.js";
+import { WeeklyCheckInError } from "../../../base44/shared/weeklyCheckInDomain.js";
+import { decideWeeklyCheckIn } from "../../../base44/shared/weeklyCheckInPersistence.js";
 import {
   AUTH_USER,
   ADAPTIVE_MEAL_PLAN,
@@ -97,6 +99,60 @@ function parseEntityQuery(url) {
   } catch {
     return null;
   }
+}
+
+let inMemorySequence = 0;
+
+/**
+ * A Base44-shaped `entities` client over the mock's rows, so a backend domain
+ * (decideWeeklyCheckIn) runs for real against the same data the app reads.
+ * Rows are looked up on every call because routes replace the arrays.
+ */
+function inMemoryEntities(entities, userId) {
+  return new Proxy({}, {
+    get(_target, name) {
+      const rows = () => (entities[name] ??= []);
+      const copy = (row) => ({ ...row });
+      return {
+        async filter(query, sort, limit = 50) {
+          const field = sort?.replace(/^[-+]/, "");
+          const direction = sort?.startsWith("-") ? -1 : 1;
+          const compare = (a, b) => {
+            if (!field) return 0;
+            const left = a[field] ?? "";
+            const right = b[field] ?? "";
+            return (left < right ? -1 : left > right ? 1 : 0) * direction;
+          };
+          return rows()
+            .filter((row) => matchesQuery(row, query))
+            .sort(compare)
+            .slice(0, limit)
+            .map(copy);
+        },
+        async create(data) {
+          inMemorySequence += 1;
+          const row = {
+            ...data,
+            id: `${String(name)}-mem-${inMemorySequence}`,
+            created_by_id: userId,
+            created_date: new Date(Date.now() + inMemorySequence).toISOString()
+          };
+          rows().push(row);
+          return copy(row);
+        },
+        async update(id, data) {
+          const row = rows().find((item) => item.id === id && item.created_by_id === userId);
+          if (!row) throw Object.assign(new Error("Not found"), { status: 404 });
+          Object.assign(row, data);
+          return copy(row);
+        },
+        async delete(id) {
+          entities[name] = rows().filter((item) => !(item.id === id && item.created_by_id === userId));
+          return { success: true };
+        }
+      };
+    }
+  });
 }
 
 function idFromEntityUrl(url) {
@@ -243,6 +299,20 @@ export async function installAuthenticatedBase44(page, options = {}) {
           observed_duplicates: 0,
           cleanup_pending: 0
         });
+      }
+      // Run decideWeeklyCheckIn's own state machine against the fixture rows,
+      // so apply/keep/customize, 409 refreshes and idempotent repeats behave
+      // exactly as the function does.
+      if (url.includes("/functions/decideWeeklyCheckIn")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        try {
+          return json(await decideWeeklyCheckIn({ entities: inMemoryEntities(entities, user.id) }, user, readBody(request)));
+        } catch (error) {
+          if (error instanceof WeeklyCheckInError) {
+            return json({ error: error.message, code: error.code, ...error.extra }, error.status);
+          }
+          throw error;
+        }
       }
       if (url.includes("/functions/getPremiumAccess")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);

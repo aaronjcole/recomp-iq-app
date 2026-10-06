@@ -65,6 +65,7 @@ export default defineConfig({
           VITE_BASE44_APP_ID: "playwright-local",
           VITE_BASE44_APP_BASE_URL: localBaseURL,
           VITE_ENABLE_ITEMIZED_FOOD_DIARY: "true",
+          VITE_ENABLE_WEEKLY_CHECK_IN_V2: "true",
         },
       },
 });

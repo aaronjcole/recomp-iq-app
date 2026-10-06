@@ -1,3 +1,4 @@
+// Shared by the app (via src/lib/fitness) and Base44 functions.
 // Ported 1:1 from RecompOne src/lib/fitness/adjustments.ts. The weekly decision
 // tree that keeps recommendations safe and trend-driven. Pure functions.
 
