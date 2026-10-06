@@ -35,13 +35,14 @@ Implementation specification: [Weekly Check-In v2](features/weekly-check-in-v2.m
 
 ## Nutrition logging velocity
 
-Status: planned
+Status: in progress
 
-- Recent and favorite foods.
-- Copy yesterday or copy a meal.
-- Serving multipliers and undo.
-- Better recipe editing and meal-template management.
-- Duplicate-submit protection and optimistic retry messaging.
+- Done: every add path logs into a chosen meal (defaulting to the time of day), not "Other".
+- Done: recent foods are what was actually logged, with Undo after a one-tap add.
+- Done: copy yesterday, or copy a past meal to today; each copy action only offers what hasn't been copied yet.
+- Done: quantity in the entry editor scales calories and macros.
+- Done: duplicate-tap protection and failure messages on quick adds, copies and templates.
+- Next: favorite foods (needs a `FoodItem` field), and better recipe and meal-template editing.
 
 ## Training progression
 

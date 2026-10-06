@@ -1202,7 +1202,7 @@ export function RecompProvider({ children }) {
   }, []);
 
   const logMealTemplate = useCallback(
-    async (template, date = todayStr()) => {
+    async (template, date = todayStr(), meal = "other") => {
       if (!featureFlags.itemizedFoodDiary) {
         await adjustDailyNutrition(date, {
           calories: template.total_calories ?? 0,
@@ -1212,9 +1212,9 @@ export function RecompProvider({ children }) {
         });
         return;
       }
-      await logFoodEntries((template.items ?? []).map((item) => ({
+      return logFoodEntries((template.items ?? []).map((item) => ({
         date,
-        meal: "other",
+        meal,
         name: item.name,
         serving_description: item.serving_description || "1 serving",
         quantity: 1,
