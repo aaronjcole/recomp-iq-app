@@ -213,6 +213,8 @@ Slices 1–5 are built and off by default behind `featureFlags.weeklyCheckInV2` 
 
 ### Rollout
 
+The step-by-step checklist, with the test scenarios and rollback, is in [`docs/deploy-weekly-check-in-v2.md`](../deploy-weekly-check-in-v2.md). In outline:
+
 1. **Publish the entities:** `WeeklyCheckIn` gets `period_key`, `status`, `user_decision`, `previous_targets`, `supporting_metrics`, `confidence`, `decision_reason`, `rule_version` and `applied_at`. `DecisionLedger` gets `weekly_check_in_id`.
 2. **Publish `decideWeeklyCheckIn`** with the shared modules it imports: `weeklyCheckInDomain.js`, `weeklyCheckInPersistence.js`, the three `fitness*.js` files, `ownerScope.js` and `httpUtils.js`.
 3. **Publish the frontend with the flag off.** Nothing changes for users.
