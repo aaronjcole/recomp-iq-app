@@ -178,6 +178,13 @@ test("user-owned entity list/filter calls in functions and src always name the o
   );
   const violations = [];
   let scanned = 0;
+  // Calls whose query is built elsewhere and bound to the user there, each
+  // with the test that executes the binding. Keep this list short.
+  const BOUND_ELSEWHERE = new Set([
+    // Queries come from accountDeletionPlan, which throws on an unbound
+    // filter; account-export.test.js asserts every query names the user.
+    "base44/shared/accountExportDomain.js:entities[entity].filter("
+  ]);
 
   for (const file of files) {
     let source;
@@ -192,7 +199,7 @@ test("user-owned entity list/filter calls in functions and src always name the o
       const scoped =
         match[2] === "filter"
         && /^\s*(?:own\(|ownedQuery\(|\{\s*created_by_id\s*:)/.test(firstArgument);
-      if (!scoped) {
+      if (!scoped && !BOUND_ELSEWHERE.has(`${relative(repoRoot, file)}:${match[0]}`)) {
         const line = source.slice(0, match.index).split("\n").length;
         violations.push(`${relative(repoRoot, file)}:${line} ${match[0]}`);
       }
