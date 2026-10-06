@@ -20,7 +20,7 @@ Exit criteria:
 
 ## Weekly Check-In v2
 
-Status: next
+Status: built behind `VITE_ENABLE_WEEKLY_CHECK_IN_V2`; needs the Base44 test matrix before it is enabled
 
 Turn the existing automatic check-in into a guided, explainable proposal that the user reviews before any target changes are applied.
 

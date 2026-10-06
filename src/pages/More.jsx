@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -12,6 +12,8 @@ import {
   ChevronRight, LoaderCircle, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit
 } from "lucide-react";
 import CheckInSheet from "@/components/more/CheckInSheet";
+import WeeklyCheckInReview from "@/components/more/WeeklyCheckInReview";
+import { featureFlags } from "@/lib/featureFlags";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
@@ -129,7 +131,13 @@ export default function More() {
   const [checkinResult, setCheckinResult] = useState(null);
   const [running, setRunning] = useState(false);
 
-  const lastCheckIn = checkIns[0];
+  // A v2 check-in that is still being applied or was superseded is not a
+  // completed check-in; v1 rows have no status.
+  const lastCheckIn = checkIns.find((item) => item.status !== "proposed" && item.status !== "superseded");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // The sheet is opened from state, not a Radix trigger, so it is told where
+  // focus goes back to when it closes.
+  const checkinTriggerRef = useRef(null);
   // Check-ins load with older history; until then "no check-in" only means
   // "not loaded yet", and a check-in would run on the current week alone.
   const checkinDue = historyLoaded && (!lastCheckIn || daysSince(lastCheckIn.end_date) >= 6);
@@ -148,6 +156,11 @@ export default function More() {
 
   const runCheck = async () => {
     if (!historyLoaded || running) return;
+    if (featureFlags.weeklyCheckInV2) {
+      checkinTriggerRef.current = document.activeElement;
+      setReviewOpen(true);
+      return;
+    }
     setRunning(true);
     try {
       const r = await runCheckIn();
@@ -189,6 +202,8 @@ export default function More() {
             ? "Loading your history…"
             : lastCheckIn
             ? `Last ${lastCheckIn.end_date}`
+            : featureFlags.weeklyCheckInV2
+            ? "Review this week's proposal"
             : "Run the adaptive engine"
         },
         { icon: Target, label: "Plan & projections", to: "/more/plan" },
@@ -303,6 +318,8 @@ export default function More() {
       })}
 
       <p className="text-center text-xs text-muted-foreground pt-1">RecompOne v{APP_VERSION}</p>
+
+      {featureFlags.weeklyCheckInV2 && <WeeklyCheckInReview open={reviewOpen} onOpenChange={setReviewOpen} returnFocusRef={checkinTriggerRef} />}
 
       <CheckInSheet
         open={checkinOpen}

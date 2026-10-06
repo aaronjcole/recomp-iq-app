@@ -31,5 +31,10 @@ export const featureFlags = Object.freeze({
   // of the premium bundle; this flag only controls whether the coach UI is usable.
   // It is the same constant the lifestyleCoachReply function checks server side
   // (base44/shared/lifestyleCoachDomain.js), so the UI and backend cannot drift.
-  lifestyleCoach: LIFESTYLE_COACH_ENABLED
+  lifestyleCoach: LIFESTYLE_COACH_ENABLED,
+  // Weekly Check-In v2: review a proposal before any target changes, applied
+  // once by the decideWeeklyCheckIn function. Off until the apply path passes
+  // the Base44 test matrix (docs/features/weekly-check-in-v2.md); the original
+  // one-click check-in stays in place until then.
+  weeklyCheckInV2: enabledFromEnvironment(import.meta.env?.VITE_ENABLE_WEEKLY_CHECK_IN_V2)
 });

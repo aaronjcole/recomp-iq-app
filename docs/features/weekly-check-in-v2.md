@@ -184,3 +184,37 @@ For each scenario, verify `WeeklyCheckIn`, `CurrentStrategy`, and `DecisionLedge
 6. Add deployed concurrent-tab and retry tests.
 
 Each slice should be independently deployable to the Base44 test environment and keep the prior flow available behind a temporary feature flag until the apply path passes the deployment matrix.
+
+## Implementation status
+
+Slices 1–5 are built and off by default behind `featureFlags.weeklyCheckInV2` (`VITE_ENABLE_WEEKLY_CHECK_IN_V2=true`). With the flag off, the original one-click check-in runs unchanged. Slice 6, the deployed concurrent-tab and retry tests, is still to do, together with the Base44 test matrix above.
+
+| Piece | Where |
+| --- | --- |
+| Check-in engine, shared by app and function | `base44/shared/fitnessAdherence.js`, `fitnessTrends.js`, `fitnessAdjustments.js` (moved from `src/lib/fitness/`, which re-exports them) |
+| Proposal, fingerprint, period, record shape | `base44/shared/weeklyCheckInDomain.js` |
+| Idempotent apply state machine | `base44/shared/weeklyCheckInPersistence.js` |
+| Function | `base44/functions/decideWeeklyCheckIn/entry.ts` |
+| Review sheet | `src/components/more/WeeklyCheckInReview.jsx`, opened from More |
+| Tests | `tests/security/weekly-check-in.test.js`, `tests/e2e/weekly-check-in.spec.js` (the e2e mock runs the real state machine) |
+
+### Where it differs from the plan above
+
+- **Prepare is a pure function, not an endpoint.** The app computes the proposal locally, so opening a check-in makes no request at all. The function recomputes it from the server's copy of the records on every decision and accepts the client's only when the fingerprints match. Otherwise it answers 409 with its own proposal, which the sheet shows for review.
+- **One function, `decideWeeklyCheckIn`, takes all three decisions** (`apply`, `keep_current`, `customize`). "Decide later" writes nothing.
+- **A fifth status, `acknowledged`,** records a check-in that had nothing to change, so "Due" clears without calling it a decline.
+- **Reopening shows the same proposal while the data is unchanged.** It is recomputed rather than stored. Once a decision is recorded, the sheet shows that decision instead.
+- **A `proposed` row under 60 seconds old counts as an apply in flight.** Keep or Customize answer 409 `apply_in_progress` instead of declining it underneath the apply. An older one is an interrupted apply, and the user may decline it.
+
+### Limits to know before enabling
+
+- **RLS is unchanged.** The app can still write `WeeklyCheckIn` and `CurrentStrategy` directly, because the v1 check-in and Custom targets need that. The function guarantees the check-in path, not that a user cannot set their own targets, which Custom targets already allows.
+- **Proposals still use the open product rules:** the 1,500 kcal floor in `fitnessAdjustments.js` and carbs-first macro rebalancing (`rebalanceMacrosForCalories`). Changing either changes the proposals, so bump `WEEKLY_CHECK_IN_RULE_VERSION`.
+
+### Rollout
+
+1. **Publish the entities:** `WeeklyCheckIn` gets `period_key`, `status`, `user_decision`, `previous_targets`, `supporting_metrics`, `confidence`, `decision_reason`, `rule_version` and `applied_at`. `DecisionLedger` gets `weekly_check_in_id`.
+2. **Publish `decideWeeklyCheckIn`** with the shared modules it imports: `weeklyCheckInDomain.js`, `weeklyCheckInPersistence.js`, the three `fitness*.js` files, `ownerScope.js` and `httpUtils.js`.
+3. **Publish the frontend with the flag off.** Nothing changes for users.
+4. **In the Base44 test environment only,** build with `VITE_ENABLE_WEEKLY_CHECK_IN_V2=true` and run the nine-scenario Base44 test matrix. Check the `WeeklyCheckIn`, `CurrentStrategy` and `DecisionLedger` rows for each scenario.
+5. **Enable the flag in production.** Remove the v1 path once v2 has run through at least one full week.

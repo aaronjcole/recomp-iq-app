@@ -16,6 +16,12 @@ import { trackEvent } from "@/lib/telemetry";
 import { featureFlags } from "@/lib/featureFlags";
 import { needsDefaultHabitReconciliation } from "../../base44/shared/defaultHabitsDomain.js";
 import { ownedQuery } from "../../base44/shared/ownerScope.js";
+import {
+  FINAL_CHECK_IN_STATUSES,
+  buildWeeklyCheckInProposal,
+  standingCheckIn
+} from "../../base44/shared/weeklyCheckInDomain.js";
+import { statusOf } from "../../base44/shared/httpUtils.js";
 import { parseCompletedSessions, withCompletedSession } from "@/lib/fitness/trainingBlockProgress";
 import { replaceSessionStrengthLogs } from "@/lib/sessionEdit";
 import { useAuth } from "@/lib/AuthContext";
@@ -1273,6 +1279,57 @@ export function RecompProvider({ children }) {
     return { trend: t, adjustment, checkIn, manual, advisory: manual ? adjustment.nextStrategy : null };
   }, [profile, strategy, preferences, logs, updateStrategy, historyLoaded]);
 
+  // Weekly Check-In v2 (featureFlags.weeklyCheckInV2). The proposal is
+  // computed here and never written; only decideCheckIn records a decision,
+  // through the decideWeeklyCheckIn function, which recomputes the proposal
+  // from the server's copy of the records. `recorded` is the decision already
+  // saved for this week, if any.
+  const prepareCheckIn = useCallback(() => {
+    if (!profile || !strategy || !historyLoaded) return null;
+    const proposal = buildWeeklyCheckInProposal({
+      logs,
+      profile,
+      preferences: preferences ?? {},
+      strategy,
+      referenceDate: todayStr()
+    });
+    const standing = standingCheckIn(checkIns, proposal.period_key);
+    const recorded = standing && FINAL_CHECK_IN_STATUSES.includes(standing.status) ? standing : null;
+    return { proposal, recorded };
+  }, [profile, strategy, preferences, logs, checkIns, historyLoaded]);
+
+  // Returns the function's result ({ outcome, checkIn, strategy, ledgerEntry }),
+  // or { conflict: true, proposal } when the server's proposal differs from
+  // the one reviewed (newer data, or targets changed elsewhere).
+  const decideCheckIn = useCallback(async (decision, proposal) => {
+    let response;
+    try {
+      response = await base44.functions.invoke("decideWeeklyCheckIn", {
+        decision,
+        referenceDate: proposal.end_date,
+        proposalFingerprint: proposal.fingerprint
+      });
+    } catch (error) {
+      const data = error?.response?.data ?? error?.data;
+      if (statusOf(error) === 409 && data?.code === "proposal_changed" && data.proposal) {
+        return { conflict: true, proposal: data.proposal };
+      }
+      throw error;
+    }
+    const result = response?.data ?? response;
+    if (result?.checkIn?.id) {
+      setCheckIns((prev) => [result.checkIn, ...prev.filter((item) => item.id !== result.checkIn.id)]);
+    }
+    if (result?.outcome === "applied" && result.strategy?.id) {
+      strategyRef.current = result.strategy;
+      setStrategy(result.strategy);
+    }
+    if (result?.ledgerEntry?.id) {
+      setDecisionLedger((prev) => [result.ledgerEntry, ...prev.filter((item) => item.id !== result.ledgerEntry.id)]);
+    }
+    return result;
+  }, []);
+
   // Actions are stable across data changes (they are all useCallback'd), so a
   // component that only calls actions never needs to re-render when state
   // updates. Kept in their own memoized object + context.
@@ -1307,7 +1364,9 @@ export function RecompProvider({ children }) {
       saveMealTemplate,
       logMealTemplate,
       addRecipe,
-      runCheckIn
+      runCheckIn,
+      prepareCheckIn,
+      decideCheckIn
     }),
     [
       reload,
@@ -1339,7 +1398,9 @@ export function RecompProvider({ children }) {
       saveMealTemplate,
       logMealTemplate,
       addRecipe,
-      runCheckIn
+      runCheckIn,
+      prepareCheckIn,
+      decideCheckIn
     ]
   );
 
