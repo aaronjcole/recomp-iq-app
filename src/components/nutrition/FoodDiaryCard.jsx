@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { CopyPlus, Pencil, Trash2, Utensils } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CopyPlus, Copy, Pencil, Trash2, Utensils } from "lucide-react";
 import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
 import { todayStr, formatShortDate } from "@/lib/loggingDateUtils";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/use-toast";
+import { copiedEntries, perUnitNutrition, previousDateKey, scaledNutrition } from "@/lib/foodLogging";
 
 const MEALS = [
   { value: "breakfast", label: "Breakfast" },
@@ -40,12 +41,42 @@ function editState(entry) {
 
 export default function FoodDiaryCard({ date = todayStr() }) {
   const { foodLogEntries } = useRecompRef();
-  const { deleteFoodLogEntry, repeatFoodLogEntry, restoreFoodLogEntry, updateFoodLogEntry } = useRecompActions();
+  const {
+    deleteFoodLogEntry, ensureDateLoaded, logFoodEntries, repeatFoodLogEntry, restoreFoodLogEntry, updateFoodLogEntry
+  } = useRecompActions();
   const { toast } = useToast();
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(editState(null));
   const [saving, setSaving] = useState(false);
+  // Per-unit nutrition of the entry being edited, so a quantity change scales
+  // calories and macros. A macro typed by hand becomes the new per-unit value.
+  const perUnitRef = useRef(perUnitNutrition(null));
+  const [copying, setCopying] = useState(null);
   const today = date;
+  const previousDate = previousDateKey(date);
+  const viewingToday = date === todayStr();
+
+  // Copying yesterday needs yesterday's entries even outside the loaded week.
+  useEffect(() => {
+    ensureDateLoaded?.(previousDate);
+  }, [ensureDateLoaded, previousDate]);
+
+  // Ids already copied into a day, so each copy action only offers what is
+  // left: copying yesterday twice never duplicates it.
+  const copiedInto = useMemo(() => {
+    const byDate = new Map();
+    for (const entry of foodLogEntries) {
+      if (!entry.repeated_from_id) continue;
+      if (!byDate.has(entry.date)) byDate.set(entry.date, new Set());
+      byDate.get(entry.date).add(entry.repeated_from_id);
+    }
+    return (targetDate) => byDate.get(targetDate) ?? new Set();
+  }, [foodLogEntries]);
+
+  const previousEntries = useMemo(() => {
+    const done = copiedInto(date);
+    return foodLogEntries.filter((entry) => entry.date === previousDate && !entry.pending && !done.has(entry.id));
+  }, [foodLogEntries, previousDate, date, copiedInto]);
 
   const entries = useMemo(
     () => foodLogEntries.filter((entry) => entry.date === today),
@@ -60,6 +91,60 @@ export default function FoodDiaryCard({ date = todayStr() }) {
   const openEditor = (entry) => {
     setEditing(entry);
     setDraft(editState(entry));
+    perUnitRef.current = perUnitNutrition(entry);
+  };
+
+  const changeQuantity = (value) => {
+    const scaled = scaledNutrition(perUnitRef.current, value);
+    setDraft((current) => ({
+      ...current,
+      quantity: value,
+      ...(scaled ? Object.fromEntries(EDIT_FIELDS.map(({ key }) => [key, String(scaled[key])])) : {})
+    }));
+  };
+
+  const changeMacro = (key, value) => {
+    const quantity = Number(draft.quantity);
+    if (quantity > 0 && value !== "" && Number.isFinite(Number(value))) {
+      perUnitRef.current = { ...perUnitRef.current, [key]: Number(value) / quantity };
+    }
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  // Copies entries into `targetDate` in one batch (all or nothing), once per
+  // tap, with an Undo that removes exactly the copies.
+  const copyEntries = async (key, sourceEntries, targetDate, label) => {
+    if (copying || sourceEntries.length === 0) return;
+    setCopying(key);
+    try {
+      const created = await logFoodEntries(copiedEntries(sourceEntries, targetDate));
+      let copiedToast;
+      copiedToast = toast({
+        title: label,
+        description: `${created.length} ${created.length === 1 ? "item" : "items"} added.`,
+        action: (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            onClick={async () => {
+              const results = await Promise.allSettled(created.map((entry) => deleteFoodLogEntry(entry.id)));
+              if (results.some((result) => result.status === "rejected")) {
+                toast({ title: "Some copied items couldn't be removed", variant: "destructive" });
+              } else {
+                copiedToast?.dismiss();
+              }
+            }}
+          >
+            Undo
+          </Button>
+        )
+      });
+    } catch {
+      toast({ title: "Couldn't copy those foods", description: "Nothing was added.", variant: "destructive" });
+    } finally {
+      setCopying(null);
+    }
   };
 
   const repeat = async (entry) => {
@@ -104,7 +189,9 @@ export default function FoodDiaryCard({ date = todayStr() }) {
         calories: Math.max(0, Number(draft.calories) || 0),
         protein_g: Math.max(0, Number(draft.protein_g) || 0),
         carbs_g: Math.max(0, Number(draft.carbs_g) || 0),
-        fat_g: Math.max(0, Number(draft.fat_g) || 0)
+        fat_g: Math.max(0, Number(draft.fat_g) || 0),
+        // Fiber isn't editable here, but it still follows the quantity.
+        fiber_g: scaledNutrition(perUnitRef.current, Math.max(0.01, Number(draft.quantity) || 1))?.fiber_g ?? editing.fiber_g ?? 0
       });
       setEditing(null);
     } catch {
@@ -131,6 +218,21 @@ export default function FoodDiaryCard({ date = todayStr() }) {
             </span>
           </div>
 
+          {previousEntries.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full border-line"
+              disabled={Boolean(copying)}
+              onClick={() => copyEntries("previous-day", previousEntries, date, `Copied ${viewingToday ? "yesterday" : formatShortDate(previousDate)}`)}
+            >
+              <Copy className="mr-1 h-4 w-4" aria-hidden="true" />
+              {copying === "previous-day"
+                ? "Copying…"
+                : `Copy ${viewingToday ? "yesterday" : formatShortDate(previousDate)} (${previousEntries.length} ${previousEntries.length === 1 ? "item" : "items"})`}
+            </Button>
+          )}
+
           {entries.length === 0 ? (
             <div className="rounded-lg border border-dashed border-line px-4 py-5 text-center">
               <p className="text-sm font-medium">Nothing logged for this day</p>
@@ -140,9 +242,28 @@ export default function FoodDiaryCard({ date = todayStr() }) {
             <div className="space-y-4">
               {grouped.map((meal) => (
                 <section key={meal.value} aria-labelledby={`food-diary-${meal.value}`}>
-                  <h3 id={`food-diary-${meal.value}`} className="mb-1 font-mono text-label uppercase tracking-wider text-muted-foreground">
-                    {meal.label}
-                  </h3>
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <h3 id={`food-diary-${meal.value}`} className="font-mono text-label uppercase tracking-wider text-muted-foreground">
+                      {meal.label}
+                    </h3>
+                    {!viewingToday && meal.entries.some((entry) => !copiedInto(todayStr()).has(entry.id)) && (
+                      <button
+                        type="button"
+                        className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-panel2 hover:text-teal disabled:opacity-50"
+                        disabled={Boolean(copying)}
+                        onClick={() => copyEntries(
+                          `meal:${meal.value}`,
+                          meal.entries.filter((entry) => !copiedInto(todayStr()).has(entry.id)),
+                          todayStr(),
+                          `${meal.label} copied to today`
+                        )}
+                        aria-label={`Copy ${meal.label} to today`}
+                      >
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        {copying === `meal:${meal.value}` ? "Copying…" : "Copy to today"}
+                      </button>
+                    )}
+                  </div>
                   <div className="divide-y divide-lineSoft">
                     {meal.entries.map((entry) => (
                       <div key={entry.id} className="flex items-center gap-2 py-2">
@@ -217,12 +338,13 @@ export default function FoodDiaryCard({ date = todayStr() }) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="food-diary-quantity">Quantity</Label>
-              <Input id="food-diary-quantity" type="number" min="0.01" step="0.25" value={draft.quantity} onChange={(event) => setDraft((value) => ({ ...value, quantity: event.target.value }))} />
+              <Input id="food-diary-quantity" type="number" min="0.01" step="0.25" inputMode="decimal" value={draft.quantity} onChange={(event) => changeQuantity(event.target.value)} aria-describedby="food-diary-quantity-hint" />
+              <p id="food-diary-quantity-hint" className="text-xs text-muted-foreground">Calories and macros scale with quantity.</p>
             </div>
             {EDIT_FIELDS.map((field) => (
               <div key={field.key} className="space-y-1.5">
                 <Label htmlFor={`food-diary-${field.key}`}>{field.label}</Label>
-                <Input id={`food-diary-${field.key}`} type="number" min="0" inputMode="decimal" value={draft[field.key]} onChange={(event) => setDraft((value) => ({ ...value, [field.key]: event.target.value }))} />
+                <Input id={`food-diary-${field.key}`} type="number" min="0" inputMode="decimal" value={draft[field.key]} onChange={(event) => changeMacro(field.key, event.target.value)} />
               </div>
             ))}
           </div>

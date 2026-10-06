@@ -272,7 +272,17 @@ export async function installAuthenticatedBase44(page, options = {}) {
         return json(rows.filter((row) => matchesQuery(row, query)));
       }
       if (method === "POST") {
-        return json({ id: `${name}-e2e-created`, ...readBody(request), created_by_id: user.id });
+        // Stored like Base44 does, with a unique id, so later reads and test
+        // assertions see what the app wrote.
+        inMemorySequence += 1;
+        const created = {
+          id: `${name}-e2e-created-${inMemorySequence}`,
+          ...readBody(request),
+          created_by_id: user.id,
+          created_date: new Date(Date.now() + inMemorySequence).toISOString()
+        };
+        entities[name] = [...rows, created];
+        return json(created);
       }
       if (method === "PUT" || method === "PATCH") {
         // Base44 returns the whole updated record, not only the changed fields.
@@ -282,7 +292,11 @@ export async function installAuthenticatedBase44(page, options = {}) {
         if (existing) entities[name] = rows.map((item) => (item === existing ? updated : item));
         return json(updated);
       }
-      if (method === "DELETE") return json({ success: true });
+      if (method === "DELETE") {
+        const recordId = idFromEntityUrl(url);
+        entities[name] = rows.filter((item) => !(item.id === recordId && item.created_by_id === user.id));
+        return json({ success: true });
+      }
     }
 
     if (url.includes("/functions/")) {

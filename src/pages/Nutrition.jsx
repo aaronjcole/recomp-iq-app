@@ -30,12 +30,23 @@ import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
+import { useToast } from "@/components/ui/use-toast";
+import { LOGGABLE_MEALS, copiedEntries, defaultMealForTime, recentLoggedFoods } from "@/lib/foodLogging";
 
 const empty = { name: "", serving_description: "", serving_grams: "", calories: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "" };
 const num = (v) => (v === "" ? null : Number(v));
 
 export default function Nutrition() {
-  const { strategy, logs, foods, addFood, logFoodEntry, upsertDailyLog, reload, ensureDateLoaded } = useRecomp();
+  const {
+    strategy, logs, foods, foodLogEntries, addFood, logFoodEntry, deleteFoodLogEntry, upsertDailyLog, reload, ensureDateLoaded
+  } = useRecomp();
+  const { toast } = useToast();
+  // Every add path (scan, search, recent, templates, manual) logs into this
+  // meal. Defaults to the meal for the current time of day.
+  const [meal, setMeal] = useState(() => defaultMealForTime());
+  // Keys of quick adds in flight, so a double tap logs a food once.
+  const quickAddsRef = useRef(new Set());
+  const [quickAdding, setQuickAdding] = useState(() => new Set());
   const { selectedDate, isToday } = useLoggingDate();
   const { canAccess } = usePremiumAccess();
   // The server is the authority (analyzeFoodPhoto returns 403 without the
@@ -90,14 +101,13 @@ export default function Nutrition() {
 
   const logToToday = async (food, source, sourceFoodId) => {
     if (featureFlags.itemizedFoodDiary) {
-      await logFoodEntry({
-        date: selectedDate, meal: "other", name: food.name,
+      return logFoodEntry({
+        date: selectedDate, meal, name: food.name,
         serving_description: food.serving_description || "1 serving", quantity: 1,
         calories: food.calories ?? 0, protein_g: food.protein_g ?? 0,
         carbs_g: food.carbs_g ?? 0, fat_g: food.fat_g ?? 0, fiber_g: food.fiber_g ?? 0,
         source, source_food_id: sourceFoodId
       });
-      return;
     }
     await upsertDailyLog(selectedDate, null, {
       increments: {
@@ -163,9 +173,55 @@ export default function Nutrition() {
     }
   };
 
-  const quickAddFood = async (f) => {
-    await logToToday(f, "library", f.id);
+  const mealLabel = LOGGABLE_MEALS.find((option) => option.value === meal)?.label ?? "Other";
+
+  // One-tap adds: logged once per tap, confirmed with an Undo, and a failure
+  // says so instead of failing silently.
+  const quickAdd = async (key, name, add) => {
+    if (quickAddsRef.current.has(key)) return;
+    quickAddsRef.current.add(key);
+    setQuickAdding(new Set(quickAddsRef.current));
+    try {
+      const created = await add();
+      let addedToast;
+      addedToast = toast({
+        title: `${name} added to ${mealLabel}`,
+        action: created?.id && featureFlags.itemizedFoodDiary ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            onClick={async () => {
+              try {
+                await deleteFoodLogEntry(created.id);
+                addedToast?.dismiss();
+              } catch {
+                toast({ title: `Couldn't undo ${name}`, variant: "destructive" });
+              }
+            }}
+          >
+            Undo
+          </Button>
+        ) : undefined
+      });
+    } catch {
+      toast({ title: `Couldn't add ${name}`, variant: "destructive" });
+    } finally {
+      quickAddsRef.current.delete(key);
+      setQuickAdding(new Set(quickAddsRef.current));
+    }
   };
+
+  const quickAddFood = (f) => quickAdd(`food:${f.id}`, f.name, () => logToToday(f, "library", f.id));
+
+  // Recent foods are what the user actually logged (with the quantity they
+  // logged), not the newest library items.
+  const recentFoods = useMemo(() => recentLoggedFoods(foodLogEntries), [foodLogEntries]);
+  const quickAddRecent = (entry) => quickAdd(
+    `recent:${entry.id}`,
+    entry.name,
+    () => logFoodEntry(copiedEntries([entry], selectedDate, meal)[0])
+  );
 
   const handleNudge = useCallback((action) => {
     if (!action) return;
@@ -245,6 +301,26 @@ export default function Nutrition() {
         >
           {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} />}
 
+          <div role="radiogroup" aria-label="Add foods to" className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground" aria-hidden="true">Add foods to</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {LOGGABLE_MEALS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={meal === option.value}
+                  onClick={() => setMeal(option.value)}
+                  className={`min-h-11 rounded-lg border text-xs font-medium transition-colors ${
+                    meal === option.value ? "border-teal bg-teal/15 text-teal" : "border-line bg-panel2 text-muted-foreground"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <NutritionSignalCard onNudge={handleNudge} />
 
           {/* Scan — fastest add path */}
@@ -267,8 +343,32 @@ export default function Nutrition() {
           {/* Search foods online — build the library from branded nutrition */}
           <FoodSearchCard onAdd={handleSearchAdd} />
 
-          {/* Recent foods — one-tap quick add */}
-          {foods.length > 0 && (
+          {/* Recent foods — what the user logged lately, one tap to log again */}
+          {featureFlags.itemizedFoodDiary ? recentFoods.length > 0 && (
+            <Card className="bg-panel border-line">
+              <CardContent className="p-5 space-y-3">
+                <h2 className="font-medium">Recent foods</h2>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5" style={{ scrollbarWidth: "none" }}>
+                  {recentFoods.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => quickAddRecent(entry)}
+                      disabled={quickAdding.has(`recent:${entry.id}`)}
+                      aria-label={`Add ${entry.name} to ${mealLabel}`}
+                      className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity disabled:opacity-50"
+                    >
+                      <div className="text-sm font-medium truncate">{entry.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {Number(entry.quantity) !== 1 ? `${entry.quantity} × ` : ""}{entry.serving_description}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{entry.calories} kcal · {entry.protein_g}p</div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : foods.length > 0 && (
             <Card className="bg-panel border-line">
               <CardContent className="p-5 space-y-3">
                 <h2 className="font-medium">Recent foods</h2>
@@ -276,8 +376,10 @@ export default function Nutrition() {
                   {foods.slice(0, 8).map((f) => (
                     <button
                       key={f.id}
+                      type="button"
                       onClick={() => quickAddFood(f)}
-                      className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity"
+                      disabled={quickAdding.has(`food:${f.id}`)}
+                      className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity disabled:opacity-50"
                     >
                       <div className="text-sm font-medium truncate">{f.name}</div>
                       <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p</div>
@@ -289,7 +391,7 @@ export default function Nutrition() {
           )}
 
           {/* Meal templates — one-tap multi-item add */}
-          <MealTemplatesCard date={selectedDate} />
+          <MealTemplatesCard date={selectedDate} meal={meal} />
 
           {/* Compact meal-planner entry point. The full card lives in Tools; Diary
               is the logging surface, so this stays a single low-emphasis row. */}
@@ -395,8 +497,11 @@ export default function Nutrition() {
                       <div className="text-xs text-muted-foreground">{f.calories} kcal · {f.protein_g}p / {f.carbs_g}c / {f.fat_g}f</div>
                     </div>
                     <button
+                      type="button"
                       onClick={() => quickAddFood(f)}
-                      className="shrink-0 rounded-lg border border-line bg-panel2 px-2.5 py-1.5 text-xs font-medium text-foreground active:opacity-70 transition-opacity"
+                      disabled={quickAdding.has(`food:${f.id}`)}
+                      aria-label={`Add ${f.name} to ${mealLabel}`}
+                      className="shrink-0 rounded-lg border border-line bg-panel2 px-2.5 py-1.5 text-xs font-medium text-foreground active:opacity-70 transition-opacity disabled:opacity-50"
                     >
                       <Plus className="inline w-3 h-3 mr-0.5" />Add
                     </button>
@@ -418,7 +523,7 @@ export default function Nutrition() {
           </Card>
 
           <div id="meal-templates-section">
-            <MealTemplatesCard date={selectedDate} />
+            <MealTemplatesCard date={selectedDate} meal={meal} />
           </div>
         </div>
       )}

@@ -19,13 +19,14 @@ import { Plus, Trash2, Utensils } from "lucide-react";
 const emptyItem = { name: "", serving_description: "1 serving", calories: "", protein_g: "", carbs_g: "", fat_g: "" };
 const n = (v) => Number(v) || 0;
 
-export default function MealTemplatesCard({ date = todayStr() }) {
+export default function MealTemplatesCard({ date = todayStr(), meal = "other" }) {
   const { mealTemplates, foods } = useRecompRef();
   const { saveMealTemplate, logMealTemplate } = useRecompActions();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [items, setItems] = useState([]);
   const [item, setItem] = useState(emptyItem);
+  const [loggingId, setLoggingId] = useState(null);
 
   const totals = items.reduce(
     (acc, it) => ({
@@ -78,7 +79,16 @@ export default function MealTemplatesCard({ date = todayStr() }) {
   };
 
   const log = async (tpl) => {
-    await logMealTemplate(tpl, date);
+    if (loggingId) return;
+    setLoggingId(tpl.id);
+    try {
+      await logMealTemplate(tpl, date, meal);
+      toast({ title: `${tpl.name} logged` });
+    } catch {
+      toast({ title: `Couldn't log ${tpl.name}`, variant: "destructive" });
+    } finally {
+      setLoggingId(null);
+    }
   };
 
   return (
@@ -100,8 +110,14 @@ export default function MealTemplatesCard({ date = todayStr() }) {
                 {t.total_calories} kcal · {t.total_protein_g}p / {t.total_carbs_g}c / {t.total_fat_g}f
               </div>
             </div>
-            <Button size="sm" className="bg-teal text-buttonText hover:opacity-90" onClick={() => log(t)}>
-              Log
+            <Button
+              size="sm"
+              className="bg-teal text-buttonText hover:opacity-90"
+              onClick={() => log(t)}
+              disabled={Boolean(loggingId)}
+              aria-label={`Log ${t.name}`}
+            >
+              {loggingId === t.id ? "Logging…" : "Log"}
             </Button>
           </div>
         ))}
