@@ -12,6 +12,7 @@ export * from "./nutritionScoring";
 export * from "./mealPlanning";
 export * from "./trainingAnalysis";
 export * from "./strengthTrend";
+export * from "./liftProgression";
 export * from "./sleep";
 export * from "./recalculate";
 export * from "./bestMove";

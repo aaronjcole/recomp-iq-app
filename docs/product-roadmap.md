@@ -46,12 +46,14 @@ Status: in progress
 
 ## Training progression
 
-Status: planned
+Status: in progress
 
-- Exercise-level history and personal-record detection.
-- Estimated 1RM and volume trends.
-- Conservative load or repetition suggestions.
-- Plateau and deload signals that account for recovery and adherence.
+- Done: lifts are grouped by normalized name, so differently typed names share one history.
+- Done: per-exercise history (every session, PRs marked, weekly volume), opened from Strength progression.
+- Done: PRs are called out when a workout is saved. A first-ever log is not a PR.
+- Done: the live workout shows last time and a conservative next target (double progression), with Fill.
+- Done: the suggestion holds after poor recovery, a drop, or 14+ days away, and suggests a ~10% deload after three stalled sessions. Plateau alerts use the same rule.
+- Next: rep ranges per exercise (the 12-rep ceiling is one-size-fits-all), and a volume trend across all lifts.
 
 ## Data portability and trust
 
