@@ -9,6 +9,8 @@ import {
 } from "../../../base44/shared/adaptiveMealPlanDomain.js";
 import { WeeklyCheckInError } from "../../../base44/shared/weeklyCheckInDomain.js";
 import { decideWeeklyCheckIn } from "../../../base44/shared/weeklyCheckInPersistence.js";
+import { collectAccountExport } from "../../../base44/shared/accountExportDomain.js";
+import { runAccountDeletionCascade } from "../../../base44/shared/accountDeletionDomain.js";
 import {
   AUTH_USER,
   ADAPTIVE_MEAL_PLAN,
@@ -114,7 +116,7 @@ function inMemoryEntities(entities, userId) {
       const rows = () => (entities[name] ??= []);
       const copy = (row) => ({ ...row });
       return {
-        async filter(query, sort, limit = 50) {
+        async filter(query, sort, limit = 50, skip = 0) {
           const field = sort?.replace(/^[-+]/, "");
           const direction = sort?.startsWith("-") ? -1 : 1;
           const compare = (a, b) => {
@@ -126,7 +128,7 @@ function inMemoryEntities(entities, userId) {
           return rows()
             .filter((row) => matchesQuery(row, query))
             .sort(compare)
-            .slice(0, limit)
+            .slice(skip, skip + limit)
             .map(copy);
         },
         async create(data) {
@@ -149,6 +151,13 @@ function inMemoryEntities(entities, userId) {
         async delete(id) {
           entities[name] = rows().filter((item) => !(item.id === id && item.created_by_id === userId));
           return { success: true };
+        },
+        // Service-role style: deletes every row matching the query, whoever
+        // owns it. The deletion cascade only ever passes owner-bound queries.
+        async deleteMany(query) {
+          const before = rows().length;
+          entities[name] = rows().filter((item) => !matchesQuery(item, query));
+          return { success: true, deleted: before - entities[name].length };
         }
       };
     }
@@ -202,6 +211,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
   // Function name -> HTTP status, to force a backend function to fail.
   const functionErrors = options.functionErrors ?? {};
   let privateUploadCount = 0;
+  const deletedAccounts = new Set();
   // Mirrors the AnalysisUpload records uploadAnalysisPhoto writes: the analyze
   // functions only accept references this signed-in user uploaded.
   const analysisUploads = new Set(options.analysisUploads ?? []);
@@ -328,6 +338,20 @@ export async function installAuthenticatedBase44(page, options = {}) {
           throw error;
         }
       }
+      // The real export and deletion code, against every row the mock holds
+      // (including another account's), as the service role would see them.
+      if (url.includes("/functions/exportAccountData")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        return json(await collectAccountExport(inMemoryEntities(entities, user.id), user));
+      }
+      if (url.includes("/functions/deleteAccount")) {
+        if (method !== "POST") return json({ error: "Method not allowed" }, 405);
+        if (readBody(request).confirmation !== "DELETE") return json({ error: "Deletion confirmation is required" }, 400);
+        const cascade = await runAccountDeletionCascade(inMemoryEntities(entities, user.id), user);
+        if (!cascade.ok) return json({ error: "Account deletion could not be completed" }, 500);
+        deletedAccounts.add(user.id);
+        return json({ ok: true, deleted: cascade.deleted });
+      }
       if (url.includes("/functions/getPremiumAccess")) {
         if (method !== "POST") return json({ error: "Method not allowed" }, 405);
         return json(premiumAccess);
@@ -421,7 +445,7 @@ export async function installAuthenticatedBase44(page, options = {}) {
 
   // Tests that simulate another device writing to the backend mutate these
   // rows directly; the app only sees the change through its own requests.
-  return { entities, user };
+  return { entities, user, deletedAccounts };
 }
 
 /**

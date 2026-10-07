@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
   Camera, CircleCheckBig, Moon, Sun, LogOut, User, Crown, Gift,
-  ChevronRight, LoaderCircle, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit
+  ChevronRight, LoaderCircle, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit, Download
 } from "lucide-react";
 import CheckInSheet from "@/components/more/CheckInSheet";
 import WeeklyCheckInReview from "@/components/more/WeeklyCheckInReview";
@@ -221,7 +221,8 @@ export default function More() {
       title: "Progress & data",
       items: [
         { icon: Camera, label: "Progress photos", to: "/progress", subtitle: "On this device only" },
-        { icon: History, label: "Decision history", to: "/more/decisions", subtitle: "Plan change log" }
+        { icon: History, label: "Decision history", to: "/more/decisions", subtitle: "Plan change log" },
+        { icon: Download, label: "Your data", to: "/more/data", subtitle: "Download or review what's stored" }
       ]
     },
     {

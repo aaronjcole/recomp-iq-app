@@ -78,7 +78,8 @@ export default function Privacy() {
 
       <H2>5. Your rights &amp; choices</H2>
       <p>
-        You can review and update your profile and preferences at any time and delete your account.
+        You can review and update your profile and preferences at any time, download a copy of the
+        records stored for your account (JSON or CSV) from More → Your data, and delete your account.
         If you cannot access the app, use our public{" "}
         <Link className="text-teal underline underline-offset-2 font-medium" to="/delete-account">
           account deletion workflow

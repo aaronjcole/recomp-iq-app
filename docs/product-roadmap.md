@@ -57,12 +57,13 @@ Status: in progress
 
 ## Data portability and trust
 
-Status: planned
+Status: in progress
 
-- User-initiated JSON and CSV export.
-- Clear retention and deletion status.
-- Export and deletion end-to-end tests.
-- Support and privacy contact workflow.
+- Done: More → Your data downloads everything as JSON, or any table as CSV, through `exportAccountData`. It exports exactly what account deletion removes (both use `accountDeletionPlan`), push tokens are redacted, and CSV cells that could run as spreadsheet formulas are neutralized.
+- Done: the page counts what's stored, says where it's kept and that deletion removes all of it, and links the Privacy Policy for backups and timing.
+- Done: export and deletion end-to-end tests that run the real export and deletion code, including another account's rows.
+- Done: a privacy-request email with a verification prompt.
+- Next: verify file sharing in the iOS and Android shells on a device. Where the WebView can't share files, the page currently points to the web app; a native share bridge would remove that step.
 
 ## Progress insights
 
