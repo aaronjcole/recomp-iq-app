@@ -76,7 +76,7 @@ Status: in progress
 
 ## Reminders and integrations
 
-Status: discovery
+Status: discovery. Design in [features/reminders-and-integrations.md](features/reminders-and-integrations.md); four decisions are open before implementation.
 
 - Weigh-in and weekly check-in reminders.
 - Missed-log nudges with user-controlled frequency.
