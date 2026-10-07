@@ -33,6 +33,19 @@ function parse(value: string): URL | null {
   }
 }
 
+/**
+ * Whether a URL may render inside the authenticated WebView. Only the app
+ * origin and the documented Base44 auth hosts are trusted; any other https
+ * origin must open in the system browser so an attacker-controlled page
+ * can't present a phishing prompt inside the authenticated app shell.
+ */
+export function isAllowedWebViewOrigin(value: string, appOrigin: string): boolean {
+  const url = parse(value);
+  const app = parse(appOrigin);
+  if (!url || !app || url.protocol !== "https:") return false;
+  return url.host === app.host || BASE44_AUTH_HOSTS.has(url.host);
+}
+
 /** Whether a WebView navigation is a Base44 provider-login redirect. */
 export function isProviderLoginUrl(value: string, appOrigin: string): boolean {
   const url = parse(value);

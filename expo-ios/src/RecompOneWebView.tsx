@@ -32,6 +32,7 @@ import {
 } from "./bridgeProtocol";
 import { buildInjectedBridgeScript, IAP_RESPONSE_EVENT } from "./injectedBridge";
 import {
+  isAllowedWebViewOrigin,
   isProviderLoginUrl,
   NATIVE_AUTH_CALLBACK,
   nativeLoginUrl,
@@ -296,26 +297,19 @@ export function RecompOneWebView() {
     }
   }, [rememberPurchase, sendResponse, storeReady]);
 
-  // This does not yet restrict navigation to APP_ORIGIN. handleMessage above
-  // already re-validates isTrustedAppUrl on every bridge message, so an
-  // off-origin page was never able to reach the IAP bridge — that part is not
-  // at risk. A navigation-origin allowlist would be additional defense-in-depth
-  // (an off-origin page currently can render in this authenticated,
-  // cookie-sharing session, and Apple review dislikes uncontrolled in-app
-  // browsing). Base44 social sign-in (Google/Microsoft/Facebook/Apple, enabled
-  // in base44/auth/config.jsonc) and SSO now run in an ASWebAuthenticationSession
-  // (startNativeSignIn above), so their redirects no longer pass through this
-  // WebView. Enforcing a strict allowlist still needs a device trace of every
-  // other off-origin navigation first; a wrong allowlist would silently lock
-  // users out — worse than the gap it would close. So for now this only ever hands a well-understood,
-  // user-facing scheme to the OS (never an arbitrary/custom one): every
-  // `https:` URL keeps loading in the WebView exactly as before, `mailto:`/
-  // `tel:` open in the system handler via Linking.openURL, and anything else is
-  // refused outright. Add the APP_ORIGIN/auth-host allowlist once that device
-  // trace exists (see docs/release-checklist.md).
-  // Google and Facebook block OAuth inside an embedded WKWebView, so provider
-  // sign-in runs in ASWebAuthenticationSession and the resulting token is
-  // handed back to this WebView (see nativeAuth.ts for the full flow).
+  // Navigation is restricted to the app origin (APP_ORIGIN) and the
+  // documented Base44 auth hosts (base44.app, app.base44.com). Any other
+  // https origin opens in the system browser (SFSafariViewController) so an
+  // attacker-controlled page can't render inside this authenticated,
+  // cookie-sharing WebView shell — the phishing vector the old permissive
+  // policy left open. handleMessage above still re-validates isTrustedAppUrl
+  // on every bridge message, so the IAP bridge was never at risk; this is
+  // defense-in-depth for uncontrolled in-app browsing.
+  // Base44 social sign-in (Google/Microsoft/Facebook/Apple, enabled in
+  // base44/auth/config.jsonc) and SSO run in an ASWebAuthenticationSession
+  // (startNativeSignIn above), so their redirects never pass through this
+  // WebView. `mailto:`/`tel:` open in the system handler via Linking.openURL,
+  // and any other non-https scheme is refused outright.
   const authSessionOpenRef = useRef(false);
   const startNativeSignIn = useCallback(async (loginUrl: string) => {
     if (authSessionOpenRef.current) return;
@@ -350,7 +344,18 @@ export function RecompOneWebView() {
       void startNativeSignIn(request.url);
       return false;
     }
-    if (url.protocol === "https:") return true;
+    if (url.protocol === "https:") {
+      // Top-frame navigation is restricted to the app origin and the
+      // documented Base44 auth hosts; any other https origin opens in the
+      // system browser so it can't render inside the authenticated WebView.
+      // Subframes keep the previous permissive policy to avoid breaking
+      // embedded content the app may load.
+      if (request.isTopFrame !== false && !isAllowedWebViewOrigin(request.url, APP_ORIGIN)) {
+        void WebBrowser.openBrowserAsync(request.url);
+        return false;
+      }
+      return true;
+    }
     if (url.protocol === "mailto:" || url.protocol === "tel:") {
       void Linking.openURL(request.url);
     }
