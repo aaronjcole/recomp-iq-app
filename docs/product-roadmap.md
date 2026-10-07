@@ -67,11 +67,12 @@ Status: in progress
 
 ## Progress insights
 
-Status: planned
+Status: in progress
 
-- Explain agreement or conflict among weight, waist, strength, recovery, and adherence.
-- Separate observed facts from inferred explanations.
-- Display confidence and missing-data limitations.
+- Done: Progress → Overview opens with "What your data says". Each of weight, waist, strength, recovery and consistency is shown as toward, against, or steady for the user's goal, with whether weight, waist and strength agree or conflict.
+- Done: observed facts (values and the data behind them) are listed separately from the likely explanation, which is labelled as inferred and carries its confidence and what to watch next.
+- Done: measures that can't be judged are listed with the reason; under 14 days of data stays low confidence, and low consistency caps it.
+- Next: show how the read changed since last week, and link each explanation to the chart that supports it.
 
 ## Reminders and integrations
 

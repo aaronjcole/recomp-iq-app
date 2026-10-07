@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, ChartNoAxesCombined, Images, LayoutDashboard, ScanLine, Share2, Target } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import TrendsDashboard from "@/components/progress/TrendsDashboard";
+import ProgressInsightsCard from "@/components/progress/ProgressInsightsCard";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
@@ -156,6 +157,8 @@ export default function Progress() {
           aria-labelledby="progress-tab-overview"
           className="space-y-5"
         >
+          <ProgressInsightsCard />
+
           <Card className="bg-panel border-line">
             <CardContent className="p-5 space-y-2 text-sm">
               <div className="flex items-center justify-between mb-1">
