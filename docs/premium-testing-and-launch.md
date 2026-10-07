@@ -72,6 +72,17 @@ The entitlement model is ready, but it intentionally does not invent a purchase 
 
 Confirm Base44's supported billing bridge before implementation. This is a Section 3.D platform-gated item and requires founder approval plus device/license-tester verification.
 
+#### Fix before the Android bridge goes live: gaps in `verifyGooglePlayPurchase`
+
+The scaffolded function has never run against Google Play. A review found these gaps. Each must be fixed, with tests, before any real purchase reaches it.
+
+- [ ] **Acknowledge the purchase.** Google Play refunds and revokes any purchase that isn't acknowledged within 3 days. The function grants Premium but never acknowledges, so every Android purchase would be refunded. Acknowledge server-side after granting: `purchases.products.acknowledge`, or `purchases.subscriptions.acknowledge` for subscriptions. Make it idempotent, and skip it when `acknowledgementState` is already 1.
+- [ ] **Match the product type to the store.** The function calls the one-time-product endpoint (`purchases.products.get`), but the iOS plans are monthly and annual subscriptions. If Play mirrors them, use `purchases.subscriptionsv2.get` and read expiry from `lineItems[].expiryTime`. It also validates against internal IDs (`PREMIUM_PRODUCTS`); validate against Play store product IDs and map them to the entitlement, as `mapAppleProductId` does for Apple.
+- [ ] **Bind the purchase to the account at purchase time.** The current "already linked?" filter followed by a create is racy: two accounts submitting one token at once can both pass. Have the native bridge set `obfuscatedAccountId`, derived from the Base44 user id the way `deriveAppleAppAccountToken` is, and require the server to match `obfuscatedExternalAccountId`, as Apple does with `appAccountToken`.
+- [ ] **Treat license-test purchases like Apple sandbox purchases.** `purchaseType` 0 means a test purchase, which costs nothing. Gate it behind an allowlist of user ids, as `APPLE_SANDBOX_ALLOWED_USER_IDS` does.
+- [ ] **Handle refunds and cancellations.** Add a Real-Time Developer Notification webhook (via Pub/Sub). Verify each notification and re-check it with the Android Publisher API before setting an entitlement to `revoked` or `expired`.
+- [ ] **Make the logic testable.** Move the decisions into `base44/shared/` with executing tests, like `applePurchaseDomain.js`. Never store an email, and keep the policy test that enforces it.
+
 Reference: [Base44 — Uploading your app to app stores](https://docs.base44.com/documentation/building-your-app/uploading-to-app-stores)
 
 ### AI body-composition scanning — approved deploy opt-in

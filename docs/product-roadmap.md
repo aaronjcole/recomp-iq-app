@@ -96,6 +96,8 @@ Status: testing foundation shipped
   never rely on a build-time flag, browser callback, or client state as a payment control.
 - Launch with the all-in-one bundle first; preserve individual product IDs for later pricing tests.
 
+- Open: Android billing is blocked until Base44 provides a Google Play Billing bridge. The scaffolded `verifyGooglePlayPurchase` has launch-blocking gaps (no acknowledgement, so Google auto-refunds after 3 days; one-time vs subscription mismatch; racy token binding; test purchases unlocking Premium; no refund handling), listed in the launch runbook.
+
 Testing, product IDs, cutover steps, and platform blockers: [Premium testing and launch](premium-testing-and-launch.md)
 
 ## Delivery approach
