@@ -683,6 +683,24 @@ test("Progress separates overview, trends, and photos without losing the selecte
   assertNoPageErrors();
 });
 
+test("rapid tab return does not cancel the latest navigation before React commits", async ({ page }) => {
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/progress?section=photos");
+  const photosTab = page.getByRole("tablist", { name: "Progress sections" }).getByRole("tab", { name: "Photos", exact: true });
+  await expect(photosTab).toHaveAttribute("aria-selected", "true");
+  // Same-task clicks deterministically keep both handlers on the old render,
+  // reproducing a fast user return while the first navigation is transitioning.
+  await page.getByRole("navigation", { name: "Primary" }).evaluate((nav) => {
+    const links = [...nav.querySelectorAll("a")];
+    links.find((link) => link.textContent.trim() === "Fuel").click();
+    links.find((link) => link.textContent.trim() === "Progress").click();
+  });
+  await expect(page).toHaveURL(/\/progress$/);
+  await expect(photosTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { level: 2, name: "Progress photos" })).toBeVisible();
+  assertNoPageErrors();
+});
+
 test("Progress share uses an accessible modal and restores focus when closed", async ({ page }) => {
   const assertNoPageErrors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });

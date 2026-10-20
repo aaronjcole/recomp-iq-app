@@ -94,7 +94,9 @@ test("marketing store links accept only official HTTPS store origins", () => {
 
 test("mobile release flows prioritize primary actions and usable touch targets", () => {
   const appLayoutSource = readFileSync(resolve(repoRoot, "src/components/AppLayout.jsx"), "utf8");
-  assert.match(appLayoutSource, /if \(location\.pathname !== to\) return/);
+  assert.match(appLayoutSource, /if \(window\.location\.pathname !== to\) return/);
+  assert.doesNotMatch(appLayoutSource, /if \(location\.pathname !== to\) return/);
+  assert.match(appLayoutSource, /event\.button !== 0 \|\| event\.metaKey \|\| event\.ctrlKey \|\| event\.shiftKey \|\| event\.altKey/);
   assert.match(appLayoutSource, /scrollPositions\.current\[to\] = 0/);
 
   const recompContextSource = readFileSync(resolve(repoRoot, "src/lib/RecompContext.jsx"), "utf8");

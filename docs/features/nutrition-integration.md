@@ -50,7 +50,7 @@ The speech bridge declares microphone and speech-recognition purpose strings and
 
 Run the root lint, typecheck, fitness, security, contract, Android release contract, production build, and non-deployed browser suites. In expo-ios, install locked dependencies and run typecheck, test:speech, and doctor. Local browser suites use synthetic authenticated records; they do not replace live Base44 and real-device acceptance checks.
 
-The October 20 local verification passed 247 fitness tests, 376 security tests, 15 contract tests, 121 browser tests, and 15 native speech tests (774 total). Lint, both typechecks, the production build, Android release contract, and all 21 Expo Doctor checks also passed. Five subagents contributed implementation and cross-review; their identified recovery, date-context, and speech-lifecycle issues were addressed before release. Live Base44 acceptance and real-device iOS testing remain release checklist items, not completed checks.
+The October 20 local verification passed 247 fitness tests, 377 security tests, 15 contract tests, 122 browser tests, and 19 native speech/dependency tests (780 total). Lint, both typechecks, the production build, Android release contract, and all 21 Expo Doctor checks also passed. Independent subagent reviews covered implementation, save recovery, date context, speech lifecycle, dependency compatibility, and the rapid-tab navigation fix. Live Base44 write acceptance and real-device iOS testing remain release checklist items, not completed checks.
 
 Expo and expo-dev-client match the SDK 57 patch versions required by Expo Doctor. Compatible security updates cover shell-quote, brace-expansion, source-map-js, and postcss-selector-parser. The native xcode package has a narrowly scoped UUID override, with regression tests for CommonJS loading and Xcode project generation. The October 20 follow-up npm audit reports 7 web findings (5 high, 2 moderate) and 15 iOS findings (all high), with zero critical findings. The parser's two moderate findings persist in npm's advisory range even though the [maintainer lists the installed 6.1.5 backport as patched](https://github.com/postcss/postcss-selector-parser/security/advisories/GHSA-rj75-hqrm-r3gf).
 
@@ -62,4 +62,17 @@ The initial GitHub push notice showed an old critical alert. A subsequent authen
 
 GitHub CI and CodeQL passed for the feature release. Base44 confirmed synchronization of the nutrition feature commit and release notes, including the backend source directories. The existing published site's public legal routes and signed-out access checks passed against the real backend; authenticated deployed acceptance requires isolated test data rather than production health records. Base44 publication remains the owner's action.
 
-The connected Expo account and project are valid. Before this build, the October allowance showed 0 of 15 free iOS builds used and zero overage charges. The existing production build counter was 5; EAS auto-increment selects the next number. An approved build prepares an archive only: TestFlight upload, physical-device acceptance, and public App Store release remain distinct steps.
+The connected Expo account and project are valid. Before this build, the October allowance showed 0 of 15 free iOS builds used and zero overage charges. The approved [iOS build 6](https://expo.dev/accounts/promptlabllc/projects/recompone-app/builds/ac5108fa-c470-4f85-99be-e158838cf34c) completed successfully from native source commit 7e6e81c, using remote auto-increment and existing signing credentials. The downloaded IPA passed strict, deep signature verification. Its bundle ID and build number are correct, microphone/speech/camera/photo purpose strings are present, and the speech module is compiled into the executable. Later web-only navigation changes do not require rebuilding this shell.
+
+The archive has not been uploaded to TestFlight or submitted for App Store review. Compilation and signature checks do not replace physical-device checks of OS permissions, audio routing, native sign-in, camera access, and sandbox purchase/restore.
+
+The shell loads the production web origin, not the Builder preview. Validate the new voice UI on build 6 after the web changes are published; before publication, it loads the previously published website. Older installed shells retain typed meal entry without requiring the new native module.
+
+## Owner handoff
+
+The agent can handle code, dependency triage, GitHub synchronization, hosted acceptance using synthetic records, archive creation, and an approved private TestFlight upload. The owner retains these actions:
+
+1. Approve enabling Base44's isolated Test Data environment before hosted tests write records. Production health data must stay untouched.
+2. Publish the verified web changes through Base44 after hosted checks. Keep photo inference gated off.
+3. Approve a TestFlight-only upload separately from a public store review or release.
+4. Install the test build on an iPhone and check microphone grant/denial, Stop/Cancel, barcode camera access, native sign-in, and sandbox purchase/restore. Provide any account verification or legal approval only if the service requests it; never send passwords or signing keys in chat.

@@ -88,7 +88,11 @@ export default function AppLayout() {
                 end={end}
                 replace
                 onClick={(event) => {
-                  if (location.pathname !== to) return;
+                  // History updates before a concurrent React render commits.
+                  // A fast return tap must not be cancelled by the old tab's
+                  // render-time location while the next tab is still loading.
+                  if (window.location.pathname !== to) return;
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                   event.preventDefault();
                   scrollPositions.current[to] = 0;
                   window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
