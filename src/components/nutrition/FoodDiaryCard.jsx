@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CopyPlus, Copy, Pencil, Trash2, Utensils } from "lucide-react";
+import { CopyPlus, Copy, Pencil, Plus, Trash2, Utensils } from "lucide-react";
 import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
 import { todayStr, formatShortDate } from "@/lib/loggingDateUtils";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
@@ -39,10 +39,10 @@ function editState(entry) {
   };
 }
 
-export default function FoodDiaryCard({ date = todayStr() }) {
+export default function FoodDiaryCard({ date = todayStr(), onAdd = undefined }) {
   const { foodLogEntries } = useRecompRef();
   const {
-    deleteFoodLogEntry, ensureDateLoaded, logFoodEntries, repeatFoodLogEntry, restoreFoodLogEntry, updateFoodLogEntry
+    deleteFoodLogEntry, discardUnsyncedFoodEntries, ensureDateLoaded, logFoodEntries, repeatFoodLogEntry, restoreFoodLogEntry, updateFoodLogEntry
   } = useRecompActions();
   const { toast } = useToast();
   const [editing, setEditing] = useState(null);
@@ -84,7 +84,7 @@ export default function FoodDiaryCard({ date = todayStr() }) {
   );
   const grouped = useMemo(
     () => MEALS.map((meal) => ({ ...meal, entries: entries.filter((entry) => entry.meal === meal.value) }))
-      .filter((meal) => meal.entries.length > 0),
+      .filter((meal) => meal.value !== "other" || meal.entries.length > 0),
     [entries]
   );
 
@@ -111,8 +111,8 @@ export default function FoodDiaryCard({ date = todayStr() }) {
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  // Copies entries into `targetDate` in one batch (all or nothing), once per
-  // tap, with an Undo that removes exactly the copies.
+  // One coordinated batch, with compensating cleanup on failure and an Undo
+  // that removes exactly the copies. Failed cleanup is visible for review.
   const copyEntries = async (key, sourceEntries, targetDate, label) => {
     if (copying || sourceEntries.length === 0) return;
     setCopying(key);
@@ -140,8 +140,8 @@ export default function FoodDiaryCard({ date = todayStr() }) {
           </Button>
         )
       });
-    } catch {
-      toast({ title: "Couldn't copy those foods", description: "Nothing was added.", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Couldn't copy those foods", description: error.reconciliationRequired ? "Review the incomplete items in your diary before trying again." : "The copy did not finish. Check your diary before retrying if your connection dropped.", variant: "destructive" });
     } finally {
       setCopying(null);
     }
@@ -169,7 +169,7 @@ export default function FoodDiaryCard({ date = todayStr() }) {
       };
       undoToast = toast({
         title: `${entry.name} removed`,
-        description: "Today's totals were updated.",
+        description: `${formatShortDate(entry.date)} totals were updated.`,
         action: <Button type="button" variant="outline" className="min-h-11" onClick={undo}>Undo</Button>
       });
     } catch {
@@ -233,12 +233,6 @@ export default function FoodDiaryCard({ date = todayStr() }) {
             </Button>
           )}
 
-          {entries.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-line px-4 py-5 text-center">
-              <p className="text-sm font-medium">Nothing logged for this day</p>
-              <p className="mt-1 text-xs text-muted-foreground">Add a recent food or use the form below to start the diary.</p>
-            </div>
-          ) : (
             <div className="space-y-4">
               {grouped.map((meal) => (
                 <section key={meal.value} aria-labelledby={`food-diary-${meal.value}`}>
@@ -246,7 +240,9 @@ export default function FoodDiaryCard({ date = todayStr() }) {
                     <h3 id={`food-diary-${meal.value}`} className="font-mono text-label uppercase tracking-wider text-muted-foreground">
                       {meal.label}
                     </h3>
-                    {!viewingToday && meal.entries.some((entry) => !copiedInto(todayStr()).has(entry.id)) && (
+                    <div className="flex items-center gap-1">
+                    {onAdd && meal.value !== "other" && <Button variant="ghost" className="min-h-11 text-xs text-teal" aria-label={`Add food to ${meal.label}`} onClick={() => onAdd(meal.value)}><Plus className="mr-1 h-3.5 w-3.5" /> Add</Button>}
+                    {!viewingToday && meal.entries.some((entry) => !entry.pending && !copiedInto(todayStr()).has(entry.id)) && (
                       <button
                         type="button"
                         className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-panel2 hover:text-teal disabled:opacity-50"
@@ -263,18 +259,27 @@ export default function FoodDiaryCard({ date = todayStr() }) {
                         {copying === `meal:${meal.value}` ? "Copying…" : "Copy to today"}
                       </button>
                     )}
+                    </div>
                   </div>
+                  {meal.entries.length === 0 && <p className="text-xs text-muted-foreground">No foods logged yet.</p>}
                   <div className="divide-y divide-lineSoft">
                     {meal.entries.map((entry) => (
                       <div key={entry.id} className="flex items-center gap-2 py-2">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{entry.name}</p>
+                          {entry.reconciliationRequired && <div className="space-y-1 py-2 text-xs text-destructive" role="alert">
+                            <p>Incomplete save. Check this day&apos;s totals before logging this food again.</p>
+                            <Button variant="outline" className="min-h-11 whitespace-normal text-left text-xs" onClick={async () => {
+                              try { await discardUnsyncedFoodEntries([entry.id]); toast({ title: "Incomplete item discarded", description: "Daily totals were not changed. Review them in your daily log." }); }
+                              catch (error) { toast({ title: "Couldn't discard incomplete food", description: error.message, variant: "destructive" }); }
+                            }}>Discard incomplete item · keep totals unchanged</Button>
+                          </div>}
                           <p className="text-xs text-muted-foreground">
                             {entry.serving_description} · {entry.calories} kcal
                             <span className="hidden min-[360px]:inline"> · {entry.protein_g}p/{entry.carbs_g}c/{entry.fat_g}f</span>
                           </p>
                         </div>
-                        <button
+                        {!entry.reconciliationRequired && <><button
                           type="button"
                           className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-panel2 hover:text-teal disabled:opacity-50"
                           onClick={() => repeat(entry)}
@@ -301,13 +306,13 @@ export default function FoodDiaryCard({ date = todayStr() }) {
                         >
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
+                        </>}
                       </div>
                     ))}
                   </div>
                 </section>
               ))}
             </div>
-          )}
         </CardContent>
       </Card>
 
@@ -315,7 +320,7 @@ export default function FoodDiaryCard({ date = todayStr() }) {
         <SheetContent side="bottom" className="max-h-[90svh] overflow-y-auto pb-[env(safe-area-inset-bottom)]" aria-label="Edit food entry">
           <SheetHeader>
             <SheetTitle>Edit food entry</SheetTitle>
-            <SheetDescription>Changes update today&apos;s totals automatically.</SheetDescription>
+            <SheetDescription>Changes update this entry&apos;s date and totals automatically.</SheetDescription>
           </SheetHeader>
           <div className="grid grid-cols-2 gap-3 py-4">
             <div className="col-span-2 space-y-1.5">

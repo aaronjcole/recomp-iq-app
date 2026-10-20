@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   endConnection,
   ErrorCode,
@@ -31,6 +31,10 @@ import {
   type PurchaseResult
 } from "./bridgeProtocol";
 import { buildInjectedBridgeScript, IAP_RESPONSE_EVENT } from "./injectedBridge";
+import { buildInjectedSpeechBridgeScript } from "./injectedSpeechBridge";
+import { SpeechCaptureController } from "./speechCapture";
+import { confirmSpeechConsent, nativeSpeechRecognizer } from "./nativeSpeech";
+import { SPEECH_RESPONSE_EVENT, type SpeechResponse } from "./speechProtocol";
 import {
   isAllowedWebViewOrigin,
   isProviderLoginUrl,
@@ -80,7 +84,35 @@ export function RecompOneWebView() {
   const connectingRef = useRef(false);
   const lastConnectAttemptRef = useRef(0);
   const purchaseGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const injectedJavaScriptBeforeContentLoaded = useMemo(buildInjectedBridgeScript, []);
+  const injectedJavaScriptBeforeContentLoaded = useMemo(
+    () => buildInjectedBridgeScript() + buildInjectedSpeechBridgeScript(), []
+  );
+  const sendSpeechResponse = useCallback((response: SpeechResponse) => {
+    if (!isTrustedAppUrl(currentUrlRef.current)) return;
+    const json = JSON.stringify(response).replace(/</g, "\\u003c");
+    webViewRef.current?.injectJavaScript(`
+      if (window.top === window && location.origin === ${JSON.stringify(APP_ORIGIN)}) {
+        window.dispatchEvent(new CustomEvent(${JSON.stringify(SPEECH_RESPONSE_EVENT)}, { detail: ${json} }));
+      } true;
+    `);
+  }, []);
+  const speechRef = useRef<SpeechCaptureController | null>(null);
+
+  useEffect(() => {
+    const speech = new SpeechCaptureController({
+      recognizer: nativeSpeechRecognizer,
+      consent: confirmSpeechConsent,
+      trusted: () => isTrustedAppUrl(currentUrlRef.current),
+      respond: sendSpeechResponse
+    });
+    speechRef.current = speech;
+    const subscription = AppState.addEventListener("change", (state) => {
+      // Permission sheets briefly make iOS inactive; only true backgrounding
+      // should abort the pending permission/capture session.
+      if (state === "background") speech.cancel();
+    });
+    return () => { subscription.remove(); speech.dispose(); speechRef.current = null; };
+  }, [sendSpeechResponse]);
 
   const sendResponse = useCallback((response: BridgeResponse) => {
     const json = JSON.stringify(response).replace(/</g, "\\u003c");
@@ -185,6 +217,9 @@ export function RecompOneWebView() {
   }, [rememberPurchase, sendResponse]);
 
   const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+    // Speech has its own strict parser, sender + top-page origin checks and
+    // native consent gate. Do not expand the StoreKit command allowlist.
+    await speechRef.current?.handle(event.nativeEvent.data, event.nativeEvent.url, currentUrlRef.current);
     // Never answer an off-origin page: the reply would be injected into it.
     // The web side's request timeout covers that case.
     if (!isTrustedAppUrl(event.nativeEvent.url || currentUrlRef.current)) return;
@@ -312,6 +347,7 @@ export function RecompOneWebView() {
   // and any other non-https scheme is refused outright.
   const authSessionOpenRef = useRef(false);
   const startNativeSignIn = useCallback(async (loginUrl: string) => {
+    speechRef.current?.cancel();
     if (authSessionOpenRef.current) return;
     const sessionUrl = nativeLoginUrl(loginUrl, APP_ORIGIN);
     if (!sessionUrl) return;
@@ -351,12 +387,14 @@ export function RecompOneWebView() {
       // Subframes keep the previous permissive policy to avoid breaking
       // embedded content the app may load.
       if (request.isTopFrame !== false && !isAllowedWebViewOrigin(request.url, APP_ORIGIN)) {
+        speechRef.current?.cancel();
         void WebBrowser.openBrowserAsync(request.url);
         return false;
       }
       return true;
     }
     if (url.protocol === "mailto:" || url.protocol === "tel:") {
+      speechRef.current?.cancel();
       void Linking.openURL(request.url);
     }
     return false;
@@ -373,14 +411,18 @@ export function RecompOneWebView() {
         onMessage={handleMessage}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onNavigationStateChange={(state) => {
+          if (state.url !== currentUrlRef.current) speechRef.current?.cancel();
           currentUrlRef.current = state.url;
         }}
         onLoadStart={() => {
+          speechRef.current?.cancel();
           // A reload or navigation drops the page that was waiting on a
           // purchase; keep it from blocking the next one.
           pendingPurchaseRef.current = null;
           clearTimeout(purchaseGraceTimerRef.current ?? undefined);
         }}
+        onError={() => speechRef.current?.cancel()}
+        onContentProcessDidTerminate={() => speechRef.current?.cancel()}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
         // The barcode scanner's getUserMedia preview is a <video playsInline>.

@@ -9,8 +9,8 @@ import { useToast } from "@/components/ui/use-toast";
 const DEBOUNCE_MS = 400;
 const MIN_QUERY = 2;
 
-export default function FoodSearchCard({ onAdd }) {
-  const [query, setQuery] = useState("");
+export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined, addLabel = "Add to today", initialQuery = "" }) {
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
@@ -23,6 +23,9 @@ export default function FoodSearchCard({ onAdd }) {
   const requestIdRef = useRef(0);
 
   useEffect(() => {
+    // Invalidate an already-running request as soon as the query changes,
+    // including when it becomes too short to start another request.
+    requestIdRef.current += 1;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
     if (trimmed.length < MIN_QUERY) {
@@ -53,6 +56,7 @@ export default function FoodSearchCard({ onAdd }) {
       }
     }, DEBOUNCE_MS);
     return () => {
+      requestIdRef.current += 1;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
@@ -69,11 +73,13 @@ export default function FoodSearchCard({ onAdd }) {
         savedFoodId: savedIdsRef.current[key],
         onSaved: (id) => { savedIdsRef.current[key] = id; }
       });
+      // Opening a review is not a committed log. Cancel must allow another try.
+      if (addToToday) setAdded((prev) => ({ ...prev, [key]: savedIdsRef.current[key] ? "library" : undefined }));
     } catch {
       // If the FoodItem was saved but the diary write failed, show it as saved.
       setAdded((prev) => ({ ...prev, [key]: savedIdsRef.current[key] ? "library" : undefined }));
       toast({
-        title: addToToday ? "Couldn't add food to today" : "Couldn't save food",
+        title: addToToday ? "Couldn't open food review" : "Couldn't save food",
         variant: "destructive"
       });
     } finally {
@@ -143,11 +149,11 @@ export default function FoodSearchCard({ onAdd }) {
                       <div>{food.protein_g ?? "—"}p / {food.carbs_g ?? "—"}c / {food.fat_g ?? "—"}f</div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  {onSelect ? <Button className="min-h-11 w-full bg-teal text-buttonText" onClick={() => onSelect(food)}>Review {food.name}</Button> : <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 min-h-9 flex-1"
+                      className="min-h-11 flex-1"
                       onClick={() => handleAdd(food, false)}
                       disabled={!!state}
                     >
@@ -155,13 +161,13 @@ export default function FoodSearchCard({ onAdd }) {
                     </Button>
                     <Button
                       size="sm"
-                      className="h-9 min-h-9 flex-1 bg-teal text-buttonText hover:opacity-90"
+                      className="min-h-11 flex-1 bg-teal text-buttonText hover:opacity-90"
                       onClick={() => handleAdd(food, true)}
                       disabled={state === "today"}
                     >
-                      {state === "today" ? <><Check className="w-3.5 h-3.5 mr-1" /> Added</> : <><Plus className="w-3.5 h-3.5 mr-1" /> Today</>}
+                      {state === "today" ? <><Check className="w-3.5 h-3.5 mr-1" /> Reviewed</> : <><Plus className="w-3.5 h-3.5 mr-1" /> {addLabel}</>}
                     </Button>
-                  </div>
+                  </div>}
                 </div>
               );
             })}

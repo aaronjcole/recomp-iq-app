@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, ChevronDown, RefreshCw, Shuffle, ShoppingCart, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -11,12 +11,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { useAuth } from "@/lib/AuthContext";
+import FoodEntryComposer from "@/components/nutrition/FoodEntryComposer";
+import { createFoodDraft } from "@/lib/foodEntryDraft";
+import { plannedMealFood } from "@/lib/recipeNutrition";
+import { groceryItemKey } from "@/lib/recipeGrocery";
+import { useRecipeGroceryChecks } from "@/lib/useRecipeGroceryChecks";
+import { isValidLocalDate, todayStr } from "@/lib/loggingDateUtils";
 import {
-  GROCERY_CACHE,
   MEAL_PLAN_CACHE,
   dropLegacyPlanCache,
   readPlanCache,
-  removePlanCache,
   writePlanCache
 } from "@/lib/planCache";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
@@ -47,18 +51,21 @@ function errorMessage(error) {
 
 const isCachedPlan = (value) =>
   Boolean(value) && Array.isArray(value.days) && Array.isArray(value.groceryList);
-const isCachedTicks = (value) =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 export default function AdaptiveMealPlan() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
   const { user } = useAuth();
   const userId = user?.id ?? null;
+  const accountRef = useRef(userId);
+  accountRef.current = userId;
   const allowed = canAccess(PREMIUM_FEATURES.MEAL_PLANNING);
-  const [plan, setPlan] = useState(null);
+  const [savedPlan, setSavedPlan] = useState(null);
+  const plan = savedPlan?.userId === userId ? savedPlan.value : null;
+  const setPlan = (value) => setSavedPlan({ userId, value });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
-  const [checked, setChecked] = useState({});
+  const { isChecked, toggleItem, clearChecked, retainItems } = useRecipeGroceryChecks(userId, "plan");
+  const [review, setReview] = useState(null);
   const [mode, setMode] = useState("deterministic");
   const [swapping, setSwapping] = useState(null);
   const weekStart = useMemo(currentWeekStart, []);
@@ -68,17 +75,19 @@ export default function AdaptiveMealPlan() {
   // Hydrate only once the signed-in id is known, so a cached plan can never be
   // read into the wrong account on a shared device.
   useEffect(() => {
-    if (!userId) return;
-    setPlan(readPlanCache(MEAL_PLAN_CACHE, userId, isCachedPlan));
-    setChecked(readPlanCache(GROCERY_CACHE, userId, isCachedTicks) ?? {});
+    setSavedPlan({ userId, value: readPlanCache(MEAL_PLAN_CACHE, userId, isCachedPlan) });
+    setReview(null);
+    setError("");
   }, [userId]);
 
   const generate = async () => {
+    if (!userId || !allowed || isGenerating) return;
     setIsGenerating(true);
     setError("");
     try {
       const result = await base44.functions.invoke("generateAdaptiveMealPlan", { weekStart, mode });
       const nextPlan = result?.data ?? result;
+      if (accountRef.current !== userId) return;
       if (!nextPlan || !Array.isArray(nextPlan.days) || !Array.isArray(nextPlan.groceryList)) {
         throw new Error("The meal planner returned an incomplete plan.");
       }
@@ -87,22 +96,16 @@ export default function AdaptiveMealPlan() {
       }
       setPlan(nextPlan);
       writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
-      setChecked({});
-      removePlanCache(GROCERY_CACHE, userId);
+      clearChecked();
     } catch (requestError) {
-      setError(errorMessage(requestError));
+      if (accountRef.current === userId) setError(errorMessage(requestError));
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const toggleGrocery = (key, done) => {
-    const next = { ...checked, [key]: !done };
-    setChecked(next);
-    writePlanCache(GROCERY_CACHE, userId, next);
-  };
-
   const handleSwap = async (dayIndex, meal) => {
+    if (!plan || !allowed || swapping !== null) return;
     // One swap at a time (every Swap button disables while one is in flight):
     // each swap rebuilds the week and grocery list from the current plan.
     const swapKey = `${dayIndex}-${meal.slot}`;
@@ -121,6 +124,7 @@ export default function AdaptiveMealPlan() {
         avoidIds
       });
       const newMeal = result?.data?.meal ?? result?.meal;
+      if (accountRef.current !== userId) return;
       if (!newMeal) throw new Error("No swap available for this meal.");
 
       const nextDays = [...plan.days];
@@ -142,17 +146,10 @@ export default function AdaptiveMealPlan() {
       const nextPlan = { ...plan, days: nextDays, groceryList };
       setPlan(nextPlan);
       writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
-      // Keep a tick only while its line is unchanged: a removed item, or one
-      // whose quantity the swap changed, needs a fresh look.
-      const previous = new Map(plan.groceryList.map((item) => [`${item.name}|${item.unit}`, item.quantity]));
-      const unchanged = new Set(groceryList
-        .filter((item) => previous.get(`${item.name}|${item.unit}`) === item.quantity)
-        .map((item) => `${item.name}|${item.unit}`));
-      const nextChecked = Object.fromEntries(Object.entries(checked).filter(([key]) => unchanged.has(key)));
-      setChecked(nextChecked);
-      writePlanCache(GROCERY_CACHE, userId, nextChecked);
+      // Discard removed/changed quantities; a later swap back must not revive ticks.
+      retainItems(groceryList);
     } catch (err) {
-      setError(errorMessage(err));
+      if (accountRef.current === userId) setError(errorMessage(err));
     } finally {
       setSwapping(null);
     }
@@ -175,6 +172,8 @@ export default function AdaptiveMealPlan() {
             <p className="mt-1 text-sm text-muted-foreground">
               Build seven days of meals from your current targets, diet style, and latest weekly check-in.
             </p>
+            <p className="mt-2 text-xs text-muted-foreground">Plans are suggestions, not diary entries. Use Log on a meal to review its portion and nutrition before saving. Future plans cannot be logged.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Plans and grocery checks are saved on this device for this account only; they do not sync between devices.</p>
           </div>
 
           {!accessLoading && !allowed && (
@@ -241,7 +240,7 @@ export default function AdaptiveMealPlan() {
         </CardContent>
       </Card>
 
-      {plan && (
+      {plan && allowed && (
         <>
           <Card className="border-line bg-panel">
             <CardContent className="space-y-3 p-5">
@@ -258,7 +257,7 @@ export default function AdaptiveMealPlan() {
           <section className="space-y-3" aria-labelledby="meal-plan-days">
             <div className="flex items-center justify-between gap-2">
               <h2 id="meal-plan-days" className="font-semibold">Your seven-day plan</h2>
-              <span className="text-xs text-muted-foreground">Saved locally</span>
+              <span className="text-xs text-muted-foreground">Saved locally · this account/device</span>
             </div>
             {plan.days.map((day, index) => (
               <Card key={day.date} className="border-line bg-panel">
@@ -266,6 +265,7 @@ export default function AdaptiveMealPlan() {
                   <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
                     <span>
                       <span className="block font-medium">{formatDay(day.date)}</span>
+                      {day.date > todayStr() && <span className="block text-xs text-teal">Future plan · logging unavailable</span>}
                       <span className="block text-xs text-muted-foreground">
                         {day.totals.calories} kcal · {day.totals.proteinG}g protein
                       </span>
@@ -299,6 +299,11 @@ export default function AdaptiveMealPlan() {
                           <p className="mt-1 text-xs text-muted-foreground">
                             {meal.proteinG}p / {meal.carbsG}c / {meal.fatG}f · {meal.servingScale}× base portion
                           </p>
+                          <Button variant="outline" className="mt-2 min-h-11 border-line" aria-label={`Log ${meal.title} on ${day.date}`} disabled={!isValidLocalDate(day.date)} onClick={() => {
+                            if (!isValidLocalDate(day.date)) return;
+                            setReview({ userId, date: day.date, initialMeal: meal.slot === "snack" ? "snack" : meal.slot,
+                              initialFoods: [createFoodDraft(plannedMealFood(meal), "plan", meal.id)] });
+                          }}>Log</Button>
                         </div>
                       );
                     })}
@@ -315,17 +320,17 @@ export default function AdaptiveMealPlan() {
               </h2>
               <div className="space-y-1">
                 {plan.groceryList.map((item) => {
-                  const key = `${item.name}|${item.unit}`;
-                  const done = checked[key] === true;
+                  const key = groceryItemKey(item);
+                  const done = isChecked(item);
                   return (
                     <div key={key} className="flex min-h-11 items-center gap-3">
                       <Checkbox
-                        id={`meal-plan-${key.replace(/[^a-z0-9]/gi, "-")}`}
+                        id={`meal-plan-${encodeURIComponent(key)}`}
                         checked={done}
-                        onCheckedChange={() => toggleGrocery(key, done)}
+                        onCheckedChange={() => toggleItem(item)}
                       />
                       <Label
-                        htmlFor={`meal-plan-${key.replace(/[^a-z0-9]/gi, "-")}`}
+                        htmlFor={`meal-plan-${encodeURIComponent(key)}`}
                         className={`flex min-h-11 flex-1 cursor-pointer items-center text-sm ${done ? "text-muted-foreground line-through" : ""}`}
                       >
                         {item.quantity} {item.unit} {item.name}
@@ -345,6 +350,7 @@ export default function AdaptiveMealPlan() {
           </Card>
         </>
       )}
+      {review && review.userId === userId && allowed && <FoodEntryComposer date={review.date} initialMeal={review.initialMeal} initialFoods={review.initialFoods} onClose={() => setReview(null)} />}
     </div>
   );
 }

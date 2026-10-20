@@ -78,13 +78,14 @@ export default function Today() {
         <StreakChip />
       </div>
 
-      <LoggingDatePicker />
+      <LoggingDatePicker weekStrip />
 
       {/* One actionable hero: signal, reasoning, and today's best move. */}
       <RecompSignalHero move={bestMove} onLog={() => setLogOpen(true)} />
 
       <TodayMacroCard
         calorieTarget={strategy.calorie_target}
+        proteinTarget={strategy.protein_target_g}
         calories={selectedLog?.calories ?? 0}
         protein={selectedLog?.protein_g ?? 0}
         carbs={selectedLog?.carbs_g ?? 0}

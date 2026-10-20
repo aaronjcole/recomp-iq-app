@@ -17,12 +17,13 @@ import {
   reserveFeatureRequest
 } from "../../shared/coachRateLimitDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
+import { ownedQuery } from "../../shared/ownerScope.js";
 
 const MAX_REQUEST_BYTES = 24_000;
 
-async function ownedRecords(base44, entityName, userId, sort, limit) {
+async function ownedRecords(base44, entityName, userId, sort, limit, query = {}) {
   return await base44.entities[entityName].filter(
-    { created_by_id: userId },
+    ownedQuery(userId, query),
     sort,
     limit
   );
@@ -123,17 +124,21 @@ export default async function(req) {
       );
     }
 
-    const [dailyLogs, sessions, checkIns] = await Promise.all([
-      ownedRecords(base44, "DailyLog", ownerId, "-date", 14),
-      ownedRecords(base44, "ExerciseSession", ownerId, "-date", 5),
-      ownedRecords(base44, "WeeklyCheckIn", ownerId, "-created_date", 1)
+    const endDate = request.referenceDate;
+    const startDate = endDate ? new Date(Date.parse(`${endDate}T12:00:00Z`) - 13 * 86400000).toISOString().slice(0, 10) : null;
+    const dateQuery = endDate ? { date: { $gte: startDate, $lte: endDate } } : {};
+    const [dailyLogs, sessions, checkIns, selectedLogs] = await Promise.all([
+      ownedRecords(base44, "DailyLog", ownerId, "-date", endDate ? 200 : 14, dateQuery),
+      ownedRecords(base44, "ExerciseSession", ownerId, "-date", 5, dateQuery),
+      ownedRecords(base44, "WeeklyCheckIn", ownerId, endDate ? "-end_date" : "-created_date", 1, endDate ? { end_date: { $lte: endDate } } : {}),
+      endDate ? ownedRecords(base44, "DailyLog", ownerId, "-updated_date", 20, { date: endDate }) : Promise.resolve([])
     ]);
     const prompt = buildCoachPrompt({
       request,
       profile,
       preferences,
       strategy,
-      dailyLogs,
+      dailyLogs: [...selectedLogs, ...dailyLogs.filter((log) => !selectedLogs.some((selected) => selected.id === log.id))],
       sessions,
       checkIn: checkIns[0] ?? null
     });

@@ -1,60 +1,37 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useId, useState, useMemo } from "react";
 import { useRecompRef } from "@/lib/RecompContext";
-import { buildGroceryListFromRecipes } from "@/lib/fitness";
+import { useAuth } from "@/lib/AuthContext";
+import { groceryItemKey, recipeGroceries } from "@/lib/recipeGrocery";
+import { useRecipeGroceryChecks } from "@/lib/useRecipeGroceryChecks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { base44 } from "@/api/base44Client";
 import { ShoppingCart, ListChecks } from "lucide-react";
 
 export default function GroceryListCard() {
   const { recipes } = useRecompRef();
-  const [userId, setUserId] = useState("anon");
-  const [selected, setSelected] = useState([]);
-  const [checked, setChecked] = useState({});
-
-  useEffect(() => {
-    let alive = true;
-    base44.auth
-      .me()
-      .then((u) => alive && setUserId(u.id))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const storageKey = `recomp-grocery-checked-${userId}`;
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) setChecked(JSON.parse(raw));
-    } catch {
-      /* ignore */
-    }
-  }, [storageKey]);
-
-  const persist = (next) => {
-    setChecked(next);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
-  };
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const id = useId();
+  const [selection, setSelection] = useState({ userId, ids: [] });
+  const selected = selection.userId === userId ? selection.ids : [];
+  const { isChecked, toggleItem, clearChecked, anyChecked, retainItems } = useRecipeGroceryChecks(userId, "recipes");
 
   const toggleRecipe = (id) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelection({ userId, ids: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] });
 
-  const selectAll = () => setSelected(recipes.map((r) => r.id));
+  const selectAll = () => setSelection({ userId, ids: recipes.map((r) => r.id) });
 
   const selectedRecipes = useMemo(() => recipes.filter((r) => selected.includes(r.id)), [recipes, selected]);
-  const groceryItems = useMemo(() => buildGroceryListFromRecipes(selectedRecipes), [selectedRecipes]);
-
-  const toggleItem = (key) => persist({ ...checked, [key]: !checked[key] });
-  const clearChecked = () => persist({});
-  const anyChecked = Object.values(checked).some(Boolean);
+  const groceryItems = useMemo(() => recipeGroceries(selectedRecipes), [selectedRecipes]);
+  // Do not prune on initial empty selection: recipe selection is device-local
+  // UI state, while saved checks should survive navigation. Once selected,
+  // discard old quantities so edits cannot resurrect an obsolete tick.
+  const grocerySignature = JSON.stringify(groceryItems);
+  useEffect(() => {
+    if (selected.length > 0) retainItems(groceryItems);
+  }, [grocerySignature, userId, retainItems]);
 
   return (
     <Card className="bg-panel border-line">
@@ -62,6 +39,7 @@ export default function GroceryListCard() {
         <h2 className="flex items-center gap-2 font-medium">
           <ShoppingCart className="w-4 h-4 text-teal" /> Grocery list
         </h2>
+        <p className="text-xs text-muted-foreground">Recipe ingredients are for whole batches. Checks are saved on this device for this account, separately from planner groceries. Changed quantities need a new check.</p>
 
         {recipes.length === 0 && (
           <p className="text-sm text-muted-foreground">Add a recipe below to build a grocery list.</p>
@@ -73,8 +51,8 @@ export default function GroceryListCard() {
               <div className="text-xs text-muted-foreground">Include recipes</div>
               {recipes.map((r) => (
                 <div key={r.id} className="flex items-center gap-3">
-                  <Checkbox checked={selected.includes(r.id)} onCheckedChange={() => toggleRecipe(r.id)} id={`rec-${r.id}`} />
-                  <Label htmlFor={`rec-${r.id}`} className="text-sm flex-1 cursor-pointer">
+                  <Checkbox checked={selected.includes(r.id)} onCheckedChange={() => toggleRecipe(r.id)} id={`${id}-rec-${r.id}`} />
+                  <Label htmlFor={`${id}-rec-${r.id}`} className="text-sm min-h-11 flex items-center flex-1 cursor-pointer">
                     {r.title}
                   </Label>
                 </div>
@@ -97,13 +75,13 @@ export default function GroceryListCard() {
               <ListChecks className="w-3.5 h-3.5" /> Combined list
             </div>
             {groceryItems.map((it) => {
-              const key = `${it.name}-${it.unit}`;
-              const done = !!checked[key];
+              const key = groceryItemKey(it);
+              const done = isChecked(it);
               return (
                 <div key={key} className="flex items-center gap-3 py-1">
-                  <Checkbox checked={done} onCheckedChange={() => toggleItem(key)} id={`g-${key}`} />
-                  <Label htmlFor={`g-${key}`} className={`text-sm flex-1 cursor-pointer ${done ? "line-through text-muted-foreground" : ""}`}>
-                    {it.quantity} {it.unit} {it.name}
+                  <Checkbox checked={done} onCheckedChange={() => toggleItem(it)} id={`${id}-g-${encodeURIComponent(key)}`} />
+                  <Label htmlFor={`${id}-g-${encodeURIComponent(key)}`} className={`text-sm min-h-11 flex items-center flex-1 cursor-pointer ${done ? "line-through text-muted-foreground" : ""}`}>
+                    {it.quantity ?? "Quantity unknown — review"} {it.unit} {it.name}
                   </Label>
                 </div>
               );

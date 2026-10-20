@@ -15,6 +15,8 @@ import { resolve, join, relative } from "node:path";
  *  - logToToday(food, "x", ...) calls (Nutrition page helper)
  *  - addAndLog(food, <expr>, ...) calls, whose source expression may be a
  *    literal or a ternary of literals
+ *  - shared-review drafts via createFoodDraft/openReview, and the scanner
+ *    operation's source carried from openScanner into the review
  */
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
@@ -75,7 +77,7 @@ function collectSourceUses() {
   for (const file of listSourceFiles(srcDir)) {
     const text = readFileSync(file, "utf8");
     const rel = relative(repoRoot, file);
-    for (const match of text.matchAll(/\b(logFoodEntry|logFoodEntries|logToToday|addAndLog)\s*\(/g)) {
+    for (const match of text.matchAll(/\b(logFoodEntry|logFoodEntries|logToToday|addAndLog|createFoodDraft|openReview|openScanner)\s*\(/g)) {
       // Skip declarations such as `const logToToday = async (...)`.
       const before = text.slice(Math.max(0, match.index - 20), match.index);
       if (/(const|function)\s+$/.test(before)) continue;
@@ -86,7 +88,7 @@ function collectSourceUses() {
           uses.push({ value: literal[1], where: `${rel} ${name}()` });
         }
       } else {
-        const sourceArg = splitArguments(args)[1] ?? "";
+        const sourceArg = splitArguments(args)[name === "openScanner" ? 0 : 1] ?? "";
         for (const value of stringLiterals(sourceArg)) {
           uses.push({ value, where: `${rel} ${name}()` });
         }
@@ -103,7 +105,7 @@ test("FoodLogEntry.source enum covers every source the app writes", () => {
 
   // Guard against the scanner silently matching nothing after a refactor.
   const found = new Set(uses.map((use) => use.value));
-  for (const expected of ["search", "library", "manual", "barcode", "photo", "template", "repeat"]) {
+  for (const expected of ["search", "library", "manual", "barcode", "photo", "template", "repeat", "recipe", "plan", "describe"]) {
     assert.ok(found.has(expected), `scanner did not find a FoodLogEntry source "${expected}" in src/`);
   }
 

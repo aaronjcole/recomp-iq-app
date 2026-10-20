@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Voice input test</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.transcripts = [];
+      window.SpeechRecognition = class {
+        start() {
+          window.recognition = this;
+        }
+        stop() {
+          queueMicrotask(() => this.onend?.());
+        }
+        abort() {
+          queueMicrotask(() => this.onend?.());
+        }
+      };
+    </script>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import VoiceInput from "/src/components/VoiceInput.jsx";
+      const root = createRoot(document.getElementById("root"));
+      window.unmountVoice = () => root.unmount();
+      root.render(
+        React.createElement(VoiceInput, {
+          onTranscript: (text) => window.transcripts.push(text),
+        }),
+      );
+    </script>
+  </body>
+</html>

@@ -315,7 +315,7 @@ test("coach and report functions are authenticated and narrowly owner-scoped", (
     coach.match(/asServiceRole\.entities\.[A-Za-z]+/g),
     ["asServiceRole.entities.CoachRequestUsage"]
   );
-  assert.match(coach, /\{ created_by_id: userId \}/);
+  assert.match(coach, /ownedQuery\(userId, query\)/);
   assert.match(coach, /hasActiveSafetyFlags\(preferences\)/);
   assert.ok((coach.match(/actionable: false/g) ?? []).length >= 2);
   assert.match(coach, /normalizeCoachReplyResult\(rawReply\)/);

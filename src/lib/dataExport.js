@@ -27,7 +27,10 @@ export async function deliverExportFile({ name, text, type }, browserWindow = wi
   const nativeShell = hasNativeIapBridge(browserWindow) || isNativeStoreShell(browserWindow);
   const FileCtor = browserWindow.File;
   const nav = browserWindow.navigator;
-  if (FileCtor && typeof nav?.share === "function" && typeof nav?.canShare === "function") {
+  // Ordinary browsers should download, even when they expose Web Share.
+  // Awaiting the export request can exhaust share()'s transient activation,
+  // and desktop browsers may advertise sharing without an available target.
+  if (nativeShell && FileCtor && typeof nav?.share === "function" && typeof nav?.canShare === "function") {
     const file = new FileCtor([text], name, { type });
     if (nav.canShare({ files: [file] })) {
       await nav.share({ files: [file], title: name });

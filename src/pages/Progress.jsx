@@ -9,10 +9,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ChartNoAxesCombined, Images, LayoutDashboard, ScanLine, Share2, Target } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, Images, LayoutDashboard, ScanLine, Share2, Target, Utensils } from "lucide-react";
 import ProgressPhotos from "@/components/progress/ProgressPhotos";
 import TrendsDashboard from "@/components/progress/TrendsDashboard";
 import ProgressInsightsCard from "@/components/progress/ProgressInsightsCard";
+import NutritionReport from "@/components/progress/NutritionReport";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
 import { featureFlags } from "@/lib/featureFlags";
@@ -41,7 +42,8 @@ const EMPTY_LOGS = [];
 const PROGRESS_SECTIONS = [
   { value: "overview", label: "Overview", icon: LayoutDashboard },
   { value: "trends", label: "Trends", icon: ChartNoAxesCombined },
-  { value: "photos", label: "Photos", icon: Images }
+  { value: "photos", label: "Photos", icon: Images },
+  { value: "nutrition", label: "Nutrition", icon: Utensils }
 ];
 const PROGRESS_SECTION_VALUES = new Set(PROGRESS_SECTIONS.map(({ value }) => value));
 
@@ -68,7 +70,11 @@ export default function Progress() {
 
   const selectSection = (nextSection) => {
     setSection(nextSection);
-    navigate(nextSection === "overview" ? "/progress" : `/progress?section=${nextSection}`, { replace: true });
+    const params = new URLSearchParams(location.search);
+    if (nextSection === "overview") params.delete("section");
+    else params.set("section", nextSection);
+    const search = params.toString();
+    navigate({ pathname: "/progress", search: search ? `?${search}` : "", hash: location.hash }, { replace: true });
   };
 
   const dedupedLogs = useMemo(
@@ -124,7 +130,7 @@ export default function Progress() {
       <div
         role="tablist"
         aria-label="Progress sections"
-        className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-panel p-1"
+        className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-panel p-1 sm:grid-cols-4"
       >
         {PROGRESS_SECTIONS.map(({ value, label, icon: Icon }, index) => {
           const selected = section === value;
@@ -226,6 +232,16 @@ export default function Progress() {
           aria-labelledby="progress-tab-trends"
         >
           <TrendsDashboard />
+        </div>
+      )}
+
+      {section === "nutrition" && (
+        <div
+          id="progress-panel-nutrition"
+          role="tabpanel"
+          aria-labelledby="progress-tab-nutrition"
+        >
+          <NutritionReport />
         </div>
       )}
 

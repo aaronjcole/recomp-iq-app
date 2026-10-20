@@ -2,6 +2,9 @@ import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useStat
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import { useLoggingDate } from "@/lib/LoggingDateContext";
+import FoodEntryComposer from "@/components/nutrition/FoodEntryComposer";
+import RecipeLibrary from "@/components/nutrition/RecipeLibrary";
+import { createFoodDraft, validFoodDraft } from "@/lib/foodEntryDraft";
 import { formatWeekdayName } from "@/lib/loggingDateUtils";
 import LoggingDatePicker from "@/components/LoggingDatePicker";
 import FuelSegmentedControl, { fuelPanelId, fuelTabId } from "@/components/nutrition/FuelSegmentedControl";
@@ -54,8 +57,17 @@ export default function Nutrition() {
   // private storage before being refused.
   const canUsePhotoScan = canAccess(PREMIUM_FEATURES.FOOD_PHOTO);
   const [form, setForm] = useState(empty);
-  const [showScanner, setShowScanner] = useState(false);
-  const [showPhotoScan, setShowPhotoScan] = useState(false);
+  const [scanOperation, setScanOperation] = useState(null);
+  const [review, setReview] = useState(null);
+  const librarySavingRef = useRef(false);
+  const [librarySaving, setLibrarySaving] = useState(false);
+  const openScanner = (source, target = { date: selectedDate, meal }) => {
+    setReview(null);
+    setScanOperation({ ...target, source });
+  };
+  const openReview = (food, source, foodId, target = { date: selectedDate, meal }) => {
+    setReview({ ...target, foods: food ? [createFoodDraft(food, source, foodId)] : [] });
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const { state } = useLocation();
   const detailsRef = useRef(null);
@@ -80,7 +92,6 @@ export default function Nutrition() {
   );
 
   const weekday = formatWeekdayName(selectedDate);
-  const addLabel = isToday ? "Add to today" : `Add to ${weekday}`;
 
   const handleSegmentChange = useCallback((newSeg) => {
     setSegment(newSeg);
@@ -146,30 +157,32 @@ export default function Nutrition() {
     ensureDateLoaded?.(selectedDate);
   }, [ensureDateLoaded, selectedDate]);
 
-  const addAndLog = async (food, source, addToToday) => {
-    const savedFood = await addFood(food);
-    if (addToToday) {
-      await logToToday(food, source, savedFood.id);
+  const handleScannedFood = async (food, reviewFood) => {
+    if (!scanOperation) return;
+    if (reviewFood && scanOperation.source === "photo" && Array.isArray(food.items)) {
+      setReview({ ...scanOperation, foods: food.items.map((item) => ({ ...createFoodDraft(item, "photo"), review_note: item.notes || "Check the estimated portion and nutrition." })) });
+    } else if (reviewFood) openReview(food, scanOperation.source, undefined, scanOperation);
+    else {
+      if (!validFoodDraft(createFoodDraft(food))) throw new Error("Nutrition is incomplete. Review the food and fill in missing values before logging.");
+      await addFood(food);
+      toast({ title: "Food saved to library" });
     }
-  };
-
-  const handleScannedFood = async (food, addToToday) => {
-    await addAndLog(food, showPhotoScan ? "photo" : "barcode", addToToday);
-    setShowScanner(false);
-    setShowPhotoScan(false);
+    setScanOperation(null);
   };
 
   // Reuses a FoodItem saved on an earlier tap (savedFoodId) so a retry after a
   // failed diary write, or "Today" after "Library", never duplicates it.
   /** @param {{ savedFoodId?: string, onSaved?: (id: string) => void }} [options] */
   const handleSearchAdd = async (food, addToToday, options = {}) => {
+    if (addToToday) {
+      openReview(food, "search", options.savedFoodId);
+      return;
+    }
+    if (!validFoodDraft(createFoodDraft(food))) throw new Error("Review the missing nutrition before saving.");
     let foodId = options.savedFoodId;
     if (!foodId) {
       foodId = (await addFood(food)).id;
       options.onSaved?.(foodId);
-    }
-    if (addToToday) {
-      await logToToday(food, "search", foodId);
     }
   };
 
@@ -204,8 +217,8 @@ export default function Nutrition() {
           </Button>
         ) : undefined
       });
-    } catch {
-      toast({ title: `Couldn't add ${name}`, variant: "destructive" });
+    } catch (error) {
+      toast({ title: `Couldn't add ${name}`, description: error.reconciliationRequired ? "Review or discard the incomplete food entries for this day first." : undefined, variant: "destructive" });
     } finally {
       quickAddsRef.current.delete(key);
       setQuickAdding(new Set(quickAddsRef.current));
@@ -257,17 +270,33 @@ export default function Nutrition() {
       name: form.name,
       serving_description: form.serving_description || "1 serving",
       serving_grams: num(form.serving_grams),
-      calories: Number(form.calories) || 0,
-      protein_g: Number(form.protein_g) || 0,
-      carbs_g: Number(form.carbs_g) || 0,
-      fat_g: Number(form.fat_g) || 0,
+      calories: num(form.calories),
+      protein_g: num(form.protein_g),
+      carbs_g: num(form.carbs_g),
+      fat_g: num(form.fat_g),
       fiber_g: num(form.fiber_g)
     };
-    const savedFood = await addFood(food);
     if (addToToday) {
-      await logToToday(food, "manual", savedFood.id);
+      openReview(food, "manual");
+      return;
     }
-    setForm(empty);
+    if (librarySavingRef.current) return;
+    if (!validFoodDraft(createFoodDraft(food))) {
+      toast({ title: "Fill in calories, protein, carbs, and fat before saving", variant: "destructive" });
+      return;
+    }
+    librarySavingRef.current = true;
+    setLibrarySaving(true);
+    try {
+      await addFood(food);
+      setForm(empty);
+      toast({ title: "Food saved to library" });
+    } catch {
+      toast({ title: "Couldn't save food. Your entries are still here.", variant: "destructive" });
+    } finally {
+      librarySavingRef.current = false;
+      setLibrarySaving(false);
+    }
   };
 
   const canSave = form.name && form.calories;
@@ -277,7 +306,7 @@ export default function Nutrition() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Nutrition</h1>
 
-      <LoggingDatePicker />
+      <LoggingDatePicker weekStrip />
 
       {/* Macro bars — persistent above segments */}
       <Card className="bg-panel border-line">
@@ -290,6 +319,10 @@ export default function Nutrition() {
       </Card>
 
       <FuelSegmentedControl value={segment} onChange={handleSegmentChange} />
+      <div className="flex flex-wrap justify-between gap-2 text-xs text-teal">
+        <Link className="inline-flex min-h-11 items-center" to={`/progress?section=nutrition&date=${selectedDate}`}>Nutrition report</Link>
+        <Link className="inline-flex min-h-11 items-center" to={`/more/coach?date=${selectedDate}&topic=protein`}>Ask Coach about protein</Link>
+      </div>
 
       {/* ── Diary ── */}
       {segment === "diary" && (
@@ -299,7 +332,7 @@ export default function Nutrition() {
           aria-labelledby={fuelTabId("diary")}
           className="space-y-5"
         >
-          {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} />}
+          {featureFlags.itemizedFoodDiary && <FoodDiaryCard date={selectedDate} onAdd={(targetMeal) => openReview(null, "manual", undefined, { date: selectedDate, meal: targetMeal })} />}
 
           <div role="radiogroup" aria-label="Add foods to" className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground" aria-hidden="true">Add foods to</p>
@@ -329,11 +362,11 @@ export default function Nutrition() {
               <h2 className="font-medium">Scan food</h2>
               <div className="grid grid-cols-2 gap-3">
                 {featureFlags.foodPhotoScan && canUsePhotoScan && (
-                  <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
+                  <Button variant="outline" className="min-h-11" onClick={() => openScanner("photo")}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
                 )}
-                <Button variant="outline" className="min-h-11" onClick={() => setShowScanner(true)}>
+                <Button variant="outline" className="min-h-11" onClick={() => openScanner("barcode")}>
                   <ScanLine className="w-4 h-4 mr-1" /> Barcode
                 </Button>
               </div>
@@ -341,7 +374,7 @@ export default function Nutrition() {
           </Card>
 
           {/* Search foods online — build the library from branded nutrition */}
-          <FoodSearchCard onAdd={handleSearchAdd} />
+          <FoodSearchCard onAdd={handleSearchAdd} addLabel={isToday ? "Review for today" : `Review for ${weekday}`} />
 
           {/* Recent foods — what the user logged lately, one tap to log again */}
           {featureFlags.itemizedFoodDiary ? recentFoods.length > 0 && (
@@ -463,9 +496,9 @@ export default function Nutrition() {
                     <Field id={`${foodFormId}-fiber`} label="Fiber (g)" accessibleLabel="Food fiber (g)" v={form.fiber_g} on={(v) => set("fiber_g", v)} />
                   </div>
                   <div className="grid grid-cols-1 gap-2 pt-1 min-[360px]:grid-cols-2">
-                    <Button variant="outline" className="min-h-11 w-full" disabled={!canSave} onClick={() => saveFood(false)}>Save to library</Button>
-                    <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave} onClick={() => saveFood(true)}>
-                      <Plus className="w-4 h-4 mr-1" /> {addLabel}
+                    <Button variant="outline" className="min-h-11 w-full" disabled={!canSave || librarySaving} onClick={() => saveFood(false)}>{librarySaving ? "Saving…" : "Save to library"}</Button>
+                    <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90" disabled={!canSave || librarySaving} onClick={() => saveFood(true)}>
+                      <Plus className="w-4 h-4 mr-1" /> Review food
                     </Button>
                   </div>
                 </div>
@@ -483,7 +516,7 @@ export default function Nutrition() {
           aria-labelledby={fuelTabId("library")}
           className="space-y-5"
         >
-          <FoodSearchCard onAdd={handleSearchAdd} />
+          <FoodSearchCard onAdd={handleSearchAdd} addLabel={isToday ? "Review for today" : `Review for ${weekday}`} />
 
           <Card className="bg-panel border-line">
             <CardContent className="p-5 space-y-3">
@@ -525,6 +558,7 @@ export default function Nutrition() {
           <div id="meal-templates-section">
             <MealTemplatesCard date={selectedDate} meal={meal} />
           </div>
+          <RecipeLibrary date={selectedDate} meal={meal} />
         </div>
       )}
 
@@ -540,14 +574,14 @@ export default function Nutrition() {
           <Card className="bg-panel border-line">
             <CardContent className="p-5 space-y-3">
               <h2 className="font-medium">Scan food</h2>
-              <p className="text-sm text-muted-foreground">Use a barcode or photo to log food instantly.</p>
+              <p className="text-sm text-muted-foreground">Look up food, review its portions, then log it.</p>
               <div className="grid grid-cols-2 gap-3">
                 {featureFlags.foodPhotoScan && canUsePhotoScan && (
-                  <Button variant="outline" className="min-h-11" onClick={() => setShowPhotoScan(true)}>
+                  <Button variant="outline" className="min-h-11" onClick={() => openScanner("photo")}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
                 )}
-                <Button variant="outline" className="min-h-11" onClick={() => setShowScanner(true)}>
+                <Button variant="outline" className="min-h-11" onClick={() => openScanner("barcode")}>
                   <ScanLine className="w-4 h-4 mr-1" /> Barcode
                 </Button>
               </div>
@@ -635,20 +669,25 @@ export default function Nutrition() {
         </div>
       )}
 
-      {showScanner && (
+      {review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={featureFlags.foodPhotoScan && canUsePhotoScan} />}
+
+      {scanOperation?.source === "barcode" && (
         <Suspense fallback={<ScannerLoading />}>
           <BarcodeScanner
-            onClose={() => setShowScanner(false)}
+            onClose={() => setScanOperation(null)}
             onResult={handleScannedFood}
+            reviewLabel={`Review for ${scanOperation.date === selectedDate ? (isToday ? "today" : weekday) : formatWeekdayName(scanOperation.date)}`}
           />
         </Suspense>
       )}
 
-      {featureFlags.foodPhotoScan && showPhotoScan && (
+      {featureFlags.foodPhotoScan && scanOperation?.source === "photo" && (
         <Suspense fallback={<ScannerLoading />}>
           <FoodPhotoScan
-            onClose={() => setShowPhotoScan(false)}
+            onClose={() => setScanOperation(null)}
             onResult={handleScannedFood}
+            onManual={() => { openReview(null, "manual", undefined, scanOperation); setScanOperation(null); }}
+            reviewLabel={`Review for ${formatWeekdayName(scanOperation.date)}`}
           />
         </Suspense>
       )}
@@ -664,7 +703,7 @@ function ScannerLoading() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
     >
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-panel px-6 py-5">
         <div className="w-8 h-8 border-4 border-panel2 border-t-teal rounded-full animate-spin" />

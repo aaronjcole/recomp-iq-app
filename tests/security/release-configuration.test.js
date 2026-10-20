@@ -43,7 +43,7 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
 
   const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
   assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&/);
-  assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&\s*showPhotoScan/);
+  assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&\s*scanOperation\?\.source === "photo"/);
 });
 
 test("support contact is consistent and exposed in the app and privacy policy", () => {

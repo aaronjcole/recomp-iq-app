@@ -27,6 +27,57 @@ npm run doctor
 `react-native-iap` is a native module, so Expo Go cannot exercise purchases.
 Use an EAS development build or a local `expo run:ios` build on a signed device.
 
+## Optional meal speech input
+
+The web Describe composer can mount the default-exported
+`src/components/nutrition/MealSpeechInput.jsx` with
+`{ onTranscript, disabled = false }`. It returns final text only (at most 4,000
+characters); the parent retains editable typed input, review and explicit saving.
+No audio, transcript or diary entry is persisted by this control or native bridge.
+Existing `VoiceInput.jsx` and the StoreKit command/product allowlists are unchanged.
+
+Speech uses `expo-speech-recognition` **57.1.1**, the library's SDK 57 line, not
+the latest major. Primary references:
+[versioned library docs](https://github.com/jamsch/expo-speech-recognition/tree/v57.1.1)
+and [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/).
+The config plugin adds `NSMicrophoneUsageDescription` and
+`NSSpeechRecognitionUsageDescription` to the generated Info.plist.
+
+**A rebuilt iOS binary is required.** Publishing the web app or updating JavaScript
+does not install the native module or permissions into an existing shell. Expo Go
+does not include this module. An optional native-module lookup and permission-free,
+two-second capability handshake keep old/unavailable shells from crashing or
+showing an unsupported native mic button. The control uses the browser recognizer
+only when available in a secure top-level context with user-activation support;
+otherwise it is hidden and typed input remains available.
+
+Each session requires a web Record gesture, disclosure, a native Continue tap,
+then iOS microphone/speech permission. Apple (or the browser speech provider) may
+process speech online; no offline-only guarantee is made. Audio-file persistence
+is explicitly disabled. Consent/permission waits time out after 30 seconds,
+recording after 60 seconds, and Stop finalization after 5 seconds. Stop asks for
+one final transcript; Cancel discards it. Errors, backgrounding, page navigation,
+reload and component unmount abort and detach listeners. Native abort events are
+drained before another capture can start. Both the frame's sender URL and the
+current top-page URL must be the exact HTTPS app origin; no auth-host microphone
+access or arbitrary speech options are accepted.
+
+Local checks (Node 24 supports the TypeScript domain tests directly):
+
+```bash
+npm run typecheck
+npm run test:speech
+node --test ../tests/security/native-meal-speech.test.js
+npx expo config --type prebuild --json
+```
+
+TypeScript, config resolution and mock recognizer tests do **not** verify iOS
+compilation, OS prompts, live microphone routing or recognition quality. A full
+Xcode installation, signing and a rebuilt development binary on an iPhone are
+still required to test grant/deny/restricted permission, Stop/Cancel, interruption,
+backgrounding, navigation and network failures. Do not bump the store build number
+or upload a binary as part of these checks.
+
 ## First EAS setup
 
 From this directory:

@@ -1,9 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   FOOD_PHOTO_RESPONSE_SCHEMA,
+  FOOD_PHOTO_ITEMS_SCHEMA,
   FoodPhotoRequestError,
   buildFoodPhotoPrompt,
-  normalizeFoodPhotoResult
+  normalizeFoodPhotoResult,
+  normalizeFoodPhotoItems
 } from "../../shared/foodPhotoDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 import {
@@ -58,6 +60,8 @@ export default async function(req) {
   if (!photoUri) {
     return json({ error: "A photo reference is required" }, { status: 400 });
   }
+  const responseVersion = body.responseVersion ?? 1;
+  if (![1, 2].includes(responseVersion)) return json({ error: "Unsupported photo response version" }, { status: 400 });
 
   try {
     // Entitlement is checked before the quota reservation, the signed link and
@@ -115,12 +119,12 @@ export default async function(req) {
     if (!signed?.signed_url) throw new Error("Could not create a temporary image link");
 
     const rawResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: buildFoodPhotoPrompt(),
+      prompt: buildFoodPhotoPrompt(responseVersion),
       model: "gemini_3_flash",
       file_urls: [signed.signed_url],
-      response_json_schema: FOOD_PHOTO_RESPONSE_SCHEMA
+      response_json_schema: responseVersion === 2 ? FOOD_PHOTO_ITEMS_SCHEMA : FOOD_PHOTO_RESPONSE_SCHEMA
     });
-    return json(normalizeFoodPhotoResult(rawResult));
+    return json(responseVersion === 2 ? normalizeFoodPhotoItems(rawResult) : normalizeFoodPhotoResult(rawResult));
   } catch (error) {
     if (error instanceof PhotoReferenceOwnershipError) {
       const ownershipMessage = "This photo was not uploaded by your account. Take the photo again.";

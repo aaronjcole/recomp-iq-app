@@ -98,10 +98,10 @@ export function normalizeCoachReply(payload) {
   };
 }
 
-export function makeCoachRequest(message, history) {
+export function makeCoachRequest(message, history, referenceDate = undefined) {
   const boundedMessage = boundedText(message, COACH_MESSAGE_MAX);
   if (!boundedMessage) throw new Error("Enter a message for your coach");
-  return { message: boundedMessage, history: toCoachHistory(history) };
+  return { message: boundedMessage, history: toCoachHistory(history), ...(referenceDate ? { referenceDate } : {}) };
 }
 
 export function makeReportRequest({ messageId, category, reason, reportedContent }) {

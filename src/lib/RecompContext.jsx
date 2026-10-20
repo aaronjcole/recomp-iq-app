@@ -25,6 +25,7 @@ import { statusOf } from "../../base44/shared/httpUtils.js";
 import { parseCompletedSessions, withCompletedSession } from "@/lib/fitness/trainingBlockProgress";
 import { replaceSessionStrengthLogs } from "@/lib/sessionEdit";
 import { useAuth } from "@/lib/AuthContext";
+import { recipeWritePayload } from "@/lib/recipeNutrition";
 import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggingDateUtils";
 
 import { Ctx, RefCtx, ActionsCtx, HabitsCtx } from "@/lib/recompContexts";
@@ -75,6 +76,7 @@ function foodEntryPayload(entry) {
     created_by: _createdBy,
     created_by_id: _createdById,
     pending: _pending,
+    reconciliationRequired: _reconciliationRequired,
     ...payload
   } = entry;
   return payload;
@@ -219,6 +221,9 @@ export function RecompProvider({ children }) {
   const habitEntriesRef = useRef(habitEntries);
   const activeBlockRef = useRef(null);
   const foodLogEntriesRef = useRef([]);
+  const deletedFoodIds = useRef(new Set());
+  const restoredFoodIds = useRef(new Map());
+  const unsyncedFoodIds = useRef(new Set());
   const dailyQueues = useRef(new Map());
   const habitQueues = useRef(new Map());
   const loadedDates = useRef(new Set());
@@ -228,6 +233,7 @@ export function RecompProvider({ children }) {
   // Keep the owner current for stable callbacks. Declared before the load
   // effect so the first load already sees the signed-in user's id.
   useEffect(() => {
+    if (userIdRef.current !== userId) { deletedFoodIds.current.clear(); restoredFoodIds.current.clear(); unsyncedFoodIds.current.clear(); }
     userIdRef.current = userId;
   }, [userId]);
   // Throws (fails closed) when no user id is known yet.
@@ -291,7 +297,8 @@ export function RecompProvider({ children }) {
 
   const setFoodLogEntriesCurrent = useCallback((nextOrUpdater) => {
     setFoodLogEntries((previous) => {
-      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      const source = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
+      const next = source.map((entry) => unsyncedFoodIds.current.has(entry.id) ? { ...entry, pending: true, reconciliationRequired: true } : entry);
       foodLogEntriesRef.current = next;
       return next;
     });
@@ -332,7 +339,7 @@ export function RecompProvider({ children }) {
       const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
       const loadedHabitEntries = newestByKey(results[10], (item) => `${item.habit_id}:${item.date}`);
       const loadedActiveBlock = results[11]?.[0] ?? null;
-      const loadedFoodLogEntries = results[12] ?? [];
+      const loadedFoodLogEntries = (results[12] ?? []).filter((entry) => !deletedFoodIds.current.has(entry.id));
       profileRef.current = loadedProfile;
       preferencesRef.current = loadedPreferences;
       strategyRef.current = loadedStrategy;
@@ -432,7 +439,7 @@ export function RecompProvider({ children }) {
       if (featureFlags.itemizedFoodDiary) {
         setFoodLogEntriesCurrent((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
-          return [...prev, ...results[6].filter((e) => !existingIds.has(e.id))];
+          return [...prev, ...results[6].filter((e) => !existingIds.has(e.id) && !deletedFoodIds.current.has(e.id))];
         });
       }
       setHistoryLoaded(true);
@@ -480,7 +487,7 @@ export function RecompProvider({ children }) {
       if (dayFoodEntries.length) {
         setFoodLogEntriesCurrent((prev) => {
           const existingIds = new Set(prev.map((e) => e.id));
-          return [...prev, ...dayFoodEntries.filter((e) => !existingIds.has(e.id))];
+          return [...prev, ...dayFoodEntries.filter((e) => !existingIds.has(e.id) && !deletedFoodIds.current.has(e.id))];
         });
       }
       if (daySessions.length) {
@@ -1088,6 +1095,9 @@ export function RecompProvider({ children }) {
     if (!date || entries.some((entry) => entry.date !== date)) {
       throw new Error("Food entries must share one valid date");
     }
+    if (foodLogEntriesRef.current.some((entry) => entry.date === date && entry.reconciliationRequired)) {
+      throw Object.assign(new Error("Review or discard this day's incomplete food entries before logging again."), { reconciliationRequired: true });
+    }
 
     const optimistic = entries.map((entry, index) => ({
       ...foodEntryPayload(entry),
@@ -1109,9 +1119,18 @@ export function RecompProvider({ children }) {
       ]);
       return created;
     } catch (error) {
-      await Promise.allSettled(created.map((entry) => base44.entities.FoodLogEntry.delete(entry.id)));
+      created.forEach((entry) => deletedFoodIds.current.add(entry.id));
+      const cleanup = await Promise.allSettled(created.map((entry) => base44.entities.FoodLogEntry.delete(entry.id)));
+      const survivors = created.filter((_, index) => cleanup[index].status === "rejected");
+      survivors.forEach((entry) => unsyncedFoodIds.current.add(entry.id));
+      survivors.forEach((entry) => deletedFoodIds.current.delete(entry.id));
       const optimisticIds = new Set(optimistic.map((entry) => entry.id));
-      setFoodLogEntriesCurrent((previous) => previous.filter((entry) => !optimisticIds.has(entry.id)));
+      setFoodLogEntriesCurrent((previous) => [
+        ...survivors.map((entry) => ({ ...entry, pending: true, reconciliationRequired: true })),
+        ...previous.filter((entry) => !optimisticIds.has(entry.id) && !survivors.some((saved) => saved.id === entry.id))
+      ]);
+      error.reconciliationRequired = survivors.length > 0;
+      error.partialEntries = survivors;
       throw error;
     }
   }, [adjustDailyNutrition, setFoodLogEntriesCurrent]);
@@ -1145,8 +1164,14 @@ export function RecompProvider({ children }) {
   }, [adjustDailyNutrition, setFoodLogEntriesCurrent]);
 
   const deleteFoodLogEntry = useCallback(async (id) => {
+    // Undo retains its original id; compensation can recreate that row with
+    // a new id, possibly more than once. Resolve the complete alias chain.
+    const seen = new Set();
+    while (restoredFoodIds.current.has(id) && !seen.has(id)) { seen.add(id); id = restoredFoodIds.current.get(id); }
     const previous = foodLogEntriesRef.current.find((entry) => entry.id === id);
     if (!previous) throw new Error("Food entry not found");
+    if (previous.reconciliationRequired) throw new Error("Review this unfinished log before changing its totals.");
+    deletedFoodIds.current.add(id);
     setFoodLogEntriesCurrent((entries) => entries.filter((entry) => entry.id !== id));
     let deletedRemotely = false;
     try {
@@ -1168,11 +1193,34 @@ export function RecompProvider({ children }) {
         }
       }
       if (restored) {
+        if (restored.id !== id) restoredFoodIds.current.set(id, restored.id);
+        else deletedFoodIds.current.delete(id);
         setFoodLogEntriesCurrent((entries) => [restored, ...entries.filter((entry) => entry.id !== restored.id)]);
+        error.restoredEntry = restored;
       }
       throw error;
     }
   }, [adjustDailyNutrition, reload, setFoodLogEntriesCurrent]);
+
+  // Explicit recovery only: these rows survived compensation after an
+  // unsuccessful totals update. Never subtract from potentially unadjusted
+  // manual daily totals. The user is told to review that day's totals.
+  const discardUnsyncedFoodEntries = useCallback(async (ids) => {
+    const entries = foodLogEntriesRef.current.filter((entry) => ids.includes(entry.id) && entry.reconciliationRequired);
+    const failed = [];
+    for (const entry of entries) {
+      deletedFoodIds.current.add(entry.id);
+      try {
+        await base44.entities.FoodLogEntry.delete(entry.id);
+        unsyncedFoodIds.current.delete(entry.id);
+        setFoodLogEntriesCurrent((previous) => previous.filter((row) => row.id !== entry.id));
+      } catch {
+        deletedFoodIds.current.delete(entry.id);
+        failed.push(entry.id);
+      }
+    }
+    if (failed.length) throw new Error("Some incomplete items could not be discarded. Your daily totals were not changed.");
+  }, [setFoodLogEntriesCurrent]);
 
   const repeatFoodLogEntry = useCallback(
     (entry, date = todayStr()) => logFoodEntry({
@@ -1230,10 +1278,35 @@ export function RecompProvider({ children }) {
   );
 
   const addRecipe = useCallback(async (data) => {
-    const created = await base44.entities.Recipe.create(data);
-    setRecipes((prev) => [created, ...prev]);
+    const ownerId = userIdRef.current;
+    if (!ownerId) throw new Error("Sign in to save recipes.");
+    const created = await base44.entities.Recipe.create(recipeWritePayload(data));
+    if (userIdRef.current === ownerId) setRecipes((prev) => [created, ...prev]);
     return created;
   }, []);
+
+  const updateRecipe = useCallback(async (id, data) => {
+    const ownerId = userIdRef.current;
+    if (!ownerId || !recipes.some((recipe) => recipe.id === id && (!recipe.created_by_id || recipe.created_by_id === ownerId))) throw new Error("Recipe not found in this account.");
+    const updated = await base44.entities.Recipe.update(id, recipeWritePayload(data));
+    if (userIdRef.current === ownerId) setRecipes((prev) => prev.map((recipe) => recipe.id === id ? { ...recipe, ...updated } : recipe));
+    return updated;
+  }, [recipes]);
+
+  const deleteRecipe = useCallback(async (id) => {
+    const ownerId = userIdRef.current;
+    if (!ownerId || !recipes.some((recipe) => recipe.id === id && (!recipe.created_by_id || recipe.created_by_id === ownerId))) throw new Error("Recipe not found in this account.");
+    await base44.entities.Recipe.delete(id);
+    if (userIdRef.current === ownerId) setRecipes((prev) => prev.filter((recipe) => recipe.id !== id));
+  }, [recipes]);
+
+  const setRecipeFavorite = useCallback(async (id, isFavorite) => {
+    const ownerId = userIdRef.current;
+    if (!ownerId || !recipes.some((recipe) => recipe.id === id && (!recipe.created_by_id || recipe.created_by_id === ownerId))) throw new Error("Recipe not found in this account.");
+    const updated = await base44.entities.Recipe.update(id, { is_favorite: isFavorite === true });
+    if (userIdRef.current === ownerId) setRecipes((prev) => prev.map((recipe) => recipe.id === id ? { ...recipe, ...updated } : recipe));
+    return updated;
+  }, [recipes]);
 
   const runCheckIn = useCallback(async () => {
     if (!profile || !strategy) return null;
@@ -1358,12 +1431,16 @@ export function RecompProvider({ children }) {
       logFoodEntries,
       updateFoodLogEntry,
       deleteFoodLogEntry,
+      discardUnsyncedFoodEntries,
       repeatFoodLogEntry,
       restoreFoodLogEntry,
       addStrengthLog,
       saveMealTemplate,
       logMealTemplate,
       addRecipe,
+      updateRecipe,
+      deleteRecipe,
+      setRecipeFavorite,
       runCheckIn,
       prepareCheckIn,
       decideCheckIn
@@ -1392,12 +1469,16 @@ export function RecompProvider({ children }) {
       logFoodEntries,
       updateFoodLogEntry,
       deleteFoodLogEntry,
+      discardUnsyncedFoodEntries,
       repeatFoodLogEntry,
       restoreFoodLogEntry,
       addStrengthLog,
       saveMealTemplate,
       logMealTemplate,
       addRecipe,
+      updateRecipe,
+      deleteRecipe,
+      setRecipeFavorite,
       runCheckIn,
       prepareCheckIn,
       decideCheckIn
