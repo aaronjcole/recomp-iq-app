@@ -72,31 +72,41 @@ npx expo config --type prebuild --json
 ```
 
 TypeScript, config resolution and mock recognizer tests do **not** verify iOS
-compilation, OS prompts, live microphone routing or recognition quality. A full
-Xcode installation, signing and a rebuilt development binary on an iPhone are
-still required to test grant/deny/restricted permission, Stop/Cancel, interruption,
-backgrounding, navigation and network failures. Do not bump the store build number
-or upload a binary as part of these checks.
+compilation, OS prompts, live microphone routing or recognition quality. EAS Build
+can compile and sign this app in the cloud; a local Xcode installation is needed
+only for local native builds. A rebuilt binary on an iPhone is still required to
+test grant/deny/restricted permission, Stop/Cancel, interruption, backgrounding,
+navigation and network failures. Do not upload a binary as an incidental part of
+the local checks.
 
-## First EAS setup
+## Existing EAS project
 
-From this directory:
-
-```bash
-npx eas-cli login
-npx eas-cli init
-npx eas-cli build --platform ios --profile development
-```
-
-The `eas init` command adds the account-specific EAS project ID to the Expo
-configuration. Do not invent or commit Apple private keys to this project; EAS
-manages signing credentials separately from the Base44 App Store Server API
-secrets.
-
-After the development build passes sandbox purchase tests, create the TestFlight
-artifact with:
+This app is already linked to `@promptlabllc/recompone-app`, project
+`df0b21a1-85f8-415f-9c8c-b465f7fbc1f0`, with App Store Connect app ID
+`6803546092`. Do not initialize a replacement project. Check the existing account,
+project and included build allowance from this directory:
 
 ```bash
-npx eas-cli build --platform ios --profile production
-npx eas-cli submit --platform ios --profile production
+npx eas-cli whoami
+npx eas-cli project:info
+npx eas-cli account:usage promptlabllc --non-interactive
 ```
+
+Sign in to the existing account if needed. EAS manages signing credentials
+separately from the Base44 App Store Server API secrets; never commit Apple
+private keys. The production profile uses remote build versions and
+`autoIncrement`, so EAS selects the next build number rather than reusing the
+legacy `buildNumber` in app.json.
+
+Build a signed archive using existing credentials, without submitting it:
+
+```bash
+npx eas-cli build --platform ios --profile production --freeze-credentials --non-interactive
+```
+
+Only start the build after confirming included allowance or an approved spending
+limit. A successful build produces an IPA, not an App Store release or a
+TestFlight installation. Upload that exact build to TestFlight only with explicit
+approval. Public App Store review/release is a separate action. Test barcode
+camera access, native sign-in, speech, and sandbox purchase/restore on the rebuilt
+binary before releasing it to users.

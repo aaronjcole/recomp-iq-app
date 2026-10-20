@@ -207,3 +207,13 @@ test("native permission plugin is configured without a version/build bump; IAP p
   assert.match(adapter, /import type \{ ExpoSpeechRecognitionModule \}/);
   assert.doesNotMatch(adapter, /import \{ ExpoSpeechRecognitionModule \}/);
 });
+
+test("privacy policy discloses optional meal speech processing and explicit food confirmation", () => {
+  const policy = readFileSync(new URL("../../src/pages/Privacy.jsx", import.meta.url), "utf8");
+  assert.match(policy, /Meal dictation is optional/);
+  assert.match(policy, /Apple or your browser&apos;s speech service/);
+  assert.match(policy, /may process audio online/);
+  assert.match(policy, /RecompOne does not save audio/);
+  assert.match(policy, /nothing is logged\s+automatically/);
+  assert.match(policy, /Only the foods you review and confirm are saved/);
+});

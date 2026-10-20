@@ -12,7 +12,7 @@ export default function Privacy() {
       title="Privacy Policy"
       description="How RecompOne collects, uses, stores, and protects your personal data, health logs, and progress photos, plus your rights and account-deletion options."
       canonicalPath="/privacy"
-      updated="August 2026"
+      updated="October 2026"
     >
       <H2>1. What we collect</H2>
       <p>
@@ -33,6 +33,14 @@ export default function Privacy() {
         optional reason you submit, and a bounded copy of the reported AI reply. The reply copy
         may include health-related numbers that the AI repeated from your account context, such as
         calorie or weight information.
+      </p>
+      <p>
+        Meal dictation is optional. When you start it, Apple or your browser&apos;s speech service
+        may process audio online to recognize your words. RecompOne does not save audio
+        recordings. Recognized text appears in an editable meal description; nothing is logged
+        automatically. Only the foods you review and confirm are saved to your food diary and
+        daily totals. You can type instead, cancel recording, or control microphone and
+        speech-recognition permissions in your device or browser settings.
       </p>
 
       <H2>2. How we use it</H2>

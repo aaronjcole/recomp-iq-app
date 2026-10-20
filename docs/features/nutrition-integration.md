@@ -41,7 +41,7 @@ The backend retains the version 1 aggregate response for old clients; new client
 
 The speech bridge declares microphone and speech-recognition purpose strings and requires the new native module. Old shells continue to support typing without relying on that module.
 
-1. Use an unused iOS build number for the next binary and create a signed development build following the iOS shell README. Expo Go cannot test this native module or StoreKit.
+1. Build the existing EAS project following the iOS shell README. Its production profile uses remote build versions and auto-increment; do not manually reuse a store build number or initialize another project. Expo Go cannot test this native module or StoreKit. EAS can compile and sign in the cloud without local Xcode.
 2. On a supported real device, test native consent, permission granted and denied, service unavailable, Stop, Cancel, timeout, backgrounding, navigation, and repeated recording. Final text must arrive once; cancellation must never submit text or log food.
 3. Recheck barcode camera access and StoreKit purchase/restore behavior because they share the shell. Test the web fallback in an older installed shell.
 4. Produce and distribute the updated binary through the normal TestFlight/App Store workflow. Git push and Base44 publishing do not perform this step.
@@ -52,6 +52,14 @@ Run the root lint, typecheck, fitness, security, contract, Android release contr
 
 The October 20 local verification passed 247 fitness tests, 376 security tests, 15 contract tests, 121 browser tests, and 15 native speech tests (774 total). Lint, both typechecks, the production build, Android release contract, and all 21 Expo Doctor checks also passed. Five subagents contributed implementation and cross-review; their identified recovery, date-context, and speech-lifecycle issues were addressed before release. Live Base44 acceptance and real-device iOS testing remain release checklist items, not completed checks.
 
-Expo and expo-dev-client were aligned to the SDK 57 patch versions required by Expo Doctor. The iOS lock also updates shell-quote past its [command injection advisory](https://github.com/advisories/GHSA-pqg4-j6r4-53mv). The October 20 dependency audit still reports 9 web and 22 iOS moderate/high advisories; no forced major dependency upgrades are included in this feature release. Review that separate advisory backlog before a production mobile release.
+Expo and expo-dev-client match the SDK 57 patch versions required by Expo Doctor. Compatible security updates cover shell-quote, brace-expansion, source-map-js, and postcss-selector-parser. The native xcode package has a narrowly scoped UUID override, with regression tests for CommonJS loading and Xcode project generation. The October 20 follow-up npm audit reports 7 web findings (5 high, 2 moderate) and 15 iOS findings (all high), with zero critical findings. The parser's two moderate findings persist in npm's advisory range even though the [maintainer lists the installed 6.1.5 backport as patched](https://github.com/postcss/postcss-selector-parser/security/advisories/GHSA-rj75-hqrm-r3gf).
 
-At the release push, GitHub separately reported 11 Dependabot alerts, including 1 critical, 6 high, and 4 moderate. Fresh local npm audits reported zero critical findings in either lockfile. The reason for that discrepancy has not been verified; review the repository's Dependabot alerts before production publishing rather than treating the local test results as dependency-security clearance.
+The remaining upstream issues are [braces stack exhaustion](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) in the tooling trees and [node-forge signature verification](https://github.com/advisories/GHSA-86w9-cpqp-85rv) in native signing tooling. Neither advisory lists a patched release. No application-request path was identified; do not feed untrusted glob patterns, certificates, or CSRs into the affected build tools. No forced framework migrations or unsafe dependency downgrades are included.
+
+The initial GitHub push notice showed an old critical alert. A subsequent authenticated Dependabot read showed seven open alerts and no critical alerts, resolving that discrepancy. Counts can differ from npm because npm also counts affected parent packages.
+
+## Hosted release preparation
+
+GitHub CI and CodeQL passed for the feature release. Base44 confirmed synchronization of the nutrition feature commit and release notes, including the backend source directories. The existing published site's public legal routes and signed-out access checks passed against the real backend; authenticated deployed acceptance requires isolated test data rather than production health records. Base44 publication remains the owner's action.
+
+The connected Expo account and project are valid. Before this build, the October allowance showed 0 of 15 free iOS builds used and zero overage charges. The existing production build counter was 5; EAS auto-increment selects the next number. An approved build prepares an archive only: TestFlight upload, physical-device acceptance, and public App Store release remain distinct steps.
