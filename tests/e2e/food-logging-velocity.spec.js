@@ -74,12 +74,14 @@ test("closing a toast dismisses the message without undoing its action", async (
   const assertNoPageErrors = watchPageErrors(page);
   await page.goto("/nutrition");
 
-  await page.getByRole("button", { name: "Add Overnight oats to Lunch" }).click();
+  const addFoodButton = page.getByRole("button", { name: "Add Overnight oats to Lunch" });
+  await addFoodButton.click();
   await expect(page.getByText("Overnight oats added to Lunch")).toBeVisible();
   await expect.poll(() => todaysEntries(entities).length).toBe(1);
 
   await page.getByRole("button", { name: "Dismiss notification", exact: true }).click();
   await expect(page.getByText("Overnight oats added to Lunch")).toBeHidden();
+  await expect(addFoodButton).toBeFocused();
   expect(todaysEntries(entities)).toHaveLength(1);
   assertNoPageErrors();
 });

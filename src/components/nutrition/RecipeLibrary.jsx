@@ -76,9 +76,9 @@ function AccountRecipeLibrary({ date, meal }) {
               {incomplete && <p className="text-xs text-muted-foreground">Nutrition incomplete — review unknown values before logging.</p>}
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" className="min-h-11" aria-expanded={open} aria-controls={`${id}-${recipe.id}-detail`} onClick={() => setExpanded(open ? null : recipe.id)}>View {recipe.title}</Button>
-                <Button className="min-h-11 bg-teal text-buttonText" disabled={!isValidLocalDate(date)} onClick={() => {
+                <Button className="min-h-11 bg-teal text-buttonText" disabled={!isValidLocalDate(date)} onClick={(event) => {
                   if (!isValidLocalDate(date)) return;
-                  setReview({ date, initialMeal: meal, initialFoods: [createFoodDraft(recipeFood(recipe), "recipe", recipe.id)] });
+                  setReview({ date, initialMeal: meal, initialFoods: [createFoodDraft(recipeFood(recipe), "recipe", recipe.id)], returnFocusElement: event.currentTarget });
                 }}>Log {recipe.title}</Button>
               </div>
               {open && <div id={`${id}-${recipe.id}-detail`} className="space-y-3 border-t border-line pt-3">

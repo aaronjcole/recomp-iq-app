@@ -22,6 +22,49 @@ function genId() {
 
 const toastTimeouts = new Map();
 const autoDismissTimeouts = new Map();
+const toastFocusReturnTargets = new Map();
+
+function captureFocusReturnTarget(element) {
+  if (!element || element === document.body) return null;
+  return {
+    element,
+    id: element.id || null,
+    ariaLabel: element.getAttribute?.("aria-label") || null,
+    testId: element.getAttribute?.("data-testid") || null,
+    name: element.getAttribute?.("name") || null,
+  };
+}
+
+function isAvailableFocusTarget(element) {
+  if (!element?.isConnected || element.disabled || element.closest("[inert], [aria-hidden='true']")) return false;
+  if (!element.matches("a[href], button, input, select, textarea, [tabindex]")) return false;
+  if (element.getClientRects().length === 0) return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+function resolveFocusReturnTarget(target) {
+  if (isAvailableFocusTarget(target?.element)) return target.element;
+  if (!target || typeof document === "undefined") return null;
+  if (target.id) {
+    const element = document.getElementById(target.id);
+    if (isAvailableFocusTarget(element)) return element;
+  }
+
+  const selectors = [
+    ["[data-testid]", "data-testid", target.testId],
+    ["[aria-label]", "aria-label", target.ariaLabel],
+    ["[name]", "name", target.name],
+  ];
+  for (const [selector, attribute, value] of selectors) {
+    if (!value) continue;
+    const matches = Array.from(document.querySelectorAll(selector)).filter(
+      (element) => element.getAttribute(attribute) === value && isAvailableFocusTarget(element)
+    );
+    if (matches.length === 1) return matches[0];
+  }
+  return null;
+}
 
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
@@ -114,6 +157,25 @@ function dispatch(action) {
 }
 
 function dismissToast(toastId) {
+  if (typeof document !== "undefined") {
+    const candidates = toastId
+      ? memoryState.toasts.filter((item) => item.id === toastId)
+      : memoryState.toasts;
+    for (const item of candidates) {
+      const toastElement = document.querySelector(`[data-toast-id="${item.id}"]`);
+      const returnFocusTarget = toastFocusReturnTargets.get(item.id);
+      if (toastElement?.contains(document.activeElement) && resolveFocusReturnTarget(returnFocusTarget)) {
+        setTimeout(() => {
+          resolveFocusReturnTarget(returnFocusTarget)?.focus({ preventScroll: true });
+        }, 0);
+        break;
+      }
+    }
+  }
+
+  if (toastId) toastFocusReturnTargets.delete(toastId);
+  else toastFocusReturnTargets.clear();
+
   if (toastId) {
     const timer = autoDismissTimeouts.get(toastId);
     if (timer?.timeout) clearTimeout(timer.timeout);
@@ -155,8 +217,11 @@ function resumeAutoDismiss(toastId, reason) {
   startAutoDismiss(toastId, timer);
 }
 
-function toast({ duration, ...props }) {
+function toast({ duration, returnFocusElement, ...props }) {
   const id = genId();
+  if (typeof document !== "undefined") {
+    toastFocusReturnTargets.set(id, captureFocusReturnTarget(returnFocusElement ?? document.activeElement));
+  }
 
   const update = (props) =>
     dispatch({

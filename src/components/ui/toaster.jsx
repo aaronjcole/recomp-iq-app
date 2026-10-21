@@ -19,6 +19,7 @@ export function Toaster() {
             key={id}
             {...props}
             open={open}
+            data-toast-id={id}
             onMouseEnter={() => pauseAutoDismiss(id, "hover")}
             onMouseLeave={() => resumeAutoDismiss(id, "hover")}
             onFocus={() => pauseAutoDismiss(id, "focus")}

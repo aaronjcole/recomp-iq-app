@@ -49,6 +49,7 @@ export default function FoodEntryComposer({
   date,
   initialMeal,
   initialFoods = [],
+  returnFocusElement,
   onClose,
   onScan = undefined,
   canPhotoScan = false,
@@ -67,6 +68,7 @@ export default function FoodEntryComposer({
   const [reconciliationRequired, setReconciliationRequired] = useState(false);
   const [resolving, setResolving] = useState(null);
   const savingRef = useRef(false);
+  const returnFocusElementRef = useRef(returnFocusElement ?? (typeof document === "undefined" ? null : document.activeElement));
   const sequence = useRef(0);
   const [keys, setKeys] = useState(() =>
     initialFoods.map((_, index) => `initial-${index}`),
@@ -117,6 +119,7 @@ export default function FoodEntryComposer({
       addedToast = toast({
         title: `Added to ${LOGGABLE_MEALS.find((option) => option.value === meal)?.label}`,
         description: formatShortDate(entryDate),
+        returnFocusElement: returnFocusElementRef.current,
         action: created.length ? (
           <Button
             variant="outline"

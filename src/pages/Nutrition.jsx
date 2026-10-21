@@ -66,7 +66,8 @@ export default function Nutrition() {
     setScanOperation({ ...target, source });
   };
   const openReview = (food, source, foodId, target = { date: selectedDate, meal }) => {
-    setReview({ ...target, foods: food ? [createFoodDraft(food, source, foodId)] : [] });
+    const returnFocusElement = target.returnFocusElement ?? (typeof document === "undefined" ? null : document.activeElement);
+    setReview({ ...target, returnFocusElement, foods: food ? [createFoodDraft(food, source, foodId)] : [] });
   };
   const [searchParams, setSearchParams] = useSearchParams();
   const { state } = useLocation();
@@ -190,7 +191,7 @@ export default function Nutrition() {
 
   // One-tap adds: logged once per tap, confirmed with an Undo, and a failure
   // says so instead of failing silently.
-  const quickAdd = async (key, name, add) => {
+  const quickAdd = async (key, name, add, returnFocusElement) => {
     if (quickAddsRef.current.has(key)) return;
     quickAddsRef.current.add(key);
     setQuickAdding(new Set(quickAddsRef.current));
@@ -199,6 +200,7 @@ export default function Nutrition() {
       let addedToast;
       addedToast = toast({
         title: `${name} added to ${mealLabel}`,
+        returnFocusElement,
         action: created?.id && featureFlags.itemizedFoodDiary ? (
           <Button
             type="button"
@@ -225,15 +227,16 @@ export default function Nutrition() {
     }
   };
 
-  const quickAddFood = (f) => quickAdd(`food:${f.id}`, f.name, () => logToToday(f, "library", f.id));
+  const quickAddFood = (f, returnFocusElement) => quickAdd(`food:${f.id}`, f.name, () => logToToday(f, "library", f.id), returnFocusElement);
 
   // Recent foods are what the user actually logged (with the quantity they
   // logged), not the newest library items.
   const recentFoods = useMemo(() => recentLoggedFoods(foodLogEntries), [foodLogEntries]);
-  const quickAddRecent = (entry) => quickAdd(
+  const quickAddRecent = (entry, returnFocusElement) => quickAdd(
     `recent:${entry.id}`,
     entry.name,
-    () => logFoodEntry(copiedEntries([entry], selectedDate, meal)[0])
+    () => logFoodEntry(copiedEntries([entry], selectedDate, meal)[0]),
+    returnFocusElement
   );
 
   const handleNudge = useCallback((action) => {
@@ -386,7 +389,7 @@ export default function Nutrition() {
                     <button
                       key={entry.id}
                       type="button"
-                      onClick={() => quickAddRecent(entry)}
+                      onClick={(event) => quickAddRecent(entry, event.currentTarget)}
                       disabled={quickAdding.has(`recent:${entry.id}`)}
                       aria-label={`Add ${entry.name} to ${mealLabel}`}
                       className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity disabled:opacity-50"
@@ -410,7 +413,7 @@ export default function Nutrition() {
                     <button
                       key={f.id}
                       type="button"
-                      onClick={() => quickAddFood(f)}
+                      onClick={(event) => quickAddFood(f, event.currentTarget)}
                       disabled={quickAdding.has(`food:${f.id}`)}
                       className="flex-none rounded-xl border border-line bg-panel2 px-3 py-2 text-left min-w-[110px] max-w-[150px] active:opacity-70 transition-opacity disabled:opacity-50"
                     >
@@ -531,7 +534,7 @@ export default function Nutrition() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => quickAddFood(f)}
+                      onClick={(event) => quickAddFood(f, event.currentTarget)}
                       disabled={quickAdding.has(`food:${f.id}`)}
                       aria-label={`Add ${f.name} to ${mealLabel}`}
                       className="shrink-0 rounded-lg border border-line bg-panel2 px-2.5 py-1.5 text-xs font-medium text-foreground active:opacity-70 transition-opacity disabled:opacity-50"
@@ -669,7 +672,7 @@ export default function Nutrition() {
         </div>
       )}
 
-      {review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={featureFlags.foodPhotoScan && canUsePhotoScan} />}
+      {review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} returnFocusElement={review.returnFocusElement} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={featureFlags.foodPhotoScan && canUsePhotoScan} />}
 
       {scanOperation?.source === "barcode" && (
         <Suspense fallback={<ScannerLoading />}>

@@ -71,7 +71,8 @@ test("library search, persisted favorites, details, yield edits, portions and de
   await expect.poll(() => entities.Recipe.find((row) => row.id === RECIPE.id).servings).toBe(2);
   const previousDay = entities.DailyLog.find((row) => row.date === PAST).calories;
   const today = entities.DailyLog.find((row) => row.date === TODAY).calories;
-  await page.getByRole("button", { name: `Log ${RECIPE.title}`, exact: true }).click();
+  const logRecipeButton = page.getByRole("button", { name: `Log ${RECIPE.title}`, exact: true });
+  await logRecipeButton.click();
   await expect(sheet(page).getByLabel("Logging date", { exact: true })).toHaveValue(PAST);
   await expect(sheet(page).getByLabel("Carbs (g)", { exact: true })).toHaveValue("80");
   expect(entities.FoodLogEntry).toHaveLength(0);
@@ -80,6 +81,10 @@ test("library search, persisted favorites, details, yield edits, portions and de
   await expect(sheet(page).getByLabel("Fat (g)", { exact: true })).toHaveValue("18");
   await duplicateClick(confirm(page));
   await expect(sheet(page)).toHaveCount(0);
+  const addedToast = page.locator("[data-toast-id]").filter({ hasText: "Added to Lunch" });
+  await expect(addedToast).toBeVisible();
+  await addedToast.getByRole("button", { name: "Dismiss notification", exact: true }).click();
+  await expect(logRecipeButton).toBeFocused();
   expect(entities.FoodLogEntry).toHaveLength(1);
   expect(entities.FoodLogEntry[0]).toMatchObject({ source: "recipe", source_food_id: RECIPE.id, date: PAST, meal: "lunch", quantity: 1.5, calories: 900, protein_g: 60, carbs_g: 120, fat_g: 18, fiber_g: 9 });
   expect(entities.DailyLog.find((row) => row.date === PAST).calories).toBe(previousDay + 900);
