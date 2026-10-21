@@ -67,6 +67,23 @@ test("a recent food logs once into the chosen meal and can be undone", async ({ 
   assertNoPageErrors();
 });
 
+test("closing a toast dismisses the message without undoing its action", async ({ page }) => {
+  const { entities } = await installAuthenticatedBase44(page, {
+    entities: dataset([entry("log-oats", YESTERDAY, "breakfast", "Overnight oats", 380)])
+  });
+  const assertNoPageErrors = watchPageErrors(page);
+  await page.goto("/nutrition");
+
+  await page.getByRole("button", { name: "Add Overnight oats to Lunch" }).click();
+  await expect(page.getByText("Overnight oats added to Lunch")).toBeVisible();
+  await expect.poll(() => todaysEntries(entities).length).toBe(1);
+
+  await page.getByRole("button", { name: "Dismiss notification", exact: true }).click();
+  await expect(page.getByText("Overnight oats added to Lunch")).toBeHidden();
+  expect(todaysEntries(entities)).toHaveLength(1);
+  assertNoPageErrors();
+});
+
 test("changing quantity in the editor scales calories and macros", async ({ page }) => {
   const { entities } = await installAuthenticatedBase44(page, {
     entities: dataset([entry("log-rice", TODAY, "dinner", "Rice", 200, { protein_g: 4, carbs_g: 44, fat_g: 0.4 })])

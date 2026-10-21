@@ -2,7 +2,9 @@
 import { useState, useEffect } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 300;
+const TOAST_DURATION = 6000;
+const ACTION_TOAST_DURATION = 30000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -19,6 +21,7 @@ function genId() {
 }
 
 const toastTimeouts = new Map();
+const autoDismissTimeouts = new Map();
 
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
@@ -110,7 +113,49 @@ function dispatch(action) {
   });
 }
 
-function toast({ ...props }) {
+function dismissToast(toastId) {
+  if (toastId) {
+    const timer = autoDismissTimeouts.get(toastId);
+    if (timer?.timeout) clearTimeout(timer.timeout);
+    autoDismissTimeouts.delete(toastId);
+  } else {
+    autoDismissTimeouts.forEach((timer) => {
+      if (timer.timeout) clearTimeout(timer.timeout);
+    });
+    autoDismissTimeouts.clear();
+  }
+  dispatch({ type: actionTypes.DISMISS_TOAST, toastId });
+}
+
+function startAutoDismiss(toastId, timer) {
+  if (timer.pauseReasons.size || timer.timeout) return;
+  timer.startedAt = Date.now();
+  timer.timeout = setTimeout(() => {
+    timer.timeout = null;
+    timer.remaining = 0;
+    dismissToast(toastId);
+  }, timer.remaining);
+}
+
+function pauseAutoDismiss(toastId, reason) {
+  const timer = autoDismissTimeouts.get(toastId);
+  if (!timer || timer.pauseReasons.has(reason)) return;
+  timer.pauseReasons.add(reason);
+  if (timer.timeout) {
+    clearTimeout(timer.timeout);
+    timer.timeout = null;
+    timer.remaining = Math.max(0, timer.remaining - (Date.now() - timer.startedAt));
+  }
+}
+
+function resumeAutoDismiss(toastId, reason) {
+  const timer = autoDismissTimeouts.get(toastId);
+  if (!timer) return;
+  timer.pauseReasons.delete(reason);
+  startAutoDismiss(toastId, timer);
+}
+
+function toast({ duration, ...props }) {
   const id = genId();
 
   const update = (props) =>
@@ -119,8 +164,7 @@ function toast({ ...props }) {
       toast: { ...props, id },
     });
 
-  const dismiss = () =>
-    dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
+  const dismiss = () => dismissToast(id);
 
   dispatch({
     type: actionTypes.ADD_TOAST,
@@ -133,6 +177,13 @@ function toast({ ...props }) {
       },
     },
   });
+
+  const autoDuration = Number.isFinite(duration)
+    ? Math.max(0, duration)
+    : props.action ? ACTION_TOAST_DURATION : TOAST_DURATION;
+  const timer = { remaining: autoDuration, startedAt: 0, timeout: null, pauseReasons: new Set() };
+  autoDismissTimeouts.set(id, timer);
+  startAutoDismiss(id, timer);
 
   return {
     id,
@@ -157,8 +208,10 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
+    dismiss: dismissToast,
+    pauseAutoDismiss,
+    resumeAutoDismiss,
   };
 }
 
-export { useToast, toast }; 
+export { useToast, toast };
