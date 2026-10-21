@@ -143,7 +143,8 @@ test("scanner manual controls sit above navigation and duplicate confirmation cr
     route.fulfill({ json: { found: true, food } }),
   );
   await page.goto(`/nutrition?date=${PAST}`);
-  await page.getByRole("button", { name: "Barcode", exact: true }).click();
+  const barcodeLaunchButton = page.getByRole("button", { name: "Barcode", exact: true });
+  await barcodeLaunchButton.click();
   const scanner = page.getByRole("dialog", { name: "Scan food barcode" });
   const lookup = scanner.getByRole("button", { name: "Lookup", exact: true });
   await expect(lookup).toBeVisible();
@@ -171,6 +172,10 @@ test("scanner manual controls sit above navigation and duplicate confirmation cr
     .click();
   await duplicateClick(saveButton(page));
   await expect(reviewSheet(page)).toHaveCount(0);
+  const addedToast = page.locator("[data-toast-id]").filter({ hasText: "Added to Breakfast" });
+  await expect(addedToast).toBeVisible();
+  await addedToast.getByRole("button", { name: "Dismiss notification", exact: true }).click();
+  await expect(barcodeLaunchButton).toBeFocused();
   expect(entities.FoodLogEntry.filter((row) => row.name === food.name)).toEqual(
     [
       expect.objectContaining({
@@ -183,6 +188,27 @@ test("scanner manual controls sit above navigation and duplicate confirmation cr
   expect(
     entities.FoodItem.filter((row) => row.name === food.name),
   ).toHaveLength(0);
+});
+
+test("saving a scanned food to the library restores focus to its launch control", async ({ page }) => {
+  const { entities } = await installAuthenticatedBase44(page);
+  await page.route("**/functions/barcodeLookup", (route) =>
+    route.fulfill({ json: { found: true, food } }),
+  );
+  await page.goto(`/nutrition?date=${PAST}`);
+  const barcodeLaunchButton = page.getByRole("button", { name: "Barcode", exact: true });
+  await barcodeLaunchButton.click();
+  const scanner = page.getByRole("dialog", { name: "Scan food barcode" });
+  await scanner.getByRole("textbox", { name: "Barcode number" }).fill("0123456789012");
+  await scanner.getByRole("button", { name: "Lookup", exact: true }).click();
+  await expect(scanner.getByText(food.name, { exact: true })).toBeVisible();
+  await scanner.getByRole("button", { name: "Save to library", exact: true }).click();
+
+  const savedToast = page.locator("[data-toast-id]").filter({ hasText: "Food saved to library" });
+  await expect(savedToast).toBeVisible();
+  await expect.poll(() => entities.FoodItem.some((row) => row.name === food.name)).toBe(true);
+  await savedToast.getByRole("button", { name: "Dismiss notification", exact: true }).click();
+  await expect(barcodeLaunchButton).toBeFocused();
 });
 
 test("a failed save retains the draft, rollback prevents duplicates, and retry uses the reviewed date", async ({

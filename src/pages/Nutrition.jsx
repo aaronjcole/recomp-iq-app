@@ -61,9 +61,10 @@ export default function Nutrition() {
   const [review, setReview] = useState(null);
   const librarySavingRef = useRef(false);
   const [librarySaving, setLibrarySaving] = useState(false);
-  const openScanner = (source, target = { date: selectedDate, meal }) => {
+  const openScanner = (source, target = { date: selectedDate, meal }, returnFocusElement) => {
+    const focusTarget = returnFocusElement ?? target.returnFocusElement ?? (typeof document === "undefined" ? null : document.activeElement);
     setReview(null);
-    setScanOperation({ ...target, source });
+    setScanOperation({ ...target, returnFocusElement: focusTarget, source });
   };
   const openReview = (food, source, foodId, target = { date: selectedDate, meal }) => {
     const returnFocusElement = target.returnFocusElement ?? (typeof document === "undefined" ? null : document.activeElement);
@@ -166,7 +167,7 @@ export default function Nutrition() {
     else {
       if (!validFoodDraft(createFoodDraft(food))) throw new Error("Nutrition is incomplete. Review the food and fill in missing values before logging.");
       await addFood(food);
-      toast({ title: "Food saved to library" });
+      toast({ title: "Food saved to library", returnFocusElement: scanOperation.returnFocusElement });
     }
     setScanOperation(null);
   };
@@ -365,11 +366,11 @@ export default function Nutrition() {
               <h2 className="font-medium">Scan food</h2>
               <div className="grid grid-cols-2 gap-3">
                 {featureFlags.foodPhotoScan && canUsePhotoScan && (
-                  <Button variant="outline" className="min-h-11" onClick={() => openScanner("photo")}>
+                  <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("photo", undefined, event.currentTarget)}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
                 )}
-                <Button variant="outline" className="min-h-11" onClick={() => openScanner("barcode")}>
+                <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("barcode", undefined, event.currentTarget)}>
                   <ScanLine className="w-4 h-4 mr-1" /> Barcode
                 </Button>
               </div>
@@ -580,11 +581,11 @@ export default function Nutrition() {
               <p className="text-sm text-muted-foreground">Look up food, review its portions, then log it.</p>
               <div className="grid grid-cols-2 gap-3">
                 {featureFlags.foodPhotoScan && canUsePhotoScan && (
-                  <Button variant="outline" className="min-h-11" onClick={() => openScanner("photo")}>
+                  <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("photo", undefined, event.currentTarget)}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
                 )}
-                <Button variant="outline" className="min-h-11" onClick={() => openScanner("barcode")}>
+                <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("barcode", undefined, event.currentTarget)}>
                   <ScanLine className="w-4 h-4 mr-1" /> Barcode
                 </Button>
               </div>

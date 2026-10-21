@@ -360,7 +360,7 @@ export default function FoodEntryComposer({
                       variant="outline"
                       className="min-h-11"
                       onClick={() =>
-                        onScan("barcode", { date: entryDate, meal })
+                        onScan("barcode", { date: entryDate, meal }, returnFocusElementRef.current)
                       }
                     >
                       <ScanLine className="mr-1 h-4 w-4" /> Barcode
@@ -370,7 +370,7 @@ export default function FoodEntryComposer({
                         variant="outline"
                         className="min-h-11"
                         onClick={() =>
-                          onScan("photo", { date: entryDate, meal })
+                          onScan("photo", { date: entryDate, meal }, returnFocusElementRef.current)
                         }
                       >
                         <Camera className="mr-1 h-4 w-4" /> Photo
