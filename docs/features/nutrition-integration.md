@@ -49,6 +49,10 @@ For this GitHub-connected app, sync the release to `main` and publish through th
 
 Local release verification: 842 unit/security/contract tests pass; lint, TypeScript checking, and the configured production build pass. The full browser run covered 213 scenarios (210 passed, three stale test expectations were corrected); the final 116-scenario affected-flow rerun passes, including all three corrections. Five agents covered composition/search/speech, diary integrity, recipes/templates, planning/groceries, and persistence, with independent follow-up reviews. Browser camera, photo inference, and speech services were mocked; physical-device permissions and distributed backend behavior are not established by these local results.
 
+Hosted acceptance after code commit `3316516`: the Base44 preview remained in isolated Test Data. One uniquely named QA meal saved to October 22 with 284 kcal and 53 g protein; its Undo completed, removed the diary entry, and restored totals to zero. The Test Data DailyLog table showed the new receipt field and two persisted operation IDs for save and Undo, establishing that the receipt-aware schema and backend path were active in preview. No production health records, Premium entitlement, camera/microphone permission, paid inference, native build, or Publish action was changed. A zero-valued QA daily log and its receipts remain in Test Data as verification evidence.
+
+Separate dependency maintenance remains: GitHub reported existing Dependabot alerts at push, and the installed production dependency audit reports seven advisory entries (five high, two moderate), concentrated in the Tailwind/globbing/PostCSS chain. This pass did not change dependencies or attempt the suggested major Tailwind upgrade; resolve that in a separately verified maintenance change, not with an unreviewed force-fix during publication.
+
 ## iOS release checklist
 
 The speech bridge declares microphone and speech-recognition purpose strings and requires the new native module. Old shells continue to support typing without relying on that module.
