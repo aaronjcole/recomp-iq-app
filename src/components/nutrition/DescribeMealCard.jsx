@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useRecompRef } from "@/lib/RecompContext";
 import { appendMealTranscript, MEAL_DESCRIPTION_LIMITS, parseMealDescription } from "@/lib/mealDescription";
 import MealSpeechInput from "@/components/nutrition/MealSpeechInput";
@@ -7,24 +7,39 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 // Parent owns mounting and review. This component emits only unsaved drafts.
-export default function DescribeMealCard({ onDrafts }) {
+export default function DescribeMealCard({ onDrafts, active = true }) {
   const { foods } = useRecompRef();
   const id = useId();
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const reviewingRef = useRef(false);
+  const descriptionRef = useRef("");
 
   const onTranscript = (transcript) => {
-    const result = appendMealTranscript(description, transcript);
+    const result = appendMealTranscript(descriptionRef.current, transcript);
+    descriptionRef.current = result.text;
     setDescription(result.text);
     setError(result.error);
     setStatus(result.error ? "" : "Dictation added to the description. Edit it, then choose Review described foods.");
   };
   const review = () => {
-    const result = parseMealDescription(description, foods);
+    if (!active || voiceActive || reviewingRef.current) return;
+    const result = parseMealDescription(descriptionRef.current, foods);
     setError(result.errors.join(" "));
     setStatus("");
-    if (result.drafts.length && !result.errors.length) onDrafts(result.drafts);
+    if (result.drafts.length && !result.errors.length) {
+      reviewingRef.current = true;
+      setReviewing(true);
+      try { onDrafts(result.drafts); }
+      catch {
+        reviewingRef.current = false;
+        setReviewing(false);
+        setError("Could not open food review. Your description is still here; try again.");
+      }
+    }
   };
 
   return (
@@ -42,10 +57,11 @@ export default function DescribeMealCard({ onDrafts }) {
           rows={4}
           maxLength={MEAL_DESCRIPTION_LIMITS.characters}
           value={description}
+          disabled={reviewing}
           aria-describedby={`${id}-help ${id}-privacy${error ? ` ${id}-error` : ""}`}
           aria-invalid={Boolean(error)}
           placeholder="1 medium banana; 100 g roasted chicken breast; 1/2 cup cooked white rice"
-          onChange={(event) => { setDescription(event.target.value); setError(""); setStatus(""); }}
+          onChange={(event) => { descriptionRef.current = event.target.value; setDescription(event.target.value); setError(""); setStatus(""); }}
         />
         <p id={`${id}-help`} className="text-xs text-muted-foreground">
           Separate foods with semicolons, new lines, commas, or “and”. Up to 12 foods and 2,000 characters.
@@ -55,11 +71,12 @@ export default function DescribeMealCard({ onDrafts }) {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <MealSpeechInput onTranscript={onTranscript} disabled={description.length >= MEAL_DESCRIPTION_LIMITS.characters} />
-        <Button type="button" variant="outline" className="min-h-11 min-w-11 whitespace-normal" disabled={!description.trim()} onClick={review}>
+        <MealSpeechInput onTranscript={onTranscript} onActiveChange={setVoiceActive} disabled={!active || reviewing || description.length >= MEAL_DESCRIPTION_LIMITS.characters} />
+        <Button type="button" variant="outline" className="h-auto min-h-11 min-w-0 whitespace-normal" disabled={!active || voiceActive || reviewing || !description.trim()} onClick={review}>
           Review described foods
         </Button>
       </div>
+      {voiceActive && <p className="text-xs text-muted-foreground">Stop or cancel voice input before reviewing your description.</p>}
       {error && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
       <p role="status" className="text-xs text-muted-foreground">{status}</p>
     </section>

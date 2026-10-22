@@ -37,6 +37,14 @@ export const HABIT_ENTRY_FIELDS = Object.freeze(["value", "done"]);
 // for a user typing their day's total directly.
 export const DAILY_LOG_INCREMENT_FIELDS = Object.freeze(["calories", "protein_g", "carbs_g", "fat_g"]);
 
+// Receipts are server-managed metadata, deliberately absent from DAILY_LOG_FIELDS.
+export const NUTRITION_OPERATION_RECEIPTS_FIELD = "nutrition_operation_ids";
+const NUTRITION_OPERATION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isNutritionOperationId(value) {
+  return typeof value === "string" && value.length === 36 && NUTRITION_OPERATION_ID_PATTERN.test(value);
+}
+
 // Numeric ranges for daily-log fields, exported so the client can validate
 // the same bounds before sending (src/lib/dailyLogForm.js).
 export const DAILY_LOG_NUMBER_RANGES = Object.freeze({
@@ -162,6 +170,20 @@ export function normalizeTrackingRequest(body, ownerId) {
   if (!isRecord(body)) throw new TrackingRequestError("A JSON request body is required");
   if (!isIsoDate(body.date)) throw new TrackingRequestError("date must be a valid YYYY-MM-DD value");
 
+  if (body.kind === "nutrition_operation_status") {
+    if (!isNutritionOperationId(body.nutrition_operation_id)) {
+      throw new TrackingRequestError("nutrition_operation_id must be a UUID-like string");
+    }
+    return {
+      kind: "daily_log",
+      date: body.date,
+      queueKey: `daily_log:${body.date}`,
+      query: ownedQuery(owner, { date: body.date }),
+      nutritionOperationId: body.nutrition_operation_id.toLowerCase(),
+      statusOnly: true
+    };
+  }
+
   if (body.kind === "daily_log") {
     const hasIncrements = body.increments !== undefined;
     const fields = hasIncrements && body.fields === undefined
@@ -176,6 +198,13 @@ export function normalizeTrackingRequest(body, ownerId) {
         throw new TrackingRequestError(`${key} cannot be both set and incremented`);
       }
     }
+    let nutritionOperationId;
+    if (body.nutrition_operation_id !== undefined) {
+      if (!isNutritionOperationId(body.nutrition_operation_id) || Object.keys(increments).length === 0 || Object.keys(fields).length > 0) {
+        throw new TrackingRequestError("nutrition_operation_id must be a UUID-like string accompanying an increments-only daily_log request");
+      }
+      nutritionOperationId = body.nutrition_operation_id.toLowerCase();
+    }
     return {
       kind: body.kind,
       date: body.date,
@@ -184,11 +213,15 @@ export function normalizeTrackingRequest(body, ownerId) {
       createData: { date: body.date, ...fieldsForCreate(fields) },
       fields,
       increments,
+      ...(nutritionOperationId ? { nutritionOperationId } : {}),
       mutableFields: DAILY_LOG_FIELDS
     };
   }
 
   if (body.kind === "habit_entry") {
+    if (body.nutrition_operation_id !== undefined) {
+      throw new TrackingRequestError("nutrition_operation_id is only supported for daily_log increments");
+    }
     const habitId = typeof body.habit_id === "string" ? body.habit_id.trim() : "";
     if (!habitId || habitId.length > 200) {
       throw new TrackingRequestError("habit_id is required");

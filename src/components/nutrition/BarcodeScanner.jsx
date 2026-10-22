@@ -138,6 +138,10 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
       // stream without an explicit play() call, which means ZXing never
       // gets frames to decode and the scan silently never fires.
       try { await videoRef.current?.play(); } catch { /* autoplay can reject if already playing */ }
+      if (!mountedRef.current || startId !== cameraStartIdRef.current || scanHandledRef.current) {
+        controls.stop();
+        return;
+      }
       setStatus("camera");
       // If nothing is detected within the idle window, surface a nudge
       // without stopping the camera — the user can keep trying.
@@ -171,7 +175,7 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
         dialogRef.current?.querySelectorAll(
           'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
         ) ?? []
-      ).filter((element) => element instanceof HTMLElement));
+      ).filter((element) => element instanceof HTMLElement && element.getClientRects().length > 0));
       if (focusable.length === 0) {
         event.preventDefault();
         dialogRef.current?.focus();
@@ -180,7 +184,10 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (!focusable.some((element) => element === document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -224,21 +231,21 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
       aria-describedby="barcode-scanner-description"
       aria-busy={status === "looking-up"}
       tabIndex={-1}
-      className="fixed inset-0 z-[60] bg-black flex flex-col select-none"
+      className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-black select-none"
     >
       <p id="barcode-scanner-description" className="sr-only">
         Scan a food barcode with your camera or enter the barcode manually.
       </p>
       {/* Top bar */}
-      <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <div id="barcode-scanner-title" className="flex items-center gap-2 font-medium">
-          <ScanLine className="w-5 h-5" />
+      <div className="flex shrink-0 items-center justify-between gap-2 p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+        <div id="barcode-scanner-title" className="flex min-w-0 items-center gap-2 font-medium">
+          <ScanLine className="h-5 w-5 shrink-0" />
           Scan food barcode
         </div>
         <button
           ref={closeButtonRef}
           onClick={handleClose}
-          className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] shrink-0 flex items-center justify-center"
           aria-label="Close scanner"
           disabled={submitting}
         >
@@ -247,10 +254,10 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
       </div>
 
       {/* Camera / content area */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <video
           ref={videoRef}
-          className={`w-full h-full object-cover ${showCamera ? "" : "hidden"}`}
+          className={`absolute inset-0 h-full w-full object-cover ${showCamera ? "" : "hidden"}`}
           muted
           playsInline
           autoPlay
@@ -308,7 +315,7 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
         {status === "found" && food && (
           <div className="absolute inset-x-0 bottom-0 bg-panel text-foreground rounded-t-2xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[80%] overflow-y-auto">
             <div className="w-10 h-1.5 bg-lineSoft rounded-full mx-auto mb-4" />
-            <div className="text-lg font-semibold">{food.name}</div>
+            <div className="break-words text-lg font-semibold">{food.name}</div>
             {food.brand_name && (
               <div className="text-xs text-muted-foreground">{food.brand_name}</div>
             )}
@@ -332,7 +339,7 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
 
             <div className="flex flex-col gap-2 mt-5">
               <Button
-                className="bg-teal text-buttonText hover:opacity-90 h-11 min-h-[44px]"
+                className="min-h-11 h-auto whitespace-normal bg-teal py-2 text-buttonText hover:opacity-90"
                 onClick={() => submit(true)}
                 disabled={submitting}
               >
@@ -341,7 +348,7 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  className="flex-1 h-11 min-h-[44px]"
+                  className="min-h-11 h-auto min-w-0 flex-1 whitespace-normal py-2"
                   onClick={() => submit(false)}
                   disabled={submitting}
                 >
@@ -383,7 +390,7 @@ export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Revie
       {(status === "not-found" || status === "error" || showCamera) && (
         <form
           onSubmit={handleManual}
-          className="bg-panel p-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex gap-2"
+          className="flex shrink-0 gap-2 bg-panel p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
           <Input
             value={manual}
@@ -416,10 +423,12 @@ function Macro({ label, value, unit = "" }) {
 
 function MessageCard({ title, subtitle, icon }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-2 px-8 text-center">
+    <div className="absolute inset-0 overflow-y-auto">
+    <div className="flex min-h-full flex-col items-center justify-center gap-2 px-8 py-4 text-center text-white">
       {icon}
       <p className="font-medium">{title}</p>
       <p className="text-sm text-white/70">{subtitle}</p>
+    </div>
     </div>
   );
 }

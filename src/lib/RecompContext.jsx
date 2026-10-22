@@ -26,6 +26,7 @@ import { parseCompletedSessions, withCompletedSession } from "@/lib/fitness/trai
 import { replaceSessionStrengthLogs } from "@/lib/sessionEdit";
 import { useAuth } from "@/lib/AuthContext";
 import { recipeWritePayload } from "@/lib/recipeNutrition";
+import { invokeFoodNutritionUpdate, newNutritionOperationId } from "@/lib/foodNutritionSync";
 import { persistPlanSettings, snapshotPlanTargets } from "@/lib/planSettings";
 import { AUTOPILOT_CACHE, GROCERY_CACHE, MEAL_PLAN_CACHE, removePlanCache } from "@/lib/planCache";
 import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggingDateUtils";
@@ -49,18 +50,12 @@ function applyNutritionIncrements(base, increments) {
   return next;
 }
 
-function sumNutritionIncrements(list) {
-  const total = {};
+function replayNutritionIncrements(base, list) {
+  const total = Object.fromEntries(FOOD_TOTAL_FIELDS.filter((field) => base?.[field] != null).map((field) => [field, base[field]]));
   for (const increments of list) {
-    for (const [field, amount] of Object.entries(increments ?? {})) {
-      total[field] = (total[field] ?? 0) + (Number(amount) || 0);
-    }
+    Object.assign(total, applyNutritionIncrements(total, increments));
   }
   return total;
-}
-
-function negateIncrements(increments) {
-  return Object.fromEntries(Object.entries(increments ?? {}).map(([field, amount]) => [field, -amount]));
 }
 
 function foodTotals(items) {
@@ -79,6 +74,8 @@ function foodEntryPayload(entry) {
     created_by_id: _createdById,
     pending: _pending,
     reconciliationRequired: _reconciliationRequired,
+    ambiguousNutrition: _ambiguousNutrition,
+    unconfirmedFoodMutation: _unconfirmedFoodMutation,
     ...payload
   } = entry;
   return payload;
@@ -227,6 +224,8 @@ export function RecompProvider({ children }) {
   const restoredFoodIds = useRef(new Map());
   const unsyncedFoodIds = useRef(new Set());
   const dailyQueues = useRef(new Map());
+  const foodQueues = useRef(new Map());
+  const foodRecoveryRows = useRef(new Map());
   const habitQueues = useRef(new Map());
   const loadedDates = useRef(new Set());
   const historyRetryTimer = useRef(null);
@@ -308,7 +307,16 @@ export function RecompProvider({ children }) {
   const setFoodLogEntriesCurrent = useCallback((nextOrUpdater) => {
     setFoodLogEntries((previous) => {
       const source = typeof nextOrUpdater === "function" ? nextOrUpdater(previous) : nextOrUpdater;
-      const next = source.map((entry) => unsyncedFoodIds.current.has(entry.id) ? { ...entry, pending: true, reconciliationRequired: true } : entry);
+      const recovery = new Map([...foodRecoveryRows.current].filter(([, entry]) => entry.created_by_id === userIdRef.current));
+      const seen = new Set();
+      const next = source.map((entry) => {
+        seen.add(entry.id);
+        if (recovery.has(entry.id)) return { ...entry, ...recovery.get(entry.id) };
+        return unsyncedFoodIds.current.has(entry.id) ? { ...entry, pending: true, reconciliationRequired: true } : entry;
+      });
+      // A confirmed deletion can still have uncertain totals. Its local
+      // recovery marker has no remote row, but must survive date/history loads.
+      for (const [id, entry] of recovery) if (!seen.has(id)) next.push(entry);
       foodLogEntriesRef.current = next;
       return next;
     });
@@ -719,10 +727,14 @@ export function RecompProvider({ children }) {
   // Nutrition increments this client has sent (or queued) per date that the
   // server has not answered yet.
   const pendingIncrements = useRef(new Map());
+  const nutritionBaselines = useRef(new Map());
   const nextIncrementId = useRef(0);
   const trackPendingIncrement = useCallback((date, increments) => {
     const id = nextIncrementId.current++;
-    if (!pendingIncrements.current.has(date)) pendingIncrements.current.set(date, new Map());
+    if (!pendingIncrements.current.has(date)) {
+      pendingIncrements.current.set(date, new Map());
+      nutritionBaselines.current.set(date, logsRef.current.find((item) => item.date === date) ?? null);
+    }
     pendingIncrements.current.get(date).set(id, increments);
     return id;
   }, []);
@@ -733,7 +745,7 @@ export function RecompProvider({ children }) {
     if (forDate.size === 0) pendingIncrements.current.delete(date);
   }, []);
   const pendingIncrementsFor = useCallback(
-    (date) => sumNutritionIncrements([...(pendingIncrements.current.get(date)?.values() ?? [])]),
+    (date) => [...(pendingIncrements.current.get(date)?.values() ?? [])],
     []
   );
 
@@ -743,6 +755,10 @@ export function RecompProvider({ children }) {
   // totals written from another device or before this date was loaded.
   const upsertDailyLog = useCallback(
     (date, fieldsOrUpdater, options = {}) => {
+      const ownerId = userIdRef.current;
+      const isActive = () => Boolean(ownerId && providerActive.current && ownerId === userIdRef.current);
+      const assertActive = () => { if (!isActive()) throw new Error("Your signed-in account changed. Reopen the diary to continue."); };
+      assertActive();
       const increments = options.increments
         ? Object.fromEntries(
           Object.entries(options.increments).filter(([, amount]) => Number(amount) !== 0)
@@ -764,46 +780,49 @@ export function RecompProvider({ children }) {
       const incrementId = increments ? trackPendingIncrement(date, increments) : null;
 
       setLogsCurrent((previous) =>
-        [optimistic, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
+        isActive() ? [optimistic, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
           b.date.localeCompare(a.date)
-        )
+        ) : previous
       );
 
       return enqueueByKey(dailyQueues, date, async () => {
         try {
+          assertActive();
           const local = logsRef.current.find((item) => item.date === date) ?? null;
-          const remote = await base44.entities.DailyLog.filter(own({ date }), "-created_date", 10);
+          const remote = await base44.entities.DailyLog.filter(ownedQuery(ownerId, { date }), "-created_date", 10);
+          assertActive();
           const existing = newestByKey(
             [...remote, ...(local ? [local] : [])],
             (item) => item.date
           )[0] ?? null;
           const body = increments ? { kind: "daily_log", date, increments } : { kind: "daily_log", date, fields };
-          const result = await base44.functions.invoke("upsertTrackingRecord", body);
+          if (increments && options.nutritionOperationId) body.nutrition_operation_id = options.nutritionOperationId;
+          const result = body.nutrition_operation_id
+            ? await invokeFoodNutritionUpdate(base44.functions, body, assertActive)
+            : await base44.functions.invoke("upsertTrackingRecord", body);
+          assertActive();
           const response = result?.data?.record;
           if (!response?.id) throw new Error("The daily log update returned no record");
           const current = logsRef.current.find((item) => item.date === date) ?? null;
           let saved = mergeDefined(mergeDefined(existing, response), current);
           if (incrementId !== null) {
+            nutritionBaselines.current.set(date, response);
             settlePendingIncrement(date, incrementId);
             // The server's totals are authoritative. Re-apply only this
             // client's increments that are still queued behind this one.
             const pending = pendingIncrementsFor(date);
             saved = {
               ...saved,
-              ...applyNutritionIncrements(
-                response,
-                Object.fromEntries(
-                  FOOD_TOTAL_FIELDS
-                    .filter((field) => response[field] != null || pending[field])
-                    .map((field) => [field, pending[field] ?? 0])
-                )
-              )
+              ...replayNutritionIncrements(response, pending)
             };
+            if (pending.length === 0) nutritionBaselines.current.delete(date);
+          } else if (pendingIncrements.current.has(date)) {
+            nutritionBaselines.current.set(date, response);
           }
           setLogsCurrent((previous) =>
-            [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
+            isActive() ? [saved, ...previous.filter((item) => item.id !== saved.id && item.date !== date)].sort((a, b) =>
               b.date.localeCompare(a.date)
-            )
+            ) : previous
           );
 
           if (fields.weight_lbs != null && profileRef.current?.id) {
@@ -815,6 +834,7 @@ export function RecompProvider({ children }) {
                 const updatedProfile = await base44.entities.UserProfile.update(profileRef.current.id, {
                   current_weight_lbs: fields.weight_lbs
                 });
+                assertActive();
                 profileRef.current = updatedProfile;
                 referenceWriteVersion.current += 1;
                 setProfile(updatedProfile);
@@ -825,14 +845,24 @@ export function RecompProvider({ children }) {
           }
           return saved;
         } catch (error) {
+          if (!isActive()) throw error;
           if (incrementId !== null) {
             settlePendingIncrement(date, incrementId);
-            // Undo exactly this request's increment; later increments and
-            // edits already applied on top of it stay in place.
+            const baseline = nutritionBaselines.current.get(date) ?? previousLocal;
+            const remaining = pendingIncrementsFor(date);
+            if (remaining.length === 0) nutritionBaselines.current.delete(date);
+            // Clamping at zero is not invertible. Rebuild from the last
+            // confirmed baseline and replay later operations in order.
             setLogsCurrent((previous) => {
+              if (!isActive()) return previous;
               const current = previous.find((item) => item.date === date) ?? null;
               if (!current) return previous;
-              const reverted = { ...current, ...applyNutritionIncrements(current, negateIncrements(increments)) };
+              const totals = replayNutritionIncrements(baseline, remaining);
+              const reverted = { ...current };
+              for (const field of FOOD_TOTAL_FIELDS) {
+                if (Object.prototype.hasOwnProperty.call(totals, field)) reverted[field] = totals[field];
+                else delete reverted[field];
+              }
               return [reverted, ...previous.filter((item) => item.date !== date)].sort((a, b) =>
                 b.date.localeCompare(a.date)
               );
@@ -840,6 +870,7 @@ export function RecompProvider({ children }) {
             throw error;
           }
           setLogsCurrent((previous) => {
+            if (!isActive()) return previous;
             const current = previous.find((item) => item.date === date) ?? null;
             if (!current) return previous;
 
@@ -1172,11 +1203,98 @@ export function RecompProvider({ children }) {
     return { session: updated, strengthLogs: newLogs };
   }, [own, setSessionsCurrent, setStrengthLogsCurrent, upsertDailyLog]);
 
-  const addFood = useCallback(async (data) => {
-    const created = await base44.entities.FoodItem.create(data);
-    setFoods((prev) => [created, ...prev]);
-    return created;
+  const foodOwnerActive = useCallback((ownerId) => Boolean(ownerId) && providerActive.current && ownerId === userIdRef.current, []);
+
+  const assertFoodOwner = useCallback((ownerId) => {
+    if (!foodOwnerActive(ownerId)) throw Object.assign(new Error("Your signed-in account changed. Reopen your diary to continue."), { accountChanged: true });
+  }, [foodOwnerActive]);
+
+  // A server/network failure is not evidence that an entity write did not
+  // commit. Only definitive request/auth/validation rejections are retry-safe.
+  const definitiveFoodFailure = useCallback((error) => [400, 401, 403, 404, 405, 409, 413, 415, 422, 429].includes(statusOf(error)), []);
+
+  const publishFoodEntries = useCallback((ownerId, updater) => {
+    assertFoodOwner(ownerId);
+    setFoodLogEntriesCurrent((previous) => foodOwnerActive(ownerId) ? updater(previous) : previous);
+  }, [assertFoodOwner, foodOwnerActive, setFoodLogEntriesCurrent]);
+
+  const markFoodRecovery = useCallback((ownerId, rows, error) => {
+    assertFoodOwner(ownerId);
+    const pending = rows.map((row) => ({
+      ...row, created_by_id: ownerId, pending: true, reconciliationRequired: true,
+      ambiguousNutrition: Boolean(error.ambiguousNutrition || row.ambiguousNutrition),
+      ...(error.unconfirmedFoodMutation ? { unconfirmedFoodMutation: error.unconfirmedFoodMutation } : {})
+    }));
+    for (const row of pending) {
+      unsyncedFoodIds.current.add(row.id);
+      foodRecoveryRows.current.set(row.id, row);
+    }
+    const ids = new Set(pending.map((row) => row.id));
+    publishFoodEntries(ownerId, (previous) => [...pending, ...previous.filter((row) => !ids.has(row.id))]);
+    error.reconciliationRequired = true;
+    error.partialEntries = pending;
+    return error;
+  }, [assertFoodOwner, publishFoodEntries]);
+
+  const assertFoodDayReady = useCallback((ownerId, date) => {
+    assertFoodOwner(ownerId);
+    const recovery = [...foodRecoveryRows.current.values()].filter((row) => row.created_by_id === ownerId && row.date === date);
+    if (recovery.length) publishFoodEntries(ownerId, (previous) => {
+      const ids = new Set(recovery.map((row) => row.id));
+      return [...recovery, ...previous.filter((row) => !ids.has(row.id))];
+    });
+    const incomplete = foodLogEntriesRef.current.filter((row) => row.date === date && row.reconciliationRequired);
+    if (recovery.length || incomplete.length) {
+      const ambiguousNutrition = [...recovery, ...incomplete].some((row) => row.ambiguousNutrition);
+      const unconfirmedFoodMutation = [...recovery, ...incomplete].find((row) => row.unconfirmedFoodMutation)?.unconfirmedFoodMutation;
+      throw Object.assign(new Error(ambiguousNutrition || unconfirmedFoodMutation
+        ? "Confirm this day's uncertain meal totals before changing its food entries."
+        : "Review or discard this day's incomplete food entries before changing its totals."), { reconciliationRequired: true, ambiguousNutrition, unconfirmedFoodMutation });
+    }
+  }, [assertFoodOwner, publishFoodEntries]);
+
+  const resolveFoodId = useCallback((id) => {
+    const seen = new Set();
+    while (restoredFoodIds.current.has(id) && !seen.has(id)) {
+      seen.add(id);
+      id = restoredFoodIds.current.get(id);
+    }
+    return id;
   }, []);
+
+  // Old Undo ids and newly recreated ids must share one queue, even when a
+  // compensation adds another alias while an operation is waiting.
+  const foodQueueKey = useCallback((ownerId, id) => {
+    const seen = new Set();
+    while (!seen.has(id)) {
+      seen.add(id);
+      const parent = [...restoredFoodIds.current].find(([, replacement]) => replacement === id);
+      if (!parent) break;
+      id = parent[0];
+    }
+    return `${ownerId}:${id}`;
+  }, []);
+
+  const foodEntrySnapshot = useCallback((ownerId, id, allowRecovery = false) => {
+    assertFoodOwner(ownerId);
+    const resolved = resolveFoodId(id);
+    const entry = foodLogEntriesRef.current.find((row) => row.id === resolved) ?? foodRecoveryRows.current.get(resolved);
+    if (!entry || entry.created_by_id !== ownerId) throw new Error("Food entry not found in this account");
+    if (!allowRecovery) {
+      assertFoodDayReady(ownerId, entry.date);
+      if (entry.pending) throw new Error("Wait for this food to finish saving before changing it.");
+    }
+    return { ...entry };
+  }, [assertFoodOwner, assertFoodDayReady, resolveFoodId]);
+
+  const addFood = useCallback(async (data) => {
+    const ownerId = userIdRef.current;
+    assertFoodOwner(ownerId);
+    const created = await base44.entities.FoodItem.create(data);
+    assertFoodOwner(ownerId);
+    setFoods((prev) => foodOwnerActive(ownerId) ? [created, ...prev.filter((row) => row.id !== created.id)] : prev);
+    return created;
+  }, [assertFoodOwner, foodOwnerActive]);
 
   const adjustDailyNutrition = useCallback(
     (date, delta) => {
@@ -1185,70 +1303,107 @@ export function RecompProvider({ children }) {
           .map((field) => [field, Number(delta?.[field]) || 0])
           .filter(([, amount]) => amount !== 0)
       );
+      const ownerId = userIdRef.current;
+      assertFoodOwner(ownerId);
+      assertFoodDayReady(ownerId, date);
       if (Object.keys(increments).length === 0) return Promise.resolve(null);
-      return upsertDailyLog(date, null, { increments });
+      return upsertDailyLog(date, null, { increments, nutritionOperationId: newNutritionOperationId() });
     },
-    [upsertDailyLog]
+    [assertFoodDayReady, assertFoodOwner, upsertDailyLog]
   );
 
   const logFoodEntries = useCallback(async (entries) => {
+    const ownerId = userIdRef.current;
+    assertFoodOwner(ownerId);
     if (!entries.length) return [];
     const date = entries[0].date;
     if (!date || entries.some((entry) => entry.date !== date)) {
       throw new Error("Food entries must share one valid date");
     }
-    if (foodLogEntriesRef.current.some((entry) => entry.date === date && entry.reconciliationRequired)) {
-      throw Object.assign(new Error("Review or discard this day's incomplete food entries before logging again."), { reconciliationRequired: true });
-    }
+    assertFoodDayReady(ownerId, date);
+    if (entries.some((entry) => entry.created_by_id && entry.created_by_id !== ownerId)) throw new Error("Food entry belongs to another account");
 
+    const batchId = newNutritionOperationId();
     const optimistic = entries.map((entry, index) => ({
       ...foodEntryPayload(entry),
-      id: `food-log-pending-${Date.now()}-${index}`,
+      created_by_id: ownerId,
+      id: `food-log-pending-${batchId}-${index}`,
       pending: true
     }));
-    setFoodLogEntriesCurrent((previous) => [...optimistic, ...previous]);
+    publishFoodEntries(ownerId, (previous) => [...optimistic, ...previous]);
 
     const created = [];
+    let creating = null;
     try {
-      for (const entry of entries) {
-        created.push(await base44.entities.FoodLogEntry.create(foodEntryPayload(entry)));
+      for (const [index, entry] of entries.entries()) {
+        assertFoodOwner(ownerId);
+        creating = optimistic[index];
+        const saved = await base44.entities.FoodLogEntry.create(foodEntryPayload(entry));
+        if (!saved?.id) throw new Error("The food creation acknowledgement was incomplete.");
+        created.push(saved);
+        creating = null;
+        assertFoodOwner(ownerId);
       }
+      assertFoodOwner(ownerId);
       await adjustDailyNutrition(date, foodTotals(entries));
-      const optimisticIds = new Set(optimistic.map((entry) => entry.id));
-      setFoodLogEntriesCurrent((previous) => [
+      assertFoodOwner(ownerId);
+      const replacedIds = new Set([...optimistic, ...created].map((entry) => entry.id));
+      publishFoodEntries(ownerId, (previous) => [
         ...created,
-        ...previous.filter((entry) => !optimisticIds.has(entry.id))
+        ...previous.filter((entry) => !replacedIds.has(entry.id))
       ]);
       return created;
     } catch (error) {
-      created.forEach((entry) => deletedFoodIds.current.add(entry.id));
-      const cleanup = await Promise.allSettled(created.map((entry) => base44.entities.FoodLogEntry.delete(entry.id)));
-      const survivors = created.filter((_, index) => cleanup[index].status === "rejected");
-      survivors.forEach((entry) => unsyncedFoodIds.current.add(entry.id));
-      survivors.forEach((entry) => deletedFoodIds.current.delete(entry.id));
-      const optimisticIds = new Set(optimistic.map((entry) => entry.id));
-      setFoodLogEntriesCurrent((previous) => [
-        ...survivors.map((entry) => ({ ...entry, pending: true, reconciliationRequired: true })),
-        ...previous.filter((entry) => !optimisticIds.has(entry.id) && !survivors.some((saved) => saved.id === entry.id))
-      ]);
-      error.reconciliationRequired = survivors.length > 0;
-      error.partialEntries = survivors;
+      if (!foodOwnerActive(ownerId)) throw Object.assign(error, { reconciliationRequired: created.length > 0 || Boolean(creating) });
+      const survivors = [];
+      if (creating && !definitiveFoodFailure(error)) {
+        error.unconfirmedFoodMutation = "create";
+        survivors.push(...created, creating);
+      } else if (error.ambiguousNutrition) survivors.push(...created);
+      else for (const entry of created) {
+        assertFoodOwner(ownerId);
+        deletedFoodIds.current.add(entry.id);
+        try {
+          const response = await base44.entities.FoodLogEntry.delete(entry.id);
+          if (!response?.success) throw new Error("The cleanup acknowledgement was incomplete.");
+          assertFoodOwner(ownerId);
+        } catch (cleanupError) {
+          if (!foodOwnerActive(ownerId)) throw Object.assign(cleanupError, { reconciliationRequired: true });
+          if (!definitiveFoodFailure(cleanupError)) error.unconfirmedFoodMutation = "delete";
+          deletedFoodIds.current.delete(entry.id);
+          survivors.push(entry);
+        }
+      }
+      const replacedIds = new Set([...optimistic, ...created].map((entry) => entry.id));
+      publishFoodEntries(ownerId, (previous) => previous.filter((entry) => !replacedIds.has(entry.id)));
+      if (survivors.length) markFoodRecovery(ownerId, survivors, error);
+      else { error.reconciliationRequired = false; error.partialEntries = []; }
       throw error;
     }
-  }, [adjustDailyNutrition, setFoodLogEntriesCurrent]);
+  }, [adjustDailyNutrition, assertFoodDayReady, assertFoodOwner, definitiveFoodFailure, foodOwnerActive, markFoodRecovery, publishFoodEntries]);
 
   const logFoodEntry = useCallback(
     async (entry) => (await logFoodEntries([entry]))[0],
     [logFoodEntries]
   );
 
-  const updateFoodLogEntry = useCallback(async (id, changes) => {
-    const previous = foodLogEntriesRef.current.find((entry) => entry.id === id);
-    if (!previous) throw new Error("Food entry not found");
-    const next = { ...previous, ...changes };
-    setFoodLogEntriesCurrent((entries) => entries.map((entry) => entry.id === id ? next : entry));
+  const updateFoodLogEntry = useCallback((id, changes) => {
+    const ownerId = userIdRef.current;
+    return enqueueByKey(foodQueues, foodQueueKey(ownerId, id), async () => {
+    const previous = foodEntrySnapshot(ownerId, id);
+    id = previous.id;
+    if (changes.date && changes.date !== previous.date) throw new Error("Food edits must keep their original logging date.");
+    const next = { ...previous, ...foodEntryPayload(changes), pending: true };
+    publishFoodEntries(ownerId, (entries) => entries.map((entry) => entry.id === id ? next : entry));
+    let updated = next;
+    let updateAcknowledged = false;
     try {
-      const updated = await base44.entities.FoodLogEntry.update(id, foodEntryPayload(next));
+      assertFoodOwner(ownerId);
+      const response = await base44.entities.FoodLogEntry.update(id, foodEntryPayload(next));
+      if (!response?.id) throw new Error("The food edit acknowledgement was incomplete.");
+      updated = { ...next, ...response };
+      updateAcknowledged = true;
+      assertFoodOwner(ownerId);
       const previousTotals = foodTotals([previous]);
       const nextTotals = foodTotals([next]);
       const delta = FOOD_TOTAL_FIELDS.reduce((value, field) => {
@@ -1256,87 +1411,164 @@ export function RecompProvider({ children }) {
         return value;
       }, {});
       await adjustDailyNutrition(previous.date, delta);
-      setFoodLogEntriesCurrent((entries) => entries.map((entry) => entry.id === id ? updated : entry));
-      return updated;
+      assertFoodOwner(ownerId);
+      const saved = { ...updated, pending: false };
+      publishFoodEntries(ownerId, (entries) => entries.map((entry) => entry.id === id ? saved : entry));
+      return saved;
     } catch (error) {
-      await base44.entities.FoodLogEntry.update(id, foodEntryPayload(previous)).catch(() => undefined);
-      setFoodLogEntriesCurrent((entries) => entries.map((entry) => entry.id === id ? previous : entry));
+      if (!foodOwnerActive(ownerId)) throw Object.assign(error, { reconciliationRequired: true });
+      if (error.ambiguousNutrition) throw markFoodRecovery(ownerId, [updated], error);
+      if (!updateAcknowledged) {
+        if (!definitiveFoodFailure(error)) {
+          error.unconfirmedFoodMutation = "update";
+          throw markFoodRecovery(ownerId, [updated], error);
+        }
+        publishFoodEntries(ownerId, (entries) => entries.map((entry) => entry.id === id ? previous : entry));
+        throw error;
+      }
+      try {
+        assertFoodOwner(ownerId);
+        const rollback = await base44.entities.FoodLogEntry.update(id, foodEntryPayload(previous));
+        if (!rollback?.id) throw new Error("The food rollback acknowledgement was incomplete.");
+        assertFoodOwner(ownerId);
+        publishFoodEntries(ownerId, (entries) => entries.map((entry) => entry.id === id ? previous : entry));
+      } catch (rollbackError) {
+        if (!foodOwnerActive(ownerId)) throw Object.assign(rollbackError, { reconciliationRequired: true });
+        if (!definitiveFoodFailure(rollbackError)) error.unconfirmedFoodMutation = "update";
+        markFoodRecovery(ownerId, [updated], error);
+      }
       throw error;
     }
-  }, [adjustDailyNutrition, setFoodLogEntriesCurrent]);
+    });
+  }, [adjustDailyNutrition, assertFoodOwner, definitiveFoodFailure, foodEntrySnapshot, foodOwnerActive, foodQueueKey, markFoodRecovery, publishFoodEntries]);
 
-  const deleteFoodLogEntry = useCallback(async (id) => {
+  const deleteFoodLogEntry = useCallback((id) => {
+    const ownerId = userIdRef.current;
+    return enqueueByKey(foodQueues, foodQueueKey(ownerId, id), async () => {
     // Undo retains its original id; compensation can recreate that row with
     // a new id, possibly more than once. Resolve the complete alias chain.
-    const seen = new Set();
-    while (restoredFoodIds.current.has(id) && !seen.has(id)) { seen.add(id); id = restoredFoodIds.current.get(id); }
-    const previous = foodLogEntriesRef.current.find((entry) => entry.id === id);
-    if (!previous) throw new Error("Food entry not found");
-    if (previous.reconciliationRequired) throw new Error("Review this unfinished log before changing its totals.");
+    const previous = foodEntrySnapshot(ownerId, id);
+    id = previous.id;
     deletedFoodIds.current.add(id);
-    setFoodLogEntriesCurrent((entries) => entries.filter((entry) => entry.id !== id));
+    publishFoodEntries(ownerId, (entries) => entries.filter((entry) => entry.id !== id));
     let deletedRemotely = false;
     try {
-      await base44.entities.FoodLogEntry.delete(id);
+      assertFoodOwner(ownerId);
+      const response = await base44.entities.FoodLogEntry.delete(id);
+      if (!response?.success) throw new Error("The food deletion acknowledgement was incomplete.");
       deletedRemotely = true;
+      assertFoodOwner(ownerId);
       const totals = foodTotals([previous]);
       await adjustDailyNutrition(previous.date, FOOD_TOTAL_FIELDS.reduce((delta, field) => {
         delta[field] = -totals[field];
         return delta;
       }, {}));
+      assertFoodOwner(ownerId);
       return previous;
     } catch (error) {
+      if (!foodOwnerActive(ownerId)) throw Object.assign(error, { reconciliationRequired: true });
+      if (error.ambiguousNutrition) throw markFoodRecovery(ownerId, [previous], error);
+      if (!deletedRemotely && !definitiveFoodFailure(error)) {
+        error.unconfirmedFoodMutation = "delete";
+        throw markFoodRecovery(ownerId, [previous], error);
+      }
       let restored = deletedRemotely ? null : previous;
       if (deletedRemotely) {
         try {
+          assertFoodOwner(ownerId);
           restored = await base44.entities.FoodLogEntry.create(foodEntryPayload(previous));
-        } catch {
-          await reload();
+          if (!restored?.id) { restored = null; throw new Error("The food restoration acknowledgement was incomplete."); }
+          assertFoodOwner(ownerId);
+        } catch (restoreError) {
+          if (!foodOwnerActive(ownerId)) throw Object.assign(restoreError, { reconciliationRequired: true });
+          if (!definitiveFoodFailure(restoreError)) error.unconfirmedFoodMutation = "create";
+          markFoodRecovery(ownerId, [previous], error);
         }
       }
       if (restored) {
         if (restored.id !== id) restoredFoodIds.current.set(id, restored.id);
         else deletedFoodIds.current.delete(id);
-        setFoodLogEntriesCurrent((entries) => [restored, ...entries.filter((entry) => entry.id !== restored.id)]);
+        publishFoodEntries(ownerId, (entries) => [restored, ...entries.filter((entry) => entry.id !== restored.id && entry.id !== id)]);
         error.restoredEntry = restored;
       }
       throw error;
     }
-  }, [adjustDailyNutrition, reload, setFoodLogEntriesCurrent]);
+    });
+  }, [adjustDailyNutrition, assertFoodOwner, definitiveFoodFailure, foodEntrySnapshot, foodOwnerActive, foodQueueKey, markFoodRecovery, publishFoodEntries]);
 
   // Explicit recovery only: these rows survived compensation after an
   // unsuccessful totals update. Never subtract from potentially unadjusted
   // manual daily totals. The user is told to review that day's totals.
   const discardUnsyncedFoodEntries = useCallback(async (ids) => {
-    const entries = foodLogEntriesRef.current.filter((entry) => ids.includes(entry.id) && entry.reconciliationRequired);
+    const ownerId = userIdRef.current;
+    assertFoodOwner(ownerId);
     const failed = [];
-    for (const entry of entries) {
-      deletedFoodIds.current.add(entry.id);
+    for (const id of ids) {
       try {
-        await base44.entities.FoodLogEntry.delete(entry.id);
-        unsyncedFoodIds.current.delete(entry.id);
-        setFoodLogEntriesCurrent((previous) => previous.filter((row) => row.id !== entry.id));
-      } catch {
-        deletedFoodIds.current.delete(entry.id);
-        failed.push(entry.id);
+        await enqueueByKey(foodQueues, foodQueueKey(ownerId, id), async () => {
+          const entry = foodEntrySnapshot(ownerId, id, true);
+          if (!entry.reconciliationRequired) return;
+          if (entry.ambiguousNutrition || entry.unconfirmedFoodMutation) throw Object.assign(new Error("This meal's save or totals have not been confirmed. Reconcile them before discarding its food entry."), {
+            ambiguousNutrition: Boolean(entry.ambiguousNutrition), unconfirmedFoodMutation: entry.unconfirmedFoodMutation, reconciliationRequired: true
+          });
+          const alreadyDeleted = deletedFoodIds.current.has(entry.id);
+          if (!alreadyDeleted) {
+            assertFoodOwner(ownerId);
+            try {
+              const response = await base44.entities.FoodLogEntry.delete(entry.id);
+              if (!response?.success) throw new Error("The discard acknowledgement was incomplete.");
+            } catch (error) {
+              if (!foodOwnerActive(ownerId)) throw error;
+              if (!definitiveFoodFailure(error)) {
+                error.unconfirmedFoodMutation = "delete";
+                markFoodRecovery(ownerId, [entry], error);
+              }
+              throw error;
+            }
+            assertFoodOwner(ownerId);
+          }
+          deletedFoodIds.current.add(entry.id);
+          unsyncedFoodIds.current.delete(entry.id);
+          foodRecoveryRows.current.delete(entry.id);
+          publishFoodEntries(ownerId, (previous) => previous.filter((row) => row.id !== entry.id));
+        });
+      } catch (error) {
+        if (!foodOwnerActive(ownerId)) throw error;
+        if (error.ambiguousNutrition || error.unconfirmedFoodMutation) throw error;
+        failed.push(id);
       }
     }
     if (failed.length) throw new Error("Some incomplete items could not be discarded. Your daily totals were not changed.");
-  }, [setFoodLogEntriesCurrent]);
+  }, [assertFoodOwner, definitiveFoodFailure, foodEntrySnapshot, foodOwnerActive, foodQueueKey, markFoodRecovery, publishFoodEntries]);
 
   const repeatFoodLogEntry = useCallback(
-    (entry, date = todayStr()) => logFoodEntry({
-      ...foodEntryPayload(entry),
-      date,
-      source: "repeat",
-      repeated_from_id: entry.id
-    }),
-    [logFoodEntry]
+    (entry, date = todayStr()) => {
+      const ownerId = userIdRef.current;
+      return enqueueByKey(foodQueues, foodQueueKey(ownerId, entry.id), async () => {
+        const current = foodEntrySnapshot(ownerId, entry.id);
+        return logFoodEntry({ ...foodEntryPayload(current), date, source: "repeat", repeated_from_id: current.id });
+      });
+    },
+    [foodEntrySnapshot, foodQueueKey, logFoodEntry]
   );
 
   const restoreFoodLogEntry = useCallback(
-    (entry) => logFoodEntry({ ...foodEntryPayload(entry), source: "repeat", repeated_from_id: entry.id }),
-    [logFoodEntry]
+    (entry) => {
+      const ownerId = userIdRef.current;
+      return enqueueByKey(foodQueues, foodQueueKey(ownerId, entry.id), async () => {
+        assertFoodOwner(ownerId);
+        if (entry.created_by_id !== ownerId) throw new Error("Food entry belongs to another account");
+        const id = resolveFoodId(entry.id);
+        const existing = foodLogEntriesRef.current.find((row) => row.id === id);
+        if (existing) return foodEntrySnapshot(ownerId, id);
+        assertFoodDayReady(ownerId, entry.date);
+        const restored = await logFoodEntry({ ...foodEntryPayload(entry), source: "repeat", repeated_from_id: entry.id });
+        assertFoodOwner(ownerId);
+        restoredFoodIds.current.set(id, restored.id);
+        return restored;
+      });
+    },
+    [assertFoodDayReady, assertFoodOwner, foodEntrySnapshot, foodQueueKey, logFoodEntry, resolveFoodId]
   );
 
   const addStrengthLog = useCallback(async (data) => {
@@ -1346,13 +1578,19 @@ export function RecompProvider({ children }) {
   }, [setStrengthLogsCurrent]);
 
   const saveMealTemplate = useCallback(async (data) => {
+    const ownerId = userIdRef.current;
+    assertFoodOwner(ownerId);
     const created = await base44.entities.MealTemplate.create(data);
-    setMealTemplates((prev) => [created, ...prev]);
+    assertFoodOwner(ownerId);
+    setMealTemplates((prev) => foodOwnerActive(ownerId) ? [created, ...prev.filter((row) => row.id !== created.id)] : prev);
     return created;
-  }, []);
+  }, [assertFoodOwner, foodOwnerActive]);
 
   const logMealTemplate = useCallback(
     async (template, date = todayStr(), meal = "other") => {
+      const ownerId = userIdRef.current;
+      assertFoodOwner(ownerId);
+      assertFoodDayReady(ownerId, date);
       if (!featureFlags.itemizedFoodDiary) {
         await adjustDailyNutrition(date, {
           calories: template.total_calories ?? 0,
@@ -1360,6 +1598,7 @@ export function RecompProvider({ children }) {
           carbs_g: template.total_carbs_g ?? 0,
           fat_g: template.total_fat_g ?? 0
         });
+        assertFoodOwner(ownerId);
         return;
       }
       return logFoodEntries((template.items ?? []).map((item) => ({
@@ -1376,7 +1615,7 @@ export function RecompProvider({ children }) {
         source: "template"
       })));
     },
-    [adjustDailyNutrition, logFoodEntries]
+    [adjustDailyNutrition, assertFoodDayReady, assertFoodOwner, logFoodEntries]
   );
 
   const addRecipe = useCallback(async (data) => {

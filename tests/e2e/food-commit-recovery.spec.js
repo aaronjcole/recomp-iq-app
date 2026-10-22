@@ -106,13 +106,15 @@ test("failed compensation stays visible, blocks resubmit, and explicit discard l
     if (request.method() === "DELETE" && failCompensation) {
       const id = new URL(request.url()).pathname.split("/").pop();
       if (ownFoodRows(entities).some((row) => row.id === id)) {
-        return route.fulfill({ status: 503, json: { error: "Forced compensation failure" } });
+        // A definitive refusal models known noncommit. A 503 acknowledgement
+        // is uncertain and must remain blocked rather than allow discard.
+        return route.fulfill({ status: 403, json: { error: "Forced compensation refusal" } });
       }
     }
     return route.fallback();
   });
   await page.route("**/functions/upsertTrackingRecord", (route) => {
-    totalUpdates += 1;
+    if (route.request().postDataJSON()?.kind === "daily_log") totalUpdates += 1;
     return route.fallback();
   });
   await page.goto(`/nutrition?date=${TODAY}`);
@@ -157,7 +159,9 @@ test("failed compensation stays visible, blocks resubmit, and explicit discard l
   await saveButton(page).click();
   await expect(reviewSheet(page).getByRole("alert")).toContainText(/incomplete|review/i);
   expect(creates).toBe(2);
-  expect(totalUpdates).toBe(1);
+  // The receipt confirms noncommit, permitting exactly one safe retry.
+  // Read-only nutrition_operation_status calls are not totals writes.
+  expect(totalUpdates).toBe(2);
   await reviewSheet(page).getByRole("link", { name: "Review diary", exact: true }).click();
   await expect(reviewSheet(page)).toHaveCount(0);
 
@@ -173,7 +177,7 @@ test("failed compensation stays visible, blocks resubmit, and explicit discard l
   await diary(page).getByRole("button", { name: /discard/i }).click();
   await expect.poll(() => ownFoodRows(entities).length).toBe(0);
   await expect(diary(page).getByText(FOOD.name, { exact: true })).toHaveCount(0);
-  expect(totalUpdates).toBe(1);
+  expect(totalUpdates).toBe(2);
   expect(dailyTotals(entities, TODAY)).toEqual(before);
 
   // A fresh, explicitly reviewed attempt after discard is a single new commit.

@@ -1,8 +1,8 @@
 import { expect } from "@playwright/test";
 import {
-  normalizeTrackingRequest,
-  reconcileTrackingRecords
+  normalizeTrackingRequest
 } from "../../../base44/shared/trackingRecordDomain.js";
+import { persistTrackingRecord } from "../../../base44/shared/trackingRecordPersistence.js";
 import {
   buildMealSwap,
   normalizeSwapRequest
@@ -124,6 +124,11 @@ function inMemoryEntities(entities, userId) {
       const rows = () => (entities[name] ??= []);
       const copy = (row) => ({ ...row });
       return {
+        async get(id) {
+          const row = rows().find((item) => item.id === id && item.created_by_id === userId);
+          if (!row) throw Object.assign(new Error("Not found"), { status: 404 });
+          return copy(row);
+        },
         async filter(query, sort, limit = 50, skip = 0) {
           const field = sort?.replace(/^[-+]/, "");
           const direction = sort?.startsWith("-") ? -1 : 1;
@@ -155,6 +160,14 @@ function inMemoryEntities(entities, userId) {
           if (!row) throw Object.assign(new Error("Not found"), { status: 404 });
           Object.assign(row, data);
           return copy(row);
+        },
+        async updateMany(query, operations) {
+          const matching = rows().filter((row) => row.created_by_id === userId && matchesQuery(row, query));
+          for (const row of matching) {
+            Object.assign(row, operations.$set ?? {});
+            for (const field of Object.keys(operations.$unset ?? {})) delete row[field];
+          }
+          return { success: true, updated: matching.length, has_more: false };
         },
         async delete(id) {
           entities[name] = rows().filter((item) => !(item.id === id && item.created_by_id === userId));
@@ -193,7 +206,7 @@ function idFromEntityUrl(url) {
  * admins every row, so an unscoped query is rejected here as a contract bug.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[], functionErrors?: Record<string, number>, analysisUploads?: string[], foodPhotoResult?: object }} [options]
+ * @param {{ user?: object, entities?: Record<string, object[]>, foreignEntities?: Record<string, object[]>, ensuredHabits?: object[], ensureHabitsError?: boolean, premiumAccess?: object, mealPlan?: object, trainingBlock?: object, autopilotReview?: object, bodyCompositionResult?: object, failingEntities?: string[], functionErrors?: Record<string, number>, analysisUploads?: string[], foodPhotoResult?: object, trackingResponseAfterCommit?: Function }} [options]
  */
 export async function installAuthenticatedBase44(page, options = {}) {
   const user = options.user ?? AUTH_USER;
@@ -333,7 +346,10 @@ export async function installAuthenticatedBase44(page, options = {}) {
 
     if (url.includes("/functions/")) {
       const functionName = url.match(/\/functions\/([A-Za-z0-9_]+)/)?.[1];
-      if (functionName && functionErrors[functionName]) {
+      // A forced write failure is known-not-applied. Keep receipt reads working;
+      // full transport outages are modeled with a route that rejects both kinds.
+      const receiptRead = functionName === "upsertTrackingRecord" && readBody(request).kind === "nutrition_operation_status";
+      if (functionName && functionErrors[functionName] && !receiptRead) {
         return json({ error: `${functionName} failed (forced by test)` }, functionErrors[functionName]);
       }
       if (url.includes("/functions/ensureDefaultHabits")) {
@@ -423,35 +439,20 @@ export async function installAuthenticatedBase44(page, options = {}) {
       // `fields` flattened onto it (value/done for a habit, macros for a log),
       // so an optimistic write reconciles instead of reverting.
       const body = readBody(request);
-      if (body.kind === "daily_log") {
-        // Run the function's own request and reconcile logic against the
-        // fixture rows so `fields` replace values and `increments` add to the
-        // stored totals exactly as upsertTrackingRecord does.
+      if (body.kind === "daily_log" || body.kind === "nutrition_operation_status") {
+        // Execute the production persistence path, including durable receipts,
+        // rather than maintaining a second reconciliation algorithm in mocks.
         let tracking;
         try {
           tracking = normalizeTrackingRequest(body, user.id);
         } catch (error) {
           return json({ error: error.message }, 400);
         }
-        entities.DailyLog = entities.DailyLog ?? [];
-        const existing = entities.DailyLog.filter((row) => matchesQuery(row, tracking.query));
-        const stored = existing.length
-          ? existing
-          : [{ id: `DailyLog-e2e-${body.date}`, ...tracking.createData, created_by_id: user.id, created_date: new Date().toISOString() }];
-        const { canonical, fields, unsetFields } = reconcileTrackingRecords(
-          stored,
-          tracking.fields,
-          tracking.mutableFields,
-          tracking.increments
-        );
-        const saved = { ...canonical, ...fields };
-        // The function $unsets fields sent as null and returns the re-read record.
-        for (const field of unsetFields) delete saved[field];
-        entities.DailyLog = [
-          saved,
-          ...entities.DailyLog.filter((row) => !stored.some((item) => item.id === row.id))
-        ];
-        return json({ record: saved });
+        try {
+          const result = await persistTrackingRecord({ entities: inMemoryEntities(entities, user.id) }, user, tracking);
+          const override = await options.trackingResponseAfterCommit?.(body, result);
+          return override ? json(override.body, override.status) : json(result);
+        } catch (error) { return json({ error: error.message }, 500); }
       }
       const record = { id: "record-e2e", habit_id: body.habit_id, date: body.date, ...(body.fields || {}) };
       // The function's HTTP body is { record }; the SDK's invoke() wraps it as

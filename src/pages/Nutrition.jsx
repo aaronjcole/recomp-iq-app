@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import { useLoggingDate } from "@/lib/LoggingDateContext";
 import FoodEntryComposer from "@/components/nutrition/FoodEntryComposer";
@@ -58,7 +59,9 @@ export default function Nutrition() {
   const canUsePhotoScan = canAccess(PREMIUM_FEATURES.FOOD_PHOTO);
   const [form, setForm] = useState(empty);
   const [scanOperation, setScanOperation] = useState(null);
+  const scanOperationRef = useRef(null);
   const [review, setReview] = useState(null);
+  const closeScanner = useCallback(() => setScanOperation(null), []);
   const librarySavingRef = useRef(false);
   const [librarySaving, setLibrarySaving] = useState(false);
   const openScanner = (source, target = { date: selectedDate, meal }, returnFocusElement) => {
@@ -68,10 +71,18 @@ export default function Nutrition() {
   };
   const openReview = (food, source, foodId, target = { date: selectedDate, meal }) => {
     const returnFocusElement = target.returnFocusElement ?? (typeof document === "undefined" ? null : document.activeElement);
+    setScanOperation(null);
     setReview({ ...target, returnFocusElement, foods: food ? [createFoodDraft(food, source, foodId)] : [] });
   };
   const [searchParams, setSearchParams] = useSearchParams();
   const { state, pathname } = useLocation();
+  const isActive = pathname === "/nutrition";
+  scanOperationRef.current = isActive ? scanOperation : null;
+  useEffect(() => {
+    if (isActive) return;
+    setReview(null);
+    setScanOperation(null);
+  }, [isActive]);
   const detailsRef = useRef(null);
   const foodFormId = useId();
   const requestedPanel = searchParams.get("panel");
@@ -97,6 +108,8 @@ export default function Nutrition() {
   const weekday = formatWeekdayName(selectedDate);
 
   const handleSegmentChange = useCallback((newSeg) => {
+    setReview(null);
+    setScanOperation(null);
     setSegment(newSeg);
     setSearchParams(
       (prev) => {
@@ -175,9 +188,15 @@ export default function Nutrition() {
     else {
       if (!validFoodDraft(createFoodDraft(food))) throw new Error("Nutrition is incomplete. Review the food and fill in missing values before logging.");
       await addFood(food);
-      toast({ title: "Food saved to library", returnFocusElement: scanOperation.returnFocusElement });
+      // A stale completion must not put a toast over the next scanner's Close
+      // control or steal its focus when that notification is dismissed.
+      if (scanOperationRef.current === scanOperation) {
+        toast({ title: "Food saved to library", returnFocusElement: scanOperation.returnFocusElement });
+      }
     }
-    setScanOperation(null);
+    // A library save can finish after navigation and a new scanner launch.
+    // Only dismiss the scanner that initiated this result.
+    setScanOperation((current) => current === scanOperation ? null : current);
   };
 
   // Reuses a FoodItem saved on an earlier tap (savedFoodId) so a retry after a
@@ -277,6 +296,7 @@ export default function Nutrition() {
   };
 
   const saveFood = async (addToToday) => {
+    if (librarySavingRef.current) return;
     const food = {
       source: "manual",
       name: form.name,
@@ -292,7 +312,6 @@ export default function Nutrition() {
       openReview(food, "manual");
       return;
     }
-    if (librarySavingRef.current) return;
     if (!validFoodDraft(createFoodDraft(food))) {
       toast({ title: "Fill in calories, protein, carbs, and fat before saving", variant: "destructive" });
       return;
@@ -487,7 +506,7 @@ export default function Nutrition() {
                   </span>
                   <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
                 </summary>
-                <div className="pb-5 pt-2 space-y-3">
+                <fieldset disabled={librarySaving} className="min-w-0 pb-5 pt-2 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2 space-y-1.5">
                       <Label htmlFor={`${foodFormId}-name`}>Food name</Label>
@@ -513,7 +532,7 @@ export default function Nutrition() {
                       <Plus className="w-4 h-4 mr-1" /> Review food
                     </Button>
                   </div>
-                </div>
+                </fieldset>
               </details>
             </CardContent>
           </Card>
@@ -681,22 +700,22 @@ export default function Nutrition() {
         </div>
       )}
 
-      {review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} returnFocusElement={review.returnFocusElement} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={featureFlags.foodPhotoScan && canUsePhotoScan} />}
+      {isActive && review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} returnFocusElement={review.returnFocusElement} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={featureFlags.foodPhotoScan && canUsePhotoScan} />}
 
-      {scanOperation?.source === "barcode" && (
-        <Suspense fallback={<ScannerLoading />}>
+      {isActive && scanOperation?.source === "barcode" && (
+        <Suspense fallback={<ScannerLoading onClose={closeScanner} />}>
           <BarcodeScanner
-            onClose={() => setScanOperation(null)}
+            onClose={closeScanner}
             onResult={handleScannedFood}
             reviewLabel={`Review for ${scanOperation.date === selectedDate ? (isToday ? "today" : weekday) : formatWeekdayName(scanOperation.date)}`}
           />
         </Suspense>
       )}
 
-      {featureFlags.foodPhotoScan && scanOperation?.source === "photo" && (
-        <Suspense fallback={<ScannerLoading />}>
+      {isActive && featureFlags.foodPhotoScan && scanOperation?.source === "photo" && (
+        <Suspense fallback={<ScannerLoading onClose={closeScanner} />}>
           <FoodPhotoScan
-            onClose={() => setScanOperation(null)}
+            onClose={closeScanner}
             onResult={handleScannedFood}
             onManual={() => { openReview(null, "manual", undefined, scanOperation); setScanOperation(null); }}
             reviewLabel={`Review for ${formatWeekdayName(scanOperation.date)}`}
@@ -708,20 +727,39 @@ export default function Nutrition() {
   );
 }
 
-function ScannerLoading() {
+function ScannerLoading({ onClose }) {
+  const closeRef = useRef(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key === "Tab") { event.preventDefault(); closeRef.current?.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [onClose]);
   // Visible feedback while the lazily-loaded scanner chunk downloads, so a slow
   // mobile network doesn't make the tap look like it did nothing.
-  return (
+  return createPortal(
     <div
-      role="status"
-      aria-live="polite"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Loading scanner"
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
     >
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-panel px-6 py-5">
         <div className="w-8 h-8 border-4 border-panel2 border-t-teal rounded-full animate-spin" />
-        <span className="text-sm text-muted-foreground">Loading scanner…</span>
+        <span role="status" className="text-sm text-muted-foreground">Loading scanner…</span>
+        <Button ref={closeRef} variant="outline" className="min-h-11" onClick={onClose}>Cancel scanner</Button>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 

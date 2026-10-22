@@ -119,7 +119,9 @@ test("food diary supports one-tap repeat, edit, delete, and undo", async ({ page
   await expect(page.getByText("2155 / 2200", { exact: true })).toBeVisible();
 
   await diary.getByRole("button", { name: "Delete Greek Yogurt" }).first().click();
-  await page.getByRole("button", { name: "Undo" }).click();
+  // Repeat has its own still-active Undo. Wait for and use the deletion's
+  // confirmation rather than racing the earlier toast's unrelated action.
+  await page.locator("[data-toast-id]").filter({ hasText: "Greek Yogurt removed" }).getByRole("button", { name: "Undo", exact: true }).click();
   await expect(diary.getByText("2 items")).toBeVisible();
   await expect(page.getByText("2155 / 2200", { exact: true })).toBeVisible();
   assertNoPageErrors();

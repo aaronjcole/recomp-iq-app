@@ -12,7 +12,7 @@ const ERRORS = {
 };
 
 /** Optional input only. The parent owns editable text and explicit review/logging. */
-export default function MealSpeechInput({ onTranscript, disabled = false }) {
+export default function MealSpeechInput({ onTranscript, onActiveChange = undefined, disabled = false }) {
   const [mode, setMode] = useState(null);
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState("idle");
@@ -20,6 +20,8 @@ export default function MealSpeechInput({ onTranscript, disabled = false }) {
   const capture = useRef(null);
   const callback = useRef(onTranscript);
   callback.current = onTranscript;
+  const activeCallback = useRef(onActiveChange);
+  activeCallback.current = onActiveChange;
   const consentId = useId();
 
   useEffect(() => {
@@ -37,13 +39,14 @@ export default function MealSpeechInput({ onTranscript, disabled = false }) {
   useEffect(() => {
     if (!mode) return;
     let mounted = true;
+    setState("idle");
     const instance = createMealSpeechCapture({ mode,
       onTranscript: (text) => { if (mounted) callback.current(text); },
-      onState: (value) => { if (mounted) setState(value); },
+      onState: (value) => { if (mounted) { setState(value); activeCallback.current?.(value !== "idle"); } },
       onError: (code) => { if (mounted) setError(ERRORS[code] || "Voice input is unavailable. Type your meal instead."); }
     });
     capture.current = instance;
-    return () => { mounted = false; instance.dispose(); capture.current = null; };
+    return () => { mounted = false; instance.dispose(); capture.current = null; activeCallback.current?.(false); };
   }, [mode]);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export default function MealSpeechInput({ onTranscript, disabled = false }) {
   if (!mode) return null;
   const active = state !== "idle";
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="min-w-0 max-w-full flex flex-col items-start gap-2">
       {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       {active ? (
         <>
@@ -68,7 +71,7 @@ export default function MealSpeechInput({ onTranscript, disabled = false }) {
               <Square className="mr-2 h-4 w-4" aria-hidden="true" /> Stop
             </Button>
             <Button type="button" variant="outline" className="min-h-11" onClick={() => capture.current?.cancel()}>
-              <X className="mr-2 h-4 w-4" aria-hidden="true" /> Cancel
+              <X className="mr-2 h-4 w-4" aria-hidden="true" /> Cancel voice input
             </Button>
           </div>
         </>
@@ -84,7 +87,7 @@ export default function MealSpeechInput({ onTranscript, disabled = false }) {
               onClick={() => { setError(""); setConsent(false); capture.current?.start(); }}>
               <Mic className="mr-2 h-4 w-4" aria-hidden="true" /> Record meal
             </Button>
-            <Button type="button" variant="ghost" className="min-h-11" onClick={() => setConsent(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" className="min-h-11" onClick={() => setConsent(false)}>Cancel voice input</Button>
           </div>
         </>
       ) : (

@@ -40,7 +40,7 @@ function foodIdentity(entry) {
  */
 export function recentLoggedFoods(entries, limit = 8) {
   const sorted = (Array.isArray(entries) ? entries : [])
-    .filter((entry) => entry && !entry.pending && String(entry.name ?? "").trim())
+    .filter((entry) => entry && !entry.pending && !entry.reconciliationRequired && String(entry.name ?? "").trim())
     .sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
   const seen = new Set();
   const recent = [];
@@ -72,7 +72,7 @@ export function perUnitNutrition(entry) {
 /** Calories and macros for `quantity` units at `perUnit`, rounded for display and storage. */
 export function scaledNutrition(perUnit, quantity) {
   const q = Number(quantity);
-  if (!(q > 0)) return null;
+  if (!(q > 0) || !Number.isFinite(q)) return null;
   return Object.fromEntries(MACRO_FIELDS.map((field) => [field, roundField(field, (perUnit[field] || 0) * q)]));
 }
 
@@ -82,7 +82,7 @@ export function scaledNutrition(perUnit, quantity) {
  */
 export function copiedEntries(entries, date, meal) {
   return (Array.isArray(entries) ? entries : [])
-    .filter((entry) => entry && !entry.pending)
+    .filter((entry) => entry && !entry.pending && !entry.reconciliationRequired)
     .map((entry) => ({
       date,
       meal: meal ?? entry.meal ?? "other",

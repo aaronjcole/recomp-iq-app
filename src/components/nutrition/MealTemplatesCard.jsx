@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useLocation, useResolvedPath } from "react-router-dom";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
-import { todayStr } from "@/lib/loggingDateUtils";
+import { todayStr, formatShortDate, isValidLocalDate } from "@/lib/loggingDateUtils";
+import { defaultMealForTime, LOGGABLE_MEALS } from "@/lib/foodLogging";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,14 +21,24 @@ import { Plus, Trash2, Utensils } from "lucide-react";
 const emptyItem = { name: "", serving_description: "1 serving", calories: "", protein_g: "", carbs_g: "", fat_g: "" };
 const n = (v) => Number(v) || 0;
 
-export default function MealTemplatesCard({ date = todayStr(), meal = "other" }) {
+export default function MealTemplatesCard({ date = todayStr(), meal = defaultMealForTime() }) {
   const { mealTemplates, foods } = useRecompRef();
   const { saveMealTemplate, logMealTemplate } = useRecompActions();
   const { toast } = useToast();
+  const formId = useId();
   const [name, setName] = useState("");
   const [items, setItems] = useState([]);
   const [item, setItem] = useState(emptyItem);
   const [loggingId, setLoggingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const savingRef = useRef(false);
+  const loggingRef = useRef(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const { pathname } = useLocation();
+  const ownerPath = useResolvedPath(".").pathname;
+  const active = pathname.replace(/\/$/, "") === ownerPath.replace(/\/$/, "");
+  useEffect(() => { if (!active) setLibraryOpen(false); }, [active]);
 
   const totals = items.reduce(
     (acc, it) => ({
@@ -63,36 +75,50 @@ export default function MealTemplatesCard({ date = todayStr(), meal = "other" })
   const removeItem = (idx) => setItems((p) => p.filter((_, i) => i !== idx));
 
   const save = async () => {
-    if (!name || items.length === 0) return;
-    await saveMealTemplate({
-      name,
-      items,
-      total_calories: totals.calories,
-      total_protein_g: totals.protein_g,
-      total_carbs_g: totals.carbs_g,
-      total_fat_g: totals.fat_g,
-      tags: []
-    });
-    toast({ title: "Saved", description: "Meal template created." });
-    setName("");
-    setItems([]);
+    if (savingRef.current || !name.trim() || items.length === 0) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await saveMealTemplate({
+        name: name.trim(),
+        items,
+        total_calories: totals.calories,
+        total_protein_g: totals.protein_g,
+        total_carbs_g: totals.carbs_g,
+        total_fat_g: totals.fat_g,
+        tags: []
+      });
+      toast({ title: "Saved", description: "Meal template created." });
+      setName("");
+      setItems([]);
+    } catch {
+      setSaveError("Meal template could not be saved. Your items are still here; please try again.");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   const log = async (tpl) => {
-    if (loggingId) return;
+    if (loggingRef.current || !isValidLocalDate(date) || !LOGGABLE_MEALS.some((option) => option.value === meal)) return;
+    loggingRef.current = true;
     setLoggingId(tpl.id);
+    const targetDate = date;
+    const targetMeal = meal;
     try {
-      await logMealTemplate(tpl, date, meal);
-      toast({ title: `${tpl.name} logged` });
+      await logMealTemplate(tpl, targetDate, targetMeal);
+      toast({ title: "Meal template logged", description: `${formatShortDate(targetDate)} · ${LOGGABLE_MEALS.find((option) => option.value === targetMeal)?.label}` });
     } catch {
-      toast({ title: `Couldn't log ${tpl.name}`, variant: "destructive" });
+      toast({ title: "Couldn't log meal template", description: "Please try again.", variant: "destructive" });
     } finally {
+      loggingRef.current = false;
       setLoggingId(null);
     }
   };
 
   return (
-    <Card className="bg-panel border-line">
+    <Card className="min-w-0 bg-panel border-line [overflow-wrap:anywhere]">
       <CardContent className="p-5 space-y-4">
         <h2 className="flex items-center gap-2 font-medium">
           <Utensils className="w-4 h-4 text-teal" /> Meal templates
@@ -112,9 +138,9 @@ export default function MealTemplatesCard({ date = todayStr(), meal = "other" })
             </div>
             <Button
               size="sm"
-              className="bg-teal text-buttonText hover:opacity-90"
+              className="shrink-0 bg-teal text-buttonText hover:opacity-90"
               onClick={() => log(t)}
-              disabled={Boolean(loggingId)}
+              disabled={Boolean(loggingId) || !isValidLocalDate(date) || !LOGGABLE_MEALS.some((option) => option.value === meal)}
               aria-label={`Log ${t.name}`}
             >
               {loggingId === t.id ? "Logging…" : "Log"}
@@ -122,22 +148,22 @@ export default function MealTemplatesCard({ date = todayStr(), meal = "other" })
           </div>
         ))}
 
-        <div className="space-y-3 rounded-lg bg-panel2 p-3">
+        <fieldset disabled={saving} className="min-w-0 space-y-3 rounded-lg bg-panel2 p-3">
           <h3 className="text-xs font-medium text-muted-foreground">Save as meal template</h3>
 
           <div className="space-y-1.5">
-            <Label>Template name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Breakfast bowl" />
+            <Label htmlFor={`${formId}-name`}>Template name</Label>
+            <Input id={`${formId}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Breakfast bowl" />
           </div>
 
           {foods.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Pick from library</Label>
-              <Select onValueChange={addFromLibrary} value="">
-                <SelectTrigger><SelectValue placeholder="Add a food…" /></SelectTrigger>
-                <SelectContent>
+              <Label htmlFor={`${formId}-library`}>Pick from library</Label>
+              <Select onValueChange={addFromLibrary} value="" disabled={saving} open={active && libraryOpen} onOpenChange={setLibraryOpen}>
+                <SelectTrigger id={`${formId}-library`}><SelectValue placeholder="Add a food…" /></SelectTrigger>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
                   {foods.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                    <SelectItem key={f.id} value={f.id}><span className="block max-w-[min(16rem,calc(100vw-6rem))] whitespace-normal [overflow-wrap:anywhere]">{f.name}</span></SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -149,10 +175,10 @@ export default function MealTemplatesCard({ date = todayStr(), meal = "other" })
               {items.map((it, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2 text-sm">
                   <div className="min-w-0">
-                    <span className="font-medium truncate">{it.name}</span>
+                    <span className="block break-words font-medium">{it.name}</span>
                     <span className="text-xs text-muted-foreground"> · {n(it.calories)} kcal · {n(it.protein_g)}p/{n(it.carbs_g)}c/{n(it.fat_g)}f</span>
                   </div>
-                  <button onClick={() => removeItem(idx)} className="text-muted-foreground hover:text-destructive shrink-0">
+                  <button type="button" aria-label={`Remove template item ${idx + 1}`} onClick={() => removeItem(idx)} className="flex min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-destructive shrink-0">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -168,23 +194,24 @@ export default function MealTemplatesCard({ date = todayStr(), meal = "other" })
 
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2 space-y-1.5">
-              <Label>Add item manually</Label>
-              <Input value={item.name} onChange={(e) => setItem({ ...item, name: e.target.value })} placeholder="Item name" />
+              <Label htmlFor={`${formId}-item-name`}>Add item manually</Label>
+              <Input id={`${formId}-item-name`} value={item.name} onChange={(e) => setItem({ ...item, name: e.target.value })} placeholder="Item name" />
             </div>
-            <Input value={item.serving_description} onChange={(e) => setItem({ ...item, serving_description: e.target.value })} placeholder="Serving" />
-            <Input type="number" inputMode="decimal" value={item.calories} onChange={(e) => setItem({ ...item, calories: e.target.value })} placeholder="Cal" />
-            <Input type="number" inputMode="decimal" value={item.protein_g} onChange={(e) => setItem({ ...item, protein_g: e.target.value })} placeholder="Protein" />
-            <Input type="number" inputMode="decimal" value={item.carbs_g} onChange={(e) => setItem({ ...item, carbs_g: e.target.value })} placeholder="Carbs" />
-            <Input type="number" inputMode="decimal" value={item.fat_g} onChange={(e) => setItem({ ...item, fat_g: e.target.value })} placeholder="Fat" />
+            <Input aria-label="Template item serving" value={item.serving_description} onChange={(e) => setItem({ ...item, serving_description: e.target.value })} placeholder="Serving" />
+            <Input aria-label="Template item calories" type="number" inputMode="decimal" value={item.calories} onChange={(e) => setItem({ ...item, calories: e.target.value })} placeholder="Cal" />
+            <Input aria-label="Template item protein" type="number" inputMode="decimal" value={item.protein_g} onChange={(e) => setItem({ ...item, protein_g: e.target.value })} placeholder="Protein" />
+            <Input aria-label="Template item carbs" type="number" inputMode="decimal" value={item.carbs_g} onChange={(e) => setItem({ ...item, carbs_g: e.target.value })} placeholder="Carbs" />
+            <Input aria-label="Template item fat" type="number" inputMode="decimal" value={item.fat_g} onChange={(e) => setItem({ ...item, fat_g: e.target.value })} placeholder="Fat" />
           </div>
           <Button variant="outline" size="sm" className="w-full border-line" onClick={addItem} disabled={!item.name || !item.calories}>
             <Plus className="w-4 h-4 mr-1" /> Add item
           </Button>
 
-          <Button className="w-full bg-teal text-buttonText hover:opacity-90" onClick={save} disabled={!name || items.length === 0}>
-            Save template
+          {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+          <Button className="w-full bg-teal text-buttonText hover:opacity-90" onClick={save} disabled={saving || !name.trim() || items.length === 0}>
+            {saving ? "Saving template…" : "Save template"}
           </Button>
-        </div>
+        </fieldset>
       </CardContent>
     </Card>
   );

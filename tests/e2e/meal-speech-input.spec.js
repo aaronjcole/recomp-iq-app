@@ -72,7 +72,7 @@ test("Cancel, disabled and unmount abort browser capture without delivering fina
       window.__recognition.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: "discard me" }], { isFinal: true })] });
       window.__lateEnd = window.__recognition.onend;
     });
-    if (action === "cancel") await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    if (action === "cancel") await page.getByRole("button", { name: "Cancel voice input", exact: true }).click();
     else if (action === "disabled") {
       await page.evaluate(() => window.mountSpeech(true));
       await expect(page.getByRole("button", { name: "Describe by voice" })).toBeDisabled();

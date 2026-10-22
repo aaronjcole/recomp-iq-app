@@ -32,6 +32,15 @@
       "minimum": 0,
       "maximum": 2000
     },
+    "nutrition_operation_ids": {
+      "type": "array",
+      "description": "Server-managed nutrition increment receipts. Retained without eviction so old request retries remain safe.",
+      "items": {
+        "type": "string",
+        "maxLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      }
+    },
     "steps": {
       "type": "number",
       "minimum": 0,

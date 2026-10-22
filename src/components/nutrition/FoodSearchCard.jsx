@@ -15,6 +15,11 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [added, setAdded] = useState({});
+  const [pending, setPending] = useState({});
+  const [selecting, setSelecting] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const inputRef = useRef(null);
+  const selectionRef = useRef(false);
   const { toast } = useToast();
   // source_id -> FoodItem id already created, so retries reuse it.
   const savedIdsRef = useRef({});
@@ -59,7 +64,21 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
       requestIdRef.current += 1;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, retry]);
+
+  const handleSelect = async (food) => {
+    if (selectionRef.current) return;
+    selectionRef.current = true;
+    setSelecting(true);
+    try {
+      await onSelect(food);
+    } catch {
+      toast({ title: "Couldn't open food review", variant: "destructive" });
+    } finally {
+      selectionRef.current = false;
+      setSelecting(false);
+    }
+  };
 
   const handleAdd = async (food, addToToday) => {
     const key = food.source_id;
@@ -67,14 +86,14 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
     if (inFlightRef.current.has(key) || current === "today") return;
     if (!addToToday && current === "library") return;
     inFlightRef.current.add(key);
-    setAdded((prev) => ({ ...prev, [key]: addToToday ? "today" : "library" }));
+    setPending((prev) => ({ ...prev, [key]: addToToday ? "review" : "library" }));
     try {
       await onAdd?.(food, addToToday, {
         savedFoodId: savedIdsRef.current[key],
         onSaved: (id) => { savedIdsRef.current[key] = id; }
       });
       // Opening a review is not a committed log. Cancel must allow another try.
-      if (addToToday) setAdded((prev) => ({ ...prev, [key]: savedIdsRef.current[key] ? "library" : undefined }));
+      setAdded((prev) => ({ ...prev, [key]: !addToToday || savedIdsRef.current[key] ? "library" : undefined }));
     } catch {
       // If the FoodItem was saved but the diary write failed, show it as saved.
       setAdded((prev) => ({ ...prev, [key]: savedIdsRef.current[key] ? "library" : undefined }));
@@ -84,14 +103,15 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
       });
     } finally {
       inFlightRef.current.delete(key);
+      setPending((prev) => ({ ...prev, [key]: undefined }));
     }
   };
 
   const trimmed = query.trim();
 
   return (
-    <Card className="bg-panel border-line">
-      <CardContent className="p-5 space-y-3">
+    <Card className="min-w-0 max-w-full bg-panel border-line">
+      <CardContent className="p-3 sm:p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Search className="w-4 h-4 text-teal" aria-hidden="true" />
           <h2 className="font-medium">Search foods</h2>
@@ -100,11 +120,12 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search any food — e.g. chicken breast"
             aria-label="Search foods online"
-            className="h-11 pl-9 pr-9"
+            className="h-11 pl-9 pr-14"
             inputMode="search"
             autoCapitalize="off"
             autoCorrect="off"
@@ -112,8 +133,8 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
           {query && (
             <button
               type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground min-h-[36px] min-w-[36px] flex items-center justify-center"
+              onClick={() => { setQuery(""); inputRef.current?.focus(); }}
+              className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground min-h-11 min-w-11 flex items-center justify-center"
               aria-label="Clear search"
             >
               <X className="w-4 h-4" />
@@ -122,13 +143,13 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
         </div>
 
         {searching && (
-          <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+          <div role="status" className="flex items-center justify-center py-4 text-sm text-muted-foreground">
             <LoaderCircle className="w-4 h-4 mr-2 animate-spin" /> Searching…
           </div>
         )}
 
         {error && !searching && (
-          <p className="text-sm text-red">{error}</p>
+          <div className="space-y-2"><p role="alert" className="break-words text-sm text-red">{error}</p><Button variant="outline" className="min-h-11" onClick={() => setRetry((value) => value + 1)}>Search again</Button></div>
         )}
 
         {!searching && results.length > 0 && (
@@ -149,23 +170,23 @@ export default function FoodSearchCard({ onAdd = undefined, onSelect = undefined
                       <div>{food.protein_g ?? "—"}p / {food.carbs_g ?? "—"}c / {food.fat_g ?? "—"}f</div>
                     </div>
                   </div>
-                  {onSelect ? <Button className="min-h-11 w-full bg-teal text-buttonText" onClick={() => onSelect(food)}>Review {food.name}</Button> : <div className="flex gap-2">
+                  {onSelect ? <Button disabled={selecting} className="h-auto min-h-11 min-w-0 w-full whitespace-normal bg-teal text-buttonText" onClick={() => handleSelect(food)}><span className="min-w-0 [overflow-wrap:anywhere]">Review {food.name}</span></Button> : <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       className="min-h-11 flex-1"
                       onClick={() => handleAdd(food, false)}
-                      disabled={!!state}
+                      disabled={!!state || !!pending[food.source_id]}
                     >
-                      {state === "library" ? <><Check className="w-3.5 h-3.5 mr-1" /> Saved</> : <><Bookmark className="w-3.5 h-3.5 mr-1" /> Library</>}
+                      {pending[food.source_id] === "library" ? "Saving…" : state === "library" ? <><Check className="w-3.5 h-3.5 mr-1" /> Saved</> : <><Bookmark className="w-3.5 h-3.5 mr-1" /> Library</>}
                     </Button>
                     <Button
                       size="sm"
-                      className="min-h-11 flex-1 bg-teal text-buttonText hover:opacity-90"
+                      className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal bg-teal text-buttonText hover:opacity-90"
                       onClick={() => handleAdd(food, true)}
-                      disabled={state === "today"}
+                      disabled={state === "today" || !!pending[food.source_id]}
                     >
-                      {state === "today" ? <><Check className="w-3.5 h-3.5 mr-1" /> Reviewed</> : <><Plus className="w-3.5 h-3.5 mr-1" /> {addLabel}</>}
+                      {pending[food.source_id] === "review" ? "Opening…" : state === "today" ? <><Check className="w-3.5 h-3.5 mr-1" /> Reviewed</> : <><Plus className="w-3.5 h-3.5 mr-1" /> {addLabel}</>}
                     </Button>
                   </div>}
                 </div>

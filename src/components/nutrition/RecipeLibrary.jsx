@@ -1,4 +1,5 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useLocation, useResolvedPath } from "react-router-dom";
 import { ChefHat, Star } from "lucide-react";
 import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -16,10 +17,13 @@ import FoodEntryComposer from "./FoodEntryComposer";
 // Parent mounts this in Fuel's Library tab. Date/meal are snapshotted on Log.
 export default function RecipeLibrary({ date = todayStr(), meal = defaultMealForTime() }) {
   const { user } = useAuth();
-  return <AccountRecipeLibrary key={user?.id ?? "signed-out"} date={date} meal={meal} />;
+  const { pathname } = useLocation();
+  // This library belongs to its mounting page, not every cached tab route.
+  const ownerPath = useResolvedPath(".").pathname;
+  return <AccountRecipeLibrary key={user?.id ?? "signed-out"} date={date} meal={meal} active={pathname.replace(/\/$/, "") === ownerPath.replace(/\/$/, "")} />;
 }
 
-function AccountRecipeLibrary({ date, meal }) {
+function AccountRecipeLibrary({ date, meal, active }) {
   const { recipes } = useRecompRef();
   const { deleteRecipe, setRecipeFavorite } = useRecompActions();
   const id = useId();
@@ -31,19 +35,44 @@ function AccountRecipeLibrary({ date, meal }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
   const [review, setReview] = useState(null);
+  const mutationRef = useRef(false);
+  const editorReturnId = useRef(null);
+  useEffect(() => {
+    if (!active) {
+      setReview(null);
+      setConfirmDelete(null);
+    }
+  }, [active]);
+  useEffect(() => {
+    if (!editing && active && editorReturnId.current) {
+      document.getElementById(editorReturnId.current)?.focus({ preventScroll: true });
+      editorReturnId.current = null;
+    }
+  }, [editing, active]);
   const query = search.trim().toLowerCase();
   const matching = recipes.filter((recipe) => (!favoritesOnly || recipe.is_favorite) &&
     [recipe.title, recipe.description, ...(recipe.tags ?? []), ...(recipe.ingredients ?? []).map((item) => item.name)].join(" ").toLowerCase().includes(query));
   const mutate = async (recipeId, action) => {
-    if (busy) return;
+    if (mutationRef.current) return;
+    mutationRef.current = true;
     setBusy(recipeId); setError("");
     try { await action(); setConfirmDelete(null); }
     catch (actionError) { setError(actionError?.message ?? "Recipe could not be updated. Try again."); }
-    finally { setBusy(null); }
+    finally { mutationRef.current = false; setBusy(null); }
   };
 
+  // The editor replaces the list, so another recipe cannot replace an editor
+  // whose save is still pending, nor can a review open behind that editor.
+  if (editing && (editing === "new" || recipes.some((recipe) => recipe.id === editing))) {
+    return (
+      <section className="min-w-0 space-y-3" aria-label="Recipe editor">
+        <AddRecipeCard key={editing} recipe={recipes.find((recipe) => recipe.id === editing) ?? null} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
+      </section>
+    );
+  }
+
   return (
-    <section className="space-y-3" aria-labelledby={`${id}-heading`}>
+    <section className="min-w-0 space-y-3 [overflow-wrap:anywhere]" aria-labelledby={`${id}-heading`}>
       <Card className="border-line bg-panel">
         <CardContent className="space-y-3 p-5">
           <h2 id={`${id}-heading`} className="flex items-center gap-2 font-medium"><ChefHat className="h-4 w-4 text-teal" aria-hidden="true" /> Recipes</h2>
@@ -51,7 +80,7 @@ function AccountRecipeLibrary({ date, meal }) {
           <Input id={`${id}-search`} type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Title, ingredient, or tag" />
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="min-h-11" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly((value) => !value)}>Favorites only</Button>
-            <Button variant="outline" className="min-h-11" onClick={() => setEditing("new")}>Create recipe</Button>
+            <Button id={`${id}-create`} variant="outline" className="min-h-11" disabled={busy !== null} onClick={(event) => { editorReturnId.current = event.currentTarget.id; setEditing("new"); }}>Create recipe</Button>
           </div>
           {matching.length === 0 && <p className="text-sm text-muted-foreground">{recipes.length ? "No recipes match your search." : "No saved recipes yet. Create your first recipe."}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -75,11 +104,11 @@ function AccountRecipeLibrary({ date, meal }) {
               <p className="text-xs text-muted-foreground">{RECIPE_NUTRIENTS.map(({ key, label }) => `${label}: ${nutrition[key] == null ? "Unknown" : Number(nutrition[key].toFixed(2))}`).join(" · ")}</p>
               {incomplete && <p className="text-xs text-muted-foreground">Nutrition incomplete — review unknown values before logging.</p>}
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="min-h-11" aria-expanded={open} aria-controls={`${id}-${recipe.id}-detail`} onClick={() => setExpanded(open ? null : recipe.id)}>View {recipe.title}</Button>
-                <Button className="min-h-11 bg-teal text-buttonText" disabled={!isValidLocalDate(date)} onClick={(event) => {
+                <Button variant="outline" className="min-h-11" aria-label={`View ${recipe.title}`} aria-expanded={open} aria-controls={`${id}-${recipe.id}-detail`} onClick={() => setExpanded(open ? null : recipe.id)}>View recipe</Button>
+                <Button className="min-h-11 bg-teal text-buttonText" aria-label={`Log ${recipe.title}`} disabled={busy !== null || !isValidLocalDate(date)} onClick={(event) => {
                   if (!isValidLocalDate(date)) return;
                   setReview({ date, initialMeal: meal, initialFoods: [createFoodDraft(recipeFood(recipe), "recipe", recipe.id)], returnFocusElement: event.currentTarget });
-                }}>Log {recipe.title}</Button>
+                }}>Log recipe</Button>
               </div>
               {open && <div id={`${id}-${recipe.id}-detail`} className="space-y-3 border-t border-line pt-3">
                 {recipe.description && <p className="text-sm text-muted-foreground">{recipe.description}</p>}
@@ -88,13 +117,13 @@ function AccountRecipeLibrary({ date, meal }) {
                 <h4 className="text-sm font-medium">Instructions</h4>
                 {recipe.instructions?.length ? <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">{recipe.instructions.map((step, index) => <li key={index}>{step}</li>)}</ol> : <p className="text-sm text-muted-foreground">No instructions saved.</p>}
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" className="min-h-11" disabled={busy !== null} onClick={() => setEditing(recipe.id)}>Edit {recipe.title}</Button>
-                  <Button variant="outline" className="min-h-11 text-destructive" disabled={busy !== null} onClick={() => setConfirmDelete(recipe.id)}>Delete {recipe.title}</Button>
+                  <Button id={`${id}-${recipe.id}-edit`} variant="outline" className="min-h-11" aria-label={`Edit ${recipe.title}`} disabled={busy !== null} onClick={(event) => { editorReturnId.current = event.currentTarget.id; setEditing(recipe.id); }}>Edit recipe</Button>
+                  <Button variant="outline" className="min-h-11 text-destructive" aria-label={`Delete ${recipe.title}`} disabled={busy !== null} onClick={() => setConfirmDelete(recipe.id)}>Delete recipe</Button>
                 </div>
                 {confirmDelete === recipe.id && <div className="space-y-2">
                   <p className="text-sm">Delete this saved recipe? Existing diary entries will stay.</p>
-                  <div className="flex gap-2">
-                    <Button variant="destructive" className="min-h-11" disabled={busy !== null} onClick={() => mutate(recipe.id, () => deleteRecipe(recipe.id))}>Confirm delete recipe</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="destructive" className="h-auto min-h-11 max-w-full whitespace-normal" disabled={busy !== null} onClick={() => mutate(recipe.id, () => deleteRecipe(recipe.id))}>Confirm delete recipe</Button>
                     <Button variant="outline" className="min-h-11" disabled={busy !== null} onClick={() => setConfirmDelete(null)}>Keep recipe</Button>
                   </div>
                 </div>}
@@ -103,8 +132,7 @@ function AccountRecipeLibrary({ date, meal }) {
           </Card>
         );
       })}
-      {editing && (editing === "new" || recipes.some((recipe) => recipe.id === editing)) && <AddRecipeCard key={editing} recipe={recipes.find((recipe) => recipe.id === editing) ?? null} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />}
-      {review && <FoodEntryComposer {...review} onClose={() => setReview(null)} />}
+      {active && review && <FoodEntryComposer {...review} onClose={() => setReview(null)} />}
     </section>
   );
 }

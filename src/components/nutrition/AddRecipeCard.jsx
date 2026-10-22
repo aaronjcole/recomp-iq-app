@@ -57,7 +57,7 @@ export default function AddRecipeCard({ recipe = null, onSaved = undefined, onCa
   };
 
   return (
-    <Card className="bg-panel border-line">
+    <Card className="min-w-0 bg-panel border-line [overflow-wrap:anywhere]">
       <CardContent className="p-5 space-y-3">
         <h2 className="flex items-center gap-2 font-medium">
           <ChefHat className="w-4 h-4 text-teal" /> {recipe ? "Edit recipe" : "Add recipe"}
@@ -66,7 +66,7 @@ export default function AddRecipeCard({ recipe = null, onSaved = undefined, onCa
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 space-y-1.5">
             <Label htmlFor={`${recipeFormId}-title`}>Title</Label>
-            <Input id={`${recipeFormId}-title`} aria-label="Recipe title" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Chicken rice bowl" />
+            <Input id={`${recipeFormId}-title`} aria-label="Recipe title" autoFocus={Boolean(onCancel)} maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Chicken rice bowl" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={`${recipeFormId}-servings`}>Servings</Label>
@@ -76,13 +76,13 @@ export default function AddRecipeCard({ recipe = null, onSaved = undefined, onCa
         <div className="space-y-2">
           <div className="text-sm font-medium leading-none">Ingredients</div>
           {rows.map((r, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-2 sm:flex">
               <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-name`}>{`Ingredient ${i + 1} name`}</Label>
-              <Input id={`${recipeFormId}-ingredient-${i}-name`} value={r.name} onChange={(e) => setRow(i, "name", e.target.value)} placeholder="Ingredient" className="flex-1" />
+              <Input id={`${recipeFormId}-ingredient-${i}-name`} value={r.name} onChange={(e) => setRow(i, "name", e.target.value)} placeholder="Ingredient" className="col-span-3 min-w-0 sm:flex-1" />
               <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-quantity`}>{`Ingredient ${i + 1} quantity`}</Label>
-              <Input id={`${recipeFormId}-ingredient-${i}-quantity`} type="number" min="0.001" max="100000" step="any" inputMode="decimal" value={r.quantity} onChange={(e) => setRow(i, "quantity", e.target.value)} placeholder="Qty" className="w-20" />
+              <Input id={`${recipeFormId}-ingredient-${i}-quantity`} type="number" min="0.001" max="100000" step="any" inputMode="decimal" value={r.quantity} onChange={(e) => setRow(i, "quantity", e.target.value)} placeholder="Qty" className="min-w-0 sm:w-20" />
               <Label className="sr-only" htmlFor={`${recipeFormId}-ingredient-${i}-unit`}>{`Ingredient ${i + 1} unit`}</Label>
-              <Input id={`${recipeFormId}-ingredient-${i}-unit`} value={r.unit} onChange={(e) => setRow(i, "unit", e.target.value)} placeholder="unit" className="w-20" />
+              <Input id={`${recipeFormId}-ingredient-${i}-unit`} value={r.unit} onChange={(e) => setRow(i, "unit", e.target.value)} placeholder="unit" className="min-w-0 sm:w-20" />
               <button type="button" onClick={() => removeRow(i)} aria-label={`Remove ingredient ${i + 1}`} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive">
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -117,7 +117,7 @@ export default function AddRecipeCard({ recipe = null, onSaved = undefined, onCa
         <Button className="w-full min-h-11 bg-teal text-buttonText hover:opacity-90" onClick={save} disabled={!canSave || saving}>
           {saving ? "Saving…" : "Save recipe"}
         </Button>
-        {onCancel && <Button variant="outline" className="w-full min-h-11" onClick={onCancel}>Cancel recipe editing</Button>}
+        {onCancel && <Button variant="outline" className="h-auto w-full min-h-11 whitespace-normal" onClick={() => { if (!savingRef.current) onCancel(); }}>Cancel recipe editing</Button>}
         </fieldset>
       </CardContent>
     </Card>

@@ -50,7 +50,7 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
         dialogRef.current?.querySelectorAll(
           'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
         ) ?? []
-      ).filter((element) => element instanceof HTMLElement && !element.classList.contains("hidden")));
+      ).filter((element) => element instanceof HTMLElement && element.getClientRects().length > 0));
       if (focusable.length === 0) {
         event.preventDefault();
         dialogRef.current?.focus();
@@ -59,7 +59,10 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (!focusable.some((element) => element === document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -158,12 +161,12 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
       aria-describedby="food-photo-description"
       aria-busy={status === "analyzing"}
       tabIndex={-1}
-      className="fixed inset-0 z-[60] bg-black flex flex-col select-none"
+      className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-black select-none"
     >
       <p id="food-photo-description" className="sr-only">
         Take or choose a food photo to estimate its calories and macros.
       </p>
-      <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+      <div className="flex shrink-0 items-center justify-between gap-2 p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
         <div id="food-photo-title" className="flex items-center gap-2 font-medium">
           <Camera className="w-5 h-5" />
           Snap food
@@ -171,8 +174,9 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
         <button
           ref={closeButtonRef}
           onClick={handleClose}
-          className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] shrink-0 flex items-center justify-center"
           aria-label="Close"
+          disabled={submitting}
         >
           <X className="w-6 h-6" />
         </button>
@@ -187,7 +191,7 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
         onChange={pick}
       />
 
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         {status === "capture" && (
           <button
             type="button"
@@ -205,19 +209,19 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
         )}
 
         {status === "preview" && photo && (
-          <div className="absolute inset-0 flex flex-col">
+          <div className="absolute inset-0 flex flex-col overflow-y-auto">
             <img src={photo.url} alt="food" className="min-h-0 w-full flex-1 object-contain" />
-            <div className="bg-panel p-4 text-foreground">
+            <div className="shrink-0 bg-panel p-4 text-foreground">
               <label className="flex min-h-11 cursor-pointer items-start gap-3 text-xs leading-relaxed">
                 <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-teal" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
                 Send this photo through private upload to our AI provider for a food estimate. Portions and nutrition can be wrong; I will review them before logging.
               </label>
             </div>
-            <div className="bg-panel p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex gap-2">
-              <Button variant="outline" className="flex-1 h-11 min-h-[44px]" onClick={retake}>
+            <div className="flex shrink-0 gap-2 bg-panel p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              <Button variant="outline" className="min-h-11 h-auto min-w-0 flex-1 whitespace-normal py-2" onClick={retake}>
                 <RefreshCw className="w-4 h-4 mr-1" /> Retake
               </Button>
-              <Button className="flex-1 h-11 min-h-[44px] bg-teal text-buttonText hover:opacity-90" onClick={analyze} disabled={!consent}>
+              <Button className="min-h-11 h-auto min-w-0 flex-1 whitespace-normal bg-teal py-2 text-buttonText hover:opacity-90" onClick={analyze} disabled={!consent}>
                 <Sparkles className="w-4 h-4 mr-1" /> Estimate macros
               </Button>
             </div>
@@ -266,7 +270,7 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
 
             <div className="flex flex-col gap-2 mt-5">
               <Button
-                className="bg-teal text-buttonText hover:opacity-90 h-11 min-h-[44px]"
+                className="min-h-11 h-auto whitespace-normal bg-teal py-2 text-buttonText hover:opacity-90"
                 onClick={() => submit(true)}
                 disabled={submitting}
               >
@@ -275,7 +279,7 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
               <div className="flex gap-2">
                 {items.length === 1 && <Button
                   variant="outline"
-                  className="flex-1 h-11 min-h-[44px]"
+                  className="min-h-11 h-auto min-w-0 flex-1 whitespace-normal py-2"
                   onClick={() => submit(false)}
                   disabled={submitting}
                 >
@@ -291,13 +295,15 @@ export default function FoodPhotoScan({ onClose, onResult, onManual = undefined,
         )}
 
         {(status === "error" || status === "unable") && (
-          <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 px-8 text-center">
+          <div role="alert" className="absolute inset-0 overflow-y-auto">
+          <div className="flex min-h-full flex-col items-center justify-center gap-3 px-8 py-4 text-center text-white">
             <p className="font-medium">{status === "unable" ? "We couldn't estimate this photo" : "Couldn't analyze the photo"}</p>
             <p className="text-sm text-white/70">{err}</p>
             <Button variant="outline" className="mt-2 h-11 min-h-[44px]" onClick={retake}>
               Try another photo
             </Button>
             {onManual && <Button variant="outline" className="min-h-11" onClick={onManual}>Enter food manually</Button>}
+          </div>
           </div>
         )}
       </div>

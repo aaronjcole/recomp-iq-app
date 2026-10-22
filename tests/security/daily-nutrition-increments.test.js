@@ -102,9 +102,33 @@ test("only nutrition totals can be incremented, and habit entries reject increme
 
 test("the client sends nutrition changes as increments, never as absolute totals", async () => {
   const { readFileSync } = await import("node:fs");
+  const { newNutritionOperationId } = await import("../../src/lib/foodNutritionSync.js");
   const context = readFileSync(new URL("../../src/lib/RecompContext.jsx", import.meta.url), "utf8");
   const nutrition = readFileSync(new URL("../../src/pages/Nutrition.jsx", import.meta.url), "utf8");
-  assert.match(context, /upsertDailyLog\(date, null, \{ increments \}\)/);
+  const start = context.indexOf("  const adjustDailyNutrition = useCallback(");
+  const end = context.indexOf("  const logFoodEntries = useCallback(", start);
+  assert.ok(start >= 0 && end > start, "production nutrition callback is available");
+  const calls = [];
+  let active = true;
+  const adjust = new Function("useCallback", "FOOD_TOTAL_FIELDS", "userIdRef", "assertFoodOwner", "upsertDailyLog", "newNutritionOperationId", "assertFoodDayReady",
+    `${context.slice(start, end)}\nreturn adjustDailyNutrition;`
+  )((callback) => callback, DAILY_LOG_INCREMENT_FIELDS, { current: OWNER }, (ownerId) => {
+    assert.equal(ownerId, OWNER);
+    if (!active) throw new Error("Account changed");
+  }, async (...args) => { calls.push(args); return { id: "daily-confirmed" }; }, newNutritionOperationId,
+  (ownerId, requestedDate) => assert.deepEqual([ownerId, requestedDate], [OWNER, date]));
+  await adjust(date, { calories: 150, protein_g: -5, carbs_g: 0, weight_lbs: 999 });
+  await adjust(date, { calories: 25 });
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].slice(0, 2), [date, null], "nutrition must not be sent as an absolute fields patch");
+  assert.deepEqual(calls[0][2].increments, { calories: 150, protein_g: -5 });
+  assert.match(calls[0][2].nutritionOperationId, /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i);
+  assert.notEqual(calls[0][2].nutritionOperationId, calls[1][2].nutritionOperationId);
+  await adjust(date, { calories: 0 });
+  assert.equal(calls.length, 2, "zero increments must not issue a write");
+  active = false;
+  assert.throws(() => adjust(date, { calories: 10 }), /Account changed/);
+  assert.equal(calls.length, 2, "inactive owner must not issue a write");
   assert.doesNotMatch(
     context + nutrition,
     /\(current\?\.(calories|protein_g|carbs_g|fat_g) \?\? 0\) \+/,

@@ -1,6 +1,6 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Plus, ScanLine, Camera, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useRecompActions, useRecompRef } from "@/lib/RecompContext";
 import { featureFlags } from "@/lib/featureFlags";
 import {
@@ -49,7 +49,7 @@ export default function FoodEntryComposer({
   date,
   initialMeal,
   initialFoods = [],
-  returnFocusElement,
+  returnFocusElement = undefined,
   onClose,
   onScan = undefined,
   canPhotoScan = false,
@@ -58,11 +58,18 @@ export default function FoodEntryComposer({
   const { logFoodEntries, upsertDailyLog, deleteFoodLogEntry } =
     useRecompActions();
   const { toast } = useToast();
+  const { pathname } = useLocation();
+  const openingPath = useRef(pathname);
+  const currentPath = useRef(pathname);
+  currentPath.current = pathname;
+  const handingOff = useRef(false);
   const id = useId();
   const [entryDate, setEntryDate] = useState(date);
   const [meal, setMeal] = useState(initialMeal);
   const [drafts, setDrafts] = useState(initialFoods);
   const [choosing, setChoosing] = useState(initialFoods.length === 0);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [viewportStyle, setViewportStyle] = useState(undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [reconciliationRequired, setReconciliationRequired] = useState(false);
@@ -73,16 +80,38 @@ export default function FoodEntryComposer({
   const [keys, setKeys] = useState(() =>
     initialFoods.map((_, index) => `initial-${index}`),
   );
+  useEffect(() => {
+    if (pathname !== openingPath.current) onClose();
+  }, [pathname, onClose]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const resize = () => setViewportStyle({
+      maxHeight: `${Math.floor(viewport.height * 0.92)}px`,
+      bottom: `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`,
+    });
+    resize();
+    viewport.addEventListener("resize", resize);
+    viewport.addEventListener("scroll", resize);
+    return () => {
+      viewport.removeEventListener("resize", resize);
+      viewport.removeEventListener("scroll", resize);
+    };
+  }, []);
   const add = (draft) => {
+    if (savingRef.current || reconciliationRequired) return;
     setDrafts((previous) => [...previous, draft]);
     setKeys((previous) => [...previous, `new-${sequence.current++}`]);
     setChoosing(false);
+    setDescriptionOpen(false);
     setError("");
   };
-  const update = (index, change) =>
+  const update = (index, change) => {
+    if (savingRef.current || reconciliationRequired) return;
     setDrafts((previous) =>
       previous.map((draft, i) => (i === index ? change(draft) : draft)),
     );
+  };
   const resolveFood = (index, food, sourceFoodId) => {
     update(index, (draft) => ({ ...createFoodDraft(food, draft.source, sourceFoodId), review_note: `Nutrition is for one matched serving. Review quantity against your original description: ${draft.original_description || draft.provenance?.input || `${draft.quantity || "unspecified"} ${draft.serving_description} ${draft.name}`}` }));
     setResolving(null);
@@ -94,7 +123,7 @@ export default function FoodEntryComposer({
     drafts.every(validFoodDraft);
 
   const save = async () => {
-    if (savingRef.current || !valid || reconciliationRequired) return;
+    if (savingRef.current || !valid || choosing || resolving !== null || reconciliationRequired) return;
     savingRef.current = true;
     setSaving(true);
     setError("");
@@ -162,6 +191,14 @@ export default function FoodEntryComposer({
     }
   };
 
+  if (pathname !== openingPath.current) return null;
+
+  const scan = (source) => {
+    if (savingRef.current || !isValidLocalDate(entryDate)) return;
+    handingOff.current = true;
+    onScan(source, { date: entryDate, meal }, returnFocusElementRef.current);
+  };
+
   return (
     <Sheet
       open
@@ -171,17 +208,32 @@ export default function FoodEntryComposer({
     >
       <SheetContent
         side="bottom"
-      className="mx-auto max-h-[92svh] max-w-md overflow-y-auto bg-panel pb-0 motion-reduce:transition-none"
+        className="z-[70] mx-auto flex max-h-[92svh] max-w-md flex-col gap-0 overflow-hidden bg-panel p-0 motion-reduce:transition-none"
+        style={viewportStyle}
         aria-label="Review food"
+        onCloseAutoFocus={(event) => {
+          if (handingOff.current || currentPath.current !== openingPath.current) {
+            event.preventDefault();
+            return;
+          }
+          const target = returnFocusElementRef.current;
+          if (target?.isConnected && !target.disabled) {
+            event.preventDefault();
+            target.focus({ preventScroll: true });
+          }
+        }}
+        onEscapeKeyDown={(event) => { if (savingRef.current) event.preventDefault(); }}
+        onInteractOutside={(event) => { if (savingRef.current) event.preventDefault(); }}
       >
-        <SheetHeader>
+        <SheetHeader className="shrink-0 px-6 pt-6 pr-14">
           <SheetTitle>Review food</SheetTitle>
           <SheetDescription>
             Confirm the date, meal, and portions. Logging won&apos;t change your
             saved foods.
           </SheetDescription>
         </SheetHeader>
-        <fieldset disabled={saving || reconciliationRequired} className="min-w-0 space-y-4 pt-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4" data-food-review-scroll="">
+        <fieldset disabled={saving || reconciliationRequired} className="min-w-0 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor={`${id}-date`}>Logging date</Label>
             <Input
@@ -190,8 +242,11 @@ export default function FoodEntryComposer({
               type="date"
               max={todayStr()}
               value={entryDate}
+              aria-invalid={!isValidLocalDate(entryDate)}
+              aria-describedby={!isValidLocalDate(entryDate) ? `${id}-date-error` : undefined}
               onChange={(event) => setEntryDate(event.target.value)}
             />
+            {!isValidLocalDate(entryDate) && <p id={`${id}-date-error`} role="alert" className="text-xs text-destructive">Choose a valid date on or before today.</p>}
           </div>
           <div
             role="group"
@@ -214,7 +269,7 @@ export default function FoodEntryComposer({
             <section
               key={keys[index]}
               aria-label={`Food ${index + 1}`}
-              className="space-y-3 rounded-xl border border-line bg-panel2 p-3"
+              className="min-w-0 space-y-3 rounded-xl border border-line bg-panel2 p-3 [overflow-wrap:anywhere]"
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
@@ -323,7 +378,7 @@ export default function FoodEntryComposer({
           ))}
           {choosing ? (
             <div className="space-y-3">
-              <details><summary className="flex min-h-11 cursor-pointer items-center text-sm text-teal">Describe a meal</summary><DescribeMealCard onDrafts={(described) => described.forEach(add)} /></details>
+              <details onToggle={(event) => setDescriptionOpen(event.currentTarget.open)}><summary className="flex min-h-11 cursor-pointer items-center text-sm text-teal">Describe a meal</summary><DescribeMealCard active={descriptionOpen} onDrafts={(described) => described.forEach(add)} /></details>
               <FoodSearchCard
                 onSelect={(food) => add(createFoodDraft(food, "search"))}
               />
@@ -347,6 +402,7 @@ export default function FoodEntryComposer({
                 </div>
               </details>
               <div className="flex flex-wrap gap-2">
+                {drafts.length > 0 && <Button variant="outline" className="min-h-11" onClick={() => { setChoosing(false); setDescriptionOpen(false); }}>Back to review</Button>}
                 <Button
                   variant="outline"
                   className="min-h-11"
@@ -359,9 +415,8 @@ export default function FoodEntryComposer({
                     <Button
                       variant="outline"
                       className="min-h-11"
-                      onClick={() =>
-                        onScan("barcode", { date: entryDate, meal }, returnFocusElementRef.current)
-                      }
+                      disabled={!isValidLocalDate(entryDate)}
+                      onClick={() => scan("barcode")}
                     >
                       <ScanLine className="mr-1 h-4 w-4" /> Barcode
                     </Button>
@@ -369,9 +424,8 @@ export default function FoodEntryComposer({
                       <Button
                         variant="outline"
                         className="min-h-11"
-                        onClick={() =>
-                          onScan("photo", { date: entryDate, meal }, returnFocusElementRef.current)
-                        }
+                        disabled={!isValidLocalDate(entryDate)}
+                        onClick={() => scan("photo")}
                       >
                         <Camera className="mr-1 h-4 w-4" /> Photo
                       </Button>
@@ -394,7 +448,8 @@ export default function FoodEntryComposer({
             known to be zero.
           </p>
         </fieldset>
-      <div className="sticky bottom-0 -mx-6 mt-4 space-y-2 border-t border-line bg-panel px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        </div>
+      <div className="shrink-0 space-y-2 border-t border-line bg-panel px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           {valid && (
             <p className="font-mono text-xs tabular-nums text-muted-foreground">
@@ -418,15 +473,15 @@ export default function FoodEntryComposer({
           <div className="flex gap-2">
             {reconciliationRequired ? <Button asChild variant="outline" className="min-h-11 flex-1"><Link to={`/nutrition?date=${entryDate}`} onClick={onClose}>Review diary</Link></Button> : <Button
               variant="outline"
-              className="min-h-11 flex-1"
+              className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal"
               disabled={saving}
               onClick={onClose}
             >
             Cancel
           </Button>}
             <Button
-              className="min-h-11 flex-1 bg-teal text-buttonText"
-            disabled={!valid || saving || reconciliationRequired}
+              className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal bg-teal text-buttonText"
+            disabled={!valid || choosing || resolving !== null || saving || reconciliationRequired}
               onClick={save}
             >
               {saving

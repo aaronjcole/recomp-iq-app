@@ -50,7 +50,11 @@ function errorMessage(error) {
 }
 
 const isCachedPlan = (value) =>
-  Boolean(value) && Array.isArray(value.days) && Array.isArray(value.groceryList);
+  Boolean(value?.dailyTargets) && Boolean(value?.adaptation)
+  && Array.isArray(value.days) && Array.isArray(value.groceryList)
+  && value.days.every((day) => day && day.totals && Array.isArray(day.meals)
+    && day.meals.every((meal) => meal && typeof meal.title === "string" && typeof meal.slot === "string"))
+  && value.groceryList.every((item) => item && typeof item.name === "string");
 
 export default function AdaptiveMealPlan() {
   const { canAccess, isLoading: accessLoading } = usePremiumAccess();
@@ -68,27 +72,45 @@ export default function AdaptiveMealPlan() {
   const [review, setReview] = useState(null);
   const [mode, setMode] = useState("deterministic");
   const [swapping, setSwapping] = useState(null);
+  // Rebuild and swap both replace the entire cached week. One shared lock
+  // prevents a late response from one action overwriting the other's result.
+  const operationRef = useRef(null);
+  const openingPath = useRef(window.location.pathname);
+  const reviewRef = useRef(null);
+  const busy = isGenerating || swapping !== null;
   const weekStart = useMemo(currentWeekStart, []);
+  // A lazy destination can suspend before React unmounts this page. The URL
+  // already changed then, so unmount cleanup alone cannot reject late replies.
+  const onPlannerRoute = () => window.location.pathname === openingPath.current;
+  const isCurrentOperation = (operation) => operationRef.current === operation
+    && accountRef.current === userId && onPlannerRoute();
 
   useEffect(dropLegacyPlanCache, []);
+  useEffect(() => () => { operationRef.current = null; }, []);
 
   // Hydrate only once the signed-in id is known, so a cached plan can never be
   // read into the wrong account on a shared device.
   useEffect(() => {
+    operationRef.current = null;
+    reviewRef.current = null;
+    setIsGenerating(false);
+    setSwapping(null);
     setSavedPlan({ userId, value: readPlanCache(MEAL_PLAN_CACHE, userId, isCachedPlan) });
     setReview(null);
     setError("");
   }, [userId]);
 
   const generate = async () => {
-    if (!userId || !allowed || isGenerating) return;
+    if (!userId || !allowed || !onPlannerRoute() || operationRef.current || reviewRef.current) return;
+    const operation = {};
+    operationRef.current = operation;
     setIsGenerating(true);
     setError("");
     try {
       const result = await base44.functions.invoke("generateAdaptiveMealPlan", { weekStart, mode });
       const nextPlan = result?.data ?? result;
-      if (accountRef.current !== userId) return;
-      if (!nextPlan || !Array.isArray(nextPlan.days) || !Array.isArray(nextPlan.groceryList)) {
+      if (!isCurrentOperation(operation)) return;
+      if (!isCachedPlan(nextPlan)) {
         throw new Error("The meal planner returned an incomplete plan.");
       }
       if (nextPlan.aiVarietyError) {
@@ -98,18 +120,24 @@ export default function AdaptiveMealPlan() {
       writePlanCache(MEAL_PLAN_CACHE, userId, nextPlan);
       clearChecked();
     } catch (requestError) {
-      if (accountRef.current === userId) setError(errorMessage(requestError));
+      if (isCurrentOperation(operation)) setError(errorMessage(requestError));
     } finally {
-      setIsGenerating(false);
+      if (operationRef.current === operation) {
+        operationRef.current = null;
+        setIsGenerating(false);
+      }
     }
   };
 
   const handleSwap = async (dayIndex, meal) => {
-    if (!plan || !allowed || swapping !== null) return;
+    if (!plan || !allowed || !onPlannerRoute() || operationRef.current || reviewRef.current) return;
+    const operation = {};
+    operationRef.current = operation;
     // One swap at a time (every Swap button disables while one is in flight):
     // each swap rebuilds the week and grocery list from the current plan.
     const swapKey = `${dayIndex}-${meal.slot}`;
     setSwapping(swapKey);
+    setError("");
     try {
       const dayMeals = plan.days[dayIndex].meals;
       const avoidIds = dayMeals.map((m) => m.id).filter((id) => id !== meal.id);
@@ -124,7 +152,7 @@ export default function AdaptiveMealPlan() {
         avoidIds
       });
       const newMeal = result?.data?.meal ?? result?.meal;
-      if (accountRef.current !== userId) return;
+      if (!isCurrentOperation(operation)) return;
       if (!newMeal) throw new Error("No swap available for this meal.");
 
       const nextDays = [...plan.days];
@@ -149,14 +177,22 @@ export default function AdaptiveMealPlan() {
       // Discard removed/changed quantities; a later swap back must not revive ticks.
       retainItems(groceryList);
     } catch (err) {
-      if (accountRef.current === userId) setError(errorMessage(err));
+      if (isCurrentOperation(operation)) setError(errorMessage(err));
     } finally {
-      setSwapping(null);
+      if (operationRef.current === operation) {
+        operationRef.current = null;
+        setSwapping(null);
+      }
     }
   };
 
+  const closeReview = () => {
+    reviewRef.current = null;
+    setReview(null);
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <ChildTopBar title="Adaptive meal plan" fallbackTo="/nutrition" />
 
       <Card className="border-line bg-panel">
@@ -192,6 +228,7 @@ export default function AdaptiveMealPlan() {
               <div role="group" aria-label="Meal plan variety mode" className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  disabled={busy || Boolean(review)}
                   onClick={() => setMode("deterministic")}
                   aria-pressed={mode === "deterministic"}
                   className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
@@ -204,6 +241,7 @@ export default function AdaptiveMealPlan() {
                 </button>
                 <button
                   type="button"
+                  disabled={busy || Boolean(review)}
                   onClick={() => setMode("ai_variety")}
                   aria-pressed={mode === "ai_variety"}
                   className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
@@ -223,7 +261,7 @@ export default function AdaptiveMealPlan() {
               <Button
                 className="w-full bg-teal text-buttonText hover:opacity-90"
                 onClick={generate}
-                disabled={isGenerating}
+                disabled={busy || Boolean(review)}
               >
                 {isGenerating ? (
                   <><RefreshCw className="animate-spin" aria-hidden="true" /> Building your week…</>
@@ -280,16 +318,16 @@ export default function AdaptiveMealPlan() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{meal.slot}</p>
-                              <h3 className="text-sm font-medium">{meal.title}</h3>
+                              <h3 className="break-words text-sm font-medium [overflow-wrap:anywhere]">{meal.title}</h3>
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
+                            <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                               <span className="text-xs text-muted-foreground">{meal.calories} kcal</span>
                               <button
                                 type="button"
                                 onClick={() => handleSwap(index, meal)}
-                                disabled={swapping !== null}
+                                disabled={busy || Boolean(review)}
                                 aria-label={`Swap ${meal.slot}`}
-                                className="flex min-h-9 items-center gap-1 rounded-md px-2 py-1 text-xs text-teal hover:bg-teal/10 disabled:opacity-50"
+                                className="flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-xs text-teal hover:bg-teal/10 disabled:opacity-50"
                               >
                                 <Shuffle className={`h-3 w-3 ${swapping === swapKey ? "animate-spin" : ""}`} aria-hidden="true" />
                                 Swap
@@ -299,10 +337,13 @@ export default function AdaptiveMealPlan() {
                           <p className="mt-1 text-xs text-muted-foreground">
                             {meal.proteinG}p / {meal.carbsG}c / {meal.fatG}f · {meal.servingScale}× base portion
                           </p>
-                          <Button variant="outline" className="mt-2 min-h-11 border-line" aria-label={`Log ${meal.title} on ${day.date}`} disabled={!isValidLocalDate(day.date)} onClick={() => {
-                            if (!isValidLocalDate(day.date)) return;
-                            setReview({ userId, date: day.date, initialMeal: meal.slot === "snack" ? "snack" : meal.slot,
-                              initialFoods: [createFoodDraft(plannedMealFood(meal), "plan", meal.id)] });
+                          <Button variant="outline" className="mt-2 min-h-11 border-line" aria-label={`Log ${meal.title} on ${day.date}`} disabled={busy || Boolean(review) || !isValidLocalDate(day.date)} onClick={(event) => {
+                            if (operationRef.current || reviewRef.current || !isValidLocalDate(day.date)) return;
+                            const nextReview = { userId, date: day.date, initialMeal: meal.slot === "snack" ? "snack" : meal.slot,
+                              returnFocusElement: event.currentTarget,
+                              initialFoods: [createFoodDraft(plannedMealFood(meal), "plan", meal.id)] };
+                            reviewRef.current = nextReview;
+                            setReview(nextReview);
                           }}>Log</Button>
                         </div>
                       );
@@ -313,7 +354,7 @@ export default function AdaptiveMealPlan() {
             ))}
           </section>
 
-          <Card className="border-line bg-panel">
+          <Card role="region" aria-label="Meal plan grocery list" className="min-w-0 border-line bg-panel">
             <CardContent className="space-y-4 p-5">
               <h2 className="flex items-center gap-2 font-semibold">
                 <ShoppingCart className="h-4 w-4 text-teal" aria-hidden="true" /> Grocery list
@@ -327,11 +368,12 @@ export default function AdaptiveMealPlan() {
                       <Checkbox
                         id={`meal-plan-${encodeURIComponent(key)}`}
                         checked={done}
+                        disabled={busy}
                         onCheckedChange={() => toggleItem(item)}
                       />
                       <Label
                         htmlFor={`meal-plan-${encodeURIComponent(key)}`}
-                        className={`flex min-h-11 flex-1 cursor-pointer items-center text-sm ${done ? "text-muted-foreground line-through" : ""}`}
+                        className={`flex min-h-11 min-w-0 flex-1 cursor-pointer items-center break-words text-sm [overflow-wrap:anywhere] ${done ? "text-muted-foreground line-through" : ""}`}
                       >
                         {item.quantity} {item.unit} {item.name}
                       </Label>
@@ -350,7 +392,7 @@ export default function AdaptiveMealPlan() {
           </Card>
         </>
       )}
-      {review && review.userId === userId && allowed && <FoodEntryComposer date={review.date} initialMeal={review.initialMeal} initialFoods={review.initialFoods} onClose={() => setReview(null)} />}
+      {review && review.userId === userId && allowed && <FoodEntryComposer date={review.date} initialMeal={review.initialMeal} initialFoods={review.initialFoods} returnFocusElement={review.returnFocusElement} onClose={closeReview} />}
     </div>
   );
 }

@@ -217,6 +217,7 @@ function resumeAutoDismiss(toastId, reason) {
   startAutoDismiss(toastId, timer);
 }
 
+/** @param {{ duration?: number, returnFocusElement?: HTMLElement | null, [key: string]: any }} options */
 function toast({ duration, returnFocusElement, ...props }) {
   const id = genId();
   if (typeof document !== "undefined") {
