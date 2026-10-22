@@ -70,7 +70,11 @@ function readBody(request) {
 }
 
 function matchesCondition(value, condition) {
-  if (Array.isArray(condition)) return JSON.stringify(value) === JSON.stringify(condition);
+  const sameValue = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  const matchesAny = (values) => values.some((candidate) => Array.isArray(value)
+    ? value.some((item) => sameValue(item, candidate)) : sameValue(value, candidate));
+  // Like Base44, a bare list is shorthand for $in, not array equality.
+  if (Array.isArray(condition)) return matchesAny(condition);
   if (condition !== null && typeof condition === "object" && !Array.isArray(condition)) {
     if (!Object.keys(condition).some((key) => key.startsWith("$"))) return JSON.stringify(value) === JSON.stringify(condition);
     return Object.entries(condition).every(([operator, operand]) => {
@@ -79,8 +83,9 @@ function matchesCondition(value, condition) {
         case "$gt": return value != null && value > operand;
         case "$lte": return value != null && value <= operand;
         case "$lt": return value != null && value < operand;
-        case "$ne": return value !== operand;
-        case "$in": return Array.isArray(operand) && operand.includes(value);
+        case "$eq": return sameValue(value, operand);
+        case "$ne": return !sameValue(value, operand);
+        case "$in": return Array.isArray(operand) && matchesAny(operand);
         case "$exists": return operand ? value !== undefined : value === undefined;
         default: throw new Error(`Unsupported mock query operator: ${operator}`);
       }

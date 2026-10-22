@@ -77,7 +77,12 @@ function validatePreferences(patch) {
 function guardedQuery(ownerId, record, fields) {
   const query = { id: record.id, created_by_id: ownerId };
   if (record.updated_date) query.updated_date = record.updated_date;
-  for (const key of fields) query[key] = record[key] === undefined ? { $exists: false } : record[key];
+  for (const key of fields) {
+    // Base44 interprets a bare array as an "any of" filter, not equality.
+    // CAS must compare the whole saved list, including an empty list.
+    query[key] = record[key] === undefined ? { $exists: false }
+      : Array.isArray(record[key]) ? { $eq: record[key] } : record[key];
+  }
   return query;
 }
 

@@ -17,6 +17,7 @@ import {
 const OWNER = "owner-a";
 const OTHER_OWNER = "owner-b";
 const SETTINGS = ["UserProfile", "UserPreferences", "CurrentStrategy"];
+const PREFERENCE_ARRAY_FIELDS = ["disliked_strategies", "known_barriers", "safety_flags"];
 const TARGET_FIELDS = [
   "calorie_target", "protein_target_g", "carb_target_g", "fat_target_g",
   "step_target", "lifting_days_target", "cardio_days_target", "goal_type",
@@ -68,9 +69,21 @@ function ledgerSnapshot(sdk, { ignoreSettingsTimestamps = false } = {}) {
 
 function matches(row, query) {
   return Object.entries(query).every(([key, expected]) => {
-    if (expected && typeof expected === "object" && "$exists" in expected) {
-      assert.deepEqual(Object.keys(expected), ["$exists"], "fake must not ignore query operators");
-      return Object.hasOwn(row, key) === expected.$exists;
+    // SDK EntityFilterValue documents bare arrays as $in shorthand, not $eq.
+    const anyOf = (candidates) => candidates.some((candidate) =>
+      isDeepStrictEqual(row[key], candidate)
+      || (Array.isArray(row[key]) && row[key].some((value) => isDeepStrictEqual(value, candidate)))
+    );
+    if (Array.isArray(expected)) return anyOf(expected);
+    if (expected && typeof expected === "object" && Object.keys(expected).some((operator) => operator.startsWith("$"))) {
+      return Object.entries(expected).every(([operator, operand]) => {
+        switch (operator) {
+          case "$exists": return Object.hasOwn(row, key) === operand;
+          case "$eq": return isDeepStrictEqual(row[key], operand);
+          case "$in": return anyOf(operand);
+          default: assert.fail(`Unsupported fake query operator: ${operator}`);
+        }
+      });
     }
     return isDeepStrictEqual(row[key], expected);
   });
@@ -185,6 +198,75 @@ test("fake SDK atomically rejects stale fields, owners, timestamps, and missing-
   detached.age = 100;
   assert.equal(row.age, 36);
 });
+
+test("fake filters distinguish bare-array any-of from explicit exact-array $eq, including empty arrays", () => {
+  for (const expression of [["fasting", "other"], { $in: ["fasting", "other"] }]) {
+    assert.equal(matches({ value: "fasting" }, { value: expression }), true);
+    assert.equal(matches({ value: ["fasting", "extra"] }, { value: expression }), true);
+    assert.equal(matches({ value: ["unrelated"] }, { value: expression }), false);
+  }
+  assert.equal(matches({ value: [] }, { value: [] }), false, "empty any-of matches nothing");
+  assert.equal(matches({ value: [] }, { value: { $in: [] } }), false);
+  assert.equal(matches({ value: [] }, { value: { $eq: [] } }), true);
+  assert.equal(matches({ value: ["fasting"] }, { value: { $eq: [] } }), false);
+  assert.equal(matches({}, { value: { $eq: [] } }), false);
+  assert.equal(matches({ value: ["fasting", "time"] }, { value: { $eq: ["fasting", "time"] } }), true);
+  assert.equal(matches({ value: ["time", "fasting"] }, { value: { $eq: ["fasting", "time"] } }), false);
+  assert.equal(matches({ value: ["fasting", "time", "extra"] }, { value: { $eq: ["fasting", "time"] } }), false);
+});
+
+for (const field of PREFERENCE_ARRAY_FIELDS) {
+  for (const initiallyEmpty of [true, false]) {
+    for (const compensate of [false, true]) {
+      test(`${field} ${initiallyEmpty ? "empty" : "populated"} array CAS uses $eq for every preference list${compensate ? " during save and compensation" : " during save"}`, async () => {
+        const expected = fixture();
+        expected.preferences[field] = initiallyEmpty ? [] : ["first", "second"];
+        const patch = { [field]: initiallyEmpty ? ["new value"] : [] };
+        const sdk = fakeSdk(expected, {
+          beforeWrite(call) {
+            if (compensate && call.name === "CurrentStrategy") return { success: false, updated: 0 };
+          }
+        });
+        const before = ledgerSnapshot(sdk, { ignoreSettingsTimestamps: true });
+        if (compensate) {
+          await rejectedSave(save(sdk, expected, undefined, patch), { conflict: true, reconciliationRequired: false });
+          assertRestored(sdk, before);
+        } else {
+          const result = await save(sdk, expected, undefined, patch);
+          assert.deepEqual(result.preferences[field], patch[field]);
+        }
+        const writes = sdk.writes.filter((call) => call.name === "UserPreferences");
+        assert.equal(writes.length, compensate ? 2 : 1);
+        const snapshots = [expected.preferences, { ...expected.preferences, ...patch }];
+        for (const [index, call] of writes.entries()) {
+          assert.equal(call.updated, 1);
+          for (const arrayField of PREFERENCE_ARRAY_FIELDS) {
+            assert.deepEqual(call.query[arrayField], { $eq: snapshots[index][arrayField] }, arrayField);
+          }
+        }
+      });
+    }
+  }
+}
+
+for (const field of PREFERENCE_ARRAY_FIELDS) {
+  test(`${field} CAS rejects a concurrent list extension even when an original element still matches`, async () => {
+    const expected = fixture();
+    for (const arrayField of PREFERENCE_ARRAY_FIELDS) expected.preferences[arrayField] = ["retained"];
+    const sdk = fakeSdk(expected, {
+      beforeWrite(call, fake) {
+        if (call.name === "UserPreferences" && call.ordinal === 1) {
+          fake.row("UserPreferences")[field].push("cross-tab addition");
+        }
+      }
+    });
+    const before = ledgerSnapshot(sdk, { ignoreSettingsTimestamps: true });
+    before.UserPreferences[0][field].push("cross-tab addition");
+    await rejectedSave(save(sdk, expected), { conflict: true, reconciliationRequired: false });
+    assertRestored(sdk, before);
+    assert.equal(sdk.writes.find((call) => call.name === "UserPreferences").updated, 0);
+  });
+}
 
 test("goal, biometric, and preference changes save together without touching the rest of the ledger", async () => {
   const expected = fixture();
