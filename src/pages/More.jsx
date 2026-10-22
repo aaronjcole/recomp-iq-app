@@ -17,6 +17,7 @@ import { featureFlags } from "@/lib/featureFlags";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
+import { useToast } from "@/components/ui/use-toast";
 
 const APP_VERSION = "0.1.0";
 const THEME_OPTIONS = [
@@ -103,21 +104,27 @@ function Row({ item, first, onActivate, theme, themePreference, onThemeChange, l
   }
 
   return (
-    <div className={`flex w-full items-center gap-3 px-3 py-3 ${first ? "" : "border-t border-lineSoft"}`}>
-      <button type="button" onClick={onActivate} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left">
+    <button
+      type="button"
+      onClick={onActivate}
+      disabled={loading}
+      aria-busy={loading || undefined}
+      className={`flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50 ${first ? "" : "border-t border-lineSoft"}`}
+    >
+      <span className="flex min-h-11 min-w-0 flex-1 items-center gap-3">
         {label}
-      </button>
+      </span>
       {item.badge && (
         <span className="rounded bg-questComplete text-gold px-1.5 py-0.5 text-label font-mono uppercase tracking-wide">
           {item.badge}
         </span>
       )}
       {loading ? (
-        <LoaderCircle className="w-4 h-4 text-teal shrink-0 animate-spin" />
+        <LoaderCircle className="w-4 h-4 text-teal shrink-0 animate-spin" aria-hidden="true" />
       ) : (
-        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
       )}
-    </div>
+    </button>
   );
 }
 
@@ -126,10 +133,13 @@ export default function More() {
   const { user } = useAuth();
   const { theme, preference: themePreference, setTheme } = useTheme();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [checkinResult, setCheckinResult] = useState(null);
   const [running, setRunning] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshPendingRef = useRef(false);
 
   // A v2 check-in that is still being applied or was superseded is not a
   // completed check-in; v1 rows have no status.
@@ -173,9 +183,28 @@ export default function More() {
     }
   };
 
+  const refreshData = async () => {
+    if (refreshPendingRef.current) return;
+    refreshPendingRef.current = true;
+    setRefreshing(true);
+    try {
+      if (!await reload()) throw new Error("Refresh failed");
+      toast({ title: "Data refreshed", description: "Your profile, targets, and this week's data are up to date." });
+    } catch {
+      toast({
+        title: "Could not refresh data",
+        description: "Check your connection and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      refreshPendingRef.current = false;
+      setRefreshing(false);
+    }
+  };
+
   const handlers = {
     checkin: runCheck,
-    reload: () => reload(),
+    reload: refreshData,
     logout: () => signOut(window.location.origin),
     support: () => navigate("/support"),
     deleteAccount: () => navigate("/delete-account"),
@@ -213,8 +242,8 @@ export default function More() {
     {
       title: "Nutrition tools",
       items: [
-        { icon: BookMarked, label: "Meal templates", to: "/nutrition", state: { scrollTo: "meal-templates-section" }, subtitle: `${mealTemplates.length} saved` },
-        { icon: ShoppingCart, label: "Grocery list", to: "/nutrition", state: { scrollTo: "grocery-list-section" } }
+        { icon: BookMarked, label: "Meal templates", to: "/nutrition?segment=library", state: { scrollTo: "meal-templates-section" }, subtitle: `${mealTemplates.length} saved` },
+        { icon: ShoppingCart, label: "Grocery list", to: "/nutrition?segment=tools", state: { scrollTo: "grocery-list-section" } }
       ]
     },
     {
@@ -234,7 +263,7 @@ export default function More() {
       items: [
         { icon: User, label: "Profile & plan", to: "/more/profile" },
         { icon: theme === "dark" ? Moon : Sun, label: "Appearance", control: "theme" },
-        { icon: RefreshCw, label: "Refresh data", action: "reload" },
+        { icon: RefreshCw, label: "Refresh data", action: "reload", subtitle: refreshing ? "Refreshing…" : undefined },
         { icon: LogOut, label: "Log out", action: "logout" }
       ]
     },
@@ -261,7 +290,7 @@ export default function More() {
       {/* Identity header — status glance */}
       <Card className="bg-panel border-line">
         <CardContent className="p-4">
-          <button className="flex w-full items-center gap-3" onClick={() => navigate("/more/profile")}>
+          <button type="button" className="flex min-h-11 w-full items-center gap-3" onClick={() => navigate("/more/profile")}>
             <div className="h-12 w-12 rounded-full bg-teal text-[#03110e] flex items-center justify-center font-semibold shrink-0">
               {initials}
             </div>
@@ -307,7 +336,7 @@ export default function More() {
                         theme={theme}
                         themePreference={themePreference}
                         onThemeChange={setTheme}
-                        loading={running && item.action === "checkin"}
+                        loading={(running && item.action === "checkin") || (refreshing && item.action === "reload")}
                       />
                     </li>
                   ))}

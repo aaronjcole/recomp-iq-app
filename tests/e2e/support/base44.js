@@ -70,7 +70,9 @@ function readBody(request) {
 }
 
 function matchesCondition(value, condition) {
+  if (Array.isArray(condition)) return JSON.stringify(value) === JSON.stringify(condition);
   if (condition !== null && typeof condition === "object" && !Array.isArray(condition)) {
+    if (!Object.keys(condition).some((key) => key.startsWith("$"))) return JSON.stringify(value) === JSON.stringify(condition);
     return Object.entries(condition).every(([operator, operand]) => {
       switch (operator) {
         case "$gte": return value != null && value >= operand;
@@ -79,6 +81,7 @@ function matchesCondition(value, condition) {
         case "$lt": return value != null && value < operand;
         case "$ne": return value !== operand;
         case "$in": return Array.isArray(operand) && operand.includes(value);
+        case "$exists": return operand ? value !== undefined : value === undefined;
         default: throw new Error(`Unsupported mock query operator: ${operator}`);
       }
     });
@@ -264,6 +267,20 @@ export async function installAuthenticatedBase44(page, options = {}) {
     if (entityMatch) {
       const name = entityMatch[1];
       const rows = entities[name] ?? [];
+      if (method === "PATCH" && new URL(url).pathname.endsWith("/update-many")) {
+        const { query, data } = readBody(request);
+        if (query?.created_by_id !== user.id) return json({ error: "An owner-scoped conditional update is required" }, 400);
+        let updated = 0;
+        entities[name] = rows.map((row) => {
+          if (!matchesQuery(row, query)) return row;
+          updated += 1;
+          inMemorySequence += 1;
+          const next = { ...row, ...data.$set, updated_date: new Date(Date.now() + inMemorySequence).toISOString() };
+          for (const key of Object.keys(data.$unset ?? {})) delete next[key];
+          return next;
+        });
+        return json({ success: true, updated, has_more: false });
+      }
       if (method === "GET" && failingEntities.has(name)) {
         return json({ error: `${name} is unavailable` }, 503);
       }

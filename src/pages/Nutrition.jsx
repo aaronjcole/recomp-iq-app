@@ -71,10 +71,11 @@ export default function Nutrition() {
     setReview({ ...target, returnFocusElement, foods: food ? [createFoodDraft(food, source, foodId)] : [] });
   };
   const [searchParams, setSearchParams] = useSearchParams();
-  const { state } = useLocation();
+  const { state, pathname } = useLocation();
   const detailsRef = useRef(null);
   const foodFormId = useId();
   const requestedPanel = searchParams.get("panel");
+  const requestedSegment = searchParams.get("segment");
   const [targetsExpanded, setTargetsExpanded] = useState(
     () => requestedPanel === "targets"
   );
@@ -133,26 +134,33 @@ export default function Nutrition() {
   };
 
   useEffect(() => {
-    if (!strategy || requestedPanel !== "targets") return undefined;
+    if (!strategy || pathname !== "/nutrition" || requestedPanel !== "targets" || segment !== "tools") return undefined;
     const timer = window.setTimeout(() => {
       detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [requestedPanel, strategy]);
+  }, [requestedPanel, strategy, pathname, segment]);
 
-  // Auto-select Tools segment when ?panel=targets arrives while on the page.
+  // Cached tab roots also receive fresh URL parameters when opened from More.
   useEffect(() => {
+    if (pathname !== "/nutrition") return;
     if (requestedPanel === "targets") {
       setSegment("tools");
       setTargetsExpanded(true);
-    }
-  }, [requestedPanel]);
+    } else setSegment(requestedSegment === "library" || requestedSegment === "tools" ? requestedSegment : "diary");
+  }, [requestedPanel, requestedSegment, pathname]);
 
   useEffect(() => {
-    if (!state?.scrollTo) return;
-    const el = document.getElementById(state.scrollTo);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [state?.scrollTo]);
+    if (!state?.scrollTo || !strategy?.id || pathname !== "/nutrition") return;
+    let scrollFrame;
+    const frame = requestAnimationFrame(() => {
+      scrollFrame = requestAnimationFrame(() => {
+        const el = document.getElementById(state.scrollTo);
+        if (el) el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      });
+    });
+    return () => { cancelAnimationFrame(frame); cancelAnimationFrame(scrollFrame); };
+  }, [state?.scrollTo, segment, strategy?.id, pathname]);
 
   // Fetch on-demand data for historical dates outside the current-week batch.
   useEffect(() => {

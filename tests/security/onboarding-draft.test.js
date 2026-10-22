@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   LEGACY_ONBOARDING_DRAFT_KEY,
+  ONBOARDING_DRAFT_PREFIX,
   clearAllOnboardingDrafts,
   clearOnboardingDraft,
   loadOnboardingDraft,
@@ -38,6 +39,14 @@ const draft = {
   step: 2
 };
 
+test("obsolete coaching tones cannot trap a restored draft or server-prefilled setup", () => {
+  assert.deepEqual(pickPreferenceDraftFields({ tone: "friendly", diet_style: "balanced" }), { diet_style: "balanced" });
+  assert.equal(sanitizeOnboardingDraft({ pref: { tone: "friendly" } }).pref.tone, undefined);
+  for (const tone of ["direct", "encouraging", "analytical", "tough_love", "concise"]) {
+    assert.equal(pickPreferenceDraftFields({ tone }).tone, tone);
+  }
+});
+
 test("each account gets its own draft key", () => {
   assert.equal(onboardingDraftKey("user-a"), "recompiq_onboarding_v2:user-a");
   assert.notEqual(onboardingDraftKey("user-a"), onboardingDraftKey("user-b"));
@@ -54,6 +63,90 @@ test("a draft saved for one user is never loaded for another", () => {
   // Without a known user nothing is saved or loaded.
   assert.equal(saveOnboardingDraft(storage, null, draft), false);
   assert.equal(loadOnboardingDraft(storage, null), null);
+});
+
+test("initial draft keys stay backward compatible and redo keys are separately scoped", () => {
+  assert.equal(onboardingDraftKey("user-a", "initial"), onboardingDraftKey("user-a"));
+  assert.equal(onboardingDraftKey("user-a", "redo"), `${ONBOARDING_DRAFT_PREFIX}user-a:redo`);
+  assert.notEqual(onboardingDraftKey("user-a", "redo"), onboardingDraftKey("user-b", "redo"));
+  assert.notEqual(onboardingDraftKey("user-a", "redo"), onboardingDraftKey("user-a"));
+  assert.equal(onboardingDraftKey(null, "redo"), null);
+  assert.equal(onboardingDraftKey("", "redo"), null);
+});
+
+test("redo and initial drafts cannot hydrate or overwrite each other or another account", () => {
+  const storage = memoryStorage();
+  const redo = { ...draft, p: { ...draft.p, age: "42" } };
+  saveOnboardingDraft(storage, "user-a", draft);
+  assert.equal(loadOnboardingDraft(storage, "user-a", "redo"), null);
+  assert.equal(saveOnboardingDraft(storage, "user-a", redo, "redo"), true);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-a"), draft);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-a", "initial"), draft);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-a", "redo"), redo);
+  assert.equal(loadOnboardingDraft(storage, "user-b", "redo"), null);
+  assert.equal(loadOnboardingDraft(storage, null, "redo"), null);
+  assert.equal(saveOnboardingDraft(storage, null, redo, "redo"), false);
+});
+
+test("clearing a redo draft retains initial drafts and every other account's drafts", () => {
+  const storage = memoryStorage({ unrelated: "keep" });
+  for (const userId of ["user-a", "user-b"]) {
+    for (const mode of ["initial", "redo"]) saveOnboardingDraft(storage, userId, draft, mode);
+  }
+  clearOnboardingDraft(storage, "user-a", "redo");
+  assert.equal(loadOnboardingDraft(storage, "user-a", "redo"), null);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-a"), draft);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-b"), draft);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-b", "redo"), draft);
+  clearOnboardingDraft(storage, "user-a");
+  assert.deepEqual(loadOnboardingDraft(storage, "user-b", "redo"), draft);
+  assert.equal(storage.getItem("unrelated"), "keep");
+});
+
+test("redo drafts keep the health-answer allowlist and malformed redo cleanup does not touch initial setup", () => {
+  const storage = memoryStorage();
+  saveOnboardingDraft(storage, "user-a", draft);
+  saveOnboardingDraft(storage, "user-a", {
+    ...draft, p: { ...draft.p, id: "profile-secret", created_by: "a@example.com" },
+    pref: { ...draft.pref, notification_preferences: { private: true } },
+    owner_id: "user-b", premium: true
+  }, "redo");
+  assert.deepEqual(loadOnboardingDraft(storage, "user-a", "redo"), draft);
+  const key = onboardingDraftKey("user-a", "redo");
+  assert.ok(!storage.getItem(key).includes("profile-secret"));
+  storage.setItem(key, "{invalid");
+  assert.equal(loadOnboardingDraft(storage, "user-a", "redo"), null);
+  assert.equal(storage.getItem(key), null);
+  assert.deepEqual(loadOnboardingDraft(storage, "user-a"), draft);
+});
+
+test("logout clears both modes for every account before calling the SDK", () => {
+  const storage = memoryStorage({ [LEGACY_ONBOARDING_DRAFT_KEY]: "{}", unrelated: "keep" });
+  for (const userId of ["user-a", "user-b"]) {
+    for (const mode of ["initial", "redo"]) saveOnboardingDraft(storage, userId, draft, mode);
+  }
+  assert.equal(storage.map.size, 6);
+  let logoutCalls = 0;
+  signOutWith({ logout() {
+    logoutCalls += 1;
+    assert.deepEqual([...storage.map.keys()], ["unrelated"]);
+  } }, storage);
+  assert.equal(logoutCalls, 1);
+});
+
+test("redo revision metadata accepts only the opaque hash and boolean custom-target choice", () => {
+  const revision = "v1:0123456789abcdef";
+  const storage = memoryStorage();
+  for (const keepCustomTargets of [true, false]) {
+    const redo = { ...draft, baseRevision: revision, keepCustomTargets };
+    saveOnboardingDraft(storage, "user-a", redo, "redo");
+    assert.deepEqual(loadOnboardingDraft(storage, "user-a", "redo"), redo);
+  }
+  for (const invalid of ["a@example.com", "v1:short", "v1:0123456789abcdef-extra", { id: "profile-secret" }, 123]) {
+    const sanitized = sanitizeOnboardingDraft({ ...draft, baseRevision: invalid, keepCustomTargets: "true" });
+    assert.equal(Object.hasOwn(sanitized, "baseRevision"), false);
+    assert.equal(Object.hasOwn(sanitized, "keepCustomTargets"), false);
+  }
 });
 
 test("the allowlist strips server-record metadata and unknown fields", () => {

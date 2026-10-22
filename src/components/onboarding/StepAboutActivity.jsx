@@ -22,7 +22,7 @@ const lbsToKg = (lbs) => lbs * 0.45359237;
 const cmToIn = (cm) => cm / 2.54;
 const inToCm = (inches) => inches * 2.54;
 
-export default function StepAboutActivity({ p, set, units, setUnits, showErrors }) {
+export default function StepAboutActivity({ p, set, units, setUnits, showErrors, showBaseline = true }) {
   const metric = units === "metric";
 
   const weightDisplay = (stored) => {
@@ -145,7 +145,7 @@ export default function StepAboutActivity({ p, set, units, setUnits, showErrors 
         </div>
       </div>
 
-      <div className={showErrors && p.waist_in && !inRange(p.waist_in, 10, 150) ? "ring-1 ring-destructive rounded-lg" : ""}>
+      {showBaseline && <div className={showErrors && p.waist_in && !inRange(p.waist_in, 10, 150) ? "ring-1 ring-destructive rounded-lg" : ""}>
         <NumField
           id="waist"
           label="Baseline waist"
@@ -164,7 +164,7 @@ export default function StepAboutActivity({ p, set, units, setUnits, showErrors 
           max={metric ? 381 : 150}
           hint="Optional — seeds your trend"
         />
-      </div>
+      </div>}
 
       <div className="pt-2 border-t border-lineSoft">
         <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-4">Activity</p>

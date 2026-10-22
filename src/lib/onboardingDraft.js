@@ -9,6 +9,8 @@
 //   in localStorage;
 // - removed on finish, on every logout path, and on account deletion.
 
+import { COACH_TONES } from "./fitness/constants.js";
+
 /** Pre-scoping key. Any value under it belongs to an unknown account. */
 export const LEGACY_ONBOARDING_DRAFT_KEY = "recompiq_onboarding_v1";
 export const ONBOARDING_DRAFT_PREFIX = "recompiq_onboarding_v2:";
@@ -82,6 +84,9 @@ export function pickPreferenceDraftFields(value) {
   const picked = {};
   for (const field of PREFERENCE_DRAFT_STRING_FIELDS) {
     const kept = draftString(value[field]);
+    // Tone has no control in onboarding. Ignore obsolete values so hydration
+    // uses the supported default instead of creating an unrepairable step.
+    if (field === "tone" && !COACH_TONES.includes(kept)) continue;
     if (kept !== undefined) picked[field] = kept;
   }
   for (const field of PREFERENCE_DRAFT_LIST_FIELDS) {
@@ -102,13 +107,15 @@ export function sanitizeOnboardingDraft(value) {
   if (Number.isInteger(value.step) && value.step >= 0 && value.step <= MAX_STEP) {
     draft.step = value.step;
   }
+  if (typeof value.keepCustomTargets === "boolean") draft.keepCustomTargets = value.keepCustomTargets;
+  if (typeof value.baseRevision === "string" && /^v1:[a-f0-9]{16}$/.test(value.baseRevision)) draft.baseRevision = value.baseRevision;
   return draft;
 }
 
 /** The storage key for one account's draft, or null when no id is known. */
-export function onboardingDraftKey(userId) {
+export function onboardingDraftKey(userId, mode = "initial") {
   if (typeof userId !== "string" || userId.trim() === "") return null;
-  return `${ONBOARDING_DRAFT_PREFIX}${userId}`;
+  return `${ONBOARDING_DRAFT_PREFIX}${userId}${mode === "redo" ? ":redo" : ""}`;
 }
 
 function removeKey(storage, key) {
@@ -123,9 +130,9 @@ function removeKey(storage, key) {
  * Load the signed-in user's draft. Always discards the legacy unscoped key,
  * whose owner cannot be known, and drops a malformed scoped value.
  */
-export function loadOnboardingDraft(storage, userId) {
+export function loadOnboardingDraft(storage, userId, mode = "initial") {
   removeKey(storage, LEGACY_ONBOARDING_DRAFT_KEY);
-  const key = onboardingDraftKey(userId);
+  const key = onboardingDraftKey(userId, mode);
   if (!key || !storage) return null;
   let raw;
   try {
@@ -146,8 +153,8 @@ export function loadOnboardingDraft(storage, userId) {
 }
 
 /** Persist the allowlisted draft under the user's key. No-op without an id. */
-export function saveOnboardingDraft(storage, userId, draft) {
-  const key = onboardingDraftKey(userId);
+export function saveOnboardingDraft(storage, userId, draft, mode = "initial") {
+  const key = onboardingDraftKey(userId, mode);
   const sanitized = sanitizeOnboardingDraft(draft);
   if (!key || !storage || !sanitized) return false;
   try {
@@ -159,9 +166,9 @@ export function saveOnboardingDraft(storage, userId, draft) {
 }
 
 /** Remove one user's draft and the legacy key. */
-export function clearOnboardingDraft(storage, userId) {
+export function clearOnboardingDraft(storage, userId, mode = "initial") {
   removeKey(storage, LEGACY_ONBOARDING_DRAFT_KEY);
-  const key = onboardingDraftKey(userId);
+  const key = onboardingDraftKey(userId, mode);
   if (key) removeKey(storage, key);
 }
 

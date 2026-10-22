@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
-import { recalculatedStrategyUpdate, GOAL_LABELS, COACH_TONES, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
+import { useAuth } from "@/lib/AuthContext";
+import { clearOnboardingDraft } from "@/lib/onboardingDraft";
+import { GOAL_LABELS, COACH_TONES, JOB_ACTIVITY_LABELS } from "@/lib/fitness";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,18 +47,58 @@ const EXPERIENCE_OPTIONS = [
   { value: "advanced", label: "Advanced" }
 ];
 
+function planSaveErrorDescription(error, fallback) {
+  const message = typeof error?.message === "string" ? error.message.trim() : "";
+  if (message) return message;
+  if (error?.conflict || error?.reconciliationRequired) {
+    return "Some settings may have changed. Review your answers and try saving again.";
+  }
+  return fallback;
+}
+
+function formatProfileNumber(value, unit = "") {
+  if ((typeof value !== "number" && typeof value !== "string") || String(value).trim() === "" || !Number.isFinite(Number(value))) return "—";
+  return `${Number(value)}${unit ? ` ${unit}` : ""}`;
+}
+
 export default function Profile() {
-  const { profile, preferences, strategy, updateProfile, updatePreferences, updateStrategy } = useRecomp();
+  const { profile, preferences, strategy, updatePlanProfile, updatePreferences } = useRecomp();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  // A ref closes the gap before React renders disabled controls.
+  const operationRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState(null);
   const [bioSaving, setBioSaving] = useState(false);
+  const [toneSaving, setToneSaving] = useState(false);
+  const [goalDraft, setGoalDraft] = useState(null);
+  const [goalError, setGoalError] = useState("");
+  const [bioError, setBioError] = useState("");
+  const [toneError, setToneError] = useState("");
+  const [goalRecoveryRequired, setGoalRecoveryRequired] = useState(false);
+  const busy = saving || bioSaving || toneSaving || deleting;
+
+  useEffect(() => {
+    setGoalDraft(null);
+  }, [profile?.id, profile?.goal]);
+  useEffect(() => {
+    setGoalRecoveryRequired(false);
+  }, [profile?.id]);
 
   if (!profile) return null;
 
+  const selectedGoal = goalDraft ?? profile.goal;
+  const hasSelectedGoal = Object.hasOwn(GOAL_LABELS, selectedGoal ?? "");
+  const goalChanged = selectedGoal !== profile.goal;
+  const goalNeedsRepair = Boolean(strategy && strategy.goal_type !== profile.goal);
+  const canSaveGoal = hasSelectedGoal && (goalChanged || goalNeedsRepair || goalRecoveryRequired);
+
   const startEdit = () => {
+    if (operationRef.current) return;
+    setBioError("");
     setDraft({
       age: String(profile.age ?? ""),
       sex: profile.sex ?? "male",
@@ -72,8 +115,10 @@ export default function Profile() {
   };
 
   const cancelEdit = () => {
+    if (operationRef.current) return;
     setEditMode(false);
     setDraft(null);
+    setBioError("");
   };
 
   const setDraftField = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
@@ -100,77 +145,108 @@ export default function Profile() {
 
   const saveEdits = async () => {
     if (bioHasErrors) return;
+    if (!draft || operationRef.current) return;
+    operationRef.current = true;
     setBioSaving(true);
+    setBioError("");
     try {
       const profileData = {
         age: Number(draft.age),
         sex: draft.sex,
         height_in: Number(draft.height_in),
         current_weight_lbs: Number(draft.current_weight_lbs),
-        goal_weight_lbs: draft.goal_weight_lbs ? Number(draft.goal_weight_lbs) : undefined,
+        goal_weight_lbs: draft.goal_weight_lbs ? Number(draft.goal_weight_lbs) : null,
         job_activity: draft.job_activity,
         average_steps: Number(draft.average_steps),
         training_days_per_week: Number(draft.training_days_per_week),
         cardio_days_per_week: Number(draft.cardio_days_per_week),
         experience_level: draft.experience_level
       };
-      const updated = await updateProfile(profile.id, profileData);
-      const manual = Boolean(strategy?.manual_override);
-      if (strategy?.id) {
-        // In manual mode the user's own calorie/macro/step numbers must survive a
-        // biometrics edit — the same invariant the weekly check-in enforces.
-        await updateStrategy(
-          strategy.id,
-          recalculatedStrategyUpdate(updated, preferences, { goal: profile.goal, manualOverride: manual }),
-          manual ? "Biometrics updated. Custom targets kept." : "Biometrics updated."
-        );
-      }
+      const saved = await updatePlanProfile(profileData, {
+        reason: "Biometrics updated.",
+        keepCustomTargets: true
+      });
+      const manual = Boolean(saved.strategy?.manual_override);
+      setGoalRecoveryRequired(false);
       toast({
         title: "Biometrics saved",
         description: manual ? "Your custom targets were kept." : undefined
       });
       setEditMode(false);
       setDraft(null);
-    } catch {
-      toast({ title: "Could not save biometrics", description: "Please try again." });
+    } catch (error) {
+      if (error?.reconciliationRequired) setGoalRecoveryRequired(true);
+      const description = planSaveErrorDescription(error, "Your edits are still here; please try again.");
+      setBioError(`Could not save biometrics. ${description}`);
+      toast({ title: "Could not save biometrics", description });
     } finally {
+      operationRef.current = false;
       setBioSaving(false);
     }
   };
 
-  const changeGoal = async (newGoal) => {
+  const saveGoal = async () => {
+    const newGoal = selectedGoal;
+    if (operationRef.current || editMode || !canSaveGoal) return;
+    operationRef.current = true;
     setSaving(true);
+    setGoalError("");
     const label = GOAL_LABELS[newGoal].label;
     try {
-      const updated = await updateProfile(profile.id, { goal: newGoal });
-      if (strategy?.id) {
-        const manual = Boolean(strategy.manual_override);
-        // Manual mode keeps the user's own calorie/macro/step numbers, the same
-        // rule saveEdits and the weekly check-in follow.
-        await updateStrategy(
-          strategy.id,
-          recalculatedStrategyUpdate(updated, preferences, { goal: newGoal, manualOverride: manual }),
-          manual ? `Goal changed to ${label}. Custom targets kept.` : `Goal changed to ${label}.`
-        );
-        if (manual) {
-          toast({ title: `Goal set to ${label}`, description: "Your custom targets were kept." });
-        }
-      }
-    } catch {
+      const saved = await updatePlanProfile({ goal: newGoal }, {
+        reason: goalChanged ? `Goal changed to ${label}.` : `Goal and targets synchronized for ${label}.`,
+        keepCustomTargets: true
+      });
+      setGoalDraft(null);
+      setGoalRecoveryRequired(false);
+      toast({
+        title: `Goal set to ${label}`,
+        description: saved.strategy?.manual_override ? "Your custom targets were kept." : "Your targets have been updated."
+      });
+    } catch (error) {
+      if (error?.reconciliationRequired) setGoalRecoveryRequired(true);
+      const description = planSaveErrorDescription(error, "Your selection is still here; please try again.");
+      setGoalError(`Could not save your goal. ${description}`);
       toast({
         title: "Could not change your goal",
-        description: "Your goal and targets may be out of sync. Please try again."
+        description
       });
     } finally {
+      operationRef.current = false;
       setSaving(false);
     }
   };
 
   const changeTone = async (newTone) => {
-    if (preferences) await updatePreferences(preferences.id, { tone: newTone });
+    if (!preferences?.id || operationRef.current || editMode || newTone === preferences.tone) return;
+    operationRef.current = true;
+    setToneSaving(true);
+    setToneError("");
+    try {
+      await updatePreferences(preferences.id, { tone: newTone });
+      toast({ title: "Coach tone saved" });
+    } catch {
+      setToneError("Could not save coach tone. Please select it again to retry.");
+      toast({ title: "Could not save coach tone", description: "Please try again." });
+    } finally {
+      operationRef.current = false;
+      setToneSaving(false);
+    }
+  };
+
+  const redoOnboarding = () => {
+    if (operationRef.current || editMode || !user?.id) return;
+    // Storage can be unavailable in privacy mode. Reopening the questions must
+    // still work; the helper accepts null and clears only this user's redo draft.
+    let storage = null;
+    try { storage = window.localStorage; } catch { /* unavailable */ }
+    clearOnboardingDraft(storage, user.id, "redo");
+    navigate("/onboarding?redo=1&step=0");
   };
 
   const deleteAccount = async () => {
+    if (operationRef.current) return;
+    operationRef.current = true;
     setDeleting(true);
     try {
       const me = await base44.auth.me();
@@ -207,6 +283,7 @@ export default function Profile() {
         description: serverMessage || "Please try again. If the problem continues, contact support."
       });
     } finally {
+      operationRef.current = false;
       setDeleting(false);
     }
   };
@@ -224,6 +301,7 @@ export default function Profile() {
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                disabled={busy}
                 onClick={startEdit}
               >
                 <Pencil className="w-3.5 h-3.5 mr-1" />
@@ -233,7 +311,7 @@ export default function Profile() {
           </div>
 
           {editMode && draft ? (
-            <div className="space-y-3 pt-1">
+            <fieldset disabled={busy} className="min-w-0 space-y-3 pt-1">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-age">Age</Label>
@@ -376,11 +454,12 @@ export default function Profile() {
                   Check the highlighted fields — one is missing or out of range.
                 </p>
               )}
+              {bioError && <p role="alert" className="text-sm text-red">{bioError}</p>}
 
               <div className="flex gap-2 pt-1">
                 <Button
                   className="flex-1 bg-teal text-buttonText hover:opacity-90 min-h-11 disabled:cursor-not-allowed"
-                  disabled={bioSaving || bioHasErrors}
+                  disabled={busy || bioHasErrors}
                   onClick={saveEdits}
                 >
                   {bioSaving ? (
@@ -395,25 +474,25 @@ export default function Profile() {
                 <Button
                   variant="outline"
                   className="flex-1 border-line min-h-11"
-                  disabled={bioSaving}
+                  disabled={busy}
                   onClick={cancelEdit}
                 >
                   Cancel
                 </Button>
               </div>
-            </div>
+            </fieldset>
           ) : (
             <>
-              <Row label="Age" value={profile.age} />
-              <Row label="Sex" value={profile.sex} />
+              <Row label="Age" value={formatProfileNumber(profile.age)} />
+              <Row label="Sex" value={SEX_OPTIONS.find((option) => option.value === profile.sex)?.label} />
               {/* Number() drops a trailing ".0" so whole inches still read "70 in". */}
-              <Row label="Height" value={`${Number(profile.height_in)} in`} />
-              <Row label="Current weight" value={`${profile.current_weight_lbs} lb`} />
-              {profile.goal_weight_lbs && <Row label="Goal weight" value={`${profile.goal_weight_lbs} lb`} />}
-              <Row label="Activity" value={profile.job_activity.replace(/_/g, " ")} />
-              <Row label="Avg steps" value={profile.average_steps} />
-              <Row label="Training" value={`${profile.training_days_per_week} lift / ${profile.cardio_days_per_week} cardio`} />
-              <Row label="Experience" value={profile.experience_level} />
+              <Row label="Height" value={formatProfileNumber(profile.height_in, "in")} />
+              <Row label="Current weight" value={formatProfileNumber(profile.current_weight_lbs, "lb")} />
+              {profile.goal_weight_lbs != null && profile.goal_weight_lbs !== "" && <Row label="Goal weight" value={formatProfileNumber(profile.goal_weight_lbs, "lb")} />}
+              <Row label="Activity" value={Object.hasOwn(JOB_ACTIVITY_LABELS, profile.job_activity ?? "") ? JOB_ACTIVITY_LABELS[profile.job_activity] : undefined} />
+              <Row label="Avg steps" value={formatProfileNumber(profile.average_steps)} />
+              <Row label="Training" value={`${formatProfileNumber(profile.training_days_per_week)} lift / ${formatProfileNumber(profile.cardio_days_per_week)} cardio`} />
+              <Row label="Experience" value={EXPERIENCE_OPTIONS.find((option) => option.value === profile.experience_level)?.label} />
             </>
           )}
         </CardContent>
@@ -426,12 +505,30 @@ export default function Profile() {
             <Label htmlFor="profile-goal">Goal</Label>
             <AdaptiveSelect
               id="profile-goal"
-              value={profile.goal}
-              onValueChange={changeGoal}
-              disabled={saving}
+              value={hasSelectedGoal ? selectedGoal : ""}
+              placeholder="Choose a goal"
+              onValueChange={(value) => {
+                if (operationRef.current || editMode) return;
+                setGoalDraft(value);
+                setGoalError("");
+              }}
+              disabled={busy || editMode}
               drawerTitle="Goal"
               options={GOAL_ORDER.map((goal) => ({ value: goal, label: GOAL_LABELS[goal].label }))}
             />
+            <Button
+              className="w-full min-h-11 bg-teal text-buttonText hover:opacity-90"
+              disabled={busy || editMode || !canSaveGoal}
+              onClick={saveGoal}
+            >
+              {saving ? "Saving goal…" : "Save goal"}
+            </Button>
+            {goalError && <p role="alert" className="text-sm text-red">{goalError}</p>}
+            {!hasSelectedGoal && <p className="text-xs text-muted-foreground">Choose a goal or redo onboarding to complete your setup.</p>}
+            {!goalError && (goalNeedsRepair || goalRecoveryRequired) && (
+              <p role="status" className="text-xs text-muted-foreground">Your plan needs to be synced. Save goal to repair your targets.</p>
+            )}
+            {editMode && <p className="text-xs text-muted-foreground">Save or cancel your biometric edits before changing your goal or coach tone.</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="coach-tone">Coach tone</Label>
@@ -439,12 +536,15 @@ export default function Profile() {
               id="coach-tone"
               value={preferences?.tone ?? "direct"}
               onValueChange={changeTone}
+              disabled={busy || editMode || !preferences?.id}
               drawerTitle="Coach tone"
               options={COACH_TONES.map((tone) => ({
                 value: tone,
                 label: <span className="capitalize">{tone.replace("_", " ")}</span>
               }))}
             />
+            {toneSaving && <p role="status" className="text-xs text-muted-foreground">Saving coach tone…</p>}
+            {toneError && <p role="alert" className="text-sm text-red">{toneError}</p>}
           </div>
         </CardContent>
       </Card>
@@ -464,13 +564,25 @@ export default function Profile() {
         </Card>
       )}
 
-      <Button variant="outline" className="w-full border-line text-muted-foreground" onClick={() => signOut(window.location.origin)}>
+      <Card className="bg-panel border-line">
+        <CardContent className="p-5 space-y-3">
+          <div className="font-medium">Review your setup</div>
+          <p className="text-sm text-muted-foreground">
+            Revisit your prefilled questions. Nothing changes until the final save. Your logs and Premium access stay with your account.
+          </p>
+          <Button variant="outline" className="w-full min-h-11 border-line" disabled={busy || editMode || !user?.id} onClick={redoOnboarding}>
+            Redo onboarding
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Button variant="outline" disabled={busy} className="w-full border-line text-muted-foreground" onClick={() => { if (!operationRef.current) signOut(window.location.origin); }}>
         <LogOut className="w-4 h-4 mr-2" /> Log out
       </Button>
 
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="outline" disabled={deleting} className="w-full border-destructive/30 text-destructive hover:bg-destructive/10">
+          <Button variant="outline" disabled={busy || editMode} className="w-full border-destructive/30 text-destructive hover:bg-destructive/10">
             <Trash2 className="w-4 h-4 mr-2" /> Delete account
           </Button>
         </AlertDialogTrigger>
@@ -487,7 +599,7 @@ export default function Profile() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={deleting}
+              disabled={busy}
               onClick={deleteAccount}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
@@ -504,7 +616,7 @@ function Row({ label, value }) {
   return (
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium capitalize">{value}</span>
+      <span className="font-medium capitalize">{value == null || value === "" ? "—" : value}</span>
     </div>
   );
 }

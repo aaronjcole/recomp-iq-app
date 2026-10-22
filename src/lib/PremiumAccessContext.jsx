@@ -42,6 +42,11 @@ function normalizeResponse(result) {
 }
 
 export function PremiumAccessProvider({ children }) {
+  const { user } = useAuth();
+  return <AccountPremiumAccessProvider key={user?.id ?? "signed-out"}>{children}</AccountPremiumAccessProvider>;
+}
+
+function AccountPremiumAccessProvider({ children }) {
   const { isAuthenticated, user } = useAuth();
   const [access, setAccess] = useState(
     /** @type {PremiumAccessState} */ (EMPTY_PREMIUM_ACCESS)

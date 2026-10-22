@@ -21,7 +21,7 @@ export function recalculateTargets(profile, preferences = {}) {
     fat_target_g: calc.fat_target_g,
     carb_target_g: calc.carb_target_g,
     step_target: calc.step_target,
-    lifting_days_target: Math.min(Math.max(profile.training_days_per_week || 3, 2), 4),
+    lifting_days_target: Math.min(Math.max(profile.training_days_per_week ?? 3, 0), 4),
     cardio_days_target: profile.cardio_days_per_week,
     goal_type: profile.goal,
     weekly_adjustment_rule: "Use 14+ days of data and small bounded changes.",

@@ -210,6 +210,7 @@ for (const delayedLoad of ["background history", "on-demand date"]) {
         DailyLog: ENTITY_FIXTURES.DailyLog.filter(
           (row) => row.date === TODAY || row.date === HISTORY_DATE,
         ),
+        ExerciseSession: [], // Sessions also mark the sibling date as active.
         FoodLogEntry: onDemand ? [original, sentinel] : [original],
       },
     });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { calculateBMR } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,9 @@ export default function CustomTargetsCard({ embedded = false }) {
   const targetFormId = useId();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  // Guard before React commits disabled controls (e.g. repeated fast taps).
+  const writePendingRef = useRef(false);
 
   useEffect(() => {
     if (strategy) {
@@ -83,24 +86,48 @@ export default function CustomTargetsCard({ embedded = false }) {
     );
   }
 
-  const toggleOverride = (on) => {
-    updateStrategy(strategy.id, { manual_override: on }, on ? undefined : "Switched to adaptive targets");
+  const toggleOverride = async (on) => {
+    if (writePendingRef.current) return;
+    writePendingRef.current = true;
+    setToggling(true);
+    try {
+      await updateStrategy(strategy.id, { manual_override: on }, on ? undefined : "Switched to adaptive targets");
+    } catch {
+      toast({
+        title: "Could not change target mode",
+        description: "Could not confirm the change. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      writePendingRef.current = false;
+      setToggling(false);
+    }
   };
 
   const save = async () => {
+    if (writePendingRef.current || !strategy.manual_override || !validTargets) return;
+    writePendingRef.current = true;
     setSaving(true);
     try {
       await updateStrategy(strategy.id, { ...targets(), manual_override: true }, "Manual target change");
       toast({
         title: "Targets saved",
-        description: "Your custom targets are live and logged to your decision history."
+        description: "Your custom targets are now active."
+      });
+    } catch {
+      toast({
+        title: "Could not save targets",
+        description: "Your edits are still here. Please try again.",
+        variant: "destructive"
       });
     } finally {
+      writePendingRef.current = false;
       setSaving(false);
     }
   };
 
   const locked = !strategy.manual_override;
+  const busy = saving || toggling;
 
   const content = (
     <>
@@ -109,7 +136,7 @@ export default function CustomTargetsCard({ embedded = false }) {
           <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Custom targets</div>
           <div className="text-sm font-medium">Use my own targets</div>
         </div>
-        <Switch checked={!!strategy.manual_override} onCheckedChange={toggleOverride} aria-label="Toggle custom targets" />
+        <Switch checked={!!strategy.manual_override} onCheckedChange={toggleOverride} disabled={busy} aria-label="Toggle custom targets" />
       </div>
 
       <div className={locked ? "space-y-3 opacity-50 pointer-events-none" : "space-y-3"}>
@@ -125,6 +152,7 @@ export default function CustomTargetsCard({ embedded = false }) {
                 inputMode="decimal"
                 min={0}
                 max={f.max}
+                disabled={locked || busy}
                 value={form[f.key]}
                 onChange={(e) => set(f.key, e.target.value)}
               />
@@ -145,7 +173,7 @@ export default function CustomTargetsCard({ embedded = false }) {
 
         <Button
           onClick={save}
-          disabled={locked || saving || !validTargets}
+          disabled={locked || busy || !validTargets}
           className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90"
         >
           {saving ? "Saving…" : "Save targets"}

@@ -98,14 +98,9 @@ test("a biometrics or goal edit preserves manually authored targets", () => {
   assert.equal(manual.goal_type, "lean_bulk");
   assert.equal(manual.lifting_days_target, recalculated.lifting_days_target, "non-authored targets still update");
 
-  // Wiring: both Profile edit paths write this patch with the strategy's flag.
-  const source = read("src/pages/Profile.jsx");
-  assert.match(source, /const manual = Boolean\(strategy\?\.manual_override\)/);
-  assert.equal(
-    source.match(/recalculatedStrategyUpdate\(updated, preferences, \{ goal: (?:profile\.goal|newGoal), manualOverride: manual \}\)/g)?.length,
-    2
-  );
-  assert.doesNotMatch(source, /recalculateTargets\(/, "no Profile path recalculates targets without the manual guard");
+  // Profile integration and persisted manual-mode races are exercised by
+  // profile-settings.spec.js and plan-settings.test.js rather than matching
+  // the old two-request handler's source text.
 });
 
 test("a failed weekly review refresh keeps the review already on screen", () => {

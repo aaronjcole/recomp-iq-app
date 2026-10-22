@@ -48,7 +48,10 @@ test("the profile editor blocks the save that corrupted targets", () => {
   // A guard in the handler as well as on the button: the button alone can be
   // bypassed by a stale render, and this write recomputes the user's targets.
   assert.match(source, /if \(bioHasErrors\) return;/);
-  assert.match(source, /disabled=\{bioSaving \|\| bioHasErrors\}/);
+  assert.match(source, /disabled=\{busy \|\| bioHasErrors\}/);
+  assert.match(source, /if \(!draft \|\| operationRef\.current\) return;/);
+  assert.match(source, /goal_weight_lbs: draft\.goal_weight_lbs \? Number\(draft\.goal_weight_lbs\) : null/);
+  assert.match(source, /await updatePlanProfile\(profileData,/);
   assert.match(source, /from "@\/lib\/biometricRanges"/);
 
   // Every writable numeric field must be validated, not just the obvious ones.

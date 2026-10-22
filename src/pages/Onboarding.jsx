@@ -11,7 +11,9 @@ import {
   pickProfileDraftFields,
   saveOnboardingDraft
 } from "@/lib/onboardingDraft";
-import { calculateInitialStrategy } from "@/lib/fitness";
+import { calculateInitialStrategy, COACH_TONES, EXPERIENCE_LEVELS, GOALS, JOB_ACTIVITIES, SEXES } from "@/lib/fitness";
+import { planSettingsRevision } from "@/lib/planSettings";
+import { DIET_STYLES } from "@/components/onboarding/constants";
 import StepGoal from "@/components/onboarding/StepGoal";
 import StepAboutActivity from "@/components/onboarding/StepAboutActivity";
 import StepNutrition from "@/components/onboarding/StepNutrition";
@@ -90,10 +92,12 @@ function inRange(value, min, max) {
 export default function Onboarding() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  return <OnboardingForm key={userId ?? "anonymous"} userId={userId} />;
+  const [params] = useSearchParams();
+  const redo = params.get("redo") === "1";
+  return <OnboardingForm key={`${userId ?? "anonymous"}:${redo}`} userId={userId} redo={redo} />;
 }
 
-function OnboardingForm({ userId }) {
+function OnboardingForm({ userId, redo }) {
   const {
     completeOnboarding,
     upsertDailyLog,
@@ -101,16 +105,18 @@ function OnboardingForm({ userId }) {
     loadError,
     profile,
     preferences,
+    strategy,
     onboarded,
     reload
   } = useRecomp();
   const navigate = useNavigate();
 
-  const saved = useMemo(() => loadOnboardingDraft(browserStorage(), userId), [userId]);
+  const draftMode = redo ? "redo" : "initial";
+  const saved = useMemo(() => loadOnboardingDraft(browserStorage(), userId, draftMode), [userId, draftMode]);
   const [searchParams, setSearchParams] = useSearchParams();
   const step = Math.min(
     STEPS.length - 1,
-    Math.max(0, Number(searchParams.get("step") ?? saved?.step ?? 0) || 0)
+    Math.max(0, Math.floor(Number(searchParams.get("step") ?? saved?.step ?? 0) || 0))
   );
   const [p, setP] = useState(() => (saved ? { ...DEFAULTS.p, ...saved.p } : DEFAULTS.p));
   const [pref, setPrefRaw] = useState(() => (saved ? { ...DEFAULTS.pref, ...saved.pref } : DEFAULTS.pref));
@@ -121,10 +127,22 @@ function OnboardingForm({ userId }) {
   // Fix 2: showErrors triggers per-field highlight classes in step components.
   const [showErrors, setShowErrors] = useState(false);
   const restoredPartialSetup = useRef(false);
+  const savingRef = useRef(false);
+  const [hydrated, setHydrated] = useState(Boolean(saved));
+  const [keepCustomTargets, setKeepCustomTargets] = useState(saved?.keepCustomTargets ?? true);
+  const currentRevision = useMemo(() => planSettingsRevision(profile, preferences, strategy), [profile, preferences, strategy]);
+  const baseRevision = useRef(saved?.baseRevision ?? "");
+  const isRedo = redo && onboarded;
+  const staleDraft = isRedo && hydrated && baseRevision.current && baseRevision.current !== currentRevision;
 
   useEffect(() => {
-    if (loading || saved || restoredPartialSetup.current) return;
+    if (loading || loadError || staleDraft || restoredPartialSetup.current) return;
     restoredPartialSetup.current = true;
+    if (saved) {
+      baseRevision.current ||= currentRevision;
+      setHydrated(true);
+      return;
+    }
 
     // Only allowlisted form fields are copied from the server records, so
     // record metadata (id, created_by email, created_by_id) never enters form
@@ -135,33 +153,39 @@ function OnboardingForm({ userId }) {
     if (preferences) {
       setPrefRaw((current) => ({ ...current, ...pickPreferenceDraftFields(preferences) }));
     }
-  }, [loading, preferences, profile, saved]);
+    baseRevision.current = currentRevision;
+    setHydrated(true);
+  }, [loading, loadError, preferences, profile, saved, staleDraft, currentRevision]);
 
   useEffect(() => {
-    saveOnboardingDraft(browserStorage(), userId, { p, pref, units, step });
-  }, [p, pref, units, step, userId]);
+    if (!hydrated || loading || loadError || saving || staleDraft) return;
+    saveOnboardingDraft(browserStorage(), userId, {
+      p, pref, units, step,
+      ...(redo ? { keepCustomTargets, baseRevision: baseRevision.current } : {})
+    }, draftMode);
+  }, [p, pref, units, step, userId, hydrated, loading, loadError, saving, staleDraft, redo, keepCustomTargets, draftMode]);
 
   useEffect(() => {
-    if (!loading && onboarded && !saving) navigate("/today", { replace: true });
-  }, [loading, navigate, onboarded, saving]);
+    if (!loading && onboarded && !saving && !redo) navigate("/today", { replace: true });
+  }, [loading, navigate, onboarded, saving, redo]);
 
   const set = (k, v) => setP((s) => ({ ...s, [k]: v }));
   const setPref = (k, v) => setPrefRaw((s) => ({ ...s, [k]: v }));
 
   const validations = [
-    !!p.goal,
+    GOALS.includes(p.goal),
     inRange(p.age, 18, 120) &&
-      !!p.sex &&
+      SEXES.includes(p.sex) &&
       inRange(p.height_in, 36, 108) &&
       inRange(p.current_weight_lbs, 40, 1200) &&
       (!p.goal_weight_lbs || inRange(p.goal_weight_lbs, 40, 1200)) &&
-      (!p.waist_in || inRange(p.waist_in, 10, 150)) &&
-      !!p.job_activity &&
+      (isRedo || !p.waist_in || inRange(p.waist_in, 10, 150)) &&
+      JOB_ACTIVITIES.includes(p.job_activity) &&
       inRange(p.average_steps, 0, 200000) &&
       inRange(p.training_days_per_week, 0, 7) &&
       inRange(p.cardio_days_per_week, 0, 7) &&
-      !!p.experience_level,
-    !!pref.diet_style,
+      EXPERIENCE_LEVELS.includes(p.experience_level),
+    DIET_STYLES.includes(pref.diet_style) && COACH_TONES.includes(pref.tone),
     true
   ];
   const stepValid = validations[step];
@@ -173,7 +197,7 @@ function OnboardingForm({ userId }) {
       !inRange(p.height_in, 36, 108) ||
       !inRange(p.current_weight_lbs, 40, 1200)
     ) return null;
-    return calculateInitialStrategy({
+    const calculated = calculateInitialStrategy({
       sex: p.sex,
       age: Number(p.age),
       height_in: Number(p.height_in),
@@ -185,12 +209,21 @@ function OnboardingForm({ userId }) {
       training_days_per_week: Number(p.training_days_per_week),
       cardio_days_per_week: Number(p.cardio_days_per_week)
     }, pref);
-  }, [p, pref]);
+    if (isRedo && keepCustomTargets && strategy?.manual_override) {
+      return { ...calculated, calorie_target: strategy.calorie_target, protein_target_g: strategy.protein_target_g, step_target: strategy.step_target };
+    }
+    return calculated;
+  }, [p, pref, isRedo, keepCustomTargets, strategy]);
 
   const goTo = (n) => {
+    if (savingRef.current) return;
     setErrorStep(null);
     setShowErrors(false);
-    setSearchParams({ step: String(n) });
+    setSearchParams((previous) => {
+      const params = new URLSearchParams(previous);
+      params.set("step", String(n));
+      return params;
+    });
   };
   const next = () => {
     if (!stepValid) {
@@ -205,6 +238,15 @@ function OnboardingForm({ userId }) {
   const back = () => goTo(Math.max(0, step - 1));
 
   const finish = async () => {
+    if (savingRef.current || !hydrated || staleDraft) return;
+    const invalidStep = validations.findIndex((valid) => !valid);
+    if (invalidStep !== -1) {
+      goTo(invalidStep);
+      setErrorStep(invalidStep);
+      setShowErrors(true);
+      return;
+    }
+    savingRef.current = true;
     setSaving(true);
     setSaveError("");
     try {
@@ -218,7 +260,7 @@ function OnboardingForm({ userId }) {
         sex: p.sex,
         height_in: Number(p.height_in),
         current_weight_lbs: Number(p.current_weight_lbs),
-        goal_weight_lbs: p.goal_weight_lbs ? Number(p.goal_weight_lbs) : undefined,
+        goal_weight_lbs: p.goal_weight_lbs ? Number(p.goal_weight_lbs) : isRedo ? null : undefined,
         goal: p.goal,
         training_days_per_week: Number(p.training_days_per_week),
         cardio_days_per_week: Number(p.cardio_days_per_week),
@@ -235,22 +277,40 @@ function OnboardingForm({ userId }) {
         disliked_strategies: pref.disliked_strategies,
         known_barriers: pref.known_barriers
       };
-      await completeOnboarding(profileData, prefData);
-      if (p.waist_in) {
+      await completeOnboarding(profileData, prefData, { keepCustomTargets });
+      if (!isRedo && p.waist_in) {
         try {
           await upsertDailyLog(todayStr(), { waist_in: Number(p.waist_in) });
         } catch (error) {
           console.warn("Plan created, but the baseline waist measurement was not saved.", error);
         }
       }
-      clearOnboardingDraft(browserStorage(), userId);
+      clearOnboardingDraft(browserStorage(), userId, draftMode);
       navigate("/today", { replace: true });
     } catch (error) {
       console.error("Unable to complete onboarding", error);
-      setSaveError("We couldn't finish building your plan. Your answers are saved; try again to resume safely.");
+      setSaveError(isRedo ? error.message || "We couldn't update your plan. Your draft is saved; try again." : "We couldn't finish building your plan. Your answers are saved; try again to resume safely.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
+  };
+
+  const cancelRedo = () => {
+    if (savingRef.current) return;
+    clearOnboardingDraft(browserStorage(), userId, draftMode);
+    navigate("/more/profile", { replace: true });
+  };
+
+  const useLatestSettings = () => {
+    setP({ ...DEFAULTS.p, ...pickProfileDraftFields(profile), waist_in: "" });
+    setPrefRaw({ ...DEFAULTS.pref, ...pickPreferenceDraftFields(preferences) });
+    setKeepCustomTargets(true);
+    baseRevision.current = currentRevision;
+    setHydrated(true);
+    restoredPartialSetup.current = true;
+    clearOnboardingDraft(browserStorage(), userId, draftMode);
+    goTo(0);
   };
 
   if (loading) {
@@ -280,6 +340,18 @@ function OnboardingForm({ userId }) {
     );
   }
 
+  if (staleDraft && !saving) {
+    return (
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md space-y-4">
+        <h1 className="text-xl font-semibold">Your saved settings changed</h1>
+        {saveError && <p role="alert" className="text-sm text-red">{saveError}</p>}
+        <p className="text-sm text-muted-foreground">Your unfinished setup uses older answers. Start with your latest saved settings to avoid replacing a newer change.</p>
+        <Button onClick={useLatestSettings} className="w-full min-h-11 bg-teal text-buttonText">Use latest settings</Button>
+        <Button variant="outline" onClick={cancelRedo} className="w-full min-h-11">Cancel setup</Button>
+      </main>
+    );
+  }
+
   return (
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-bg text-foreground px-4 py-8 mx-auto max-w-md">
       <div className="flex items-center gap-2 mb-8">
@@ -290,6 +362,11 @@ function OnboardingForm({ userId }) {
       </div>
 
       <div className="flex flex-col gap-2 mb-6">
+        {isRedo && <div className="mb-4 space-y-2">
+          <h1 className="text-xl font-semibold">Redo onboarding</h1>
+          <p className="text-sm text-muted-foreground">Review your current answers and update your plan. Changes apply when you save. Your Premium access and logged history are kept.</p>
+          <Button variant="outline" className="min-h-11" disabled={saving} onClick={cancelRedo}>Cancel setup</Button>
+        </div>}
         <div className="flex gap-1.5">
           {STEPS.map((_, i) => (
             <div
@@ -304,16 +381,24 @@ function OnboardingForm({ userId }) {
       </div>
 
       {step === 0 && <StepGoal p={p} set={set} showErrors={showErrors} />}
-      {step === 1 && <StepAboutActivity p={p} set={set} units={units} setUnits={setUnits} showErrors={showErrors} />}
+      {step === 1 && <StepAboutActivity p={p} set={set} units={units} setUnits={setUnits} showErrors={showErrors} showBaseline={!isRedo} />}
       {step === 2 && <StepNutrition pref={pref} setPref={setPref} showErrors={showErrors} />}
       {step === 3 && (
+        <>
+        {isRedo && strategy?.manual_override && <label className="mb-4 flex min-h-11 items-start gap-3 rounded-xl border border-line bg-panel p-4 text-sm">
+          <input type="checkbox" aria-label="Keep my custom targets" className="mt-1 accent-teal" checked={keepCustomTargets} disabled={saving} onChange={(event) => setKeepCustomTargets(event.target.checked)} />
+          <span><span className="block font-medium">Keep my custom targets</span><span className="text-muted-foreground">Uncheck to replace your custom numbers with the recalculated adaptive plan.</span></span>
+        </label>}
         <StepReview
           p={p}
           pref={pref}
           units={units}
           onEdit={goTo}
           profilePreview={profilePreview}
+          showBaseline={!isRedo}
+          manualTargets={isRedo && keepCustomTargets && Boolean(strategy?.manual_override)}
         />
+        </>
       )}
 
       {errorStep === step && !stepValid && (
@@ -327,7 +412,7 @@ function OnboardingForm({ userId }) {
 
       <div className="flex gap-3 mt-8">
         {step > 0 && (
-          <Button variant="outline" className="flex-1" onClick={back}>
+          <Button variant="outline" className="flex-1" onClick={back} disabled={saving}>
             Back
           </Button>
         )}
@@ -343,10 +428,10 @@ function OnboardingForm({ userId }) {
         ) : (
           <Button
             className="flex-1 bg-teal text-buttonText hover:opacity-90"
-            disabled={saving}
+            disabled={saving || !hydrated}
             onClick={finish}
           >
-            {saving ? "Building plan…" : "Build my plan"}
+            {saving ? "Saving plan…" : isRedo ? "Save updated plan" : "Build my plan"}
           </Button>
         )}
       </div>

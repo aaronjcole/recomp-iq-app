@@ -26,6 +26,8 @@ import { parseCompletedSessions, withCompletedSession } from "@/lib/fitness/trai
 import { replaceSessionStrengthLogs } from "@/lib/sessionEdit";
 import { useAuth } from "@/lib/AuthContext";
 import { recipeWritePayload } from "@/lib/recipeNutrition";
+import { persistPlanSettings, snapshotPlanTargets } from "@/lib/planSettings";
+import { AUTOPILOT_CACHE, GROCERY_CACHE, MEAL_PLAN_CACHE, removePlanCache } from "@/lib/planCache";
 import { computeSessionDateMoveEffects, getCurrentWeekStart } from "@/lib/loggingDateUtils";
 
 import { Ctx, RefCtx, ActionsCtx, HabitsCtx } from "@/lib/recompContexts";
@@ -228,6 +230,14 @@ export function RecompProvider({ children }) {
   const habitQueues = useRef(new Map());
   const loadedDates = useRef(new Set());
   const historyRetryTimer = useRef(null);
+  const planQueues = useRef(new Map());
+  const referenceWriteVersion = useRef(0);
+  const initialLoadVersion = useRef(0);
+  const providerActive = useRef(true);
+  useEffect(() => {
+    providerActive.current = true;
+    return () => { providerActive.current = false; };
+  }, []);
   useEffect(() => () => clearTimeout(historyRetryTimer.current), []);
 
   // Keep the owner current for stable callbacks. Declared before the load
@@ -309,6 +319,9 @@ export function RecompProvider({ children }) {
   // entities so the Today screen renders fast even for users with months of
   // history. Older data is loaded in the background by loadHistory().
   const loadInitial = useCallback(async () => {
+    const requestedOwnerId = userIdRef.current;
+    const requestVersion = ++initialLoadVersion.current;
+    const referenceVersion = referenceWriteVersion.current;
     setLoading(true);
     setLoadError(null);
     // loadInitial replaces date-scoped state with the current week, so any
@@ -333,9 +346,11 @@ export function RecompProvider({ children }) {
           ? base44.entities.FoodLogEntry.filter(own({ date: { $gte: weekStart } }), "-date", 200)
           : Promise.resolve([])
       ]);
-      const loadedProfile = results[0][0] ?? null;
-      const loadedPreferences = results[1][0] ?? null;
-      const loadedStrategy = results[2][0] ?? null;
+      if (!providerActive.current || requestedOwnerId !== userIdRef.current || requestVersion !== initialLoadVersion.current) return false;
+      const keepSavedReferences = referenceVersion !== referenceWriteVersion.current;
+      const loadedProfile = keepSavedReferences ? profileRef.current : results[0][0] ?? null;
+      const loadedPreferences = keepSavedReferences ? preferencesRef.current : results[1][0] ?? null;
+      const loadedStrategy = keepSavedReferences ? strategyRef.current : results[2][0] ?? null;
       const loadedLogs = newestByKey(results[3], (item) => item.date).sort((a, b) => b.date.localeCompare(a.date));
       const loadedHabitEntries = newestByKey(results[10], (item) => `${item.habit_id}:${item.date}`);
       const loadedActiveBlock = results[11]?.[0] ?? null;
@@ -371,14 +386,17 @@ export function RecompProvider({ children }) {
           console.warn("Default habits could not be reconciled; showing loaded habits.", error);
         }
       }
+      if (!providerActive.current || requestedOwnerId !== userIdRef.current || requestVersion !== initialLoadVersion.current) return false;
       setHabits(habitList);
       setHabitEntriesCurrent(normalizedHabitEntries);
       // Mark current-week dates as loaded so on-demand fetches skip them.
       loadedLogs.forEach((l) => loadedDates.current.add(l.date));
+      return true;
     } catch (error) {
-      setLoadError(error instanceof Error ? error : new Error("Unable to load your data."));
+      if (providerActive.current && requestVersion === initialLoadVersion.current) setLoadError(error instanceof Error ? error : new Error("Unable to load your data."));
+      return false;
     } finally {
-      setLoading(false);
+      if (providerActive.current && requestVersion === initialLoadVersion.current) setLoading(false);
     }
   }, [own, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent, setStrengthLogsCurrent]);
 
@@ -511,15 +529,16 @@ export function RecompProvider({ children }) {
   }, [own, setFoodLogEntriesCurrent, setHabitEntriesCurrent, setLogsCurrent, setSessionsCurrent]);
 
   const reload = useCallback(async () => {
-    await loadInitial();
-    loadHistory();
+    const loaded = await loadInitial();
+    if (loaded) loadHistory();
+    return Boolean(loaded);
   }, [loadInitial, loadHistory]);
 
   useEffect(() => {
     // Never query before the signed-in user's id is known.
     if (!userId) return;
-    loadInitial().then(() => {
-      loadHistory();
+    loadInitial().then((loaded) => {
+      if (loaded) loadHistory();
     });
   }, [userId, loadInitial, loadHistory]);
 
@@ -532,77 +551,159 @@ export function RecompProvider({ children }) {
   const todayLog = useMemo(() => logs.find((l) => l.date === todayStr()) ?? null, [logs]);
   const onboarded = !!profile && !!preferences && !!strategy;
 
-  const completeOnboarding = useCallback(async (profileData, prefData) => {
+  const commitPlanSettings = useCallback((profileData, prefData, options = {}) => enqueueByKey(planQueues, "settings", async () => {
+    const ownerId = userIdRef.current;
+    const assertActive = () => {
+      if (!ownerId || !providerActive.current || ownerId !== userIdRef.current) throw new Error("Your signed-in account changed. Reopen settings to continue.");
+    };
+    assertActive();
+    const expected = { profile: profileRef.current, preferences: preferencesRef.current, strategy: strategyRef.current };
+    if (!expected.profile?.id || !expected.preferences?.id || !expected.strategy?.id) throw new Error("Finish loading your profile before updating your plan.");
+    let result;
+    try {
+      result = await persistPlanSettings(base44.entities, ownerId, expected, profileData, prefData, { ...options, assertActive });
+    } catch (error) {
+      // Read back recovery results instead of leaving stale optimistic profile
+      // values on screen. Never put a previous account's response in context.
+      if (providerActive.current && ownerId === userIdRef.current) {
+        try {
+          const [p, pref, s] = await Promise.all([
+            base44.entities.UserProfile.get(expected.profile.id),
+            base44.entities.UserPreferences.get(expected.preferences.id),
+            base44.entities.CurrentStrategy.get(expected.strategy.id)
+          ]);
+          assertActive();
+          if ([p, pref, s].some((record) => record.created_by_id !== ownerId)) throw new Error("Settings owner changed");
+          referenceWriteVersion.current += 1;
+          profileRef.current = p; preferencesRef.current = pref; strategyRef.current = s;
+          setProfile(p); setPreferences(pref); setStrategy(s);
+        } catch { /* The save error remains visible; retry reads current data. */ }
+      }
+      throw error;
+    }
+    assertActive();
+    referenceWriteVersion.current += 1;
+    profileRef.current = result.profile;
+    preferencesRef.current = result.preferences;
+    strategyRef.current = result.strategy;
+    setProfile(result.profile);
+    setPreferences(result.preferences);
+    setStrategy(result.strategy);
+    for (const cache of [MEAL_PLAN_CACHE, GROCERY_CACHE, AUTOPILOT_CACHE]) removePlanCache(cache, ownerId);
+    if (options.reason) {
+      try {
+        const ledgerEntry = await base44.entities.DecisionLedger.create({
+          date: todayStr(), previous_targets: snapshotPlanTargets(result.previousStrategy),
+          new_targets: snapshotPlanTargets(result.strategy), reason: options.reason
+        });
+        assertActive();
+        setDecisionLedger((current) => [ledgerEntry, ...current]);
+      } catch (error) {
+        console.warn("Plan saved, but its decision history could not be recorded.", error);
+      }
+    }
+    return result;
+  }), []);
+
+  const updatePlanProfile = useCallback((profileData, options = {}) => commitPlanSettings(profileData, undefined, options), [commitPlanSettings]);
+
+  const completeOnboarding = useCallback(async (profileData, prefData, options = {}) => {
     // Each stage is an upsert so retrying after an outage repairs a partial
     // onboarding instead of creating duplicates or trapping the account.
     // completeOnboarding is therefore idempotent; only record the funnel event
     // on the not-onboarded -> onboarded transition, not on repair re-runs.
     const wasOnboarded =
       !!profileRef.current && !!preferencesRef.current && !!strategyRef.current;
+    if (wasOnboarded) {
+      return commitPlanSettings(profileData, prefData, {
+        keepCustomTargets: options.keepCustomTargets !== false,
+        resetPlan: true,
+        reason: "Onboarding answers updated."
+      });
+    }
+    const ownerId = userIdRef.current;
+    const assertActive = () => {
+      if (!ownerId || !providerActive.current || ownerId !== userIdRef.current) throw new Error("Your signed-in account changed. Reopen setup to continue.");
+    };
+    assertActive();
     const existingProfile = profileRef.current;
+    const existingPreferences = preferencesRef.current;
+    const existingStrategy = strategyRef.current;
     const profileResponse = existingProfile?.id
       ? await base44.entities.UserProfile.update(existingProfile.id, profileData)
       : await base44.entities.UserProfile.create(profileData);
+    assertActive();
     const savedProfile = mergeDefined(existingProfile, profileResponse);
+    referenceWriteVersion.current += 1;
     profileRef.current = savedProfile;
     setProfile(savedProfile);
 
-    const existingPreferences = preferencesRef.current;
     const preferencesResponse = existingPreferences?.id
       ? await base44.entities.UserPreferences.update(existingPreferences.id, prefData)
       : await base44.entities.UserPreferences.create(prefData);
+    assertActive();
     const savedPreferences = mergeDefined(existingPreferences, preferencesResponse);
+    referenceWriteVersion.current += 1;
     preferencesRef.current = savedPreferences;
     setPreferences(savedPreferences);
 
     const calculated = recalculateTargets(profileData, prefData);
-    const strategyData = { ...calculated, goal_type: profileData.goal };
-    const existingStrategy = strategyRef.current;
+    const strategyData = { ...calculated, goal_type: profileData.goal, manual_override: false };
     const strategyResponse = existingStrategy?.id
       ? await base44.entities.CurrentStrategy.update(existingStrategy.id, strategyData)
       : await base44.entities.CurrentStrategy.create(strategyData);
+    assertActive();
     const savedStrategy = mergeDefined(existingStrategy, strategyResponse);
+    referenceWriteVersion.current += 1;
     strategyRef.current = savedStrategy;
     setStrategy(savedStrategy);
 
     if (!wasOnboarded) trackEvent("onboarding_complete");
     return { profile: savedProfile, preferences: savedPreferences, strategy: savedStrategy };
-  }, []);
+  }, [commitPlanSettings]);
 
   const updateProfile = useCallback(async (id, data) => {
     const updated = await base44.entities.UserProfile.update(id, data);
-    profileRef.current = updated;
-    setProfile(updated);
-    return updated;
+    const merged = mergeDefined(profileRef.current, { ...data, ...updated });
+    referenceWriteVersion.current += 1;
+    profileRef.current = merged;
+    setProfile(merged);
+    return merged;
   }, []);
 
-  const updatePreferences = useCallback(async (id, data) => {
+  const updatePreferences = useCallback((id, data) => enqueueByKey(planQueues, "settings", async () => {
+    const ownerId = userIdRef.current;
+    if (!providerActive.current || id !== preferencesRef.current?.id) throw new Error("Reload your preferences before saving.");
     const updated = await base44.entities.UserPreferences.update(id, data);
-    preferencesRef.current = updated;
-    setPreferences(updated);
-    return updated;
-  }, []);
+    if (!providerActive.current || ownerId !== userIdRef.current) throw new Error("Your signed-in account changed.");
+    const merged = mergeDefined(preferencesRef.current, { ...data, ...updated });
+    referenceWriteVersion.current += 1;
+    preferencesRef.current = merged;
+    setPreferences(merged);
+    return merged;
+  }), []);
 
   const updateStrategy = useCallback(
-    async (id, data, reason) => {
-      const prev = strategy
-        ? {
-            calorie_target: strategy.calorie_target,
-            protein_target_g: strategy.protein_target_g,
-            fat_target_g: strategy.fat_target_g,
-            carb_target_g: strategy.carb_target_g,
-            step_target: strategy.step_target
-          }
-        : {};
+    (id, data, reason) => enqueueByKey(planQueues, "settings", async () => {
+      const ownerId = userIdRef.current;
+      if (!providerActive.current || id !== strategyRef.current?.id) throw new Error("Reload your targets before saving.");
+      const currentStrategy = await base44.entities.CurrentStrategy.get(id);
+      if (!providerActive.current || ownerId !== userIdRef.current) throw new Error("Your signed-in account changed.");
+      if (currentStrategy.created_by_id !== ownerId) throw new Error("Could not verify these targets.");
+      const prev = snapshotPlanTargets(currentStrategy);
       const updated = await base44.entities.CurrentStrategy.update(id, data);
-      strategyRef.current = updated;
-      setStrategy(updated);
+      if (!providerActive.current || ownerId !== userIdRef.current) throw new Error("Your signed-in account changed.");
+      const merged = mergeDefined(currentStrategy, { ...data, ...updated });
+      referenceWriteVersion.current += 1;
+      strategyRef.current = merged;
+      setStrategy(merged);
+      for (const cache of [MEAL_PLAN_CACHE, GROCERY_CACHE, AUTOPILOT_CACHE]) removePlanCache(cache, ownerId);
       if (reason) {
         try {
           const ledgerEntry = await base44.entities.DecisionLedger.create({
             date: todayStr(),
             previous_targets: prev,
-            new_targets: data,
+            new_targets: snapshotPlanTargets(merged),
             reason
           });
           setDecisionLedger((current) => [ledgerEntry, ...current]);
@@ -610,9 +711,9 @@ export function RecompProvider({ children }) {
           console.warn("Targets updated, but the decision history entry could not be saved.", error);
         }
       }
-      return updated;
-    },
-    [strategy]
+      return merged;
+    }),
+    []
   );
 
   // Nutrition increments this client has sent (or queued) per date that the
@@ -715,6 +816,7 @@ export function RecompProvider({ children }) {
                   current_weight_lbs: fields.weight_lbs
                 });
                 profileRef.current = updatedProfile;
+                referenceWriteVersion.current += 1;
                 setProfile(updatedProfile);
               } catch (error) {
                 console.warn("Daily weight saved, but profile weight could not be synchronized.", error);
@@ -1394,6 +1496,7 @@ export function RecompProvider({ children }) {
       setCheckIns((prev) => [result.checkIn, ...prev.filter((item) => item.id !== result.checkIn.id)]);
     }
     if (result?.outcome === "applied" && result.strategy?.id) {
+      referenceWriteVersion.current += 1;
       strategyRef.current = result.strategy;
       setStrategy(result.strategy);
     }
@@ -1411,6 +1514,7 @@ export function RecompProvider({ children }) {
       reload,
       ensureDateLoaded,
       completeOnboarding,
+      updatePlanProfile,
       updateProfile,
       updatePreferences,
       updateStrategy,
@@ -1449,6 +1553,7 @@ export function RecompProvider({ children }) {
       reload,
       ensureDateLoaded,
       completeOnboarding,
+      updatePlanProfile,
       updateProfile,
       updatePreferences,
       updateStrategy,
@@ -1562,8 +1667,9 @@ export function RecompProvider({ children }) {
 }
 
 export function RecompGate() {
+  const { user } = useAuth();
   return (
-    <RecompProvider>
+    <RecompProvider key={user?.id ?? "signed-out"}>
       <Outlet />
     </RecompProvider>
   );

@@ -21,7 +21,7 @@ test("changing goal in manual mode keeps the user's custom targets", async ({ pa
     average_steps: 8000,
     experience_level: "intermediate"
   };
-  await installAuthenticatedBase44(page, {
+  const { entities } = await installAuthenticatedBase44(page, {
     entities: { ...ENTITY_FIXTURES, UserProfile: [profile], CurrentStrategy: [manualStrategy] }
   });
   const assertNoPageErrors = watchPageErrors(page);
@@ -36,14 +36,21 @@ test("changing goal in manual mode keeps the user's custom targets", async ({ pa
   await page.goto("/more/profile");
   await page.getByRole("combobox", { name: "Goal" }).click();
   await page.getByRole("option", { name: "Build muscle", exact: true }).click();
+  expect(strategyWrites).toHaveLength(0);
+  await page.getByRole("button", { name: "Save goal", exact: true }).click();
 
   await expect.poll(() => strategyWrites.length).toBeGreaterThan(0);
-  const write = strategyWrites.at(-1);
+  const write = strategyWrites.at(-1).data.$set;
   expect(write.goal_type).toBe("lean_bulk");
   for (const key of ["calorie_target", "protein_target_g", "carb_target_g", "fat_target_g", "step_target"]) {
     expect(write, `manual ${key} must not be overwritten`).not.toHaveProperty(key);
   }
   await expect(page.getByText("Your custom targets were kept.").first()).toBeVisible();
+  const persisted = entities.CurrentStrategy.find((row) => row.id === manualStrategy.id);
+  expect(persisted.goal_type).toBe("lean_bulk");
+  for (const key of ["calorie_target", "protein_target_g", "carb_target_g", "fat_target_g", "step_target"]) {
+    expect(persisted[key]).toBe(manualStrategy[key]);
+  }
   assertNoPageErrors();
 });
 
