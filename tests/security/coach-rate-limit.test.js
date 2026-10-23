@@ -4,11 +4,13 @@ import test from "node:test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  AI_FEATURE_DAILY_CEILINGS,
   AI_FEATURE_QUOTAS,
   AI_QUOTA_FEATURES,
   COACH_DAILY_LIMIT,
   COACH_HOURLY_LIMIT,
   COACH_QUOTA,
+  FREE_COACH_QUOTA,
   rankReservation,
   reserveFeatureRequest
 } from "../../base44/shared/coachRateLimitDomain.js";
@@ -176,6 +178,12 @@ function fakeUsageStore(rng, { tieEvery = 1, initial = [] } = {}) {
       await pause();
       return { success: true };
     },
+    async count(query) {
+      await pause();
+      const total = rows.filter((record) => matches(record, query)).length;
+      await pause();
+      return total;
+    },
     async create(data) {
       await pause();
       const record = {
@@ -323,6 +331,63 @@ test("the simulation detects the original function-clock reservation race", asyn
     worst = Math.max(worst, allowedCount(await burst(fakeUsageStore(rng), rng, 50, COACH_QUOTA, legacyReserve)));
   }
   assert.ok(worst > COACH_HOURLY_LIMIT, `legacy algorithm admitted at most ${worst}`);
+});
+
+test("a whole-app daily ceiling refuses paid work once every account has spent the day", async () => {
+  const ceiling = AI_FEATURE_DAILY_CEILINGS[AI_QUOTA_FEATURES.COACH];
+  const strangers = Array.from({ length: ceiling }, (_, index) => ({
+    owner_id: `owner-${index + 2}`,
+    feature: AI_QUOTA_FEATURES.COACH,
+    ...row(`stranger-${index}`, { minutesAgo: 60 })
+  }));
+  const store = fakeUsageStore(mulberry32(11), { initial: strangers });
+
+  const refused = await reserveFeatureRequest(store, "owner-1", AI_QUOTA_FEATURES.COACH, COACH_QUOTA, NOW);
+  assert.deepEqual(refused, { allowed: false, reason: "ceiling" });
+  assert.equal(
+    store.rows.some((record) => record.owner_id === "owner-1"),
+    false,
+    "a request refused by the ceiling leaves no reservation behind"
+  );
+});
+
+test("a request that still fits the whole-app ceiling is admitted and keeps its reservation", async () => {
+  const ceiling = AI_FEATURE_DAILY_CEILINGS[AI_QUOTA_FEATURES.COACH];
+  const strangers = Array.from({ length: ceiling - 1 }, (_, index) => ({
+    owner_id: `owner-${index + 2}`,
+    feature: AI_QUOTA_FEATURES.COACH,
+    ...row(`stranger-${index}`, { minutesAgo: 60 })
+  }));
+  const store = fakeUsageStore(mulberry32(13), { initial: strangers });
+
+  const allowed = await reserveFeatureRequest(store, "owner-1", AI_QUOTA_FEATURES.COACH, COACH_QUOTA, NOW);
+  assert.equal(allowed.allowed, true);
+  assert.equal(store.rows.some((record) => record.owner_id === "owner-1"), true);
+});
+
+test("another feature's traffic does not consume the coach ceiling", async () => {
+  const ceiling = AI_FEATURE_DAILY_CEILINGS[AI_QUOTA_FEATURES.COACH];
+  const strangers = Array.from({ length: ceiling }, (_, index) => ({
+    owner_id: `owner-${index + 2}`,
+    feature: AI_QUOTA_FEATURES.FOOD_PHOTO,
+    ...row(`stranger-${index}`, { minutesAgo: 60 })
+  }));
+  const store = fakeUsageStore(mulberry32(17), { initial: strangers });
+
+  const allowed = await reserveFeatureRequest(store, "owner-1", AI_QUOTA_FEATURES.COACH, COACH_QUOTA, NOW);
+  assert.equal(allowed.allowed, true);
+});
+
+test("the everyday coach gives a free account a smaller allowance than a paying one", () => {
+  assert.deepEqual(FREE_COACH_QUOTA, { hourly: 5, daily: 20 });
+  assert.deepEqual(COACH_QUOTA, { hourly: COACH_HOURLY_LIMIT, daily: COACH_DAILY_LIMIT });
+
+  const coach = readFileSync(
+    resolve(repoRoot, "base44/functions/coachReply/entry.ts"),
+    "utf8"
+  );
+  assert.match(coach, /loadPremiumAccessRecords\(base44, user/);
+  assert.match(coach, /hasAnyAccess \? COACH_QUOTA : FREE_COACH_QUOTA/);
 });
 
 test("coach rate limiting is shared, precedes paid inference, and is deleted with the account", () => {

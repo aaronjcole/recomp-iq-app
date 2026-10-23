@@ -29,6 +29,15 @@ export const COACH_QUOTA = {
   daily: COACH_DAILY_LIMIT
 };
 
+// The everyday coach is the one paid-inference surface a free account can use,
+// and signups are open, so the free allowance is deliberately smaller than the
+// paying one. coachReply chooses between them from the account's own stored
+// entitlement, never from the request.
+export const FREE_COACH_QUOTA = {
+  hourly: 5,
+  daily: 20
+};
+
 // Every quota is sized well above heavy legitimate use of a user-initiated
 // action and only tight enough to stop an automated abuse loop.
 export const AI_FEATURE_QUOTAS = {
@@ -43,6 +52,17 @@ export const AI_FEATURE_QUOTAS = {
   // plate-by-plate captures, so the ceiling stays high but bounded.
   [AI_QUOTA_FEATURES.FOOD_PHOTO]: { hourly: 20, daily: 60 },
   [AI_QUOTA_FEATURES.COACH]: COACH_QUOTA
+};
+
+// Whole-app ceilings for one day, enforced on top of the per-account quotas.
+// Per-account limits bound what one account can spend, but because anyone can
+// create an account they do not bound the app's total bill, so each feature
+// also stops accepting work once every account together has used its day.
+export const AI_FEATURE_DAILY_CEILINGS = {
+  [AI_QUOTA_FEATURES.COACH]: 500,
+  [AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY]: 200,
+  [AI_QUOTA_FEATURES.BODY_COMPOSITION]: 100,
+  [AI_QUOTA_FEATURES.FOOD_PHOTO]: 800
 };
 
 function normalizeLimits(limits) {
@@ -205,6 +225,23 @@ export async function reserveFeatureRequest(usage, ownerId, feature, limits, now
     now,
     truncated: Array.isArray(recent) && recent.length >= pageSize
   });
-  if (!quota.allowed) await usage.delete(ownId);
+  if (!quota.allowed) {
+    await usage.delete(ownId);
+    return quota;
+  }
+
+  // This request fits the account's own allowance; it still has to fit the
+  // whole-app one. The count covers every account's rows for this feature in
+  // the same daily window and includes this reservation, so the day admits at
+  // most `ceiling` requests however many accounts ask for them.
+  const ceiling = AI_FEATURE_DAILY_CEILINGS[feature];
+  if (Number.isInteger(ceiling) && ceiling > 0) {
+    const usedToday = await usage.count({ feature, requested_at: { $gte: dayCutoff } });
+    if (!Number.isFinite(usedToday) || usedToday > ceiling) {
+      await usage.delete(ownId);
+      return { allowed: false, reason: "ceiling" };
+    }
+  }
+
   return quota;
 }

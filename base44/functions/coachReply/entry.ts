@@ -13,9 +13,12 @@ import {
 import {
   AI_QUOTA_FEATURES,
   COACH_QUOTA,
+  FREE_COACH_QUOTA,
   quotaRetryAfterSeconds,
   reserveFeatureRequest
 } from "../../shared/coachRateLimitDomain.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
+import { resolvePremiumAccess } from "../../shared/premiumDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 import { ownedQuery } from "../../shared/ownerScope.js";
 
@@ -29,12 +32,12 @@ async function ownedRecords(base44, entityName, userId, sort, limit, query = {})
   );
 }
 
-async function reserveCoachRequest(base44, ownerId) {
+async function reserveCoachRequest(base44, ownerId, limits) {
   return await reserveFeatureRequest(
     base44.asServiceRole.entities.CoachRequestUsage,
     ownerId,
     AI_QUOTA_FEATURES.COACH,
-    COACH_QUOTA
+    limits
   );
 }
 
@@ -110,7 +113,14 @@ export default async function(req) {
       });
     }
 
-    const quota = await reserveCoachRequest(base44, ownerId);
+    // A paying account keeps the larger allowance; the account's own stored
+    // entitlement decides which applies, never the request.
+    const entitlements = await loadPremiumAccessRecords(base44, user, {
+      testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS")
+    });
+    const coachLimits = resolvePremiumAccess(entitlements).hasAnyAccess ? COACH_QUOTA : FREE_COACH_QUOTA;
+
+    const quota = await reserveCoachRequest(base44, ownerId, coachLimits);
     if (!quota.allowed) {
       // The SDK reads data.message || data.detail, never data.error, so the
       // user-facing text must also appear under "message" to reach the client.
