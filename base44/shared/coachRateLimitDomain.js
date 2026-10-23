@@ -231,13 +231,22 @@ export async function reserveFeatureRequest(usage, ownerId, feature, limits, now
   }
 
   // This request fits the account's own allowance; it still has to fit the
-  // whole-app one. The count covers every account's rows for this feature in
-  // the same daily window and includes this reservation, so the day admits at
-  // most `ceiling` requests however many accounts ask for them.
+  // whole-app one, so the same daily window is read across every account (this
+  // reservation included): at most `ceiling` rows means the day still has room,
+  // `ceiling + 1` rows means it does not.
+  //
+  // A bounded page stands in for a count because the entity accessor bundled
+  // into the function runtime has no count method, while filter is what every
+  // other read here already uses. The page is capped at `ceiling + 1` rows, so
+  // a busy day never turns one request into an unbounded read.
   const ceiling = AI_FEATURE_DAILY_CEILINGS[feature];
   if (Number.isInteger(ceiling) && ceiling > 0) {
-    const usedToday = await usage.count({ feature, requested_at: { $gte: dayCutoff } });
-    if (!Number.isFinite(usedToday) || usedToday > ceiling) {
+    const window = await usage.filter(
+      { feature, requested_at: { $gte: dayCutoff } },
+      "created_date",
+      ceiling + 1
+    );
+    if (!Array.isArray(window) || window.length > ceiling) {
       await usage.delete(ownId);
       return { allowed: false, reason: "ceiling" };
     }

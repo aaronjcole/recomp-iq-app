@@ -178,12 +178,6 @@ function fakeUsageStore(rng, { tieEvery = 1, initial = [] } = {}) {
       await pause();
       return { success: true };
     },
-    async count(query) {
-      await pause();
-      const total = rows.filter((record) => matches(record, query)).length;
-      await pause();
-      return total;
-    },
     async create(data) {
       await pause();
       const record = {
