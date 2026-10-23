@@ -58,6 +58,14 @@ export function fakeEntityStore(rng, { now, tieEvery = 1, initial = [] } = {}) {
       await pause();
       return result;
     },
+    async update(id, data) {
+      await pause();
+      const record = rows.find((entry) => entry.id === id);
+      if (!record) throw new Error(`No row ${id}`);
+      Object.assign(record, data);
+      await pause();
+      return { ...record };
+    },
     async delete(id) {
       await pause();
       const index = rows.findIndex((record) => record.id === id);
