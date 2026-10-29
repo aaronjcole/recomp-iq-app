@@ -54,8 +54,6 @@ VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
 # Optional: body-photo AI analysis is disabled unless explicitly enabled.
 VITE_ENABLE_BODY_COMPOSITION_SCAN=false
-# Optional: food-photo AI analysis is also disabled unless explicitly enabled.
-VITE_ENABLE_FOOD_PHOTO_SCAN=false
 ```
 
 `VITE_BASE44_APP_ID` identifies the Base44 app.
@@ -71,13 +69,13 @@ Hosted Base44 releases use the backend runtime gate instead: add the app Secret
 resulting boolean to the client, and the analysis function independently enforces the same Secret.
 This avoids treating a backend Secret as a Vite build variable while keeping the source default off.
 
-`VITE_ENABLE_FOOD_PHOTO_SCAN` independently gates food-photo analysis. Keep it disabled until the
-same private-upload, deletion, provider-retention, consent, and Play Data Safety review is complete.
-The build flag only hides the entry point. The backend enforces its own gate: `analyzeFoodPhoto`
-refuses every request unless the app Secret `ENABLE_FOOD_PHOTO_SCAN=true` is set. Functions read
-these Secrets when they start, so set it before publishing `analyzeFoodPhoto` and
-`uploadAnalysisPhoto` wherever food-photo estimates are in use (including local builds run with
-`VITE_ENABLE_FOOD_PHOTO_SCAN=true` against the hosted backend).
+Food-photo analysis has a single switch, the app Secret `ENABLE_FOOD_PHOTO_SCAN=true`, and no
+Vite build variable. Keep it unset until the same private-upload, deletion, provider-retention,
+consent, and Play Data Safety review is complete. `getPremiumAccess` exposes it to the client as
+`releaseFlags.foodPhotoScan`, which shows the entry point to accounts with the food-photo Premium
+feature. While it is off, `analyzeFoodPhoto` refuses every request and `uploadAnalysisPhoto` refuses
+every `food_photo` upload.
+Functions read Secrets when they start, so republish those three functions after changing it.
 
 `uploadAnalysisPhoto` stores a photo only for an analysis that could run: the request must name
 its purpose (`food_photo` or `body_composition`), the matching Secret (`ENABLE_FOOD_PHOTO_SCAN` or

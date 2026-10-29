@@ -26,9 +26,10 @@ import {
 
 const MAX_REQUEST_BYTES = 4_000;
 const SIGNED_URL_TTL_SECONDS = 300;
-// Server-side release gate, mirroring ENABLE_BODY_COMPOSITION_SCAN. The
-// VITE_ENABLE_FOOD_PHOTO_SCAN build flag only hides the entry point; without
-// this check the "disabled" flow stays reachable by calling the function.
+// Server-side release gate, mirroring ENABLE_BODY_COMPOSITION_SCAN. The UI reads
+// the same Secret through getPremiumAccess releaseFlags.foodPhotoScan, but
+// hiding the entry point is not enforcement: without this check the flow stays
+// reachable by calling the function.
 const FOOD_PHOTO_SCAN_DISABLED =
   Deno.env.get("ENABLE_FOOD_PHOTO_SCAN") !== "true";
 

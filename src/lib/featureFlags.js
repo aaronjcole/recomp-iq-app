@@ -5,12 +5,10 @@ export function enabledFromEnvironment(value) {
 }
 
 export const featureFlags = Object.freeze({
-  // Food-photo analysis uploads a sensitive image for AI inference. Keep the
-  // entry point hidden until the deployed environment has accepted that data
-  // flow and explicitly enables it.
-  foodPhotoScan: enabledFromEnvironment(
-    import.meta.env?.VITE_ENABLE_FOOD_PHOTO_SCAN
-  ),
+  // Food-photo analysis has no build-time flag: the entry point follows the
+  // backend Secret ENABLE_FOOD_PHOTO_SCAN (getPremiumAccess releaseFlags), the
+  // same switch analyzeFoodPhoto enforces, so a build cannot show a flow the
+  // deployment refuses.
   // Disabled unless explicitly enabled in a trusted build environment. A future
   // paid entitlement should replace this build-time gate without weakening it.
   bodyCompositionScan: enabledFromEnvironment(

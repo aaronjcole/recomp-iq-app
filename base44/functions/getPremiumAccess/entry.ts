@@ -4,6 +4,11 @@ import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 
 const BODY_COMPOSITION_SCAN_ENABLED =
   Deno.env.get("ENABLE_BODY_COMPOSITION_SCAN") === "true";
+// The only switch for food-photo estimates: the UI shows the entry point from
+// this boolean and analyzeFoodPhoto / uploadAnalysisPhoto enforce the same
+// Secret, so the button can never offer a flow the backend would refuse.
+const FOOD_PHOTO_SCAN_ENABLED =
+  Deno.env.get("ENABLE_FOOD_PHOTO_SCAN") === "true";
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -46,7 +51,10 @@ export default async function(req) {
     const records = await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") });
     return json({
       ...resolvePremiumAccess(records),
-      releaseFlags: { bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED }
+      releaseFlags: {
+        bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED,
+        foodPhotoScan: FOOD_PHOTO_SCAN_ENABLED
+      }
     });
 
   } catch (error) {

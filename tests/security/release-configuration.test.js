@@ -17,7 +17,8 @@ const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.equal(featureFlags.bodyCompositionScan, false);
-  assert.equal(featureFlags.foodPhotoScan, false);
+  // Food photo has no build flag at all: only the backend Secret can open it.
+  assert.equal("foodPhotoScan" in featureFlags, false);
   assert.equal(enabledFromEnvironment(undefined), false);
   assert.equal(enabledFromEnvironment("false"), false);
   assert.equal(enabledFromEnvironment("TRUE"), false);
@@ -41,9 +42,11 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.match(bodyCompositionSource, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
   assert.match(bodyCompositionSource, /BODY_COMPOSITION_SCAN_DISABLED/);
 
+  assert.match(premiumAccessSource, /Deno\.env\.get\(["']ENABLE_FOOD_PHOTO_SCAN["']\) === "true"/);
+  assert.match(premiumAccessSource, /foodPhotoScan:\s*FOOD_PHOTO_SCAN_ENABLED/);
   const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
-  assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&/);
-  assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&\s*scanOperation\?\.source === "photo"/);
+  assert.doesNotMatch(nutritionSource, /featureFlags\.foodPhotoScan/);
+  assert.match(nutritionSource, /releaseFlags\.foodPhotoScan\s*&&\s*scanOperation\?\.source === "photo"/);
 });
 
 test("support contact is consistent and exposed in the app and privacy policy", () => {
