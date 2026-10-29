@@ -1,6 +1,7 @@
 // Shared per-user quotas for every backend function that spends paid LLM
-// credits. Reservations live in the CoachRequestUsage entity so the limit is
-// enforced across stateless function instances instead of in process memory.
+// credits or permanent private storage. Reservations live in the
+// CoachRequestUsage entity so the limit is enforced across stateless function
+// instances instead of in process memory.
 
 export const COACH_HOURLY_LIMIT = 10;
 export const COACH_DAILY_LIMIT = 40;
@@ -21,7 +22,11 @@ export const AI_QUOTA_FEATURES = {
   COACH: "coach",
   MEAL_PLAN_AI_VARIETY: "meal_plan_ai_variety",
   BODY_COMPOSITION: "body_composition",
-  FOOD_PHOTO: "food_photo"
+  FOOD_PHOTO: "food_photo",
+  // Photo uploads are metered apart from the analyses they feed: the SDK
+  // cannot delete a private file, so every upload is storage kept for good.
+  BODY_COMPOSITION_UPLOAD: "body_composition_upload",
+  FOOD_PHOTO_UPLOAD: "food_photo_upload"
 };
 
 export const COACH_QUOTA = {
@@ -51,6 +56,12 @@ export const AI_FEATURE_QUOTAS = {
   // Per-meal logging: a heavy day is a handful of meals plus retries and
   // plate-by-plate captures, so the ceiling stays high but bounded.
   [AI_QUOTA_FEATURES.FOOD_PHOTO]: { hourly: 20, daily: 60 },
+  // The clients upload again on every analysis attempt (three poses for a body
+  // scan, one photo for a meal), so each upload quota is 1.5x the analysis
+  // quota times photos per attempt: retries reach the analysis limit first,
+  // while a script that uploads without analyzing is still capped.
+  [AI_QUOTA_FEATURES.BODY_COMPOSITION_UPLOAD]: { hourly: 18, daily: 45 },
+  [AI_QUOTA_FEATURES.FOOD_PHOTO_UPLOAD]: { hourly: 30, daily: 90 },
   [AI_QUOTA_FEATURES.COACH]: COACH_QUOTA
 };
 
@@ -62,7 +73,11 @@ export const AI_FEATURE_DAILY_CEILINGS = {
   [AI_QUOTA_FEATURES.COACH]: 500,
   [AI_QUOTA_FEATURES.MEAL_PLAN_AI_VARIETY]: 200,
   [AI_QUOTA_FEATURES.BODY_COMPOSITION]: 100,
-  [AI_QUOTA_FEATURES.FOOD_PHOTO]: 800
+  [AI_QUOTA_FEATURES.FOOD_PHOTO]: 800,
+  // Sized like the per-account upload quotas: 1.5x the analysis ceiling times
+  // photos per attempt.
+  [AI_QUOTA_FEATURES.BODY_COMPOSITION_UPLOAD]: 450,
+  [AI_QUOTA_FEATURES.FOOD_PHOTO_UPLOAD]: 1200
 };
 
 function normalizeLimits(limits) {

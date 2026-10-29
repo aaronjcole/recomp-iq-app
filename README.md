@@ -82,7 +82,11 @@ these Secrets when they start, so set it before publishing `analyzeFoodPhoto` an
 `uploadAnalysisPhoto` stores a photo only for an analysis that could run: the request must name
 its purpose (`food_photo` or `body_composition`), the matching Secret (`ENABLE_FOOD_PHOTO_SCAN` or
 `ENABLE_BODY_COMPOSITION_SCAN`) must be `true`, and the account must hold the matching Premium
-feature.
+feature. Entitled accounts are also metered, because the SDK cannot delete a stored photo: each
+purpose has its own per-account hourly/daily upload quota and an app-wide daily ceiling
+(`base44/shared/coachRateLimitDomain.js`), recorded in `CoachRequestUsage`. Publish the
+`CoachRequestUsage` schema together with `uploadAnalysisPhoto`; a deployed schema without the
+`*_upload` feature values makes every upload fail closed.
 
 When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
 

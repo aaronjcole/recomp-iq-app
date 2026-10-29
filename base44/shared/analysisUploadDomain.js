@@ -9,6 +9,7 @@
 // claim would prove nothing: any user could "claim" another user's file_uri.
 
 import { PREMIUM_FEATURES } from "./premiumDomain.js";
+import { AI_QUOTA_FEATURES } from "./coachRateLimitDomain.js";
 
 export const ANALYSIS_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 export const ANALYSIS_UPLOAD_ALLOWED_TYPES = Object.freeze([
@@ -25,6 +26,11 @@ export const ANALYSIS_UPLOAD_PURPOSES = Object.freeze(["food_photo", "body_compo
 export const ANALYSIS_UPLOAD_PREMIUM_FEATURES = Object.freeze({
   food_photo: PREMIUM_FEATURES.FOOD_PHOTO,
   body_composition: PREMIUM_FEATURES.VISUAL_PROGRESS
+});
+/** The quota pool each upload purpose draws from (see coachRateLimitDomain.js). */
+export const ANALYSIS_UPLOAD_QUOTA_FEATURES = Object.freeze({
+  food_photo: AI_QUOTA_FEATURES.FOOD_PHOTO_UPLOAD,
+  body_composition: AI_QUOTA_FEATURES.BODY_COMPOSITION_UPLOAD
 });
 /** The most references one analysis may sign (body composition uses three). */
 export const MAX_ANALYSIS_PHOTO_REFERENCES = 3;

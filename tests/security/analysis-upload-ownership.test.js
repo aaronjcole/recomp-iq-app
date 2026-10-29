@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ANALYSIS_UPLOAD_MAX_BYTES,
+  ANALYSIS_UPLOAD_PURPOSES,
+  ANALYSIS_UPLOAD_QUOTA_FEATURES,
   AnalysisUploadError,
   MAX_ANALYSIS_PHOTO_REFERENCES,
   PhotoReferenceOwnershipError,
@@ -15,6 +17,10 @@ import {
   verifyPhotoReferenceOwnership
 } from "../../base44/shared/analysisUploadDomain.js";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain.js";
+import {
+  AI_FEATURE_DAILY_CEILINGS,
+  AI_FEATURE_QUOTAS
+} from "../../base44/shared/coachRateLimitDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -245,3 +251,29 @@ for (const path of [
     assert.ok(check < quota, "a made-up reference must not consume per-user or app-wide quota");
   });
 }
+
+test("each upload purpose draws from its own metered quota pool", () => {
+  const features = ANALYSIS_UPLOAD_PURPOSES.map((purpose) => ANALYSIS_UPLOAD_QUOTA_FEATURES[purpose]);
+  assert.equal(new Set(features).size, ANALYSIS_UPLOAD_PURPOSES.length, "purposes must not share a pool");
+  for (const feature of features) {
+    assert.ok(AI_FEATURE_QUOTAS[feature], `${feature} has a per-account quota`);
+    assert.ok(Number.isInteger(AI_FEATURE_DAILY_CEILINGS[feature]), `${feature} has an app-wide ceiling`);
+  }
+});
+
+test("uploadAnalysisPhoto reserves upload quota after the gate and file checks, before storing", () => {
+  const upload = read("base44/functions/uploadAnalysisPhoto/entry.ts");
+  const gate = upload.indexOf("assertAnalysisUploadAllowed(purpose");
+  const validate = upload.indexOf("validateAnalysisUploadFile(file)");
+  const reserve = upload.indexOf("await reserveFeatureRequest(");
+  const store = upload.indexOf("UploadPrivateFile(");
+  assert.ok(gate > 0 && validate > gate, "the entitlement gate precedes file validation");
+  assert.ok(reserve > validate, "a rejected file must not consume quota");
+  assert.ok(reserve < store, "quota is reserved before anything is stored");
+  const reservation = upload.slice(validate, store);
+  assert.match(reservation, /quotaFeature = ANALYSIS_UPLOAD_QUOTA_FEATURES\[allowedPurpose\]/);
+  assert.match(reservation, /asServiceRole\.entities\.CoachRequestUsage,\s*user\.id,\s*quotaFeature,\s*AI_FEATURE_QUOTAS\[quotaFeature\]/);
+  assert.match(reservation, /status: 429/);
+  assert.match(reservation, /message: limitMessage/);
+  assert.match(reservation, /Retry-After/);
+});

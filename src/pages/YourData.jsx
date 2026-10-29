@@ -31,7 +31,7 @@ const ENTITY_LABELS = [
   ["LifestyleProfile", "Lifestyle profile"],
   ["CoachConversation", "Coach conversations"],
   ["AiContentReport", "AI response reports"],
-  ["CoachRequestUsage", "Coach usage"],
+  ["CoachRequestUsage", "AI and photo-upload usage"],
   ["AnalysisUpload", "Photo analysis uploads"],
   ["PremiumEntitlement", "Premium purchases"],
   ["ReferralCode", "Referral code"],
