@@ -37,8 +37,8 @@
 - **`PremiumPaywall`** component (`src/components/premium/PremiumPaywall.jsx`):
   - Feature list: adaptive meal plans & grocery lists, 4–6-week training blocks, Weekly Autopilot, cross-signal insights, Lifestyle Coach, Visual Progress tools.
   - Pricing: Monthly $4.99/month, Annual $39.99/year with 14-day free trial.
-  - Purchase buttons — disabled in the WebView; functional only when a native StoreKit bridge is present.
-  - Restore Purchases control — visible, disabled in the WebView.
+  - Purchase buttons — functional only when a native StoreKit bridge is present. Without it they are disabled and read "Available in the iOS app" only in a web browser when `VITE_APP_STORE_URL` is configured; otherwise (no published iOS app, or inside the Android or another native wrapper) they read "Coming soon".
+  - Restore Purchases control — shown when the bridge is present (enabled) or on the web with the iOS app published (disabled); hidden where no store can restore.
   - Note that core food, workout, sleep, habit, and progress tracking remain free.
 
 - **`nativeIapBridge.js`** (`src/lib/nativeIapBridge.js`) — enables purchasing only when the wrapper exposes the complete `requestPurchase`/`restorePurchases`/`finishTransaction` contract on `wixMobileNativeBridge`.
@@ -165,7 +165,9 @@ interface NativeIapBridge {
 
 The `hasNativeIapBridge()` check in `src/lib/nativeIapBridge.js` requires all
 three methods before enabling the paywall. Without the complete bridge, the
-buttons remain disabled and show "Available in the iOS app."
+buttons stay disabled; `paywallPurchasePath` in `src/lib/premiumPlans.js`
+decides whether they say "Available in the iOS app" (web, iOS app published)
+or "Coming soon".
 
 The implementation lives in `expo-ios/`. It deliberately keeps the Base44
 access token inside the authenticated web app: native code owns StoreKit

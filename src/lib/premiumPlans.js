@@ -84,3 +84,21 @@ export function premiumPlans({ storeKit, products = null, legacyBridge = false }
     };
   });
 }
+
+/**
+ * Where, if anywhere, this screen can sell Premium:
+ * - "storekit": the iOS app's complete StoreKit bridge is present;
+ * - "ios-app": a web browser, and the iOS app is published (VITE_APP_STORE_URL);
+ * - "unavailable": no purchase path here. Any native store shell without the
+ *   bridge lands here even when the iOS app exists: inside the iOS app "use the
+ *   iOS app" is nonsense, and in the Android wrapper pointing users to another
+ *   store's billing could count as steering under Google Play's payments policy.
+ *
+ * @param {{ bridgeAvailable: boolean, appStoreUrl: string | null, nativeStoreShell: boolean }} context
+ * @returns {"storekit" | "ios-app" | "unavailable"}
+ */
+export function paywallPurchasePath({ bridgeAvailable, appStoreUrl, nativeStoreShell }) {
+  if (bridgeAvailable) return "storekit";
+  if (appStoreUrl && !nativeStoreShell) return "ios-app";
+  return "unavailable";
+}

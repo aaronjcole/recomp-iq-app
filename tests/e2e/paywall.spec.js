@@ -65,3 +65,28 @@ test("an older iOS build without getProducts can still subscribe", async ({ page
   await expect(page.getByRole("button", { name: "Subscribe Monthly" })).toBeEnabled();
   await expect(page.getByLabel("Premium plans")).not.toContainText("free trial");
 });
+
+// The local e2e build sets no VITE_APP_STORE_URL, i.e. no published iOS app.
+for (const { name, setup } of [
+  { name: "a web browser", setup: async () => {} },
+  {
+    // The Base44 Android wrapper injects its bridge object without StoreKit.
+    name: "the Android store wrapper",
+    setup: (page) => page.addInitScript(() => { window.wixMobileNativeBridge = {}; })
+  }
+]) {
+  test(`in ${name} without a published iOS app the paywall does not point to one`, async ({ page }) => {
+    await setup(page);
+    await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
+    const assertNoPageErrors = watchPageErrors(page);
+    await page.goto("/more/premium");
+
+    const plans = page.getByLabel("Premium plans");
+    await expect(plans.getByRole("button", { name: "Coming soon", exact: true })).toHaveCount(2);
+    for (const button of await plans.getByRole("button").all()) await expect(button).toBeDisabled();
+    await expect(page.getByText(/iOS app|App Store on iOS/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Restore Purchases/ })).toHaveCount(0);
+    await expect(page.getByText("Premium subscriptions aren't available here yet.", { exact: true })).toBeVisible();
+    assertNoPageErrors();
+  });
+}

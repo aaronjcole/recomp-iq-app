@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { premiumPlans, APPLE_PRODUCT_ANNUAL, APPLE_PRODUCT_MONTHLY } from "../../src/lib/premiumPlans.js";
+import { paywallPurchasePath, premiumPlans, APPLE_PRODUCT_ANNUAL, APPLE_PRODUCT_MONTHLY } from "../../src/lib/premiumPlans.js";
 import { toProductInfo, parseBridgeRequest } from "../../expo-ios/src/bridgeProtocol.ts";
 
 const storeAnnual = {
@@ -83,4 +83,24 @@ test("malformed bridge messages from the app can still be answered by id", async
   assert.equal(requestIdOf(JSON.stringify({ source: "someone-else", requestId: "r9" })), null);
   assert.equal(requestIdOf(JSON.stringify({ source: "recompone-native-iap", requestId: "x".repeat(129) })), null);
   assert.equal(requestIdOf("not json"), null);
+});
+
+test("the paywall claims the iOS app only on the web once the iOS app is published", () => {
+  const appStoreUrl = "https://apps.apple.com/app/id123";
+  const cases = [
+    // The StoreKit bridge always wins: this is the iOS app.
+    [{ bridgeAvailable: true, appStoreUrl, nativeStoreShell: true }, "storekit"],
+    [{ bridgeAvailable: true, appStoreUrl: null, nativeStoreShell: true }, "storekit"],
+    // Web with a published iOS app may point there.
+    [{ bridgeAvailable: false, appStoreUrl, nativeStoreShell: false }, "ios-app"],
+    // No published iOS app: nothing to point to.
+    [{ bridgeAvailable: false, appStoreUrl: null, nativeStoreShell: false }, "unavailable"],
+    [{ bridgeAvailable: false, appStoreUrl: "", nativeStoreShell: false }, "unavailable"],
+    // Inside a native wrapper without the bridge (Android, or an old iOS build),
+    // never steer to another store's billing.
+    [{ bridgeAvailable: false, appStoreUrl, nativeStoreShell: true }, "unavailable"]
+  ];
+  for (const [context, expected] of cases) {
+    assert.equal(paywallPurchasePath(context), expected, JSON.stringify(context));
+  }
 });
