@@ -117,6 +117,17 @@ export default async function(req) {
       }, { status: 409 });
     }
 
+    // The service role can sign any private file in the app, so every pose is
+    // signed only when uploadAnalysisPhoto recorded this account as its
+    // uploader. Another user's file_uri is refused (403 below) even if it
+    // was learned. This runs before the quota reservation so made-up
+    // references cannot burn the per-user or app-wide daily ceilings.
+    await verifyPhotoReferenceOwnership(
+      base44.asServiceRole.entities.AnalysisUpload,
+      user.id,
+      Object.values(request.photoRefs)
+    );
+
     // Per-user quota is reserved before any signed link or paid inference, so
     // an entitled account cannot loop this expensive multi-photo vision call.
     const quota = await reserveFeatureRequest(
@@ -137,16 +148,6 @@ export default async function(req) {
         }
       );
     }
-
-    // The service role can sign any private file in the app, so every pose is
-    // signed only when uploadAnalysisPhoto recorded this account as its
-    // uploader. Another user's file_uri is refused (403 below) even if it
-    // was learned.
-    await verifyPhotoReferenceOwnership(
-      base44.asServiceRole.entities.AnalysisUpload,
-      user.id,
-      Object.values(request.photoRefs)
-    );
 
     const fileUrls = await Promise.all(
       ["front", "side", "back"].map(async (pose) => {

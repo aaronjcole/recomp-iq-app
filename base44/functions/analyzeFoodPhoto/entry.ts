@@ -26,6 +26,11 @@ import {
 
 const MAX_REQUEST_BYTES = 4_000;
 const SIGNED_URL_TTL_SECONDS = 300;
+// Server-side release gate, mirroring ENABLE_BODY_COMPOSITION_SCAN. The
+// VITE_ENABLE_FOOD_PHOTO_SCAN build flag only hides the entry point; without
+// this check the "disabled" flow stays reachable by calling the function.
+const FOOD_PHOTO_SCAN_DISABLED =
+  Deno.env.get("ENABLE_FOOD_PHOTO_SCAN") !== "true";
 
 export default async function(req) {
   if (req.method !== "POST") {
@@ -48,6 +53,10 @@ export default async function(req) {
     return json({ error: "Could not verify the account" }, { status: 500 });
   }
   if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
+  if (FOOD_PHOTO_SCAN_DISABLED) {
+    const disabledMessage = "Food photo estimates are not enabled for this release.";
+    return json({ error: disabledMessage, message: disabledMessage }, { status: 403 });
+  }
 
   let body;
   try {
@@ -77,6 +86,17 @@ export default async function(req) {
       return json({ error: lockedMessage, message: lockedMessage }, { status: 403 });
     }
 
+    // The service role can sign any private file in the app, so the reference
+    // is signed only when uploadAnalysisPhoto recorded this account as its
+    // uploader. Another user's file_uri is refused (403 below) even if it
+    // was learned. This runs before the quota reservation so a made-up
+    // reference cannot burn the per-user or app-wide daily ceilings.
+    await verifyPhotoReferenceOwnership(
+      base44.asServiceRole.entities.AnalysisUpload,
+      user.id,
+      [photoUri]
+    );
+
     // The per-user quota is reserved before the signed link and the vision
     // call so a scripted client cannot spend credits in a loop.
     const quota = await reserveFeatureRequest(
@@ -97,16 +117,6 @@ export default async function(req) {
         }
       );
     }
-
-    // The service role can sign any private file in the app, so the reference
-    // is signed only when uploadAnalysisPhoto recorded this account as its
-    // uploader. Another user's file_uri is refused (403 below) even if it
-    // was learned.
-    await verifyPhotoReferenceOwnership(
-      base44.asServiceRole.entities.AnalysisUpload,
-      user.id,
-      [photoUri]
-    );
 
     // uploadAnalysisPhoto stores the photo in private storage and returns the
     // opaque file_uri the client passes here. The server creates the

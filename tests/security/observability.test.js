@@ -153,6 +153,39 @@ test("markChunksLoaded is safe to call in a non-browser context", () => {
   assert.doesNotThrow(() => markChunksLoaded());
 });
 
+test("a chunk that keeps failing reloads the app once, not on every page load", async () => {
+  const storage = new Map();
+  let reloads = 0;
+  globalThis.window = {
+    sessionStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: (key) => storage.delete(key)
+    },
+    location: { reload: () => { reloads += 1; } },
+    addEventListener() {}
+  };
+  try {
+    const failing = async () => {
+      throw new Error("chunk 404");
+    };
+    // Each fresh module instance stands for the page load that follows a reload.
+    for (let load = 1; load <= 3; load += 1) {
+      const recovery = await import(`../../src/lib/lazyWithRetry.js?load=${load}`);
+      recovery.installChunkErrorRecovery();
+      await assert.rejects(recovery.loadChunkWithRecovery(failing), /chunk 404/);
+    }
+    assert.equal(reloads, 1, "the guard must survive the reload it caused");
+
+    const recovered = await import("../../src/lib/lazyWithRetry.js?load=recovered");
+    const page = await recovered.loadChunkWithRecovery(async () => ({ default: "Today" }));
+    assert.equal(page.default, "Today");
+    assert.equal(storage.size, 0, "a chunk that loads re-arms recovery for a later republish");
+  } finally {
+    delete globalThis.window;
+  }
+});
+
 // --- Source wiring: the runtime is only useful if it is actually installed. ---
 
 test("ErrorBoundary reports crashes through the telemetry channel", () => {
@@ -177,8 +210,19 @@ test("the app entry point initializes telemetry and chunk recovery", () => {
   const src = read("src/main.jsx");
   assert.match(src, /initTelemetry\(\)/);
   assert.match(src, /trackEvent\('app_open'\)/);
-  assert.match(src, /markChunksLoaded\(\)/);
   assert.match(src, /installChunkErrorRecovery\(\)/);
+  // Clearing the reload guard when the entry runs re-arms it on every page
+  // load, so a persistently failing chunk reloaded forever. Only a chunk that
+  // actually loads may clear it (loadChunkWithRecovery).
+  assert.doesNotMatch(src, /markChunksLoaded/);
+});
+
+test("the Base44 client turns off the SDK's built-in analytics", () => {
+  // @base44/sdk sends page views and a heartbeat tagged with user_id unless the
+  // client passes analytics.enabled === false (node_modules/@base44/sdk/dist/client.js).
+  // The privacy page and vite.config.js both promise that collection is off.
+  const src = read("src/api/base44Client.js");
+  assert.match(src, /createClient\(\{[\s\S]*?analytics:\s*\{\s*enabled:\s*false\s*\}[\s\S]*?\}\);/);
 });
 
 test("App uses retrying lazy imports and wraps routes in the route boundary", () => {

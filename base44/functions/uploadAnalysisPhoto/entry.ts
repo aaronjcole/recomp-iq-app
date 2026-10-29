@@ -4,8 +4,11 @@ import {
   ANALYSIS_UPLOAD_MAX_BYTES,
   AnalysisUploadError,
   analysisUploadRecord,
+  assertAnalysisUploadAllowed,
   validateAnalysisUploadFile
 } from "../../shared/analysisUploadDomain.js";
+import { resolvePremiumAccess } from "../../shared/premiumDomain.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 
 // Stores one private analysis photo for the signed-in user and records that
 // this account uploaded it. The upload runs here, not in the browser, because
@@ -15,6 +18,13 @@ import {
 
 // Room for the multipart envelope and the purpose field around the image.
 const MAX_REQUEST_BYTES = ANALYSIS_UPLOAD_MAX_BYTES + 64 * 1024;
+// The same release flags the analyze functions enforce. Storing a photo for an
+// analysis that cannot run would only accumulate private files that the SDK
+// offers no way to delete.
+const ENABLED_PURPOSES = Object.freeze({
+  food_photo: Deno.env.get("ENABLE_FOOD_PHOTO_SCAN") === "true",
+  body_composition: Deno.env.get("ENABLE_BODY_COMPOSITION_SCAN") === "true"
+});
 
 export default async function(req) {
   if (req.method !== "POST") {
@@ -52,9 +62,17 @@ export default async function(req) {
   }
 
   try {
+    // Release flag and Premium entitlement are checked before anything is
+    // stored: an account the analysis would refuse must not fill private
+    // storage, which is never cleaned up.
+    const access = resolvePremiumAccess(await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") }));
+    const allowedPurpose = assertAnalysisUploadAllowed(purpose, {
+      features: access.features,
+      enabledPurposes: ENABLED_PURPOSES
+    });
     validateAnalysisUploadFile(file);
     const uploaded = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file });
-    const record = analysisUploadRecord(user.id, uploaded?.file_uri, purpose);
+    const record = analysisUploadRecord(user.id, uploaded?.file_uri, allowedPurpose);
     await base44.asServiceRole.entities.AnalysisUpload.create(record);
     return json({ file_uri: record.file_uri });
   } catch (error) {

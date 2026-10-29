@@ -232,7 +232,9 @@ export default function ComingSoon() {
                   <Smartphone className="h-5 w-5" aria-hidden="true" />
                   <h3 className="font-semibold text-white">iPhone</h3>
                 </div>
-                <p className="mt-1.5 text-sm text-white/60">Available on the App Store.</p>
+                <p className="mt-1.5 text-sm text-white/60">
+                  {APP_STORE_URL ? "Available on the App Store." : "Coming soon to iPhone."}
+                </p>
                 {APP_STORE_URL && (
                   <a
                     href={APP_STORE_URL}

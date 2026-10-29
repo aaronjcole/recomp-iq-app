@@ -8,6 +8,8 @@
 // with the service role, after it stores the file itself. A client-written
 // claim would prove nothing: any user could "claim" another user's file_uri.
 
+import { PREMIUM_FEATURES } from "./premiumDomain.js";
+
 export const ANALYSIS_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 export const ANALYSIS_UPLOAD_ALLOWED_TYPES = Object.freeze([
   "image/jpeg",
@@ -15,6 +17,15 @@ export const ANALYSIS_UPLOAD_ALLOWED_TYPES = Object.freeze([
   "image/webp"
 ]);
 export const ANALYSIS_UPLOAD_PURPOSES = Object.freeze(["food_photo", "body_composition"]);
+/**
+ * The Premium feature each upload purpose feeds. An upload is held to the same
+ * entitlement as the analysis that will read it, so private storage cannot be
+ * filled by an account the analysis itself would refuse.
+ */
+export const ANALYSIS_UPLOAD_PREMIUM_FEATURES = Object.freeze({
+  food_photo: PREMIUM_FEATURES.FOOD_PHOTO,
+  body_composition: PREMIUM_FEATURES.VISUAL_PROGRESS
+});
 /** The most references one analysis may sign (body composition uses three). */
 export const MAX_ANALYSIS_PHOTO_REFERENCES = 3;
 export const MAX_ANALYSIS_FILE_URI_LENGTH = 2_000;
@@ -53,6 +64,27 @@ export function validateAnalysisUploadFile(file) {
 
 export function normalizeAnalysisUploadPurpose(value) {
   return ANALYSIS_UPLOAD_PURPOSES.includes(value) ? value : null;
+}
+
+/**
+ * Decide, before anything is stored, whether this account may upload a photo
+ * for `purpose`. `features` is resolvePremiumAccess(...).features and
+ * `enabledPurposes` maps each purpose to its server release flag
+ * (ENABLE_FOOD_PHOTO_SCAN, ENABLE_BODY_COMPOSITION_SCAN). Returns the
+ * normalized purpose; throws AnalysisUploadError otherwise.
+ */
+export function assertAnalysisUploadAllowed(purpose, { features, enabledPurposes } = {}) {
+  const normalized = normalizeAnalysisUploadPurpose(purpose);
+  if (!normalized) {
+    throw new AnalysisUploadError("Choose whether the photo is for a food or body-composition estimate.");
+  }
+  if (enabledPurposes?.[normalized] !== true) {
+    throw new AnalysisUploadError("Photo estimates are not enabled for this release.", 403);
+  }
+  if (features?.[ANALYSIS_UPLOAD_PREMIUM_FEATURES[normalized]] !== true) {
+    throw new AnalysisUploadError("Photo estimates are a Premium feature.", 403);
+  }
+  return normalized;
 }
 
 /** The server-owned record written after a successful private upload. */

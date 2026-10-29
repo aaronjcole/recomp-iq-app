@@ -217,7 +217,7 @@ export default function More() {
       title: "Coaching & plan",
       items: [
         { icon: Crown, label: "Premium features", to: "/more/premium", badge: "Premium" },
-        { icon: Gift, label: "Refer friends", to: "/more/referrals", subtitle: "Earn free months" },
+        { icon: Gift, label: "Refer friends", to: "/more/referrals", subtitle: "Share your link" },
         { icon: MessageCircle, label: "Coach", to: "/more/coach" },
         { icon: BrainCircuit, label: "Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Soon" },
         {

@@ -4,6 +4,11 @@ import { lazy } from "react";
 // chunk hashes that no longer exist, and every React.lazy import rejects. This
 // retries the dynamic import, and if it still fails, does ONE hard reload to
 // fetch the fresh index.html — guarded so it can never loop.
+//
+// The guard is cleared only after a lazy chunk actually loads. Clearing it when
+// the entry script ran re-armed the reload on every page load, so a chunk that
+// kept failing (a partial deploy, a CDN 404, a cached shell offline) reloaded
+// the app forever.
 
 const RELOAD_KEY = "recompone_chunk_reloaded";
 
@@ -36,8 +41,8 @@ function hardReloadOnce() {
   window.location.reload();
 }
 
-// Clear the guard once the app has successfully loaded, so a later genuine
-// stale-chunk event can reload again.
+// Clear the guard once a chunk has loaded, so a later genuine stale-chunk
+// event can reload again.
 export function markChunksLoaded() {
   if (typeof window === "undefined") return;
   try {
@@ -47,8 +52,16 @@ export function markChunksLoaded() {
   }
 }
 
+// Retry a chunk import, then fall back to one guarded reload. A successful
+// load proves the deployment is consistent, so only then is the guard cleared.
+export async function loadChunkWithRecovery(factory) {
+  const module = await importWithRetry(factory, { retries: 2, onExhausted: hardReloadOnce });
+  markChunksLoaded();
+  return module;
+}
+
 export function lazyWithRetry(factory) {
-  return lazy(() => importWithRetry(factory, { retries: 2, onExhausted: hardReloadOnce }));
+  return lazy(() => loadChunkWithRecovery(factory));
 }
 
 // Vite emits this when a dynamically-imported module fails to load.

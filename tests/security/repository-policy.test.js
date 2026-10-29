@@ -187,3 +187,13 @@ test("CI and CodeQL run on Base44 Builder pushes, whose GITHUB_TOKEN PRs start n
     );
   }
 });
+
+test("the gating Expo doctor step validates against the installed SDK, not Expo's live patch list", () => {
+  const workflow = readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8");
+  const step = workflow.match(/- name: Validate Expo configuration\n([\s\S]*?)(?=\n\s*\n|\n\s*- name:)/);
+  assert.ok(step, "ci.yml must keep the Validate Expo configuration step");
+  assert.match(step[1], /run: npm run doctor --prefix expo-ios/);
+  // Online, expo-doctor expects the newest published expo patch, so an
+  // upstream release alone turned main red (runs #531-#547).
+  assert.match(step[1], /EXPO_OFFLINE: "1"/);
+});
