@@ -16,8 +16,9 @@ import { normalizeStoreUrl } from "../../src/lib/storeLinks.js";
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 test("sensitive photo analysis is disabled unless explicitly enabled", () => {
-  assert.equal(featureFlags.bodyCompositionScan, false);
-  // Food photo has no build flag at all: only the backend Secret can open it.
+  // Photo analysis has no build flags at all: only the backend Secrets
+  // (ENABLE_BODY_COMPOSITION_SCAN, ENABLE_FOOD_PHOTO_SCAN) can open it.
+  assert.equal("bodyCompositionScan" in featureFlags, false);
   assert.equal("foodPhotoScan" in featureFlags, false);
   assert.equal(enabledFromEnvironment(undefined), false);
   assert.equal(enabledFromEnvironment("false"), false);
@@ -27,8 +28,9 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
   assert.match(
     progressSource,
-    /\(featureFlags\.bodyCompositionScan\s*\|\|\s*releaseFlags\.bodyCompositionScan\)\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/
+    /\{releaseFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)\s*&&\s*\(/
   );
+  assert.doesNotMatch(progressSource, /featureFlags\.bodyCompositionScan/);
 
   const premiumAccessSource = readFileSync(
     resolve(repoRoot, "base44/functions/getPremiumAccess/entry.ts"),

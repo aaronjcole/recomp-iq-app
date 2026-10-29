@@ -52,22 +52,18 @@ For frontend-only development, create or update `.env.local` in the project root
 ```bash
 VITE_BASE44_APP_ID=your_app_id
 VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
-# Optional: body-photo AI analysis is disabled unless explicitly enabled.
-VITE_ENABLE_BODY_COMPOSITION_SCAN=false
 ```
 
 `VITE_BASE44_APP_ID` identifies the Base44 app.
 
 `VITE_BASE44_APP_BASE_URL` tells the Base44 Vite plugin where to send local `/api` requests. Point it at your deployed Base44 app URL when you want the local frontend to use the hosted backend.
 
-`VITE_ENABLE_BODY_COMPOSITION_SCAN` is a release gate for the sensitive body-photo analysis
-feature. It is disabled by default and should only be set to `true` in an environment where private
-file retention, deletion, and AI-processing behavior have been accepted.
-
-Hosted Base44 releases use the backend runtime gate instead: add the app Secret
-`ENABLE_BODY_COMPOSITION_SCAN=true`. The authenticated Premium-access function exposes only the
-resulting boolean to the client, and the analysis function independently enforces the same Secret.
-This avoids treating a backend Secret as a Vite build variable while keeping the source default off.
+Body-composition analysis has a single switch, the app Secret `ENABLE_BODY_COMPOSITION_SCAN=true`,
+and no Vite build variable. Set it only where private file retention, deletion, and AI-processing
+behavior have been accepted. `getPremiumAccess` exposes it to the client as
+`releaseFlags.bodyCompositionScan`, which shows the scan in Progress to accounts with the visual
+progress Premium feature. While it is off, `analyzeBodyComposition` refuses every request and
+`uploadAnalysisPhoto` refuses every `body_composition` upload.
 
 Food-photo analysis has a single switch, the app Secret `ENABLE_FOOD_PHOTO_SCAN=true`, and no
 Vite build variable. Keep it unset until the same private-upload, deletion, provider-retention,
@@ -75,7 +71,10 @@ consent, and Play Data Safety review is complete. `getPremiumAccess` exposes it 
 `releaseFlags.foodPhotoScan`, which shows the entry point to accounts with the food-photo Premium
 feature. While it is off, `analyzeFoodPhoto` refuses every request and `uploadAnalysisPhoto` refuses
 every `food_photo` upload.
-Functions read Secrets when they start, so republish those three functions after changing it.
+
+Functions read Secrets when they start. After changing either Secret, republish `getPremiumAccess`,
+`uploadAnalysisPhoto` and the matching analyze function (`analyzeBodyComposition` or
+`analyzeFoodPhoto`), or the UI and the backend can disagree until they restart.
 
 `uploadAnalysisPhoto` stores a photo only for an analysis that could run: the request must name
 its purpose (`food_photo` or `body_composition`), the matching Secret (`ENABLE_FOOD_PHOTO_SCAN` or

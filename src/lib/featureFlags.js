@@ -5,15 +5,11 @@ export function enabledFromEnvironment(value) {
 }
 
 export const featureFlags = Object.freeze({
-  // Food-photo analysis has no build-time flag: the entry point follows the
-  // backend Secret ENABLE_FOOD_PHOTO_SCAN (getPremiumAccess releaseFlags), the
-  // same switch analyzeFoodPhoto enforces, so a build cannot show a flow the
-  // deployment refuses.
-  // Disabled unless explicitly enabled in a trusted build environment. A future
-  // paid entitlement should replace this build-time gate without weakening it.
-  bodyCompositionScan: enabledFromEnvironment(
-    import.meta.env?.VITE_ENABLE_BODY_COMPOSITION_SCAN
-  ),
+  // Photo analysis (food photo and body composition) has no build-time flag:
+  // each entry point follows its backend Secret, ENABLE_FOOD_PHOTO_SCAN or
+  // ENABLE_BODY_COMPOSITION_SCAN, exposed by getPremiumAccess as releaseFlags.
+  // The analysis and upload functions enforce the same Secrets, so a build
+  // cannot show a flow the deployment refuses.
   // Crash + minimal funnel telemetry. Off by default; network delivery also
   // requires VITE_TELEMETRY_ENDPOINT, so nothing leaves the device until the
   // deployment has opted in and declared it (Play Data Safety).
