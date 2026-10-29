@@ -119,6 +119,8 @@ test("public pages lead visitors toward the Android beta and iOS availability", 
   } else {
     await expect(download.getByText("Coming soon to iPhone.")).toBeVisible();
     await expect(download.getByText("Available on the App Store.")).toHaveCount(0);
+    // The hero availability line above the fold must agree with the card.
+    await expect(page.getByText(/^Available on the web · .* · iPhone coming soon$/)).toBeVisible();
   }
   await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
 

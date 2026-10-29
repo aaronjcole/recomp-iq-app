@@ -74,8 +74,10 @@ This avoids treating a backend Secret as a Vite build variable while keeping the
 `VITE_ENABLE_FOOD_PHOTO_SCAN` independently gates food-photo analysis. Keep it disabled until the
 same private-upload, deletion, provider-retention, consent, and Play Data Safety review is complete.
 The build flag only hides the entry point. The backend enforces its own gate: `analyzeFoodPhoto`
-refuses every request unless the app Secret `ENABLE_FOOD_PHOTO_SCAN=true` is set, so set that
-Secret before publishing a build that shows food-photo estimates.
+refuses every request unless the app Secret `ENABLE_FOOD_PHOTO_SCAN=true` is set. Functions read
+these Secrets when they start, so set it before publishing `analyzeFoodPhoto` and
+`uploadAnalysisPhoto` wherever food-photo estimates are in use (including local builds run with
+`VITE_ENABLE_FOOD_PHOTO_SCAN=true` against the hosted backend).
 
 `uploadAnalysisPhoto` stores a photo only for an analysis that could run: the request must name
 its purpose (`food_photo` or `body_composition`), the matching Secret (`ENABLE_FOOD_PHOTO_SCAN` or

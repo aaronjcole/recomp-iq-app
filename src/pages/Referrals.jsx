@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Users, CircleCheckBig, Sparkles, LoaderCircle, Share2 } from "lucide-react";
+import { Copy, Check, Users, Sparkles, LoaderCircle, Share2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 export default function Referrals() {
@@ -66,7 +66,6 @@ export default function Referrals() {
   };
 
   const signups = stats?.signups ?? 0;
-  const converted = stats?.converted ?? 0;
 
   return (
     <div className="space-y-5">
@@ -116,22 +115,13 @@ export default function Referrals() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="bg-panel border-line">
-          <CardContent className="p-4 text-center">
-            <Users className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
-            <div className="mt-2 text-2xl font-bold tabular-nums">{signups}</div>
-            <div className="text-xs text-muted-foreground">Signups</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-panel border-line">
-          <CardContent className="p-4 text-center">
-            <CircleCheckBig className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
-            <div className="mt-2 text-2xl font-bold tabular-nums">{converted}</div>
-            <div className="text-xs text-muted-foreground">Paid first month</div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-panel border-line">
+        <CardContent className="p-4 text-center">
+          <Users className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
+          <div className="mt-2 text-2xl font-bold tabular-nums">{signups}</div>
+          <div className="text-xs text-muted-foreground">Signups</div>
+        </CardContent>
+      </Card>
 
       <Card className="bg-panel border-line">
         <CardContent className="p-4 space-y-3">

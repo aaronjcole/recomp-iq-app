@@ -182,7 +182,11 @@ export default function ComingSoon() {
             </p>
             <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/65">
               <span className="flex h-2 w-2 rounded-full bg-[#2fc4a7]" aria-hidden="true" />
-              Available on the web · Google Play beta · iOS
+              {[
+                "Available on the web",
+                GOOGLE_PLAY_URL ? "Google Play beta" : "Android beta in progress",
+                APP_STORE_URL ? "iOS" : "iPhone coming soon"
+              ].join(" · ")}
             </p>
 
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">

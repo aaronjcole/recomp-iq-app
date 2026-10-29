@@ -13,7 +13,7 @@ import {
   reportError,
   trackEvent,
 } from "../../src/lib/telemetry.js";
-import { importWithRetry, markChunksLoaded } from "../../src/lib/lazyWithRetry.js";
+import { RELOAD_WINDOW_MS, importWithRetry } from "../../src/lib/lazyWithRetry.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (rel) => readFileSync(resolve(repoRoot, rel), "utf8");
@@ -149,13 +149,12 @@ test("importWithRetry surfaces onExhausted and rethrows once retries run out", a
   assert.ok(exhaustedWith instanceof Error);
 });
 
-test("markChunksLoaded is safe to call in a non-browser context", () => {
-  assert.doesNotThrow(() => markChunksLoaded());
-});
-
-test("a chunk that keeps failing reloads the app once, not on every page load", async () => {
+test("a page chunk that keeps failing reloads the app once per window, not on every page load", async () => {
   const storage = new Map();
   let reloads = 0;
+  let now = Date.parse("2026-10-29T12:00:00.000Z");
+  const realNow = Date.now;
+  Date.now = () => now;
   globalThis.window = {
     sessionStorage: {
       getItem: (key) => storage.get(key) ?? null,
@@ -166,22 +165,33 @@ test("a chunk that keeps failing reloads the app once, not on every page load", 
     addEventListener() {}
   };
   try {
+    const loaded = async () => ({ default: "RecompGate" });
     const failing = async () => {
       throw new Error("chunk 404");
     };
-    // Each fresh module instance stands for the page load that follows a reload.
-    for (let load = 1; load <= 3; load += 1) {
-      const recovery = await import(`../../src/lib/lazyWithRetry.js?load=${load}`);
+    // Each fresh module instance stands for the page load that follows a
+    // reload. As on a signed-in route, outer lazy chunks (RecompGate,
+    // RequireOnboarding, AppLayout) load before the page chunk fails, so a
+    // successful load must not re-arm the reload.
+    const pageLoad = async (label) => {
+      const recovery = await import(`../../src/lib/lazyWithRetry.js?load=${label}`);
       recovery.installChunkErrorRecovery();
+      assert.equal((await recovery.loadChunkWithRecovery(loaded)).default, "RecompGate");
       await assert.rejects(recovery.loadChunkWithRecovery(failing), /chunk 404/);
+    };
+    for (let load = 1; load <= 4; load += 1) {
+      await pageLoad(load);
+      now += 30_000;
     }
-    assert.equal(reloads, 1, "the guard must survive the reload it caused");
+    assert.equal(reloads, 1, "the guard must survive the reload it caused and later successful chunks");
 
-    const recovered = await import("../../src/lib/lazyWithRetry.js?load=recovered");
-    const page = await recovered.loadChunkWithRecovery(async () => ({ default: "Today" }));
-    assert.equal(page.default, "Today");
-    assert.equal(storage.size, 0, "a chunk that loads re-arms recovery for a later republish");
+    // A genuine stale-chunk event after the window recovers again, once.
+    now += RELOAD_WINDOW_MS;
+    await pageLoad("later-1");
+    await pageLoad("later-2");
+    assert.equal(reloads, 2);
   } finally {
+    Date.now = realNow;
     delete globalThis.window;
   }
 });
@@ -211,10 +221,9 @@ test("the app entry point initializes telemetry and chunk recovery", () => {
   assert.match(src, /initTelemetry\(\)/);
   assert.match(src, /trackEvent\('app_open'\)/);
   assert.match(src, /installChunkErrorRecovery\(\)/);
-  // Clearing the reload guard when the entry runs re-arms it on every page
-  // load, so a persistently failing chunk reloaded forever. Only a chunk that
-  // actually loads may clear it (loadChunkWithRecovery).
-  assert.doesNotMatch(src, /markChunksLoaded/);
+  // Clearing the reload guard when the entry runs re-armed it on every page
+  // load, so a persistently failing chunk reloaded forever.
+  assert.doesNotMatch(src, /markChunksLoaded|sessionStorage/);
 });
 
 test("the Base44 client turns off the SDK's built-in analytics", () => {

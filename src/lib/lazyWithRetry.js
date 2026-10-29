@@ -5,12 +5,16 @@ import { lazy } from "react";
 // retries the dynamic import, and if it still fails, does ONE hard reload to
 // fetch the fresh index.html — guarded so it can never loop.
 //
-// The guard is cleared only after a lazy chunk actually loads. Clearing it when
-// the entry script ran re-armed the reload on every page load, so a chunk that
-// kept failing (a partial deploy, a CDN 404, a cached shell offline) reloaded
-// the app forever.
+// The guard is a timestamp: at most one recovery reload per RELOAD_WINDOW_MS.
+// It is never cleared by a successful load. Signed-in routes nest several lazy
+// chunks (RecompGate, RequireOnboarding, AppLayout, then the page), so an
+// unrelated chunk always loads before a failing page chunk; clearing the guard
+// on any success (or on every entry run, as main.jsx once did) re-armed the
+// reload on every page load and a persistently failing chunk (a partial deploy,
+// a CDN 404, a cached shell offline) reloaded the app forever.
 
-const RELOAD_KEY = "recompone_chunk_reloaded";
+const RELOAD_KEY = "recompone_chunk_reload_at";
+export const RELOAD_WINDOW_MS = 10 * 60 * 1000;
 
 // Backstop for sessions where sessionStorage throws (Safari private mode, storage
 // disabled): without it, a persistent failure would reload on every exhausted
@@ -31,8 +35,11 @@ function hardReloadOnce() {
   if (typeof window === "undefined") return;
   if (reloadedThisLoad) return; // in-memory guard, works even if storage throws
   try {
-    if (window.sessionStorage.getItem(RELOAD_KEY)) return; // already tried this session
-    window.sessionStorage.setItem(RELOAD_KEY, "1");
+    const now = Date.now();
+    const last = Number(window.sessionStorage.getItem(RELOAD_KEY));
+    // A clock that moved backwards (now < last) also counts as "too recent".
+    if (last > 0 && now - last < RELOAD_WINDOW_MS) return;
+    window.sessionStorage.setItem(RELOAD_KEY, String(now));
   } catch {
     // Storage unavailable (e.g. private mode): the in-memory guard below still
     // prevents a reload loop within this page load.
@@ -41,23 +48,9 @@ function hardReloadOnce() {
   window.location.reload();
 }
 
-// Clear the guard once a chunk has loaded, so a later genuine stale-chunk
-// event can reload again.
-export function markChunksLoaded() {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.removeItem(RELOAD_KEY);
-  } catch {
-    // no-op
-  }
-}
-
-// Retry a chunk import, then fall back to one guarded reload. A successful
-// load proves the deployment is consistent, so only then is the guard cleared.
-export async function loadChunkWithRecovery(factory) {
-  const module = await importWithRetry(factory, { retries: 2, onExhausted: hardReloadOnce });
-  markChunksLoaded();
-  return module;
+// Retry a chunk import, then fall back to at most one reload per window.
+export function loadChunkWithRecovery(factory) {
+  return importWithRetry(factory, { retries: 2, onExhausted: hardReloadOnce });
 }
 
 export function lazyWithRetry(factory) {
