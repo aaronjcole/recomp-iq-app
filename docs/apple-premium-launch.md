@@ -39,6 +39,7 @@
   - Pricing: Monthly $4.99/month, Annual $39.99/year with 14-day free trial.
   - Purchase buttons — functional only when a native StoreKit bridge is present. Without it they are disabled and read "Available in the iOS app" only in a web browser when `VITE_APP_STORE_URL` is configured; otherwise (no published iOS app, or inside the Android or another native wrapper) they read "Coming soon".
   - Restore Purchases control — shown when the bridge is present (enabled) or on the web with the iOS app published (disabled); hidden where no store can restore.
+  - Subscription terms (auto-renewal text, guideline 3.1.2) — shown with the bridge and on the web with the iOS app published; hidden where nobody can buy. The Terms of Use and Privacy Policy links are always shown.
   - Note that core food, workout, sleep, habit, and progress tracking remain free.
 
 - **`nativeIapBridge.js`** (`src/lib/nativeIapBridge.js`) — enables purchasing only when the wrapper exposes the complete `requestPurchase`/`restorePurchases`/`finishTransaction` contract on `wixMobileNativeBridge`.

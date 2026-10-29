@@ -245,20 +245,32 @@ export default function PremiumPaywall() {
         </Button>
       )}
 
-      <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
-        <p>
-          RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
-          to your Apple ID at confirmation of purchase. The subscription renews automatically at
-          the price shown unless it is cancelled at least 24 hours before the end of the current
-          period, and your account is charged for renewal within the 24 hours before the period
-          ends. Manage or cancel it in your Apple ID's subscription settings. Any unused part of a
-          free trial ends when you buy a subscription.
-        </p>
-        <p className="flex flex-wrap gap-x-4 gap-y-1">
+      {/* The Apple billing terms (App Store guideline 3.1.2) belong wherever the
+          subscription can be bought: the iOS app, or the web page pointing to it.
+          Where nobody can buy (no published iOS app, the Android wrapper) they
+          would describe a purchase that cannot happen, and inside a Play app
+          they would reference another store's billing. The legal links stay. */}
+      {purchasePath === "unavailable" ? (
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <Link to="/terms" className="underline underline-offset-2">Terms of Use</Link>
           <Link to="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
         </p>
-      </div>
+      ) : (
+        <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
+          <p>
+            RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
+            to your Apple ID at confirmation of purchase. The subscription renews automatically at
+            the price shown unless it is cancelled at least 24 hours before the end of the current
+            period, and your account is charged for renewal within the 24 hours before the period
+            ends. Manage or cancel it in your Apple ID's subscription settings. Any unused part of a
+            free trial ends when you buy a subscription.
+          </p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link to="/terms" className="underline underline-offset-2">Terms of Use</Link>
+            <Link to="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
+          </p>
+        </div>
+      )}
 
       {purchasePath === "ios-app" && (
         <p className="flex flex-wrap items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
