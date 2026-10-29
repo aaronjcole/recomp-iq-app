@@ -1,19 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const xcode = require("xcode");
 const fromXcode = createRequire(require.resolve("xcode"));
-const uuid = fromXcode("uuid");
+const xcodeManifest = fromXcode("./package.json");
+const pbxProjectSource = readFileSync(fromXcode.resolve("./lib/pbxProject.js"), "utf8");
 
-// xcode 3 uses only CommonJS uuid.v4() with no arguments. Keep its API and
-// project-file format intact while replacing the unsupported uuid 7 line.
-test("xcode resolves the narrowly scoped, CommonJS-compatible UUID security fix", () => {
-  const manifest = require("../package.json");
-  assert.equal(manifest.overrides["xcode@3.0.1"].uuid, "11.1.1");
-  assert.equal(fromXcode("uuid/package.json").version, "11.1.1");
-  assert.equal(typeof uuid.v4, "function");
+// The invariant is "xcode's UUID source is patched", not a specific version.
+// xcode 3 calls CommonJS uuid.v4() and pins the unsupported uuid 7 line, so
+// package.json overrides it for that exact xcode version. xcode 4 (pulled in
+// by Expo patch releases from @expo/config-plugins 57.0.11) dropped the uuid
+// package for crypto.randomUUID(). Pinning the xcode 3 override here failed
+// every Expo bump; checking whichever xcode is installed does not.
+test("the UUID source xcode uses is patched (GHSA-w5hq-g745-h8pq)", () => {
+  if (xcodeManifest.dependencies?.uuid) {
+    const uuid = fromXcode("uuid");
+    const { version } = fromXcode("uuid/package.json");
+    const manifest = require("../package.json");
+    assert.equal(
+      manifest.overrides?.[`xcode@${xcodeManifest.version}`]?.uuid,
+      version,
+      `xcode ${xcodeManifest.version} must resolve uuid through the scoped override`
+    );
+    assert.ok(Number(version.split(".")[0]) >= 11, `uuid ${version} predates the fix`);
+    assert.equal(typeof uuid.v4, "function");
+    for (const algorithm of [uuid.v3, uuid.v5]) {
+      assert.throws(() => algorithm("x", uuid.v5.DNS, new Uint8Array(8), 4), RangeError);
+    }
+    assert.throws(() => uuid.v6({}, new Uint8Array(8), 4), RangeError);
+  } else {
+    assert.match(pbxProjectSource, /crypto\.randomUUID\(\)/);
+    assert.doesNotMatch(pbxProjectSource, /require\(\s*["']uuid["']\s*\)/);
+  }
 });
 
 test("xcode still generates unique 24-character uppercase UUIDs", () => {
@@ -28,7 +49,7 @@ test("xcode still generates unique 24-character uppercase UUIDs", () => {
   assert.equal(ids.size, 1000);
 });
 
-test("xcode can create, serialize and parse project groups with the override", () => {
+test("xcode can create, serialize and parse project groups", () => {
   const project = xcode.project("RecompOne.xcodeproj/project.pbxproj");
   project.hash = {
     project: {
@@ -40,11 +61,4 @@ test("xcode can create, serialize and parse project groups with the override", (
   const parser = fromXcode("./lib/parser/pbxproj");
   const parsed = parser.parse(project.writeSync());
   assert.equal(parsed.project.objects.PBXGroup[group.uuid].name, "RecompOne");
-});
-
-test("UUID v3/v5/v6 reject undersized caller-provided buffers (GHSA-w5hq-g745-h8pq)", () => {
-  for (const algorithm of [uuid.v3, uuid.v5]) {
-    assert.throws(() => algorithm("x", uuid.v5.DNS, new Uint8Array(8), 4), RangeError);
-  }
-  assert.throws(() => uuid.v6({}, new Uint8Array(8), 4), RangeError);
 });
