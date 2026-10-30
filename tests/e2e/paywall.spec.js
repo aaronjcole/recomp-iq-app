@@ -85,7 +85,8 @@ for (const { name, setup } of [
     const plans = page.getByLabel("Premium plans");
     await expect(plans.getByRole("button", { name: "Coming soon", exact: true })).toHaveCount(2);
     for (const button of await plans.getByRole("button").all()) await expect(button).toBeDisabled();
-    await expect(page.getByText(/iOS app|App Store on iOS/)).toHaveCount(0);
+    // No store is named and no trial promised anywhere on the paywall.
+    await expect(page.getByText(/iOS app|App Store|Apple|free trial/i)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Restore Purchases/ })).toHaveCount(0);
     await expect(page.getByText("Premium subscriptions aren't available here yet.", { exact: true })).toBeVisible();
     // No Apple billing terms for a purchase that cannot happen here, but the

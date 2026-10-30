@@ -72,6 +72,16 @@ test("loading, missing products, web and older iOS builds", () => {
   const web = premiumPlans({ storeKit: false });
   assert.ok(web.every((plan) => !plan.purchasable));
   assert.match(web.find((plan) => plan.productId === APPLE_PRODUCT_ANNUAL).description, /eligible new subscribers/);
+  // Pointing to the published iOS app keeps the App Store copy; where no store
+  // sells the plan (no iOS app yet, the Android wrapper) it names no store and
+  // promises no trial.
+  const pointing = premiumPlans({ storeKit: false, purchasePath: "ios-app" });
+  assert.match(pointing.find((plan) => plan.productId === APPLE_PRODUCT_ANNUAL).description, /App Store/);
+  const nowhere = premiumPlans({ storeKit: false, purchasePath: "unavailable" });
+  for (const plan of nowhere) {
+    assert.equal(plan.purchasable, false);
+    assert.doesNotMatch(plan.description, /App Store|Apple|trial/i, plan.productId);
+  }
   const legacy = premiumPlans({ storeKit: true, legacyBridge: true });
   assert.ok(legacy.every((plan) => plan.purchasable), "an older iOS build can still subscribe");
   assert.ok(legacy.every((plan) => plan.badge === null), "but no trial is promised without StoreKit's answer");

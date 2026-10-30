@@ -33,12 +33,15 @@ function trialLabel({ unit, count }) {
 }
 
 /**
- * @param {{ storeKit: boolean, products?: Array<{ productId: string, displayPrice: string, period: object|null, freeTrial: object|null }> | null, legacyBridge?: boolean }} input
+ * @param {{ storeKit: boolean, products?: Array<{ productId: string, displayPrice: string, period: object|null, freeTrial: object|null }> | null, legacyBridge?: boolean, purchasePath?: "storekit" | "ios-app" | "unavailable" }} input
  *   storeKit: the native bridge is present. products: getProducts' result, or
  *   null while it is loading. legacyBridge: an older iOS build whose bridge
  *   has no getProducts; its plans stay purchasable at the reference prices.
+ *   purchasePath: paywallPurchasePath's answer. Where it is "unavailable" no
+ *   store sells the plan here, so the copy names no store and promises no
+ *   trial (inside the Android wrapper that would point to Apple's billing).
  */
-export function premiumPlans({ storeKit, products = null, legacyBridge = false }) {
+export function premiumPlans({ storeKit, products = null, legacyBridge = false, purchasePath }) {
   return REFERENCE_PLANS.map((reference) => {
     if (storeKit && legacyBridge) {
       return {
@@ -48,6 +51,16 @@ export function premiumPlans({ storeKit, products = null, legacyBridge = false }
         description: "Renews automatically; cancel anytime. The App Store confirms your local price before you pay.",
         badge: null,
         purchasable: true
+      };
+    }
+    if (!storeKit && purchasePath === "unavailable") {
+      return {
+        ...reference,
+        priceLabel: reference.price,
+        periodLabel: periodLabel(reference.period),
+        description: "Reference price in USD.",
+        badge: null,
+        purchasable: false
       };
     }
     if (!storeKit) {

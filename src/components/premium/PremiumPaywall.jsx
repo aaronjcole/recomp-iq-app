@@ -102,7 +102,7 @@ export default function PremiumPaywall() {
     };
   }, []);
 
-  const plans = premiumPlans({ storeKit: bridgeAvailable, products, legacyBridge });
+  const plans = premiumPlans({ storeKit: bridgeAvailable, products, legacyBridge, purchasePath });
 
   async function handlePlanSelect(productId) {
     if (!bridgeAvailable || isBusy) return;
