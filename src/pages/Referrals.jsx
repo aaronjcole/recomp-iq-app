@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gift, Copy, Check, Users, CircleCheckBig, Sparkles, LoaderCircle, Share2 } from "lucide-react";
+import { Copy, Check, Users, Sparkles, LoaderCircle, Share2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 export default function Referrals() {
@@ -41,7 +41,7 @@ export default function Referrals() {
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      toast({ title: "Link copied", description: "Share it with friends to earn free months." });
+      toast({ title: "Link copied", description: "Share it with friends who would like RecompOne." });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: "Couldn't copy", description: "Long-press the link to copy it manually." });
@@ -66,16 +66,14 @@ export default function Referrals() {
   };
 
   const signups = stats?.signups ?? 0;
-  const converted = stats?.converted ?? 0;
-  const rewarded = stats?.rewarded ?? 0;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Refer friends</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Share your link. When a friend signs up and completes their first paid month of premium,
-          you earn a free month of premium — banked and ready to use.
+          Share your link with friends who'd like adaptive nutrition and training. Friends who sign
+          up with it are counted below.
         </p>
       </div>
 
@@ -117,29 +115,13 @@ export default function Referrals() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="bg-panel border-line">
-          <CardContent className="p-4 text-center">
-            <Users className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
-            <div className="mt-2 text-2xl font-bold tabular-nums">{signups}</div>
-            <div className="text-xs text-muted-foreground">Signups</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-panel border-line">
-          <CardContent className="p-4 text-center">
-            <CircleCheckBig className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
-            <div className="mt-2 text-2xl font-bold tabular-nums">{converted}</div>
-            <div className="text-xs text-muted-foreground">Paid first month</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-panel border-line">
-          <CardContent className="p-4 text-center">
-            <Gift className="mx-auto h-5 w-5 text-gold" aria-hidden="true" />
-            <div className="mt-2 text-2xl font-bold tabular-nums">{rewarded}</div>
-            <div className="text-xs text-muted-foreground">Free months earned</div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-panel border-line">
+        <CardContent className="p-4 text-center">
+          <Users className="mx-auto h-5 w-5 text-teal" aria-hidden="true" />
+          <div className="mt-2 text-2xl font-bold tabular-nums">{signups}</div>
+          <div className="text-xs text-muted-foreground">Signups</div>
+        </CardContent>
+      </Card>
 
       <Card className="bg-panel border-line">
         <CardContent className="p-4 space-y-3">
@@ -154,12 +136,7 @@ export default function Referrals() {
             </li>
             <li>
               <span className="font-medium text-foreground">2. They sign up.</span> Friends who
-              register with your link get 30% off their first month of premium.
-            </li>
-            <li>
-              <span className="font-medium text-foreground">3. You earn a free month.</span> When a
-              friend completes their first paid month of premium, a free month is banked to your
-              account — untapped until you use it.
+              register with your link are credited to you and show up in your signups.
             </li>
           </ol>
         </CardContent>

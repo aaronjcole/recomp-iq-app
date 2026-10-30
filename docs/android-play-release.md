@@ -138,5 +138,19 @@ AAB; the splash colors remain a non-blocking visual advisory unless Base44 expos
 - Install the Play-generated build and test sign-up, Google/email login, password reset, Android back,
   deep links, keyboard/focus, offline/retry, barcode permission, support, and account deletion.
 
-Do not advertise subscriptions or paid digital features in the Android app until Google Play Billing
-and the corresponding disclosure and entitlement flows are implemented.
+Until Google Play Billing and its disclosure and entitlement flows are implemented, the Android app
+shows the Premium page only as a catalog that sells nothing (product decision, 2026-10-30). The
+paywall's `unavailable` path (`paywallPurchasePath` in `src/lib/premiumPlans.js`) keeps it that way:
+
+- plan cards show reference USD prices with disabled "Coming soon" buttons, no trial and no store
+  named;
+- there is no Restore button and no Apple auto-renewal terms;
+- nothing points to the App Store, the web or any other way to pay, even once `VITE_APP_STORE_URL`
+  is set.
+
+Do not add a purchase button, a store name or a link that leads to another billing method. The
+wrapper is recognized by its injected `wixMobileNativeBridge` object or a `WixBrandedLiteApp` user
+agent (`src/lib/nativeStoreShell.js`). If neither is present, the page treats the wrapper as a web
+browser, and once `VITE_APP_STORE_URL` is set it would say "Available in the iOS app". So before
+release, and again before setting `VITE_APP_STORE_URL`, open Premium in the Play-generated build and
+confirm it shows "Coming soon" and "Premium subscriptions aren't available here yet."

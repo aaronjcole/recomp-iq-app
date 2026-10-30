@@ -409,3 +409,35 @@ test("coach rate limiting is shared, precedes paid inference, and is deleted wit
   assert.equal(schema.properties.request_id.maxLength, 64);
   assert.deepEqual(schema.rls.read, { user_condition: { role: "admin" } });
 });
+test("every quota feature is accepted by the CoachRequestUsage schema and has a quota", () => {
+  // A feature key missing from the deployed enum makes every reservation for it
+  // throw, which fails the guarded function closed for everyone.
+  const schema = JSON.parse(readFileSync(resolve(repoRoot, "base44/entities/CoachRequestUsage.jsonc"), "utf8"));
+  const allowed = new Set(schema.properties.feature.enum);
+  for (const feature of Object.values(AI_QUOTA_FEATURES)) {
+    assert.ok(allowed.has(feature), `${feature} must be in the CoachRequestUsage feature enum`);
+    assert.ok(AI_FEATURE_QUOTAS[feature], `${feature} must have a per-account quota`);
+    assert.ok(feature.length <= schema.properties.feature.maxLength, `${feature} exceeds maxLength`);
+  }
+});
+
+test("photo upload quotas sit above what legitimate analysis retries need", () => {
+  // Clients upload again on every attempt: three poses per body scan, one photo
+  // per meal. An upload cap below analyses x photos would block real users
+  // before the analysis quota does.
+  for (const [upload, analysis, photosPerAttempt] of [
+    [AI_QUOTA_FEATURES.BODY_COMPOSITION_UPLOAD, AI_QUOTA_FEATURES.BODY_COMPOSITION, 3],
+    [AI_QUOTA_FEATURES.FOOD_PHOTO_UPLOAD, AI_QUOTA_FEATURES.FOOD_PHOTO, 1]
+  ]) {
+    for (const window of ["hourly", "daily"]) {
+      assert.ok(
+        AI_FEATURE_QUOTAS[upload][window] >= AI_FEATURE_QUOTAS[analysis][window] * photosPerAttempt,
+        `${upload} ${window}`
+      );
+    }
+    assert.ok(
+      AI_FEATURE_DAILY_CEILINGS[upload] >= AI_FEATURE_DAILY_CEILINGS[analysis] * photosPerAttempt,
+      `${upload} ceiling`
+    );
+  }
+});

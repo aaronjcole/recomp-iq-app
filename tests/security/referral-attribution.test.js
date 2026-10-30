@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -161,4 +161,24 @@ test("recordReferralSignup uses the shared eligibility and rank-after-insert att
   assert.match(source, /referralEligibility\(user, referrerId\)/);
   assert.match(source, /recordReferralAttribution\(/);
   assert.doesNotMatch(source, /Referral\.create\(/);
+});
+
+test("the app promises no referral reward while no code ever grants one", () => {
+  // Referral records are created as "pending" and nothing in base44/ moves one
+  // to "converted" or "rewarded", so "free month" / "% off" copy would be a
+  // promise the product cannot keep. Wire a reward pipeline before restoring it.
+  const backend = ["functions", "shared"].flatMap((dir) => {
+    const root = resolve(repoRoot, "base44", dir);
+    return readdirSync(root, { recursive: true })
+      .filter((file) => /\.(js|ts)$/.test(file))
+      .map((file) => readFileSync(resolve(root, file), "utf8"));
+  });
+  const grantsReward = backend.some((source) =>
+    /status:\s*["'](converted|rewarded)["']/.test(source) && /Referral/.test(source)
+  );
+  if (grantsReward) return;
+  for (const page of ["src/pages/Referrals.jsx", "src/pages/More.jsx"]) {
+    const source = readFileSync(resolve(repoRoot, page), "utf8");
+    assert.doesNotMatch(source, /free month|% off|earn free/i, page);
+  }
 });

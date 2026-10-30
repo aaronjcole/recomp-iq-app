@@ -18,8 +18,15 @@ import { deriveAppleAppAccountToken } from "../../../base44/shared/appleAppAccou
 import { useAuth } from "@/lib/AuthContext";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { getNativeIapBridge, hasNativeIapBridge } from "@/lib/nativeIapBridge";
+import { isNativeStoreShell } from "@/lib/nativeStoreShell";
+import { APP_STORE_URL } from "@/lib/storeLinks";
 import { useToast } from "@/components/ui/use-toast";
-import { APPLE_PRODUCT_ANNUAL, APPLE_PRODUCT_MONTHLY, premiumPlans } from "@/lib/premiumPlans";
+import {
+  APPLE_PRODUCT_ANNUAL,
+  APPLE_PRODUCT_MONTHLY,
+  paywallPurchasePath,
+  premiumPlans
+} from "@/lib/premiumPlans";
 
 // Apple App Store StoreKit product IDs. Both map to the same recompone_premium
 // entitlement on the server (see base44/shared/premiumDomain.js and
@@ -57,6 +64,12 @@ export default function PremiumPaywall() {
   const { toast } = useToast();
   const [isBusy, setIsBusy] = useState(false);
   const bridgeAvailable = hasNativeIapBridge();
+  // Only claim the iOS app where it exists and where saying so is allowed.
+  const purchasePath = paywallPurchasePath({
+    bridgeAvailable,
+    appStoreUrl: APP_STORE_URL,
+    nativeStoreShell: isNativeStoreShell()
+  });
   // Localized prices and trial eligibility come from StoreKit; null = loading.
   const [products, setProducts] = useState(null);
   const [pricesUnavailable, setPricesUnavailable] = useState(false);
@@ -89,7 +102,7 @@ export default function PremiumPaywall() {
     };
   }, []);
 
-  const plans = premiumPlans({ storeKit: bridgeAvailable, products, legacyBridge });
+  const plans = premiumPlans({ storeKit: bridgeAvailable, products, legacyBridge, purchasePath });
 
   async function handlePlanSelect(productId) {
     if (!bridgeAvailable || isBusy) return;
@@ -210,42 +223,68 @@ export default function PremiumPaywall() {
                 disabled={!bridgeAvailable || isBusy || !plan.purchasable}
                 onClick={() => handlePlanSelect(plan.productId)}
               >
-                {bridgeAvailable ? `Subscribe ${plan.label}` : "Available in the iOS app"}
+                {purchasePath === "storekit"
+                  ? `Subscribe ${plan.label}`
+                  : purchasePath === "ios-app" ? "Available in the iOS app" : "Coming soon"}
               </Button>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Button
-        variant="outline"
-        className="w-full border-line"
-        disabled={!bridgeAvailable || isBusy}
-        onClick={handleRestore}
-      >
-        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-        {bridgeAvailable ? "Restore Purchases" : "Restore Purchases (in iOS app)"}
-      </Button>
+      {/* With no store to restore from, a restore control would only mislead. */}
+      {purchasePath !== "unavailable" && (
+        <Button
+          variant="outline"
+          className="w-full border-line"
+          disabled={!bridgeAvailable || isBusy}
+          onClick={handleRestore}
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          {bridgeAvailable ? "Restore Purchases" : "Restore Purchases (in iOS app)"}
+        </Button>
+      )}
 
-      <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
-        <p>
-          RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
-          to your Apple ID at confirmation of purchase. The subscription renews automatically at
-          the price shown unless it is cancelled at least 24 hours before the end of the current
-          period, and your account is charged for renewal within the 24 hours before the period
-          ends. Manage or cancel it in your Apple ID's subscription settings. Any unused part of a
-          free trial ends when you buy a subscription.
-        </p>
-        <p className="flex flex-wrap gap-x-4 gap-y-1">
+      {/* The Apple billing terms (App Store guideline 3.1.2) belong wherever the
+          subscription can be bought: the iOS app, or the web page pointing to it.
+          Where nobody can buy (no published iOS app, the Android wrapper) they
+          would describe a purchase that cannot happen, and inside a Play app
+          they would reference another store's billing. The legal links stay. */}
+      {purchasePath === "unavailable" ? (
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <Link to="/terms" className="underline underline-offset-2">Terms of Use</Link>
           <Link to="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
         </p>
-      </div>
+      ) : (
+        <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
+          <p>
+            RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
+            to your Apple ID at confirmation of purchase. The subscription renews automatically at
+            the price shown unless it is cancelled at least 24 hours before the end of the current
+            period, and your account is charged for renewal within the 24 hours before the period
+            ends. Manage or cancel it in your Apple ID's subscription settings. Any unused part of a
+            free trial ends when you buy a subscription.
+          </p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link to="/terms" className="underline underline-offset-2">Terms of Use</Link>
+            <Link to="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
+          </p>
+        </div>
+      )}
 
-      {!bridgeAvailable && (
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+      {purchasePath === "ios-app" && (
+        <p className="flex flex-wrap items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <Lock className="h-3.5 w-3.5" aria-hidden="true" />
           Subscriptions are managed by the App Store on iOS.
+          <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            Get the iOS app
+          </a>
+        </p>
+      )}
+      {purchasePath === "unavailable" && (
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+          <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+          Premium subscriptions aren't available here yet.
         </p>
       )}
 

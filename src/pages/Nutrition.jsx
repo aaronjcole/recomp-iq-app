@@ -52,11 +52,14 @@ export default function Nutrition() {
   const quickAddsRef = useRef(new Set());
   const [quickAdding, setQuickAdding] = useState(() => new Set());
   const { selectedDate, isToday } = useLoggingDate();
-  const { canAccess } = usePremiumAccess();
-  // The server is the authority (analyzeFoodPhoto returns 403 without the
-  // entitlement); this only keeps an unentitled user from uploading a photo to
-  // private storage before being refused.
-  const canUsePhotoScan = canAccess(PREMIUM_FEATURES.FOOD_PHOTO);
+  const { canAccess, releaseFlags } = usePremiumAccess();
+  // The server is the authority (analyzeFoodPhoto and uploadAnalysisPhoto
+  // return 403 without ENABLE_FOOD_PHOTO_SCAN or the entitlement); this only
+  // hides an entry point the backend would refuse. The release flag comes from
+  // that same Secret via getPremiumAccess, and is checked before the
+  // entitlement: Premium alone must not open a data flow the deployment has
+  // not accepted.
+  const canUsePhotoScan = releaseFlags.foodPhotoScan && canAccess(PREMIUM_FEATURES.FOOD_PHOTO);
   const [form, setForm] = useState(empty);
   const [scanOperation, setScanOperation] = useState(null);
   const scanOperationRef = useRef(null);
@@ -392,14 +395,17 @@ export default function Nutrition() {
             <CardContent className="p-5 space-y-3">
               <h2 className="font-medium">Scan food</h2>
               <div className="grid grid-cols-2 gap-3">
-                {featureFlags.foodPhotoScan && canUsePhotoScan && (
+                {/* Barcode comes first so it never shifts when Snap food appears
+                    after premium access loads (a mid-shift tap would open the
+                    photo scanner instead). */}
+                <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("barcode", undefined, event.currentTarget)}>
+                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
+                </Button>
+                {canUsePhotoScan && (
                   <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("photo", undefined, event.currentTarget)}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
                 )}
-                <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("barcode", undefined, event.currentTarget)}>
-                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -607,14 +613,17 @@ export default function Nutrition() {
               <h2 className="font-medium">Scan food</h2>
               <p className="text-sm text-muted-foreground">Look up food, review its portions, then log it.</p>
               <div className="grid grid-cols-2 gap-3">
-                {featureFlags.foodPhotoScan && canUsePhotoScan && (
+                {/* Barcode comes first so it never shifts when Snap food appears
+                    after premium access loads (a mid-shift tap would open the
+                    photo scanner instead). */}
+                <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("barcode", undefined, event.currentTarget)}>
+                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
+                </Button>
+                {canUsePhotoScan && (
                   <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("photo", undefined, event.currentTarget)}>
                     <Camera className="w-4 h-4 mr-1" /> Snap food
                   </Button>
                 )}
-                <Button variant="outline" className="min-h-11" onClick={(event) => openScanner("barcode", undefined, event.currentTarget)}>
-                  <ScanLine className="w-4 h-4 mr-1" /> Barcode
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -700,7 +709,7 @@ export default function Nutrition() {
         </div>
       )}
 
-      {isActive && review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} returnFocusElement={review.returnFocusElement} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={featureFlags.foodPhotoScan && canUsePhotoScan} />}
+      {isActive && review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} returnFocusElement={review.returnFocusElement} onClose={() => setReview(null)} onScan={openScanner} canPhotoScan={canUsePhotoScan} />}
 
       {isActive && scanOperation?.source === "barcode" && (
         <Suspense fallback={<ScannerLoading onClose={closeScanner} />}>
@@ -712,7 +721,7 @@ export default function Nutrition() {
         </Suspense>
       )}
 
-      {isActive && featureFlags.foodPhotoScan && scanOperation?.source === "photo" && (
+      {isActive && releaseFlags.foodPhotoScan && scanOperation?.source === "photo" && (
         <Suspense fallback={<ScannerLoading onClose={closeScanner} />}>
           <FoodPhotoScan
             onClose={closeScanner}

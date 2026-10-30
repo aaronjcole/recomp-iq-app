@@ -5,14 +5,22 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ANALYSIS_UPLOAD_MAX_BYTES,
+  ANALYSIS_UPLOAD_PURPOSES,
+  ANALYSIS_UPLOAD_QUOTA_FEATURES,
   AnalysisUploadError,
   MAX_ANALYSIS_PHOTO_REFERENCES,
   PhotoReferenceOwnershipError,
   analysisUploadRecord,
+  assertAnalysisUploadAllowed,
   assertOwnedPhotoReferences,
   validateAnalysisUploadFile,
   verifyPhotoReferenceOwnership
 } from "../../base44/shared/analysisUploadDomain.js";
+import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain.js";
+import {
+  AI_FEATURE_DAILY_CEILINGS,
+  AI_FEATURE_QUOTAS
+} from "../../base44/shared/coachRateLimitDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -124,7 +132,7 @@ test("only the server can write AnalysisUpload records", () => {
   const upload = read("base44/functions/uploadAnalysisPhoto/entry.ts");
   assert.match(upload, /user = await base44\.auth\.me\(\)/);
   assert.match(upload, /asServiceRole\.integrations\.Core\.UploadPrivateFile\(\{ file \}\)/);
-  assert.match(upload, /analysisUploadRecord\(user\.id, uploaded\?\.file_uri, purpose\)/);
+  assert.match(upload, /analysisUploadRecord\(user\.id, uploaded\?\.file_uri, allowedPurpose\)/);
   assert.match(upload, /asServiceRole\.entities\.AnalysisUpload\.create\(record\)/);
   assert.ok(
     upload.indexOf("validateAnalysisUploadFile(file)") < upload.indexOf("UploadPrivateFile("),
@@ -147,3 +155,125 @@ for (const [path, refs] of [
     assert.match(server, /error instanceof PhotoReferenceOwnershipError[\s\S]*?status: 403/);
   });
 }
+
+// --- Upload gate --------------------------------------------------------------
+
+const bothEnabled = { food_photo: true, body_composition: true };
+const allFeatures = {
+  [PREMIUM_FEATURES.FOOD_PHOTO]: true,
+  [PREMIUM_FEATURES.VISUAL_PROGRESS]: true
+};
+
+test("an upload must name a known analysis purpose", () => {
+  for (const purpose of [undefined, null, "", "avatar", "FOOD_PHOTO"]) {
+    assert.throws(
+      () => assertAnalysisUploadAllowed(purpose, { features: allFeatures, enabledPurposes: bothEnabled }),
+      (error) => error instanceof AnalysisUploadError && error.status === 400,
+      String(purpose)
+    );
+  }
+});
+
+test("an upload is refused while its analysis is not enabled for the release", () => {
+  for (const purpose of ["food_photo", "body_composition"]) {
+    for (const enabledPurposes of [undefined, {}, { ...bothEnabled, [purpose]: false }, { [purpose]: "true" }]) {
+      assert.throws(
+        () => assertAnalysisUploadAllowed(purpose, { features: allFeatures, enabledPurposes }),
+        (error) => error instanceof AnalysisUploadError && error.status === 403,
+        `${purpose} ${JSON.stringify(enabledPurposes)}`
+      );
+    }
+  }
+});
+
+test("an upload requires the Premium feature of the analysis it feeds", () => {
+  const cases = [
+    ["food_photo", { [PREMIUM_FEATURES.VISUAL_PROGRESS]: true }],
+    ["body_composition", { [PREMIUM_FEATURES.FOOD_PHOTO]: true }],
+    ["food_photo", undefined],
+    ["body_composition", {}]
+  ];
+  for (const [purpose, features] of cases) {
+    assert.throws(
+      () => assertAnalysisUploadAllowed(purpose, { features, enabledPurposes: bothEnabled }),
+      (error) => error instanceof AnalysisUploadError && error.status === 403,
+      `${purpose} ${JSON.stringify(features)}`
+    );
+  }
+  assert.equal(
+    assertAnalysisUploadAllowed("food_photo", {
+      features: { [PREMIUM_FEATURES.FOOD_PHOTO]: true },
+      enabledPurposes: { food_photo: true }
+    }),
+    "food_photo"
+  );
+  assert.equal(
+    assertAnalysisUploadAllowed("body_composition", {
+      features: { [PREMIUM_FEATURES.VISUAL_PROGRESS]: true },
+      enabledPurposes: { body_composition: true }
+    }),
+    "body_composition"
+  );
+});
+
+test("uploadAnalysisPhoto applies the release and Premium gate before storing anything", () => {
+  const upload = read("base44/functions/uploadAnalysisPhoto/entry.ts");
+  assert.match(upload, /Deno\.env\.get\("ENABLE_FOOD_PHOTO_SCAN"\) === "true"/);
+  assert.match(upload, /Deno\.env\.get\("ENABLE_BODY_COMPOSITION_SCAN"\) === "true"/);
+  assert.match(upload, /loadPremiumAccessRecords\(base44,\s*user,/);
+  const gate = upload.indexOf("assertAnalysisUploadAllowed(purpose");
+  assert.ok(gate > 0, "the upload gate is called");
+  assert.ok(gate < upload.indexOf("UploadPrivateFile("), "the gate runs before the file is stored");
+  assert.ok(gate < upload.indexOf("AnalysisUpload.create("), "the gate runs before the record is written");
+});
+
+test("analyzeFoodPhoto refuses before any work while ENABLE_FOOD_PHOTO_SCAN is off", () => {
+  const server = read("base44/functions/analyzeFoodPhoto/entry.ts");
+  assert.match(server, /Deno\.env\.get\("ENABLE_FOOD_PHOTO_SCAN"\) !== "true"/);
+  const check = server.indexOf("if (FOOD_PHOTO_SCAN_DISABLED)");
+  assert.ok(check > server.indexOf("await base44.auth.me()"), "the release gate follows authentication");
+  assert.ok(check < server.indexOf("await req.json()"), "the release gate precedes reading the body");
+  assert.ok(check < server.indexOf("reserveFeatureRequest(\n"), "the release gate precedes the quota");
+  assert.match(server.slice(check, server.indexOf("await req.json()")), /status: 403/);
+  assert.match(server.slice(check, server.indexOf("await req.json()")), /message: disabledMessage/);
+});
+
+for (const path of [
+  "base44/functions/analyzeFoodPhoto/entry.ts",
+  "base44/functions/analyzeBodyComposition/entry.ts"
+]) {
+  test(`${path} verifies photo ownership before reserving quota`, () => {
+    const server = read(path);
+    const check = server.indexOf("await verifyPhotoReferenceOwnership(");
+    // The identifier also appears in the import block; compare the call site.
+    const quota = server.indexOf("await reserveFeatureRequest(");
+    assert.ok(check > 0 && quota > 0, "both calls are present");
+    assert.ok(check < quota, "a made-up reference must not consume per-user or app-wide quota");
+  });
+}
+
+test("each upload purpose draws from its own metered quota pool", () => {
+  const features = ANALYSIS_UPLOAD_PURPOSES.map((purpose) => ANALYSIS_UPLOAD_QUOTA_FEATURES[purpose]);
+  assert.equal(new Set(features).size, ANALYSIS_UPLOAD_PURPOSES.length, "purposes must not share a pool");
+  for (const feature of features) {
+    assert.ok(AI_FEATURE_QUOTAS[feature], `${feature} has a per-account quota`);
+    assert.ok(Number.isInteger(AI_FEATURE_DAILY_CEILINGS[feature]), `${feature} has an app-wide ceiling`);
+  }
+});
+
+test("uploadAnalysisPhoto reserves upload quota after the gate and file checks, before storing", () => {
+  const upload = read("base44/functions/uploadAnalysisPhoto/entry.ts");
+  const gate = upload.indexOf("assertAnalysisUploadAllowed(purpose");
+  const validate = upload.indexOf("validateAnalysisUploadFile(file)");
+  const reserve = upload.indexOf("await reserveFeatureRequest(");
+  const store = upload.indexOf("UploadPrivateFile(");
+  assert.ok(gate > 0 && validate > gate, "the entitlement gate precedes file validation");
+  assert.ok(reserve > validate, "a rejected file must not consume quota");
+  assert.ok(reserve < store, "quota is reserved before anything is stored");
+  const reservation = upload.slice(validate, store);
+  assert.match(reservation, /quotaFeature = ANALYSIS_UPLOAD_QUOTA_FEATURES\[allowedPurpose\]/);
+  assert.match(reservation, /asServiceRole\.entities\.CoachRequestUsage,\s*user\.id,\s*quotaFeature,\s*AI_FEATURE_QUOTAS\[quotaFeature\]/);
+  assert.match(reservation, /status: 429/);
+  assert.match(reservation, /message: limitMessage/);
+  assert.match(reservation, /Retry-After/);
+});

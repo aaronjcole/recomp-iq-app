@@ -144,9 +144,19 @@ test("the Fuel tab hides the photo trigger without the entitlement", () => {
   // Server-side is the authority, but an unentitled user should not upload a
   // photo to private storage only to be refused afterwards.
   const nutrition = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
-  assert.match(nutrition, /canAccess\(PREMIUM_FEATURES\.FOOD_PHOTO\)/);
-  assert.match(nutrition, /featureFlags\.foodPhotoScan\s*&&\s*canUsePhotoScan/);
-  // The build-time flag stays in front of the entitlement check: enabling
-  // premium must not turn on a data flow the deployment has not accepted.
-  assert.doesNotMatch(nutrition, /canUsePhotoScan\s*&&\s*featureFlags\.foodPhotoScan/);
+  // The release flag (the ENABLE_FOOD_PHOTO_SCAN Secret, via getPremiumAccess)
+  // stays in front of the entitlement check: enabling premium must not turn on
+  // a data flow the deployment has not accepted.
+  assert.match(
+    nutrition,
+    /const canUsePhotoScan = releaseFlags\.foodPhotoScan && canAccess\(PREMIUM_FEATURES\.FOOD_PHOTO\);/
+  );
+  // Every entry point goes through that gate: each direct photo opener sits in
+  // its own canUsePhotoScan block, and the composer's Photo button is driven by
+  // canPhotoScan.
+  const openers = nutrition.match(/openScanner\("photo"/g) ?? [];
+  const gated = nutrition.match(/\{canUsePhotoScan && \(\s*<Button[^\n]*openScanner\("photo"/g) ?? [];
+  assert.equal(openers.length, 2, "both Snap food buttons");
+  assert.equal(gated.length, openers.length, "every direct photo opener is gated");
+  assert.match(nutrition, /canPhotoScan=\{canUsePhotoScan\}/);
 });

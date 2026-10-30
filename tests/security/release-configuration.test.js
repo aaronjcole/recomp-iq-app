@@ -16,8 +16,10 @@ import { normalizeStoreUrl } from "../../src/lib/storeLinks.js";
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 test("sensitive photo analysis is disabled unless explicitly enabled", () => {
-  assert.equal(featureFlags.bodyCompositionScan, false);
-  assert.equal(featureFlags.foodPhotoScan, false);
+  // Photo analysis has no build flags at all: only the backend Secrets
+  // (ENABLE_BODY_COMPOSITION_SCAN, ENABLE_FOOD_PHOTO_SCAN) can open it.
+  assert.equal("bodyCompositionScan" in featureFlags, false);
+  assert.equal("foodPhotoScan" in featureFlags, false);
   assert.equal(enabledFromEnvironment(undefined), false);
   assert.equal(enabledFromEnvironment("false"), false);
   assert.equal(enabledFromEnvironment("TRUE"), false);
@@ -26,8 +28,9 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   const progressSource = readFileSync(resolve(repoRoot, "src/pages/Progress.jsx"), "utf8");
   assert.match(
     progressSource,
-    /\(featureFlags\.bodyCompositionScan\s*\|\|\s*releaseFlags\.bodyCompositionScan\)\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/
+    /\{releaseFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)\s*&&\s*\(/
   );
+  assert.doesNotMatch(progressSource, /featureFlags\.bodyCompositionScan/);
 
   const premiumAccessSource = readFileSync(
     resolve(repoRoot, "base44/functions/getPremiumAccess/entry.ts"),
@@ -41,9 +44,11 @@ test("sensitive photo analysis is disabled unless explicitly enabled", () => {
   assert.match(bodyCompositionSource, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
   assert.match(bodyCompositionSource, /BODY_COMPOSITION_SCAN_DISABLED/);
 
+  assert.match(premiumAccessSource, /Deno\.env\.get\(["']ENABLE_FOOD_PHOTO_SCAN["']\) === "true"/);
+  assert.match(premiumAccessSource, /foodPhotoScan:\s*FOOD_PHOTO_SCAN_ENABLED/);
   const nutritionSource = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
-  assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&/);
-  assert.match(nutritionSource, /featureFlags\.foodPhotoScan\s*&&\s*scanOperation\?\.source === "photo"/);
+  assert.doesNotMatch(nutritionSource, /featureFlags\.foodPhotoScan/);
+  assert.match(nutritionSource, /releaseFlags\.foodPhotoScan\s*&&\s*scanOperation\?\.source === "photo"/);
 });
 
 test("support contact is consistent and exposed in the app and privacy policy", () => {
