@@ -86,7 +86,7 @@ On Android today, `paywallPurchasePath` returns `"unavailable"` (`src/lib/premiu
 - no store name and no trial promise;
 - no billing terms and no restore control.
 
-`docs/android-play-release.md` says nothing about subscriptions may be advertised in the Android app until Google Play Billing, its disclosures and its entitlement flow ship. The reference prices are still a soft form of advertising, so decide whether the Premium page should be shown in the Android app at all before release. The text below is for the billing work.
+The Premium page stays in the Android app in this form until Google Play Billing, its disclosures and its entitlement flow ship. The limits it must keep, and the device check before release, are in `docs/android-play-release.md`. The text below is for the billing work.
 
 #### Proposed paywall copy
 
