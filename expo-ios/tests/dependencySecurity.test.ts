@@ -10,11 +10,11 @@ const xcodeManifest = fromXcode("./package.json");
 const pbxProjectSource = readFileSync(fromXcode.resolve("./lib/pbxProject.js"), "utf8");
 
 // The invariant is "xcode's UUID source is patched", not a specific version.
-// xcode 3 calls CommonJS uuid.v4() and pins the unsupported uuid 7 line, so
-// package.json overrides it for that exact xcode version. xcode 4 (pulled in
-// by Expo patch releases from @expo/config-plugins 57.0.11) dropped the uuid
-// package for crypto.randomUUID(). Pinning the xcode 3 override here failed
-// every Expo bump; checking whichever xcode is installed does not.
+// xcode 4 (pulled in by Expo patch releases from @expo/config-plugins 57.0.11)
+// uses crypto.randomUUID() and has no uuid dependency. xcode 3 called CommonJS
+// uuid.v4() and pinned the unsupported uuid 7 line; package.json carried a
+// scoped override for it until xcode 4 replaced it. If an xcode that depends on
+// uuid ever returns, this test fails until that override is restored.
 test("the UUID source xcode uses is patched (GHSA-w5hq-g745-h8pq)", () => {
   if (xcodeManifest.dependencies?.uuid) {
     const uuid = fromXcode("uuid");
