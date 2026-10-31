@@ -49,8 +49,15 @@ jobs:
       - name: Test native meal speech protocol and lifecycle
         run: npm run test:speech --prefix expo-ios
 
+      # Offline mode makes the dependency check compare against the
+      # bundledNativeModules.json of the installed expo package instead of
+      # Expo's live "latest patch" API. Without it, every upstream Expo patch
+      # release turned main red with no repository change (runs #531-#547).
+      # New patches still arrive as Dependabot pull requests.
       - name: Validate Expo configuration
         run: npm run doctor --prefix expo-ios
+        env:
+          EXPO_OFFLINE: "1"
 
       - name: Test fitness engine
         run: npm run test:fitness

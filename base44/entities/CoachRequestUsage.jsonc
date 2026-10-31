@@ -1,7 +1,7 @@
 {
   "name": "CoachRequestUsage",
   "type": "object",
-  "description": "Minimal server-only reservations used to enforce shared AI coach quotas. No prompts or health data are stored.",
+  "description": "Minimal server-only reservations used to enforce shared AI and photo-upload quotas. No prompts, photos or health data are stored.",
   "properties": {
     "description": {
       "type": "string",
@@ -21,9 +21,11 @@
         "coach",
         "meal_plan_ai_variety",
         "body_composition",
-        "food_photo"
+        "food_photo",
+        "body_composition_upload",
+        "food_photo_upload"
       ],
-      "description": "Paid-inference feature this reservation belongs to, so one feature's quota cannot consume another's."
+      "description": "Paid-inference or photo-upload feature this reservation belongs to, so one feature's quota cannot consume another's."
     },
     "request_id": {
       "type": "string",

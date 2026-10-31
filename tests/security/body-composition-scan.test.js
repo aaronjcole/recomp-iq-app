@@ -56,8 +56,14 @@ test("body composition photos use private upload while analysis stays behind the
   assert.match(component, /sessionStorage/);
   assert.doesNotMatch(component, /localStorage/);
   assert.doesNotMatch(component, /CreateFileSignedUrl|InvokeLLM|createPrivateAnalysisUrl/);
-  assert.match(progress, /\(featureFlags\.bodyCompositionScan\s*\|\|\s*releaseFlags\.bodyCompositionScan\)\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/);
+  // The scan is offered only when the backend Secret (via getPremiumAccess)
+  // and the entitlement both allow it; there is no build flag to OR in.
+  assert.match(progress, /\{releaseFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)\s*&&\s*\(/);
+  assert.equal((progress.match(/<BodyCompositionScan\b/g) ?? []).length, 1, "a single, gated render site");
   assert.match(premium, /AI-assisted body-composition range/i);
+  // The catalog only promises the AI range while the release flag is on.
+  assert.match(premium, /releaseFlags\?\.bodyCompositionScan\) return feature;/);
+  assert.match(premium, /presentFeature\(feature, releaseFlags\)/);
 });
 
 test("privacy policy discloses the accepted private-file deletion limitation", () => {

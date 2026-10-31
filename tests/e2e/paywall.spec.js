@@ -24,7 +24,8 @@ async function installNativeBridge(page, { products } = {}) {
   }, products ?? null);
 }
 
-test("the paywall carries the App Store subscription terms and links on every platform", async ({ page }) => {
+test("in the iOS app the paywall carries the App Store subscription terms and links (guideline 3.1.2)", async ({ page }) => {
+  await installNativeBridge(page);
   await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
   const assertNoPageErrors = watchPageErrors(page);
   await page.goto("/more/premium");
@@ -65,3 +66,35 @@ test("an older iOS build without getProducts can still subscribe", async ({ page
   await expect(page.getByRole("button", { name: "Subscribe Monthly" })).toBeEnabled();
   await expect(page.getByLabel("Premium plans")).not.toContainText("free trial");
 });
+
+// The local e2e build sets no VITE_APP_STORE_URL, i.e. no published iOS app.
+for (const { name, setup } of [
+  { name: "a web browser", setup: async () => {} },
+  {
+    // The Base44 Android wrapper injects its bridge object without StoreKit.
+    name: "the Android store wrapper",
+    setup: (page) => page.addInitScript(() => { window.wixMobileNativeBridge = {}; })
+  }
+]) {
+  test(`in ${name} without a published iOS app the paywall does not point to one`, async ({ page }) => {
+    await setup(page);
+    await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
+    const assertNoPageErrors = watchPageErrors(page);
+    await page.goto("/more/premium");
+
+    const plans = page.getByLabel("Premium plans");
+    await expect(plans.getByRole("button", { name: "Coming soon", exact: true })).toHaveCount(2);
+    for (const button of await plans.getByRole("button").all()) await expect(button).toBeDisabled();
+    // No store is named and no trial promised anywhere on the paywall.
+    await expect(page.getByText(/iOS app|App Store|Apple|free trial/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Restore Purchases/ })).toHaveCount(0);
+    await expect(page.getByText("Premium subscriptions aren't available here yet.", { exact: true })).toBeVisible();
+    // No Apple billing terms for a purchase that cannot happen here, but the
+    // legal links stay reachable.
+    await expect(page.getByLabel("Subscription terms")).toHaveCount(0);
+    await expect(page.getByText(/Apple ID|renews automatically/)).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Terms of Use", exact: true })).toHaveAttribute("href", "/terms");
+    await expect(page.getByRole("link", { name: "Privacy Policy", exact: true })).toHaveAttribute("href", "/privacy");
+    assertNoPageErrors();
+  });
+}

@@ -78,7 +78,7 @@ test("revoked, expired, malformed, and unknown entitlements fail closed", () => 
   ], NOW);
 
   assert.deepEqual(access, EMPTY_PREMIUM_ACCESS);
-  assert.deepEqual(access.releaseFlags, { bodyCompositionScan: false });
+  assert.deepEqual(access.releaseFlags, { bodyCompositionScan: false, foodPhotoScan: false });
   assert.equal(Object.isFrozen(access), true);
 });
 
@@ -102,6 +102,8 @@ test("premium access is server-authorized, admin-owned, and removed with the acc
   assert.doesNotMatch(server, /async function listAllEntitlements/);
   assert.match(server, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
   assert.match(server, /releaseFlags:\s*\{[\s\S]*bodyCompositionScan/);
+  assert.match(server, /Deno\.env\.get\(["']ENABLE_FOOD_PHOTO_SCAN["']\)/);
+  assert.match(server, /releaseFlags:\s*\{[\s\S]*foodPhotoScan:\s*FOOD_PHOTO_SCAN_ENABLED/);
   assert.match(server, /Cache-Control", "no-store"/);
   assert.ok(
     accountDeletionPlan({ id: "user-1" }).some(

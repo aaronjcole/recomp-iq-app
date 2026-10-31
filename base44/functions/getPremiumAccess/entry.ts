@@ -2,8 +2,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { resolvePremiumAccess } from "../../shared/premiumDomain.js";
 import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 
+// The only switches for the two photo analyses: the UI shows each entry point
+// from these booleans, and analyzeBodyComposition / analyzeFoodPhoto /
+// uploadAnalysisPhoto enforce the same Secrets, so the UI can never offer a
+// flow the backend would refuse.
 const BODY_COMPOSITION_SCAN_ENABLED =
   Deno.env.get("ENABLE_BODY_COMPOSITION_SCAN") === "true";
+const FOOD_PHOTO_SCAN_ENABLED =
+  Deno.env.get("ENABLE_FOOD_PHOTO_SCAN") === "true";
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -46,7 +52,10 @@ export default async function(req) {
     const records = await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") });
     return json({
       ...resolvePremiumAccess(records),
-      releaseFlags: { bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED }
+      releaseFlags: {
+        bodyCompositionScan: BODY_COMPOSITION_SCAN_ENABLED,
+        foodPhotoScan: FOOD_PHOTO_SCAN_ENABLED
+      }
     });
 
   } catch (error) {

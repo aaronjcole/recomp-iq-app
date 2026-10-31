@@ -16,7 +16,6 @@ import ProgressInsightsCard from "@/components/progress/ProgressInsightsCard";
 import NutritionReport from "@/components/progress/NutritionReport";
 import PremiumBadge from "@/components/premium/PremiumBadge";
 import PullToRefresh from "@/components/common/PullToRefresh";
-import { featureFlags } from "@/lib/featureFlags";
 import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { PREMIUM_FEATURES } from "../../base44/shared/premiumDomain";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -252,7 +251,10 @@ export default function Progress() {
           aria-labelledby="progress-tab-photos"
           className="space-y-5"
         >
-          {(featureFlags.bodyCompositionScan || releaseFlags.bodyCompositionScan) && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
+          {/* The release flag is the ENABLE_BODY_COMPOSITION_SCAN Secret that
+              analyzeBodyComposition and uploadAnalysisPhoto enforce, so the scan
+              is only offered when the backend would accept it. */}
+          {releaseFlags.bodyCompositionScan && canAccess(PREMIUM_FEATURES.VISUAL_PROGRESS) && (
             <Suspense fallback={<div className="h-16 animate-pulse rounded-xl bg-panel2" />}>
               <BodyCompositionScan />
             </Suspense>
