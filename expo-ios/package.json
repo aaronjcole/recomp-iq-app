@@ -11,7 +11,7 @@
     "doctor": "npx expo-doctor"
   },
   "dependencies": {
-    "expo": "~57.0.30",
+    "expo": "~57.0.31",
     "expo-dev-client": "~57.0.20",
     "expo-speech-recognition": "57.1.1",
     "expo-status-bar": "~57.0.1",
