@@ -37,6 +37,36 @@ test("the UUID source xcode uses is patched (GHSA-w5hq-g745-h8pq)", () => {
   }
 });
 
+// glob <= 14.0.1 (GHSA-3g3m-2fjr-6pw4) and minimatch < 11.0.1
+// (GHSA-g3hv-75wg-m249) have no patched release on the lines Expo's tooling
+// asks for: every SDK 57 and 58 @expo package below pins glob ^13 and
+// minimatch ^10, so package.json overrides both. As with uuid above, this
+// checks what the tooling actually resolves, not the override, so it keeps
+// passing once @expo allows the patched lines and the override is deleted.
+const fromExpo = createRequire(require.resolve("expo/package.json"));
+const atLeast = (version: string, minimum: string) => {
+  const have = version.split(".").map((part) => parseInt(part, 10));
+  const need = minimum.split(".").map((part) => parseInt(part, 10));
+  for (let i = 0; i < need.length; i++) {
+    const [h, n] = [have[i] ?? 0, need[i] ?? 0];
+    if (h !== n) return h > n;
+  }
+  return true;
+};
+
+test("Expo's CLI tooling resolves patched glob and minimatch", () => {
+  for (const tool of ["@expo/cli", "@expo/config", "@expo/config-plugins", "@expo/fingerprint", "@expo/metro-config"]) {
+    const fromTool = createRequire(fromExpo.resolve(`${tool}/package.json`));
+    const glob = fromTool("glob/package.json");
+    assert.ok(atLeast(glob.version, "14.0.2"), `${tool} resolves glob ${glob.version} (GHSA-3g3m-2fjr-6pw4)`);
+    const minimatch = createRequire(fromTool.resolve("glob/package.json"))("minimatch/package.json");
+    assert.ok(atLeast(minimatch.version, "11.0.1"), `${tool}'s glob resolves minimatch ${minimatch.version} (GHSA-g3hv-75wg-m249)`);
+  }
+  const fromFingerprint = createRequire(fromExpo.resolve("@expo/fingerprint/package.json"));
+  const { version } = fromFingerprint("minimatch/package.json");
+  assert.ok(atLeast(version, "11.0.1"), `@expo/fingerprint resolves minimatch ${version} (GHSA-g3hv-75wg-m249)`);
+});
+
 test("xcode still generates unique 24-character uppercase UUIDs", () => {
   const project = xcode.project("RecompOne.xcodeproj/project.pbxproj");
   project.hash = { project: { objects: {} } };
