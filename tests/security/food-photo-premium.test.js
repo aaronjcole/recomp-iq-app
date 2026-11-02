@@ -130,20 +130,12 @@ test("the 403 reaches the user through the message field", () => {
   assert.match(gateBlock, /error:/, "403 body must keep the error field");
 });
 
-test("entitlement reads fail closed rather than unlocking", () => {
-  // listAllEntitlements throws on a malformed or over-long response instead of
-  // returning a partial list, and the surrounding try/catch returns a failure
-  // status. A truncated read must never look like "no gate needed".
-  const loader = readFileSync(
-    resolve(repoRoot, "base44/shared/entitlementAccess.js"),
-    "utf8"
-  );
-  assert.match(loader, /throw new Error\("Invalid entitlement response"\)/);
-  assert.match(loader, /throw new Error\("Entitlement response exceeded the safe record limit"\)/);
-  assert.match(loader, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
-  // Owner scoping comes from the authenticated user, never the request body.
-  assert.match(server, /listAllEntitlements\(base44,\s*user\.id\)/);
-  assert.doesNotMatch(server, /listAllEntitlements\(base44,\s*body/);
+test("analyzeFoodPhoto resolves access from the authenticated user through the shared loader", () => {
+  // The loader's fail-closed behavior (malformed page, read error, record cap)
+  // is executed in entitlement-loader.test.js; this pins only the wiring, so a
+  // truncated read can never look like "no gate needed" here.
+  assert.match(server, /loadPremiumAccessRecords\(base44,\s*user,/);
+  assert.doesNotMatch(server, /loadPremiumAccessRecords\(base44,\s*body/);
 });
 
 // --- Client -----------------------------------------------------------------
@@ -152,9 +144,19 @@ test("the Fuel tab hides the photo trigger without the entitlement", () => {
   // Server-side is the authority, but an unentitled user should not upload a
   // photo to private storage only to be refused afterwards.
   const nutrition = readFileSync(resolve(repoRoot, "src/pages/Nutrition.jsx"), "utf8");
-  assert.match(nutrition, /canAccess\(PREMIUM_FEATURES\.FOOD_PHOTO\)/);
-  assert.match(nutrition, /featureFlags\.foodPhotoScan\s*&&\s*canUsePhotoScan/);
-  // The build-time flag stays in front of the entitlement check: enabling
-  // premium must not turn on a data flow the deployment has not accepted.
-  assert.doesNotMatch(nutrition, /canUsePhotoScan\s*&&\s*featureFlags\.foodPhotoScan/);
+  // The release flag (the ENABLE_FOOD_PHOTO_SCAN Secret, via getPremiumAccess)
+  // stays in front of the entitlement check: enabling premium must not turn on
+  // a data flow the deployment has not accepted.
+  assert.match(
+    nutrition,
+    /const canUsePhotoScan = releaseFlags\.foodPhotoScan && canAccess\(PREMIUM_FEATURES\.FOOD_PHOTO\);/
+  );
+  // Every entry point goes through that gate: each direct photo opener sits in
+  // its own canUsePhotoScan block, and the composer's Photo button is driven by
+  // canPhotoScan.
+  const openers = nutrition.match(/openScanner\("photo"/g) ?? [];
+  const gated = nutrition.match(/\{canUsePhotoScan && \(\s*<Button[^\n]*openScanner\("photo"/g) ?? [];
+  assert.equal(openers.length, 2, "both Snap food buttons");
+  assert.equal(gated.length, openers.length, "every direct photo opener is gated");
+  assert.match(nutrition, /canPhotoScan=\{canUsePhotoScan\}/);
 });

@@ -15,13 +15,13 @@ test("Weekly Autopilot verifies server entitlement before reading fitness histor
   assert.match(server, /req\.method !== "POST"/);
   assert.match(server, /user = await base44\.auth\.me\(\)/);
   assert.match(server, /Cache-Control", "no-store"/);
-  assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
+  assert.match(server, /import \{ loadPremiumAccessRecords \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
   assert.match(server, /PREMIUM_FEATURES\.WEEKLY_AUTOPILOT/);
   assert.match(server, /created_by_id:\s*userId/);
   assert.doesNotMatch(server, /InvokeLLM/);
   assert.doesNotMatch(server, /\bemail\b/i);
 
-  const authorization = server.indexOf("const entitlements = await listAllEntitlements");
+  const authorization = server.indexOf("const entitlements = await loadPremiumAccessRecords(base44, user,");
   const historyRead = server.indexOf('ownedRecords(base44, "DailyLog"');
   assert.ok(authorization >= 0 && authorization < historyRead);
 });

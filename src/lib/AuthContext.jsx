@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { trackEvent } from '@/lib/telemetry';
+import { signOut } from '@/lib/signOut';
 
 const AuthContext = createContext(null);
 
@@ -133,11 +134,12 @@ export const AuthProvider = ({ children }) => {
     hasTrackedSignInRef.current = false;
 
     if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
-      base44.auth.logout(window.location.href);
+      // signOut clears device-local session data, then the SDK removes the
+      // token and redirects.
+      signOut(window.location.href);
     } else {
-      // Just remove the token without redirect
-      base44.auth.logout();
+      // Just clear session data and the token without redirect
+      signOut();
     }
   };
 

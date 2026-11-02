@@ -162,14 +162,17 @@ export function computeNutritionSignal({
   }
 
   // ── Nudge: largest macro shortfall → suggest a high-protein recent food ──
+  // Gaps are ranked by their share of each target (kcal and grams aren't
+  // comparable in absolute terms). Ties keep protein first (stable sort).
   const shortfalls = [
     { key: "protein", gap: targets.protein - consumed.protein, label: "protein" },
     { key: "calories", gap: targets.calories - consumed.calories, label: "calories" },
     { key: "carbs", gap: targets.carbs - consumed.carbs, label: "carbs" },
     { key: "fat", gap: targets.fat - consumed.fat, label: "fat" }
   ]
-    .filter((s) => s.gap > 0)
-    .sort((a, b) => b.gap - a.gap);
+    .filter((s) => s.gap > 0 && targets[s.key] > 0)
+    .map((s) => ({ ...s, relativeGap: s.gap / targets[s.key] }))
+    .sort((a, b) => b.relativeGap - a.relativeGap);
 
   let nudge = "";
   let nudgeAction = null;

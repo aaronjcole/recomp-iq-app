@@ -21,12 +21,36 @@ export function recalculateTargets(profile, preferences = {}) {
     fat_target_g: calc.fat_target_g,
     carb_target_g: calc.carb_target_g,
     step_target: calc.step_target,
-    lifting_days_target: Math.min(Math.max(profile.training_days_per_week || 3, 2), 4),
+    lifting_days_target: Math.min(Math.max(profile.training_days_per_week ?? 3, 0), 4),
     cardio_days_target: profile.cardio_days_per_week,
     goal_type: profile.goal,
     weekly_adjustment_rule: "Use 14+ days of data and small bounded changes.",
     behavior_focus: "Build the logging habit and add realistic steps."
   };
+}
+
+// The five targets a user can author by hand in CustomTargetsCard. While
+// strategy.manual_override is on they belong to the user, so recalculating from
+// biometrics or a goal change must leave them alone.
+export const MANUAL_TARGET_KEYS = Object.freeze([
+  "calorie_target",
+  "protein_target_g",
+  "carb_target_g",
+  "fat_target_g",
+  "step_target"
+]);
+
+/**
+ * The CurrentStrategy patch written after a profile edit (biometrics or goal):
+ * targets recalculated for `goal`, minus the user's own targets when
+ * `manualOverride` is on.
+ */
+export function recalculatedStrategyUpdate(profile, preferences, { goal, manualOverride }) {
+  const strat = recalculateTargets({ ...profile, goal }, preferences ?? {});
+  if (manualOverride) {
+    for (const key of MANUAL_TARGET_KEYS) delete strat[key];
+  }
+  return { ...strat, goal_type: goal };
 }
 
 export function runWeeklyCheckIn(args) {

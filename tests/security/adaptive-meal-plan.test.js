@@ -3,6 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  MealPlanRequestError,
+  buildAdaptiveMealPlan,
+  buildAiVarietyPrompt,
+  mergeAiMealsIntoPlan
+} from "../../base44/shared/adaptiveMealPlanDomain.js";
 
 const repoRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
@@ -50,13 +56,13 @@ test("adaptive meal planning verifies server entitlement before reading nutritio
   assert.match(server, /req\.method !== "POST"/);
   assert.match(server, /user = await base44\.auth\.me\(\)/);
   assert.match(server, /Cache-Control", "no-store"/);
-  assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
+  assert.match(server, /import \{ loadPremiumAccessRecords \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
   assert.match(server, /PREMIUM_FEATURES\.MEAL_PLANNING/);
   assert.match(server, /created_by_id:\s*userId/);
   assert.match(server, /preferences\?\.safety_flags/);
   assert.doesNotMatch(server, /\bemail\b/i);
 
-  const authorization = server.indexOf("const entitlements = await listAllEntitlements");
+  const authorization = server.indexOf("const entitlements = await loadPremiumAccessRecords(base44, user,");
   const nutritionRead = server.indexOf('ownedRecords(base44, "CurrentStrategy"');
   assert.ok(authorization >= 0 && authorization < nutritionRead);
 });
@@ -181,12 +187,130 @@ test("the AI variety prompt carries only macro targets, diet style, a decision e
     );
   }
 
-  // Everything the model returns is clamped and bounded before it is trusted.
-  const merge = domain.slice(domain.indexOf("export function mergeAiMealsIntoPlan("));
-  assert.match(merge, /did not return 7 days/, "the merge step must reject a short or long week");
-  assert.match(merge, /String\(raw\.title \|\| "AI meal"\)\.slice\(0, 80\)/, "meal titles must be coerced and length-capped");
-  assert.match(merge, /Math\.round\(Number\(raw\.calories\) \|\| 0\)/, "returned macros must be coerced to numbers");
-  assert.match(merge, /raw\.ingredients\.slice\(0, 8\)/, "ingredient lists must be bounded");
+  // What the model returns is validated by executing mergeAiMealsIntoPlan in
+  // the next test and in tests/fitness/adaptive-meal-plan.test.js.
+  assert.match(server, /fallbackDays: deterministicPlan\.days/, "the server supplies the deterministic week as the fallback");
+});
+
+test("the AI variety prompt executes without leaking check-in or profile data", () => {
+  const plan = buildAdaptiveMealPlan({
+    weekStart: "2026-10-05",
+    strategy: { calorie_target: 2200, protein_target_g: 170, carb_target_g: 210, fat_target_g: 70 },
+    preferences: { diet_style: "vegan" },
+    checkIn: null
+  });
+  const prompt = buildAiVarietyPrompt({
+    dailyTargets: plan.dailyTargets,
+    dietStyle: plan.dietStyle,
+    checkIn: {
+      recommendation_decision: "reduce_calories",
+      avg_weight_lbs: 212.4,
+      notes: "private-note-xyz",
+      ai_summary: "private-summary-xyz",
+      created_by: "person@example.com"
+    },
+    avoidIds: ["oat-bowl"]
+  });
+  assert.match(prompt, /reduce calories/);
+  assert.match(prompt, /2200 kcal/);
+  assert.match(prompt, /oat-bowl/);
+  for (const leaked of ["212.4", "private-note-xyz", "private-summary-xyz", "person@example.com"]) {
+    assert.ok(!prompt.includes(leaked), `${leaked} must not reach the model`);
+  }
+});
+
+test("AI variety output is bounded, length-capped and falls back day by day", () => {
+  const fallback = buildAdaptiveMealPlan({
+    weekStart: "2026-10-05",
+    strategy: { calorie_target: 2200, protein_target_g: 170, carb_target_g: 210, fat_target_g: 70 },
+    preferences: { diet_style: "vegan" },
+    checkIn: null
+  });
+  const meal = (slot, calories, overrides = {}) => ({
+    slot,
+    title: `AI ${slot}`,
+    calories,
+    proteinG: Math.round(calories * 0.075),
+    carbsG: Math.round(calories * 0.1),
+    fatG: Math.round(calories * 0.03),
+    ingredients: [{ name: `${slot} lentils`, quantity: 1, unit: "cup" }],
+    ...overrides
+  });
+  const day = (overrides = {}) => ({
+    meals: [["breakfast", 550], ["lunch", 660], ["dinner", 660], ["snack", 330]].map(([slot, calories]) => (
+      overrides[slot] ?? meal(slot, calories)
+    ))
+  });
+  const merge = (days) => mergeAiMealsIntoPlan({
+    aiOutput: { days },
+    weekStart: fallback.weekStart,
+    dietStyle: fallback.dietStyle,
+    dailyTargets: fallback.dailyTargets,
+    adaptation: fallback.adaptation,
+    fallbackDays: fallback.days
+  });
+
+  // A short or missing week is refused outright; extra days are ignored.
+  for (const days of [[], Array.from({ length: 6 }, () => day()), undefined]) {
+    assert.throws(() => merge(days), (error) => error instanceof MealPlanRequestError && /did not return 7 days/.test(error.message));
+  }
+  assert.equal(merge(Array.from({ length: 9 }, () => day())).days.length, 7);
+  // A fallback week is required before AI output can be trusted.
+  assert.throws(() => mergeAiMealsIntoPlan({
+    aiOutput: { days: Array.from({ length: 7 }, () => day()) },
+    weekStart: fallback.weekStart,
+    dietStyle: fallback.dietStyle,
+    dailyTargets: fallback.dailyTargets,
+    adaptation: fallback.adaptation,
+    fallbackDays: fallback.days.slice(0, 6)
+  }), MealPlanRequestError);
+
+  // Titles and ingredient fields are coerced and length-capped.
+  const long = merge(Array.from({ length: 7 }, () => day({
+    lunch: meal("lunch", 660, {
+      title: "T".repeat(200),
+      ingredients: [{ name: `${"n".repeat(100)} lentils`, quantity: "2", unit: "u".repeat(50) }]
+    })
+  })));
+  const lunch = long.days[0].meals.find((item) => item.slot === "lunch");
+  assert.equal(lunch.title.length, 80);
+  assert.equal(lunch.ingredients[0].name.length, 60);
+  assert.equal(lunch.ingredients[0].unit.length, 20);
+  assert.equal(lunch.ingredients[0].quantity, 2, "numeric strings are accepted and parsed");
+  const untitled = merge(Array.from({ length: 7 }, () => day({ snack: meal("snack", 330, { title: "" }) })));
+  assert.equal(untitled.days[0].meals.find((item) => item.slot === "snack").title, "AI meal");
+
+  // Unbounded ingredient lists, string-coerced macros and absurd macros are not trusted.
+  const ingredients = (count) => Array.from({ length: count }, (_, index) => ({ name: `bean ${index}`, quantity: 1, unit: "cup" }));
+  for (const [label, badDay] of [
+    ["13 ingredients", day({ dinner: meal("dinner", 660, { ingredients: ingredients(13) }) })],
+    ["blank macro string", day({ dinner: meal("dinner", 660, { fatG: "" }) })],
+    ["infinite calories", day({ dinner: meal("dinner", Number.POSITIVE_INFINITY) })],
+    ["macro over the meal limit", day({ dinner: meal("dinner", 660, { proteinG: 301 }) })],
+    ["ingredient without a quantity", day({ dinner: meal("dinner", 660, { ingredients: [{ name: "beans" }] }) })]
+  ]) {
+    const merged = merge(Array.from({ length: 7 }, (_, index) => (index === 3 ? badDay : day())));
+    assert.deepEqual(merged.days[3], fallback.days[3], `${label} falls back to the deterministic day`);
+    assert.ok(merged.days[2].meals[0].id.startsWith("ai-"), `${label}: other days stay AI`);
+  }
+  assert.ok(merge(Array.from({ length: 7 }, () => day({ dinner: meal("dinner", 660, { ingredients: ingredients(12) }) })))
+    .days.every((planned) => planned.meals[0].id.startsWith("ai-")), "12 ingredients are allowed");
+});
+
+test("meal swaps validate a bounded request and do not require a catalog id", () => {
+  const server = read("base44/functions/swapAdaptiveMeal/entry.ts");
+  assert.match(server, /user = await base44\.auth\.me\(\)/);
+  assert.match(server, /normalizeSwapRequest\(await req\.json\(\)\)/, "the swap body must go through the shared validator");
+  assert.match(server, /status: 400|failure\(error\.message, 400\)/);
+  assert.doesNotMatch(server, /\bemail\b/i);
+
+  // normalizeSwapRequest itself (id pattern, slot, finite calories, bounded
+  // avoid list) is executed in tests/fitness/adaptive-meal-plan.test.js
+  // ("swap requests are strictly validated").
+
+  const page = read("src/pages/AdaptiveMealPlan.jsx");
+  assert.match(page, /groceryListFor\(nextDays\)/, "a swap must rebuild the grocery list from the updated week");
+  assert.doesNotMatch(page, /startsWith\("ai-"\)/, "AI-variety meals are swappable");
 });
 
 test("meal planning is exposed inside Fuel and remains gated in both UI and backend", () => {

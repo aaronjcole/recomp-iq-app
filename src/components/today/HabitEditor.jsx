@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { useRecompHabits, useRecompActions } from "@/lib/RecompContext";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Plus, Trash2 } from "lucide-react";
 import { ICON_KEYS, iconFor } from "@/lib/habitIcons";
+import { useToast } from "@/components/ui/use-toast";
 
 const blank = { id: null, name: "", kind: "check", target_value: "", unit: "", icon: "" };
 
@@ -21,6 +22,11 @@ export default function HabitEditor({ open, onOpenChange }) {
   const { addHabit, updateHabit, archiveHabit } = useRecompActions();
   const habitFormId = useId();
   const [form, setForm] = useState(blank);
+  const [saving, setSaving] = useState(false);
+  // A ref, not only state: two taps can land before React re-renders with the
+  // disabled button, and addHabit is not idempotent.
+  const savingRef = useRef(false);
+  const { toast } = useToast();
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
@@ -28,6 +34,7 @@ export default function HabitEditor({ open, onOpenChange }) {
   }, [open]);
 
   const save = async () => {
+    if (savingRef.current || !form.name.trim()) return;
     const data = {
       name: form.name.trim(),
       kind: form.kind,
@@ -35,13 +42,26 @@ export default function HabitEditor({ open, onOpenChange }) {
       unit: form.kind === "count" ? form.unit.trim() : undefined,
       icon: form.icon || undefined
     };
-    if (form.id) {
-      await updateHabit(form.id, data);
-    } else {
-      const sort_order = habits.length ? Math.max(...habits.map((h) => h.sort_order ?? 0)) + 1 : 0;
-      await addHabit({ ...data, sort_order });
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      if (form.id) {
+        await updateHabit(form.id, data);
+      } else {
+        const sort_order = habits.length ? Math.max(...habits.map((h) => h.sort_order ?? 0)) + 1 : 0;
+        await addHabit({ ...data, sort_order });
+      }
+      setForm(blank);
+    } catch {
+      toast({
+        title: form.id ? "Could not save habit" : "Could not add habit",
+        description: "Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    setForm(blank);
   };
 
   const load = (h) =>
@@ -113,7 +133,7 @@ export default function HabitEditor({ open, onOpenChange }) {
         </div>
 
         <DialogFooter>
-          <Button onClick={save} disabled={!form.name.trim()} className="bg-teal text-buttonText hover:opacity-90">
+          <Button onClick={save} disabled={saving || !form.name.trim()} className="bg-teal text-buttonText hover:opacity-90">
             <Plus className="w-4 h-4 mr-1" /> {form.id ? "Save" : "Add"}
           </Button>
         </DialogFooter>

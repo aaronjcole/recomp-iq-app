@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRecompActions, todayStr } from "@/lib/RecompContext";
-import { estimateOneRepMax } from "@/lib/fitness";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { estimateOneRepMax, liftKey, newPersonalRecords, nextSessionSuggestion } from "@/lib/fitness";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
   CircleCheck,
   ChevronDown,
   ChevronUp,
+  History,
   LoaderCircle,
   Play,
   Plus,
@@ -35,6 +36,7 @@ import {
   X
 } from "lucide-react";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
+import { elapsedSecondsSince } from "@/lib/workoutTimer";
 
 const STORAGE_KEY = "recomp_active_workout";
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -84,8 +86,21 @@ function clearSession() {
 }
 
 export default function WorkoutTracker() {
-  const { saveTrainingSession } = useRecompActions();
+  const { saveTrainingSession, strengthLogs, trend, historyLoaded } = useRecomp();
   const { toast } = useToast();
+  const recovery = trend?.recovery_label ?? "unknown";
+  // Next-session suggestions by exercise, from history and this week's recovery.
+  // Older lifts load in the background; until they have, "last time" and PRs
+  // would be judged on this week alone, so neither is shown.
+  const suggestionFor = useMemo(() => {
+    const cache = new Map();
+    return (name) => {
+      const key = liftKey(name);
+      if (!key || !historyLoaded) return null;
+      if (!cache.has(key)) cache.set(key, nextSessionSuggestion(strengthLogs, key, { recovery, today: todayStr() }));
+      return cache.get(key);
+    };
+  }, [strengthLogs, recovery, historyLoaded]);
 
   const [stored, setStored] = useState(() => readStoredSession());
   const [reviewing, setReviewing] = useState(false);
@@ -96,10 +111,7 @@ export default function WorkoutTracker() {
   const [activeSession, setActiveSession] = useState(stored);
 
   // Timer
-  const [elapsed, setElapsed] = useState(() => {
-    if (!stored?.startTime) return 0;
-    return Math.floor((Date.now() - stored.startTime) / 1000);
-  });
+  const [elapsed, setElapsed] = useState(() => elapsedSecondsSince(stored?.startTime));
   const timerRef = useRef(null);
 
   // Review phase state (hydrated from activeSession when entering review)
@@ -117,12 +129,16 @@ export default function WorkoutTracker() {
 
   const isActive = !!activeSession && !reviewing;
 
+  const sessionStartTime = activeSession?.startTime ?? null;
+  const syncElapsed = useCallback(() => {
+    setElapsed(elapsedSecondsSince(sessionStartTime));
+  }, [sessionStartTime]);
+
   const startTimer = useCallback(() => {
     clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setElapsed((prev) => prev + 1);
-    }, 1000);
-  }, []);
+    syncElapsed();
+    timerRef.current = setInterval(syncElapsed, 1000);
+  }, [syncElapsed]);
 
   const stopTimer = useCallback(() => {
     clearInterval(timerRef.current);
@@ -133,6 +149,17 @@ export default function WorkoutTracker() {
     else stopTimer();
     return stopTimer;
   }, [isActive, startTimer, stopTimer]);
+
+  // Timers may not fire at all while hidden; catch up as soon as the page is
+  // visible again instead of waiting for the next tick.
+  useEffect(() => {
+    if (!isActive) return undefined;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") syncElapsed();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [isActive, syncElapsed]);
 
   // Sync active session changes to localStorage
   const updateSession = useCallback((updater) => {
@@ -192,6 +219,20 @@ export default function WorkoutTracker() {
     }));
   };
 
+  // Puts the suggested weight and reps into the first empty set, or a new one.
+  const fillSuggestion = (exerciseId, suggestion) => {
+    const values = { weight: String(suggestion.weight), reps: String(suggestion.reps) };
+    updateSession((s) => ({
+      ...s,
+      exercises: s.exercises.map((e) => {
+        if (e.id !== exerciseId) return e;
+        const emptyIndex = e.sets.findIndex((st) => !st.weight && !st.reps);
+        if (emptyIndex === -1) return { ...e, sets: [...e.sets, { id: uid(), ...values }] };
+        return { ...e, sets: e.sets.map((st, index) => (index === emptyIndex ? { ...st, ...values } : st)) };
+      })
+    }));
+  };
+
   const removeSet = (exerciseId, setId) => {
     updateSession((s) => ({
       ...s,
@@ -212,7 +253,9 @@ export default function WorkoutTracker() {
 
   const enterReview = () => {
     if (!activeSession) return;
-    const durationMin = Math.round(elapsed / 60);
+    const elapsedNow = elapsedSecondsSince(activeSession.startTime);
+    setElapsed(elapsedNow);
+    const durationMin = Math.round(elapsedNow / 60);
     setReviewType(activeSession.type);
     setReviewTitle("");
     setReviewRpe("");
@@ -349,6 +392,7 @@ export default function WorkoutTracker() {
         cardio_avg_heart_rate: (reviewType === "cardio" || reviewType === "mixed") && reviewCardio.hr ? Number(reviewCardio.hr) : undefined
       };
 
+      const records = historyLoaded ? newPersonalRecords(strengthLogs, strengthEntries) : [];
       await saveTrainingSession({ session: sessionData, strengthEntries, markDaily: true });
       clearSession();
       setActiveSession(null);
@@ -356,7 +400,12 @@ export default function WorkoutTracker() {
       setReviewing(false);
       setElapsed(0);
       triggerHaptic(HAPTIC_TRIGGERS.WORKOUT_SAVED);
-      toast({ title: "Workout saved", description: `${sessionData.title} logged.` });
+      toast({
+        title: records.length ? `Workout saved: ${records.length === 1 ? "new PR" : `${records.length} new PRs`}` : "Workout saved",
+        description: records.length
+          ? records.map((record) => `${record.lift_name}: e1RM ${record.estimated_1rm} lb (was ${record.previous_1rm})`).join(" · ")
+          : `${sessionData.title} logged.`
+      });
     } catch {
       toast({ title: "Couldn't save workout", variant: "destructive" });
     } finally {
@@ -585,6 +634,8 @@ export default function WorkoutTracker() {
             <ActiveExercise
               key={exercise.id}
               exercise={exercise}
+              suggestion={suggestionFor(exercise.name)}
+              onFill={(suggestion) => fillSuggestion(exercise.id, suggestion)}
               onNameChange={(v) => updateExerciseName(exercise.id, v)}
               onRemove={() => removeExercise(exercise.id)}
               onAddSet={() => addSet(exercise.id)}
@@ -640,7 +691,46 @@ export default function WorkoutTracker() {
   );
 }
 
-function ActiveExercise({ exercise, onNameChange, onRemove, onAddSet, onUpdateSet, onRemoveSet }) {
+function formatLoad(weight, reps) {
+  return weight > 0 ? `${weight} × ${reps}` : `${reps} reps`;
+}
+
+function shortDate(date) {
+  const [, month, day] = String(date).split("-").map(Number);
+  return `${month}/${day}`;
+}
+
+function SuggestionLine({ suggestion, onFill }) {
+  const { last } = suggestion;
+  return (
+    <div className="mx-2.5 mb-2 rounded-md bg-panel3 px-2.5 py-2 text-xs" data-testid="lift-suggestion">
+      <div className="flex items-start gap-2">
+        <History className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="text-muted-foreground">
+            Last time ({shortDate(last.date)}): {formatLoad(last.weight, last.reps)} · {last.sets} {last.sets === 1 ? "set" : "sets"}
+          </p>
+          <p>
+            <span className="font-medium">
+              {suggestion.kind === "deload" ? "Lighter session" : suggestion.kind === "hold" ? "Repeat" : "Try"}: {formatLoad(suggestion.weight, suggestion.reps)}
+            </span>
+            <span className="text-muted-foreground"> · {suggestion.reason}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onFill(suggestion)}
+          className="min-h-11 shrink-0 rounded-md px-2 font-medium text-teal hover:bg-teal/10"
+          aria-label={`Fill ${formatLoad(suggestion.weight, suggestion.reps)}`}
+        >
+          Fill
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActiveExercise({ exercise, suggestion, onFill, onNameChange, onRemove, onAddSet, onUpdateSet, onRemoveSet }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
     <div className="rounded-lg border border-lineSoft bg-panel2 overflow-hidden">
@@ -668,6 +758,7 @@ function ActiveExercise({ exercise, onNameChange, onRemove, onAddSet, onUpdateSe
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+      {!collapsed && suggestion && <SuggestionLine suggestion={suggestion} onFill={onFill} />}
       {!collapsed && (
         <div className="px-2.5 pb-2.5 space-y-1.5">
           <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center text-label text-muted-foreground px-1 mb-0.5">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useRecompRef } from "@/lib/RecompContext";
-import { detectPlateaus } from "@/lib/fitness";
+import { useRecomp, todayStr } from "@/lib/RecompContext";
+import { detectPlateaus, liftKey, nextSessionSuggestion } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronUp, ChevronDown, BellOff } from "lucide-react";
 
@@ -25,7 +25,7 @@ function formatDate(dateStr) {
   return `${Number(m)}/${Number(d)}`;
 }
 
-function PlateauAlert({ plateau, onMute }) {
+function PlateauAlert({ plateau, advice, onMute }) {
   const [expanded, setExpanded] = useState(true);
   const most_recent = plateau.recent_sessions[plateau.recent_sessions.length - 1];
 
@@ -86,7 +86,7 @@ function PlateauAlert({ plateau, onMute }) {
                 Est. 1 Rep Max has not increased in {plateau.recent_sessions.length} workouts.
               </p>
               <p className="text-xs text-muted-foreground">
-                Try +1 rep or next weight up if your form is solid.
+                {advice}
               </p>
             </div>
             <button
@@ -105,7 +105,8 @@ function PlateauAlert({ plateau, onMute }) {
 }
 
 export default function PlateauAlertCard() {
-  const { strengthLogs } = useRecompRef();
+  const { strengthLogs, trend } = useRecomp();
+  const recovery = trend?.recovery_label ?? "unknown";
   const [mutedSnapshot, setMutedSnapshot] = useState(loadMuted);
 
   const plateaus = useMemo(() => {
@@ -122,6 +123,15 @@ export default function PlateauAlertCard() {
     setMutedSnapshot(updated);
   };
 
+  // The same rule the live workout uses, so the advice accounts for recovery
+  // and time away instead of always saying "add a rep".
+  const adviceFor = (plateau) => {
+    const suggestion = nextSessionSuggestion(strengthLogs, liftKey(plateau.lift_name), { recovery, today: todayStr() });
+    if (!suggestion) return "Try +1 rep or next weight up if your form is solid.";
+    const target = suggestion.weight > 0 ? `${suggestion.weight} lbs × ${suggestion.reps}` : `${suggestion.reps} reps`;
+    return `Next: ${target}. ${suggestion.reason}`;
+  };
+
   if (plateaus.length === 0) return null;
 
   return (
@@ -131,7 +141,7 @@ export default function PlateauAlertCard() {
           Plateau alerts
         </h2>
         {plateaus.map((p) => (
-          <PlateauAlert key={p.lift_name} plateau={p} onMute={handleMute} />
+          <PlateauAlert key={p.lift_name} plateau={p} advice={adviceFor(p)} onMute={handleMute} />
         ))}
       </CardContent>
     </Card>

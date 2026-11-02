@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRecomp } from "@/lib/RecompContext";
+import { useLoggingDate } from "@/lib/LoggingDateContext";
+import LoggingDatePicker from "@/components/LoggingDatePicker";
+import { formatShortDate } from "@/lib/loggingDateUtils";
+import { coachDayFacts } from "../../base44/shared/coachDayContext.js";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +96,9 @@ const QUICK_ACTIONS = [
 
 export default function Coach() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { logs, strategy, ensureDateLoaded } = useRecomp();
+  const { selectedDate, isToday } = useLoggingDate();
   const { toast } = useToast();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -100,6 +108,26 @@ export default function Coach() {
   const [reviewingAction, setReviewingAction] = useState(null);
   const [reportedIds, setReportedIds] = useState(() => new Set());
   const scrollRef = useRef(null);
+  const requestSequence = useRef(0);
+  const requestBusy = useRef(false);
+  const facts = coachDayFacts(logs, strategy, selectedDate);
+  const dayLabel = isToday ? "today" : formatShortDate(selectedDate);
+  const quickActions = QUICK_ACTIONS.map((action) => isToday ? action : ({ ...action,
+    label: action.label.replace(/today/gi, dayLabel).replace(/tomorrow/gi, "the next day"),
+    prompt: action.prompt.replace(/today/gi, dayLabel).replace(/tomorrow/gi, "the next day"),
+    preparedAction: { ...action.preparedAction, destination: `${action.preparedAction.destination}?date=${selectedDate}` }
+  }));
+  const requestedTopic = searchParams.get("topic");
+  useEffect(() => {
+    requestSequence.current += 1;
+    requestBusy.current = false;
+    setLoading(false);
+    setMessages([]);
+    setFailedRequest(null);
+    setInput(requestedTopic === "protein" ? `How am I doing on protein for ${dayLabel}?` : "");
+    ensureDateLoaded?.(selectedDate);
+  }, [selectedDate, requestedTopic, ensureDateLoaded]);
+  useEffect(() => () => { requestSequence.current += 1; }, []);
 
   const goBack = () => {
     const historyIndex = window.history.state?.idx ?? 0;
@@ -108,19 +136,21 @@ export default function Coach() {
   };
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current && (messages.length > 0 || loading)) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const send = async (text, { appendUser = true, preparedAction = null, priorHistory = messages } = {}) => {
-    if (loading) return;
+  const send = async (text, { appendUser = true, preparedAction = null, priorHistory = messages, referenceDate = selectedDate } = {}) => {
+    if (requestBusy.current) return;
 
     let request;
     try {
-      request = makeCoachRequest(text, priorHistory);
+      request = makeCoachRequest(text, priorHistory, referenceDate);
     } catch (error) {
       toast({ title: "Message not sent", description: error.message, variant: "destructive" });
       return;
     }
+    requestBusy.current = true;
+    const sequence = ++requestSequence.current;
 
     if (appendUser) {
       setMessages((current) => [
@@ -134,6 +164,7 @@ export default function Coach() {
 
     try {
       const response = await base44.functions.invoke("coachReply", request);
+      if (sequence !== requestSequence.current) return;
       const reply = normalizeCoachReply(response.data);
       setMessages((current) => [
         ...current,
@@ -148,14 +179,15 @@ export default function Coach() {
         }
       ]);
     } catch (error) {
-      setFailedRequest({ text: request.message, preparedAction, priorHistory });
+      if (sequence !== requestSequence.current) return;
+      setFailedRequest({ text: request.message, preparedAction, priorHistory, referenceDate });
       toast({
         title: "Coach is unavailable",
         description: error?.response?.data?.error || "Your message was not processed. Try again.",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) { requestBusy.current = false; setLoading(false); }
     }
   };
 
@@ -164,7 +196,8 @@ export default function Coach() {
     send(failedRequest.text, {
       appendUser: false,
       preparedAction: failedRequest.preparedAction,
-      priorHistory: failedRequest.priorHistory
+      priorHistory: failedRequest.priorHistory,
+      referenceDate: failedRequest.referenceDate
     });
   };
 
@@ -181,8 +214,19 @@ export default function Coach() {
         </button>
         <h1 className="text-2xl font-bold leading-none">Coach</h1>
       </div>
+      <div className="pb-3"><LoggingDatePicker /></div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pb-4" aria-live="polite">
+        <Card className="border-line bg-panel" aria-label="Selected-day nutrition facts">
+          <CardContent className="space-y-2 p-4">
+            <h2 className="text-sm font-medium">Nutrition for {dayLabel}</h2>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div><p className="font-mono tabular-nums">{facts.calories.consumed == null ? "Not logged" : `${facts.calories.consumed} kcal logged`}</p><p className="mt-1 text-muted-foreground">{facts.calories.remaining == null ? "Log intake to see remaining" : facts.calories.remaining >= 0 ? `${facts.calories.remaining} kcal remaining` : `${Math.abs(facts.calories.remaining)} kcal over target`}</p></div>
+              <div><p className="font-mono tabular-nums">{facts.protein.consumed == null ? "Protein not logged" : `${facts.protein.consumed}g protein logged`}</p><p className="mt-1 text-muted-foreground">{facts.protein.remaining == null ? "Log protein to see remaining" : facts.protein.remaining >= 0 ? `${facts.protein.remaining}g protein remaining` : `${Math.abs(facts.protein.remaining)}g protein above target`}</p></div>
+            </div>
+            <p className="text-xs text-muted-foreground">Compared with your current targets, not historical targets. Logged intake may be incomplete.</p>
+          </CardContent>
+        </Card>
         {messages.length === 0 && (
           <div className="space-y-3">
             <Card className="bg-panel border-line">
@@ -191,7 +235,7 @@ export default function Coach() {
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div className="space-y-1">
-                  <div className="font-semibold">Start with what happened today</div>
+                  <div className="font-semibold">{isToday ? "Start with what happened today" : `Start with what happened on ${dayLabel}`}</div>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     Choose a starting point or ask your own question. Your recent plan and logs stay in context.
                   </p>
@@ -200,7 +244,7 @@ export default function Coach() {
             </Card>
 
             <div className="grid grid-cols-2 gap-2" aria-label="Suggested coach questions">
-              {QUICK_ACTIONS.map((action) => (
+              {quickActions.map((action) => (
                 <button
                   key={action.label}
                   type="button"
@@ -249,7 +293,7 @@ export default function Coach() {
         {messages.length > 0 && (
           <div className="relative">
             <div className="flex gap-2 overflow-x-auto pb-2 pt-3 -mx-1 px-1 no-scrollbar">
-              {QUICK_ACTIONS.map((action) => (
+              {quickActions.map((action) => (
                 <button
                   key={action.label}
                   type="button"

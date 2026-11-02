@@ -1,16 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import {
   FOOD_PHOTO_RESPONSE_SCHEMA,
+  FOOD_PHOTO_ITEMS_SCHEMA,
   FoodPhotoRequestError,
   buildFoodPhotoPrompt,
-  normalizeFoodPhotoResult
+  normalizeFoodPhotoResult,
+  normalizeFoodPhotoItems
 } from "../../shared/foodPhotoDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
+import {
+  PhotoReferenceOwnershipError,
+  verifyPhotoReferenceOwnership
+} from "../../shared/analysisUploadDomain.js";
 import {
   PREMIUM_FEATURES,
   resolvePremiumAccess
 } from "../../shared/premiumDomain.js";
-import { listAllEntitlements } from "../../shared/entitlementAccess.js";
+import { loadPremiumAccessRecords } from "../../shared/entitlementAccess.js";
 import {
   AI_FEATURE_QUOTAS,
   AI_QUOTA_FEATURES,
@@ -20,6 +26,12 @@ import {
 
 const MAX_REQUEST_BYTES = 4_000;
 const SIGNED_URL_TTL_SECONDS = 300;
+// Server-side release gate, mirroring ENABLE_BODY_COMPOSITION_SCAN. The UI reads
+// the same Secret through getPremiumAccess releaseFlags.foodPhotoScan, but
+// hiding the entry point is not enforcement: without this check the flow stays
+// reachable by calling the function.
+const FOOD_PHOTO_SCAN_DISABLED =
+  Deno.env.get("ENABLE_FOOD_PHOTO_SCAN") !== "true";
 
 export default async function(req) {
   if (req.method !== "POST") {
@@ -42,6 +54,10 @@ export default async function(req) {
     return json({ error: "Could not verify the account" }, { status: 500 });
   }
   if (!user?.id) return json({ error: "Unauthorized" }, { status: 401 });
+  if (FOOD_PHOTO_SCAN_DISABLED) {
+    const disabledMessage = "Food photo estimates are not enabled for this release.";
+    return json({ error: disabledMessage, message: disabledMessage }, { status: 403 });
+  }
 
   let body;
   try {
@@ -54,6 +70,8 @@ export default async function(req) {
   if (!photoUri) {
     return json({ error: "A photo reference is required" }, { status: 400 });
   }
+  const responseVersion = body.responseVersion ?? 1;
+  if (![1, 2].includes(responseVersion)) return json({ error: "Unsupported photo response version" }, { status: 400 });
 
   try {
     // Entitlement is checked before the quota reservation, the signed link and
@@ -61,13 +79,24 @@ export default async function(req) {
     // quota, create a link to its photo, or reach paid inference at all.
     // Ordering matters more than the check itself — a gate after
     // reserveFeatureRequest would still bill the request.
-    const access = resolvePremiumAccess(await listAllEntitlements(base44, user.id));
+    const access = resolvePremiumAccess(await loadPremiumAccessRecords(base44, user, { testerEmails: Deno.env.get("PREMIUM_TESTER_EMAILS") }));
     if (access.features[PREMIUM_FEATURES.FOOD_PHOTO] !== true) {
       // The SDK reads data.message || data.detail, never data.error, so the
       // user-facing text must also appear under "message" to reach the client.
       const lockedMessage = "Food photo estimates are a Premium feature.";
       return json({ error: lockedMessage, message: lockedMessage }, { status: 403 });
     }
+
+    // The service role can sign any private file in the app, so the reference
+    // is signed only when uploadAnalysisPhoto recorded this account as its
+    // uploader. Another user's file_uri is refused (403 below) even if it
+    // was learned. This runs before the quota reservation so a made-up
+    // reference cannot burn the per-user or app-wide daily ceilings.
+    await verifyPhotoReferenceOwnership(
+      base44.asServiceRole.entities.AnalysisUpload,
+      user.id,
+      [photoUri]
+    );
 
     // The per-user quota is reserved before the signed link and the vision
     // call so a scripted client cannot spend credits in a loop.
@@ -90,10 +119,10 @@ export default async function(req) {
       );
     }
 
-    // The client uploads the photo to private storage (UploadPrivateFile) and
-    // passes the opaque file_uri here. The server creates the short-lived
-    // signed link and runs the vision LLM call under the service role so the
-    // credit-consuming integration never runs from the browser.
+    // uploadAnalysisPhoto stores the photo in private storage and returns the
+    // opaque file_uri the client passes here. The server creates the
+    // short-lived signed link and runs the vision LLM call under the service
+    // role so the credit-consuming integration never runs from the browser.
     const signed = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
       file_uri: photoUri,
       expires_in: SIGNED_URL_TTL_SECONDS
@@ -101,13 +130,17 @@ export default async function(req) {
     if (!signed?.signed_url) throw new Error("Could not create a temporary image link");
 
     const rawResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: buildFoodPhotoPrompt(),
+      prompt: buildFoodPhotoPrompt(responseVersion),
       model: "gemini_3_flash",
       file_urls: [signed.signed_url],
-      response_json_schema: FOOD_PHOTO_RESPONSE_SCHEMA
+      response_json_schema: responseVersion === 2 ? FOOD_PHOTO_ITEMS_SCHEMA : FOOD_PHOTO_RESPONSE_SCHEMA
     });
-    return json(normalizeFoodPhotoResult(rawResult));
+    return json(responseVersion === 2 ? normalizeFoodPhotoItems(rawResult) : normalizeFoodPhotoResult(rawResult));
   } catch (error) {
+    if (error instanceof PhotoReferenceOwnershipError) {
+      const ownershipMessage = "This photo was not uploaded by your account. Take the photo again.";
+      return json({ error: ownershipMessage, message: ownershipMessage }, { status: 403 });
+    }
     if (error instanceof FoodPhotoRequestError) {
       return json({ error: error.message }, { status: 502 });
     }

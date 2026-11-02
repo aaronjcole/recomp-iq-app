@@ -66,6 +66,44 @@
     "targets_for_next_week": {
       "type": "object",
       "description": "Snapshot of the strategy recommended for next week."
+    },
+    "period_key": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "Weekly Check-In v2: the local period, start_date:end_date. One non-superseded check-in stands for each period."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "applied", "declined", "acknowledged", "superseded"],
+      "description": "proposed while an apply is in flight; applied, declined (kept or customized instead), acknowledged (nothing to change) or superseded (the plan changed before the apply finished)."
+    },
+    "user_decision": {
+      "type": "string",
+      "enum": ["apply", "keep_current", "customize"]
+    },
+    "previous_targets": {
+      "type": "object",
+      "description": "Snapshot of the targets the proposal was made against."
+    },
+    "supporting_metrics": {
+      "type": "object",
+      "description": "Normalized metrics and confidence inputs behind the proposal."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "decision_reason": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "rule_version": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "applied_at": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "required": [

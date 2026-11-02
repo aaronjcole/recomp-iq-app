@@ -112,21 +112,13 @@ test("duplicate history merges by date without inflating count progress", () => 
   assert.deepEqual(result.duplicates.map((entry) => entry.id), ["entry-new", "entry-done"]);
 });
 
-test("default provisioning is authenticated, user-scoped, and client seeding is centralized", () => {
-  const backend = readFileSync(
-    resolve(repoRoot, "base44/functions/ensureDefaultHabits/entry.ts"),
-    "utf8"
-  );
+test("client seeding is centralized behind the provisioning function", () => {
+  // The backend half (auth, per-user queue, owner-verified service-role keying,
+  // paged history merge, habit_entries in the response) is executed in
+  // default-habit-provisioning.test.js.
   const client = readFileSync(resolve(repoRoot, "src/lib/RecompContext.jsx"), "utf8");
   const schema = JSON.parse(readFileSync(resolve(repoRoot, "base44/entities/Habit.jsonc"), "utf8"));
 
-  assert.match(backend, /user = await base44\.auth\.me\(\)/);
-  assert.match(backend, /enqueueByUser\(user\.id/);
-  assert.match(backend, /owned\.created_by_id !== user\.id/);
-  assert.match(backend, /asServiceRole\.entities\.Habit\.update/);
-  assert.match(backend, /ENTRY_PAGE_SIZE,\s*skip/);
-  assert.match(backend, /mergeDuplicateEntries/);
-  assert.match(backend, /habit_entries: habitEntries/);
   assert.match(client, /functions\.invoke\("ensureDefaultHabits"/);
   assert.match(client, /ensured\?\.data\?\.habit_entries/);
   assert.match(client, /Default habits could not be reconciled/);

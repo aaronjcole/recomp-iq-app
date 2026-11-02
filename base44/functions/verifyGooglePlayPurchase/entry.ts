@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { secrets } from "base44:runtime";
 import { PREMIUM_PRODUCTS } from "../../shared/premiumDomain.js";
+import { bindGooglePlayPurchaseToken } from "../../shared/googlePlayPurchaseDomain.js";
 
 // Required Base44 app Secrets (set in dashboard → Settings → Secrets):
 //   PLAY_PACKAGE_NAME         — your Android package name, e.g. com.recompone.app
@@ -9,6 +10,26 @@ import { PREMIUM_PRODUCTS } from "../../shared/premiumDomain.js";
 //                               API scope: https://www.googleapis.com/auth/androidpublisher
 
 const VALID_PRODUCT_IDS = new Set(Object.values(PREMIUM_PRODUCTS));
+
+// Verifications of the same purchase token are serialized within one instance
+// so a single instance cannot race itself; the rank-after-insert binding in
+// shared/googlePlayPurchaseDomain.js is what holds across instances.
+const inFlightTokenBinds = new Map();
+
+function enqueueByToken(key, work) {
+  const previous = inFlightTokenBinds.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(work);
+  inFlightTokenBinds.set(key, next);
+  next.then(
+    () => {
+      if (inFlightTokenBinds.get(key) === next) inFlightTokenBinds.delete(key);
+    },
+    () => {
+      if (inFlightTokenBinds.get(key) === next) inFlightTokenBinds.delete(key);
+    }
+  );
+  return next;
+}
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -190,51 +211,23 @@ export default async function(req) {
 
   try {
     // Bind the purchase token to the authenticated account. Google Play
-    // one-time purchases stay purchaseState === 0 indefinitely, so without
-    // a global ownership check a single token could be replayed to grant
-    // premium to unlimited accounts. Store a SHA-256 hash of the token as
-    // external_transaction_id (raw tokens exceed the 128-char field limit)
-    // and reject reuse by a different owner.
+    // one-time purchases stay purchaseState === 0 indefinitely, so without a
+    // global ownership check a single token could be replayed to grant premium
+    // to unlimited accounts. Store a SHA-256 hash of the token as
+    // external_transaction_id (raw tokens exceed the 128-char field limit).
+    // The binding itself is race-safe: see shared/googlePlayPurchaseDomain.js.
     const tokenHash = await hashPurchaseToken(purchaseToken);
-
-    const tokenLinked = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { external_transaction_id: tokenHash, source: "google_play" },
-      "-created_date",
-      1
+    const result = await enqueueByToken(tokenHash, () =>
+      bindGooglePlayPurchaseToken(base44.asServiceRole.entities.PremiumEntitlement, {
+        userId: user.id,
+        productId,
+        tokenHash,
+        expiresAt: verification.expiresAt
+      })
     );
-    if (tokenLinked?.length && tokenLinked[0].owner_id !== user.id) {
+
+    if (!result.linked) {
       return json({ error: "Purchase is already linked to another account" }, { status: 409 });
-    }
-
-    // Upsert: update an existing google_play entitlement for this user+product, or create one.
-    const existing = await base44.asServiceRole.entities.PremiumEntitlement.filter(
-      { owner_id: user.id, product_id: productId, source: "google_play" },
-      "-created_date",
-      1
-    );
-
-    if (tokenLinked?.length) {
-      // Token already linked to this user — idempotent refresh.
-      await base44.asServiceRole.entities.PremiumEntitlement.update(tokenLinked[0].id, {
-        status: "active",
-        expires_at: verification.expiresAt ?? undefined
-      });
-    } else if (existing?.length) {
-      // Legacy entitlement created before token binding — bind the token now.
-      await base44.asServiceRole.entities.PremiumEntitlement.update(existing[0].id, {
-        status: "active",
-        expires_at: verification.expiresAt ?? undefined,
-        external_transaction_id: tokenHash
-      });
-    } else {
-      await base44.asServiceRole.entities.PremiumEntitlement.create({
-        owner_id: user.id,
-        product_id: productId,
-        source: "google_play",
-        status: "active",
-        external_transaction_id: tokenHash,
-        ...(verification.expiresAt ? { expires_at: verification.expiresAt } : {})
-      });
     }
 
     return json({ ok: true });

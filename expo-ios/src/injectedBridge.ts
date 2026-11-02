@@ -2,7 +2,18 @@ import { BRIDGE_SOURCE, BRIDGE_VERSION } from "./bridgeProtocol";
 
 export const IAP_RESPONSE_EVENT = "recompone:iap-response";
 
-export function buildInjectedBridgeScript(): string {
+// How long a bridge request may wait for the shell before it rejects. A
+// purchase waits on the user in Apple's sheet; everything else should answer
+// quickly. Without these, a dropped message (a reload, an unanswered request)
+// left the paywall busy forever.
+export const BRIDGE_TIMEOUTS_MS = Object.freeze({
+  requestPurchase: 5 * 60 * 1000,
+  default: 30 * 1000
+});
+
+export function buildInjectedBridgeScript(
+  timeouts: { requestPurchase: number; default: number } = BRIDGE_TIMEOUTS_MS
+): string {
   return `
     (function () {
       if (window.__recompOneIapBridgeInstalled) return true;
@@ -13,11 +24,20 @@ export function buildInjectedBridgeScript(): string {
       var SOURCE = ${JSON.stringify(BRIDGE_SOURCE)};
       var VERSION = ${BRIDGE_VERSION};
       var RESPONSE_EVENT = ${JSON.stringify(IAP_RESPONSE_EVENT)};
+      var TIMEOUTS = ${JSON.stringify(timeouts)};
 
       function send(action, payload) {
         return new Promise(function (resolve, reject) {
           var requestId = Date.now().toString(36) + "-" + (++sequence).toString(36);
-          pending[requestId] = { resolve: resolve, reject: reject };
+          var timer = setTimeout(function () {
+            if (!pending[requestId]) return;
+            delete pending[requestId];
+            reject(new Error("The App Store did not respond. Try again."));
+          }, action === "requestPurchase" ? TIMEOUTS.requestPurchase : TIMEOUTS.default);
+          pending[requestId] = {
+            resolve: function (value) { clearTimeout(timer); resolve(value); },
+            reject: function (error) { clearTimeout(timer); reject(error); }
+          };
           window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({
             source: SOURCE,
             version: VERSION,
@@ -64,6 +84,9 @@ export function buildInjectedBridgeScript(): string {
       };
       bridge.finishTransaction = function (transactionId) {
         return send("finishTransaction", { transactionId: transactionId });
+      };
+      bridge.getProducts = function () {
+        return send("getProducts");
       };
       window.wixMobileNativeBridge = bridge;
       window.dispatchEvent(new Event("recompone:iap-ready"));

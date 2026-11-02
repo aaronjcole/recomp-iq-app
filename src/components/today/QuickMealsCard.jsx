@@ -1,27 +1,21 @@
-import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
+import { useState } from "react";
+import { useRecompRef } from "@/lib/RecompContext";
 import { Link } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
 import { Utensils, ChevronRight, Plus } from "lucide-react";
-import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
+import { useLoggingDate } from "@/lib/LoggingDateContext";
+import { defaultMealForTime } from "@/lib/foodLogging";
+import { createFoodDraft } from "@/lib/foodEntryDraft";
+import FoodEntryComposer from "@/components/nutrition/FoodEntryComposer";
 
 /**
- * Compact one-tap logging for saved meal templates. Sits on the Today page
- * so common food combinations can be logged without opening the full
- * Nutrition editor. Template creation happens on the Nutrition page.
+ * Saved meals open the shared review without navigating away from Today.
+ * Date is captured on tap; meal and portions remain explicit before save.
  */
 export function QuickMealsContent() {
   const { mealTemplates } = useRecompRef();
-  const { logMealTemplate } = useRecompActions();
-  const { toast } = useToast();
-
-  const log = async (tpl) => {
-    try {
-      await logMealTemplate(tpl);
-      triggerHaptic(HAPTIC_TRIGGERS.MEAL_LOGGED);
-    } catch {
-      toast({ title: "Could not log", description: "Please try again.", variant: "destructive" });
-    }
-  };
+  const { selectedDate } = useLoggingDate();
+  const [review, setReview] = useState(null);
+  const nutritionUrl = `/nutrition?date=${selectedDate}`;
 
   return (
     <div className="space-y-2 border-t border-lineSoft pt-3">
@@ -29,7 +23,7 @@ export function QuickMealsContent() {
         <h3 className="flex items-center gap-2 text-sm font-medium">
           <Utensils className="w-4 h-4 text-teal" /> Quick meals
         </h3>
-        <Link to="/nutrition" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
+        <Link to={nutritionUrl} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-0.5 text-xs text-teal">
           Manage <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
@@ -39,8 +33,8 @@ export function QuickMealsContent() {
             <Plus className="w-4 h-4 shrink-0 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">
               Save your common meals on the{" "}
-              <Link to="/nutrition" className="text-teal font-medium">Nutrition</Link>{" "}
-              page to log them here in one tap.
+              <Link to={nutritionUrl} className="text-teal font-medium">Nutrition</Link>{" "}
+              page to review and log them here.
             </p>
           </div>
       ) : (
@@ -48,8 +42,8 @@ export function QuickMealsContent() {
             {mealTemplates.map((t) => (
               <button
                 key={t.id}
-                onClick={() => log(t)}
-                className="shrink-0 rounded-xl border border-line bg-panel2/60 px-3 py-2 text-left transition-colors hover:border-teal/50 hover:bg-teal/5 active:scale-[0.98]"
+                onClick={() => setReview({ date: selectedDate, meal: defaultMealForTime(), foods: (t.items ?? []).map((item) => createFoodDraft(item, "template", item.food_id)) })}
+                className="min-h-11 shrink-0 rounded-xl border border-line bg-panel2/60 px-3 py-2 text-left transition-colors hover:border-teal/50 hover:bg-teal/5 motion-safe:active:scale-[0.98]"
               >
                 <div className="max-w-[8.5rem] truncate text-sm font-medium">{t.name}</div>
                 <div className="font-mono text-[11px] text-muted-foreground tabular-nums">
@@ -59,6 +53,7 @@ export function QuickMealsContent() {
             ))}
           </div>
       )}
+      {review && <FoodEntryComposer date={review.date} initialMeal={review.meal} initialFoods={review.foods} onClose={() => setReview(null)} />}
     </div>
   );
 }

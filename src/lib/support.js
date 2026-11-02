@@ -13,3 +13,8 @@ export const ACCOUNT_DELETION_MAILTO = mailto(
   "RecompOne account deletion request",
   "Please delete the RecompOne account associated with this email address. I understand that you may need to verify account ownership before completing the request."
 );
+
+export const PRIVACY_REQUEST_MAILTO = mailto(
+  "RecompOne privacy request",
+  "Tell us what you need: a copy of your data, a correction, deletion, or a question about how your data is used. Send this from the email address on your RecompOne account so we can verify it. Do not include passwords or health details."
+);

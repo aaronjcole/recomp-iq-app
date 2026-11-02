@@ -15,8 +15,8 @@ test("body composition analysis verifies Premium access before sensitive reads o
   assert.match(server, /req\.method !== "POST"/);
   assert.match(server, /user = await base44\.auth\.me\(\)/);
   assert.match(server, /Cache-Control", "no-store"/);
-  assert.match(server, /asServiceRole\.entities\.PremiumEntitlement\.filter/);
-  assert.match(server, /MAX_ENTITLEMENT_RECORDS/);
+  assert.match(server, /import \{ loadPremiumAccessRecords \} from "\.\.\/\.\.\/shared\/entitlementAccess\.js"/);
+  assert.doesNotMatch(server, /async function listAllEntitlements/);
   assert.doesNotMatch(server, /throw error/);
   assert.match(server, /PREMIUM_FEATURES\.VISUAL_PROGRESS/);
   assert.match(server, /Deno\.env\.get\(["']ENABLE_BODY_COMPOSITION_SCAN["']\)/);
@@ -29,7 +29,7 @@ test("body composition analysis verifies Premium access before sensitive reads o
   assert.doesNotMatch(server, /\bemail\b/i);
 
   const releaseGate = server.indexOf("if (BODY_COMPOSITION_SCAN_DISABLED)");
-  const authorization = server.indexOf("const entitlements = await listAllEntitlements");
+  const authorization = server.indexOf("const entitlements = await loadPremiumAccessRecords(base44, user,");
   const profileRead = server.indexOf('ownedRecords(base44, "UserProfile"');
   const signedUrl = server.indexOf("CreateFileSignedUrl");
   const inference = server.indexOf("integrations.Core.InvokeLLM");
@@ -56,8 +56,14 @@ test("body composition photos use private upload while analysis stays behind the
   assert.match(component, /sessionStorage/);
   assert.doesNotMatch(component, /localStorage/);
   assert.doesNotMatch(component, /CreateFileSignedUrl|InvokeLLM|createPrivateAnalysisUrl/);
-  assert.match(progress, /\(featureFlags\.bodyCompositionScan\s*\|\|\s*releaseFlags\.bodyCompositionScan\)\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)/);
+  // The scan is offered only when the backend Secret (via getPremiumAccess)
+  // and the entitlement both allow it; there is no build flag to OR in.
+  assert.match(progress, /\{releaseFlags\.bodyCompositionScan\s*&&\s*canAccess\(PREMIUM_FEATURES\.VISUAL_PROGRESS\)\s*&&\s*\(/);
+  assert.equal((progress.match(/<BodyCompositionScan\b/g) ?? []).length, 1, "a single, gated render site");
   assert.match(premium, /AI-assisted body-composition range/i);
+  // The catalog only promises the AI range while the release flag is on.
+  assert.match(premium, /releaseFlags\?\.bodyCompositionScan\) return feature;/);
+  assert.match(premium, /presentFeature\(feature, releaseFlags\)/);
 });
 
 test("privacy policy discloses the accepted private-file deletion limitation", () => {
