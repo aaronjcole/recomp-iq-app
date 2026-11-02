@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
+import { LogIn, Mail, Lock, LoaderCircle } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import AppleIcon from "@/components/AppleIcon";
 import GoogleIcon from "@/components/GoogleIcon";
@@ -131,7 +131,7 @@ export default function Login() {
         <Button type="submit" className="w-full h-11 font-medium" disabled={loading}>
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
               Logging in...
             </>
           ) : (

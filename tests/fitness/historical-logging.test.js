@@ -173,16 +173,20 @@ test("FoodDiaryCard accepts a date prop and filters entries by it", () => {
   );
 });
 
-test("MealTemplatesCard accepts a date prop and passes it to logMealTemplate", () => {
+test("MealTemplatesCard captures the selected date before passing it to logMealTemplate", () => {
   const src = readSrc("src/components/nutrition/MealTemplatesCard.jsx");
   assert.ok(
     /date\s*=\s*todayStr\(\)/.test(src),
     "MealTemplatesCard should accept a date prop defaulting to todayStr()"
   );
-  assert.ok(
-    /logMealTemplate\(\s*t(?:pl)?\s*,\s*date/.test(src),
-    "MealTemplatesCard should pass date to logMealTemplate"
-  );
+  const logHandler = /const\s+log\s*=\s*async\s*\(\s*tpl\s*\)\s*=>\s*\{([\s\S]*?)\n  \};/.exec(src)?.[1];
+  assert.ok(logHandler, "MealTemplatesCard should define its template logging handler");
+  const capturedDate = /const\s+([A-Za-z_$][\w$]*)\s*=\s*date\s*;/.exec(logHandler);
+  assert.ok(capturedDate, "The logging operation should capture the selected date prop");
+  const loggedDate = /await\s+logMealTemplate\(\s*tpl\s*,\s*([A-Za-z_$][\w$]*)\s*,/.exec(logHandler);
+  assert.ok(loggedDate, "The logging operation should explicitly pass its captured date");
+  assert.equal(loggedDate[1], capturedDate[1], "logMealTemplate should use the selected-date snapshot, not today or a different date");
+  assert.ok(capturedDate.index < loggedDate.index, "The selected date should be captured before the async logging call");
 });
 
 test("SessionEditSheet has a date field and passes the edited date to updateSession", () => {

@@ -3,10 +3,9 @@ import {
   AiReportRequestError,
   normalizeAiReportRequest
 } from "../../shared/aiReportDomain.js";
+import { createRateLimitedAiReport } from "../../shared/aiReportRateLimitDomain.js";
 
 const MAX_REQUEST_BYTES = 4_096;
-const MAX_REPORTS_PER_HOUR = 10;
-const REPORT_WINDOW_MS = 60 * 60 * 1000;
 
 function statusOf(error) {
   return error?.status ?? error?.response?.status;
@@ -81,23 +80,9 @@ export default async function(req) {
       return json({ ok: true, reportId: existing[0].id });
     }
 
-    const recent = await reports.filter(
-      { owner_id: user.id },
-      "-created_date",
-      MAX_REPORTS_PER_HOUR
-    );
-    const cutoff = Date.now() - REPORT_WINDOW_MS;
-    const recentCount = recent.filter((report) => {
-      const createdAt = Date.parse(report.created_date ?? "");
-      return Number.isFinite(createdAt) && createdAt >= cutoff;
-    }).length;
-    if (recentCount >= MAX_REPORTS_PER_HOUR) {
-      // The SDK reads data.message || data.detail, never data.error.
-      const limitMessage = "Too many reports. Please try again later.";
-      return json({ error: limitMessage, message: limitMessage }, { status: 429 });
-    }
-
-    const report = await reports.create({
+    // Insert, then rank against the owner's other reports, so parallel calls
+    // cannot exceed the hourly limit; a rejected report is deleted again.
+    const result = await createRateLimitedAiReport(reports, {
       owner_id: user.id,
       message_id: reportRequest.messageId,
       category: reportRequest.category,
@@ -105,7 +90,16 @@ export default async function(req) {
       reported_content: reportRequest.reportedContent,
       status: "received"
     });
-    return json({ ok: true, reportId: report.id }, { status: 201 });
+    if (!result.allowed) {
+      if (result.reason !== "hourly") throw new Error("Report reservation failed");
+      // The SDK reads data.message || data.detail, never data.error.
+      const limitMessage = "Too many reports. Please try again later.";
+      return json(
+        { error: limitMessage, message: limitMessage },
+        { status: 429, headers: { "Retry-After": "3600" } }
+      );
+    }
+    return json({ ok: true, reportId: result.report.id }, { status: 201 });
   } catch (error) {
     // Deliberately exclude the report text, message identifier, and user health context.
     console.error("reportAiContent failed", safeErrorDetails(error));

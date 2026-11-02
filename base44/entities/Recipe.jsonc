@@ -7,7 +7,28 @@
       "maxLength": 1000
     },
     "title": {
-      "type": "string"
+      "type": "string",
+      "maxLength": 200
+    },
+    "is_favorite": {
+      "type": "boolean",
+      "default": false
+    },
+    "nutrition_basis": {
+      "type": "string",
+      "enum": ["batch"],
+      "description": "Batch nutrition is authoritative; absent nutrients are unknown, not zero."
+    },
+    "batch_nutrition": {
+      "type": "object",
+      "description": "Explicit nutrition totals for the entire recipe. Divide by servings for one portion. Omit unknown values.",
+      "properties": {
+        "calories": { "type": "number", "minimum": 0, "maximum": 100000 },
+        "protein_g": { "type": "number", "minimum": 0, "maximum": 10000 },
+        "carbs_g": { "type": "number", "minimum": 0, "maximum": 15000 },
+        "fat_g": { "type": "number", "minimum": 0, "maximum": 10000 },
+        "fiber_g": { "type": "number", "minimum": 0, "maximum": 10000 }
+      }
     },
     "source_url": {
       "type": "string"
@@ -58,6 +79,11 @@
             "type": "number",
             "minimum": 0,
             "maximum": 10000
+          },
+          "fiber_g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
           }
         },
         "required": [
@@ -77,6 +103,12 @@
       "type": "number"
     },
     "protein_g_per_serving": {
+      "type": "number"
+    },
+    "carbs_g_per_serving": {
+      "type": "number"
+    },
+    "fat_g_per_serving": {
       "type": "number"
     },
     "fiber_g_per_serving": {

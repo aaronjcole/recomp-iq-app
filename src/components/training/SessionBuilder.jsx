@@ -13,7 +13,7 @@ import {
   SelectContent,
   SelectItem
 } from "@/components/ui/select";
-import { Plus, Trash2, X, Dumbbell, Loader2 } from "lucide-react";
+import { Plus, Trash2, X, Dumbbell, LoaderCircle } from "lucide-react";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const num = (v) => (v === "" ? null : Number(v));
@@ -259,7 +259,7 @@ export default function SessionBuilder({ prefill = null }) {
         )}
 
         <Button className="min-h-11 w-full bg-teal text-buttonText hover:opacity-90 disabled:bg-panel2 disabled:text-muted-foreground disabled:cursor-not-allowed" onClick={save} disabled={!canSave || saving}>
-          {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+          {saving ? <LoaderCircle className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
           {saving ? "Saving…" : "Save session"}
         </Button>
       </CardContent>

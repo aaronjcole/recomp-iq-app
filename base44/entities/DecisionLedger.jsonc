@@ -24,6 +24,11 @@
     "supporting_metrics": {
       "type": "object",
       "description": "Arbitrary metrics that justify the decision."
+    },
+    "weekly_check_in_id": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "The WeeklyCheckIn this entry applied. At most one entry per check-in."
     }
   },
   "required": [

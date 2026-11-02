@@ -73,8 +73,20 @@ const FEATURES = [
   }
 ];
 
+// The AI body-composition range exists only while the ENABLE_BODY_COMPOSITION_SCAN
+// Secret is on (getPremiumAccess releaseFlags); without it the catalog must not
+// promise it.
+function presentFeature(feature, releaseFlags) {
+  if (feature.key !== PREMIUM_FEATURES.VISUAL_PROGRESS || releaseFlags?.bodyCompositionScan) return feature;
+  return {
+    ...feature,
+    description: "Private, on-device comparisons—not a medical measurement.",
+    preview: feature.preview.filter((item) => item.label !== "AI-assisted range")
+  };
+}
+
 export default function Premium() {
-  const { canAccess, hasAnyAccess, testerAccess, isLoading, isUnavailable } = usePremiumAccess();
+  const { canAccess, hasAnyAccess, testerAccess, isLoading, isUnavailable, releaseFlags } = usePremiumAccess();
 
   return (
     <div className="space-y-5">
@@ -103,7 +115,8 @@ export default function Premium() {
       {!hasAnyAccess && !testerAccess && <PremiumPaywall />}
 
       <div className="space-y-3" aria-label="Premium feature catalog">
-        {FEATURES.map(({ key, icon: Icon, title, actionLabel, description, to, preview }) => {
+        {FEATURES.map((feature) => {
+          const { key, icon: Icon, title, actionLabel, description, to, preview } = presentFeature(feature, releaseFlags);
           const available = canAccess(key);
           return (
             <Card key={key} className="border-line bg-panel">

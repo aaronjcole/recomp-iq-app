@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getTabRootPath, isTabRootPath } from "@/lib/tabNavigation";
+import { resolveAndroidBack } from "@/lib/androidBack";
 
 export default function AndroidBackHandler() {
   const navigate = useNavigate();
@@ -8,20 +8,18 @@ export default function AndroidBackHandler() {
 
   useEffect(() => {
     window.handleAndroidBack = () => {
-      if (isTabRootPath(location.pathname)) {
+      const action = resolveAndroidBack(
+        location.pathname,
+        window.history.state?.idx ?? 0
+      );
+      if (action.type === "exit") {
         return false;
       }
-      const idx = window.history.state?.idx ?? 0;
-      if (idx > 0) {
+      if (action.type === "back") {
         navigate(-1);
         return true;
       }
-      const tabRootPath = getTabRootPath(location.pathname);
-      if (tabRootPath) {
-        navigate(tabRootPath, { replace: true });
-        return true;
-      }
-      navigate("/");
+      navigate(action.to, { replace: action.replace });
       return true;
     };
     return () => {

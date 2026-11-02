@@ -13,17 +13,17 @@ export default function VoiceInput({ onTranscript, disabled = false, className =
   const [error, setError] = useState(null);
   const recognitionRef = useRef(null);
   const finalRef = useRef("");
+  const transcriptCallback = useRef(onTranscript);
+  transcriptCallback.current = onTranscript;
 
   const stop = useCallback(() => {
+    // stop() delivers any last recognition result before onend. Do not clear
+    // the accumulated transcript here or release the recognizer early.
     recognitionRef.current?.stop();
-    recognitionRef.current = null;
-    setListening(false);
-    setInterimText("");
-    finalRef.current = "";
   }, []);
 
   const start = useCallback(() => {
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition || recognitionRef.current) return;
     setError(null);
     finalRef.current = "";
     setInterimText("");
@@ -56,7 +56,8 @@ export default function VoiceInput({ onTranscript, disabled = false, className =
       } else {
         setError("Voice input unavailable. Type your message instead.");
       }
-      stop();
+      finalRef.current = "";
+      recognition.abort();
     };
 
     recognition.onend = () => {
@@ -65,15 +66,30 @@ export default function VoiceInput({ onTranscript, disabled = false, className =
       setInterimText("");
       finalRef.current = "";
       recognitionRef.current = null;
-      if (text) onTranscript(text);
+      if (text) transcriptCallback.current(text);
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
-  }, [onTranscript, stop]);
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      recognitionRef.current = null;
+      setError("Voice input unavailable. Type your message instead.");
+    }
+  }, []);
 
-  useEffect(() => () => { recognitionRef.current?.stop(); }, []);
+  useEffect(() => () => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort();
+    }
+    recognitionRef.current = null;
+    finalRef.current = "";
+  }, []);
 
   if (!SpeechRecognition) return null;
 
@@ -93,9 +109,8 @@ export default function VoiceInput({ onTranscript, disabled = false, className =
           variant="outline"
           size="icon"
           onClick={stop}
-          disabled={disabled}
           aria-label="Stop recording"
-          className="min-h-11 min-w-11 border-destructive text-destructive hover:bg-destructive/10 animate-pulse"
+          className="min-h-11 min-w-11 border-destructive text-destructive hover:bg-destructive/10 motion-safe:animate-pulse"
         >
           <Square className="w-4 h-4" aria-hidden="true" />
         </Button>

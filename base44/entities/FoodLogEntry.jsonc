@@ -62,7 +62,9 @@
         "barcode",
         "photo",
         "template",
-        "repeat"
+        "repeat",
+        "search"
+        , "recipe", "plan", "describe"
       ]
     },
     "source_food_id": {

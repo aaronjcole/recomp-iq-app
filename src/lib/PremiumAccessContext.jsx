@@ -11,7 +11,7 @@ const PremiumAccessContext = createContext(null);
  * @property {boolean} hasBundleAccess
  * @property {boolean} testerAccess
  * @property {Record<string, boolean>} features
- * @property {{bodyCompositionScan: boolean}} releaseFlags
+ * @property {{bodyCompositionScan: boolean, foodPhotoScan: boolean}} releaseFlags
  * @property {readonly string[]} products
  * @property {readonly string[]} sources
  */
@@ -30,7 +30,8 @@ function normalizeResponse(result) {
       Object.values(PREMIUM_FEATURES).map((feature) => [feature, access.features[feature] === true])
     ),
     releaseFlags: {
-      bodyCompositionScan: access.releaseFlags?.bodyCompositionScan === true
+      bodyCompositionScan: access.releaseFlags?.bodyCompositionScan === true,
+      foodPhotoScan: access.releaseFlags?.foodPhotoScan === true
     },
     products: Array.isArray(access.products)
       ? access.products.filter((product) => typeof product === "string")
@@ -42,6 +43,11 @@ function normalizeResponse(result) {
 }
 
 export function PremiumAccessProvider({ children }) {
+  const { user } = useAuth();
+  return <AccountPremiumAccessProvider key={user?.id ?? "signed-out"}>{children}</AccountPremiumAccessProvider>;
+}
+
+function AccountPremiumAccessProvider({ children }) {
   const { isAuthenticated, user } = useAuth();
   const [access, setAccess] = useState(
     /** @type {PremiumAccessState} */ (EMPTY_PREMIUM_ACCESS)

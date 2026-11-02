@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useRecompRef, useRecompActions } from "@/lib/RecompContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { CopyPlus, Dumbbell, Loader2, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CopyPlus, Dumbbell, LoaderCircle, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import SessionEditSheet from "./SessionEditSheet";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -144,7 +144,7 @@ export default function SessionHistory({ onReuse }) {
                                   className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-teal/10 px-2 text-xs font-medium text-teal hover:bg-teal/20 disabled:opacity-50"
                                   aria-label={`Log ${s.title || TYPE_LABEL[s.type] || "session"} again`}
                                 >
-                                  {repeatingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
+                                  {repeatingId === s.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
                                   Log again
                                 </button>
                               </div>

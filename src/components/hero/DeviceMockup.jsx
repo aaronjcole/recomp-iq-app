@@ -1,4 +1,4 @@
-import { Activity, CheckCircle2, ChevronDown, ShieldCheck, Target } from "lucide-react";
+import { Activity, CircleCheck, ChevronDown, ShieldCheck, Target } from "lucide-react";
 
 const EVIDENCE = [
   { label: "Weight trend", value: "−0.4 lb/wk" },
@@ -63,7 +63,7 @@ export default function DeviceMockup() {
               ))}
             </div>
             <div className="mt-2.5 flex items-start gap-1.5 border-t border-lineSoft pt-2.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal" aria-hidden="true" />
+              <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal" aria-hidden="true" />
               <span>More cardio was not chosen; the current trend is on pace.</span>
             </div>
           </div>
@@ -77,7 +77,7 @@ export default function DeviceMockup() {
         </div>
 
         <div className="flex justify-between border-t border-lineSoft pt-2">
-          {[Target, Activity, CheckCircle2].map((Icon, index) => (
+          {[Target, Activity, CircleCheck].map((Icon, index) => (
             <Icon
               key={index}
               className={`h-4 w-4 ${index === 0 ? "text-teal" : "text-muted-foreground"}`}

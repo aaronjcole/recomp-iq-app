@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Food photo test</title></head><body><div id="root"></div>
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import FoodPhotoScan from '/src/components/nutrition/FoodPhotoScan.jsx';
+import '/src/index.css';
+window.photoResults=[];
+const root=createRoot(document.getElementById('root'));
+root.render(React.createElement(FoodPhotoScan,{onClose:()=>root.unmount(), onResult:(food, review)=>window.photoResults.push({food,review}), onManual:()=>{window.manualRequested=true;root.unmount();}}));
+</script></body></html>

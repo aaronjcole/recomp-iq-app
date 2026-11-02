@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Returning to RecompOne</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #07121d; color: #e6f1f5; font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      main { max-width: 22rem; padding: 1.5rem; text-align: center; }
+      a { color: #46d8bc; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Sign-in return page for the iOS app only. The app opens provider sign-in
+      in an ASWebAuthenticationSession with from_url pointing here; Base44
+      redirects back with ?access_token=..., and this page hands the token to
+      the session through recompone://auth. Nothing is stored in this browser.
+      See expo-ios/src/nativeAuth.ts.
+    -->
+    <main>
+      <p id="status">Returning to RecompOne…</p>
+      <p><a id="return" href="recompone://auth?error=cancelled">Return to the app</a></p>
+    </main>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var callback = new URL("recompone://auth");
+        var token = params.get("access_token");
+        var next = params.get("next");
+        if (token) {
+          callback.searchParams.set("access_token", token);
+          if (next) callback.searchParams.set("next", next);
+        } else {
+          callback.searchParams.set("error", params.get("error") || "missing_token");
+          document.getElementById("status").textContent = "Sign-in did not finish.";
+        }
+        // Drop the token from this page's URL and history before leaving.
+        try { window.history.replaceState(null, "", window.location.pathname); } catch (e) {}
+        var link = document.getElementById("return");
+        link.setAttribute("href", callback.toString());
+        window.location.replace(callback.toString());
+      })();
+    </script>
+  </body>
+</html>

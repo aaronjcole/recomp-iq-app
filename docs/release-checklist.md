@@ -82,11 +82,20 @@ a primary owner and a backup who can access that entity and the support inbox at
 - [ ] Privacy, Terms, Support, and account-deletion pages load while signed out.
 - [ ] Keyboard navigation, focus restoration, and Escape work in dialogs.
 - [ ] Core flows render correctly on current iOS Safari and Android Chrome.
-- [ ] Before enforcing a navigation-origin allowlist in the RecompOne iOS shell's
-      `onShouldStartLoadWithRequest` (`expo-ios/src/RecompOneWebView.tsx`), trace the real on-device
-      redirect chain for all four Base44 sign-in providers (Google, Microsoft, Facebook, Apple) and
-      confirm every host each one touches; until then it deliberately allows all `https:` navigation
-      so social sign-in cannot regress.
+- [ ] In a physical-device build of the RecompOne iOS shell, Continue with Google and Continue
+      with Apple each open the system sign-in sheet (ASWebAuthenticationSession), complete, and
+      land signed in on the page sign-in started from. Cancelling the sheet leaves the user on the
+      login page. This flow goes through `public/auth/native-return.html`
+      (`expo-ios/src/nativeAuth.ts`), so check it after any change to Base44 auth URLs.
+- [ ] In the same build, with a sandbox Apple ID under Ask to Buy (or StoreKit's "Interrupted
+      purchase" testing), a subscription that waits for approval releases the paywall within about
+      30 seconds with the "waiting for approval" message. A second Subscribe tap must not report
+      "Another purchase is already in progress".
+- [ ] Recheck the navigation-origin allowlist in the RecompOne iOS shell's
+      `onShouldStartLoadWithRequest` (`expo-ios/src/RecompOneWebView.tsx`) against the real on-device
+      redirect chain for the enabled Base44 sign-in providers. The allowlist is already enforced;
+      unknown HTTPS destinations open outside the authenticated WebView. Do not restore unrestricted
+      HTTPS navigation to work around an authentication failure.
 - [ ] In the RecompOne iOS shell (`expo-ios/`), `window.wixMobileNativeBridge` still exposes working
       `requestPurchase`, `restorePurchases`, and `finishTransaction` functions after any Base44/Wix
       wrapper update. This bridge name is borrowed from Base44's managed wrapper on purpose

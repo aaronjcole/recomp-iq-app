@@ -147,6 +147,38 @@ export const ENTITY_FIXTURES = {
   HabitEntry: habitEntries,
 };
 
+// Rows owned by a different account. Base44 RLS lets admins read every user's
+// rows, so the app must scope each query by created_by_id; the mock serves
+// these alongside the signed-in user's rows and only an owner filter keeps
+// them out of the UI.
+export const FOREIGN_USER_ID = "user-foreign";
+
+export const FOREIGN_ENTITY_FIXTURES = {
+  UserProfile: [{
+    id: "profile-foreign",
+    created_by_id: FOREIGN_USER_ID,
+    goal: "cut",
+    sex: "female",
+    age: 45,
+    height_in: 64,
+    current_weight_lbs: 150,
+    activity_level: "light",
+  }],
+  Habit: [{
+    id: "habit-foreign",
+    created_by_id: FOREIGN_USER_ID,
+    name: "Foreign account habit",
+    kind: "check",
+    sort_order: 3,
+  }],
+  DailyLog: [{
+    id: "log-foreign-0",
+    created_by_id: FOREIGN_USER_ID,
+    date: isoDaysAgo(0),
+    calories: 4321,
+  }],
+};
+
 export const PUBLIC_SETTINGS = { id: "playwright-local", public_settings: {} };
 
 export const PREMIUM_TESTER_ACCESS = {

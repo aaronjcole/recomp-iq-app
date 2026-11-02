@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  CheckCircle2,
+  CircleCheck,
   Dumbbell,
   Moon,
   RefreshCw,
@@ -31,7 +31,7 @@ const SIGNAL_ICONS = {
   nutrition: Utensils,
   training: Dumbbell,
   recovery: Moon,
-  habits: CheckCircle2,
+  habits: CircleCheck,
   progress: TrendingUp
 };
 
@@ -194,7 +194,7 @@ export default function WeeklyAutopilot() {
               <span className="text-xs text-muted-foreground">Saved locally</span>
             </div>
             {review.scorecard.map((signal) => {
-              const Icon = SIGNAL_ICONS[signal.key] ?? CheckCircle2;
+              const Icon = SIGNAL_ICONS[signal.key] ?? CircleCheck;
               return (
                 <Card key={signal.key} className="border-line bg-panel">
                   <CardContent className="flex gap-3 p-4">

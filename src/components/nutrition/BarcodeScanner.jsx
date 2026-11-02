@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { DecodeHintType, BarcodeFormat } from "@zxing/library";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { triggerHaptic, HAPTIC_IMPACTS } from "@/lib/haptics";
-import { X, ScanLine, RefreshCw, Loader2, Plus, Bookmark, CameraOff } from "lucide-react";
+import { X, ScanLine, RefreshCw, LoaderCircle, Plus, Bookmark, CameraOff } from "lucide-react";
 import QualityScoreBadge from "@/components/nutrition/QualityScoreBadge";
 
 const IDLE_TIMEOUT_MS = 8000;
@@ -22,7 +23,7 @@ scanHints.set(DecodeHintType.POSSIBLE_FORMATS, [
   BarcodeFormat.UPC_E,
 ]);
 
-export default function BarcodeScanner({ onClose, onResult }) {
+export default function BarcodeScanner({ onClose, onResult, reviewLabel = "Review food" }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const dialogRef = useRef(null);
@@ -36,6 +37,25 @@ export default function BarcodeScanner({ onClose, onResult }) {
   const [manual, setManual] = useState("");
   const [food, setFood] = useState(null);
   const [err, setErr] = useState("");
+  const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const reducedMotion = useReducedMotion();
+
+  const submit = async (review) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setSaveError("");
+    try {
+      await onResult(food, review);
+    } catch (error) {
+      if (mountedRef.current) setSaveError(error.message || "Couldn't save food. Please try again.");
+    } finally {
+      submittingRef.current = false;
+      if (mountedRef.current) setSubmitting(false);
+    }
+  };
 
   const clearIdleTimer = () => {
     if (idleTimerRef.current) {
@@ -55,6 +75,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
   };
 
   const handleClose = () => {
+    if (submittingRef.current) return;
     cameraStartIdRef.current += 1;
     scanHandledRef.current = true;
     stopCamera();
@@ -117,6 +138,10 @@ export default function BarcodeScanner({ onClose, onResult }) {
       // stream without an explicit play() call, which means ZXing never
       // gets frames to decode and the scan silently never fires.
       try { await videoRef.current?.play(); } catch { /* autoplay can reject if already playing */ }
+      if (!mountedRef.current || startId !== cameraStartIdRef.current || scanHandledRef.current) {
+        controls.stop();
+        return;
+      }
       setStatus("camera");
       // If nothing is detected within the idle window, surface a nudge
       // without stopping the camera — the user can keep trying.
@@ -150,7 +175,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
         dialogRef.current?.querySelectorAll(
           'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
         ) ?? []
-      ).filter((element) => element instanceof HTMLElement));
+      ).filter((element) => element instanceof HTMLElement && element.getClientRects().length > 0));
       if (focusable.length === 0) {
         event.preventDefault();
         dialogRef.current?.focus();
@@ -159,7 +184,10 @@ export default function BarcodeScanner({ onClose, onResult }) {
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (!focusable.some((element) => element === document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -194,7 +222,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
 
   const showCamera = status === "starting" || status === "camera" || status === "idle";
 
-  return (
+  return createPortal(
     <div
       ref={dialogRef}
       role="dialog"
@@ -203,32 +231,33 @@ export default function BarcodeScanner({ onClose, onResult }) {
       aria-describedby="barcode-scanner-description"
       aria-busy={status === "looking-up"}
       tabIndex={-1}
-      className="fixed inset-0 z-50 bg-black flex flex-col select-none"
+      className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-black select-none"
     >
       <p id="barcode-scanner-description" className="sr-only">
         Scan a food barcode with your camera or enter the barcode manually.
       </p>
       {/* Top bar */}
-      <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <div id="barcode-scanner-title" className="flex items-center gap-2 font-medium">
-          <ScanLine className="w-5 h-5" />
+      <div className="flex shrink-0 items-center justify-between gap-2 p-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+        <div id="barcode-scanner-title" className="flex min-w-0 items-center gap-2 font-medium">
+          <ScanLine className="h-5 w-5 shrink-0" />
           Scan food barcode
         </div>
         <button
           ref={closeButtonRef}
           onClick={handleClose}
-          className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 -mr-2 after:absolute after:inset-0 after:content-[''] relative min-h-[44px] min-w-[44px] shrink-0 flex items-center justify-center"
           aria-label="Close scanner"
+          disabled={submitting}
         >
           <X className="w-6 h-6" />
         </button>
       </div>
 
       {/* Camera / content area */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <video
           ref={videoRef}
-          className={`w-full h-full object-cover ${showCamera ? "" : "hidden"}`}
+          className={`absolute inset-0 h-full w-full object-cover ${showCamera ? "" : "hidden"}`}
           muted
           playsInline
           autoPlay
@@ -245,7 +274,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
               <span className="absolute left-0 bottom-0 h-7 w-7 rounded-bl-2xl border-l-2 border-b-2 border-white" />
               <span className="absolute right-0 bottom-0 h-7 w-7 rounded-br-2xl border-r-2 border-b-2 border-white" />
               {/* Animated scan line (vertical sweep) while actively scanning */}
-              {status === "camera" && (
+              {status === "camera" && !reducedMotion && (
                 <motion.div
                   className="absolute left-2 right-2 h-0.5 bg-teal shadow-[0_0_8px_2px_rgba(47,196,167,0.6)] rounded-full"
                   initial={{ top: "8%" }}
@@ -256,7 +285,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
               {/* Camera initializing overlay */}
               {status === "starting" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white">
-                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <LoaderCircle className="w-6 h-6 animate-spin" />
                   <span className="text-xs">Starting camera…</span>
                 </div>
               )}
@@ -278,7 +307,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
 
         {status === "looking-up" && (
           <div role="status" aria-live="polite" className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
-            <Loader2 className="w-8 h-8 animate-spin" />
+            <LoaderCircle className="w-8 h-8 animate-spin" />
             <p className="text-sm">Looking up {barcode}…</p>
           </div>
         )}
@@ -286,7 +315,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
         {status === "found" && food && (
           <div className="absolute inset-x-0 bottom-0 bg-panel text-foreground rounded-t-2xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[80%] overflow-y-auto">
             <div className="w-10 h-1.5 bg-lineSoft rounded-full mx-auto mb-4" />
-            <div className="text-lg font-semibold">{food.name}</div>
+            <div className="break-words text-lg font-semibold">{food.name}</div>
             {food.brand_name && (
               <div className="text-xs text-muted-foreground">{food.brand_name}</div>
             )}
@@ -310,16 +339,18 @@ export default function BarcodeScanner({ onClose, onResult }) {
 
             <div className="flex flex-col gap-2 mt-5">
               <Button
-                className="bg-teal text-buttonText hover:opacity-90 h-11 min-h-[44px]"
-                onClick={() => onResult(food, true)}
+                className="min-h-11 h-auto whitespace-normal bg-teal py-2 text-buttonText hover:opacity-90"
+                onClick={() => submit(true)}
+                disabled={submitting}
               >
-                <Plus className="w-4 h-4 mr-1" /> Add to today
+                <Plus className="w-4 h-4 mr-1" /> {reviewLabel}
               </Button>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  className="flex-1 h-11 min-h-[44px]"
-                  onClick={() => onResult(food, false)}
+                  className="min-h-11 h-auto min-w-0 flex-1 whitespace-normal py-2"
+                  onClick={() => submit(false)}
+                  disabled={submitting}
                 >
                   <Bookmark className="w-4 h-4 mr-1" /> Save to library
                 </Button>
@@ -327,11 +358,13 @@ export default function BarcodeScanner({ onClose, onResult }) {
                   variant="ghost"
                   className="h-11 min-h-[44px] px-4"
                   onClick={startCamera}
+                  disabled={submitting}
                   aria-label="Scan another barcode"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </Button>
               </div>
+              {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
             </div>
           </div>
         )}
@@ -357,7 +390,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
       {(status === "not-found" || status === "error" || showCamera) && (
         <form
           onSubmit={handleManual}
-          className="bg-panel p-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex gap-2"
+          className="flex shrink-0 gap-2 bg-panel p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
           <Input
             value={manual}
@@ -372,7 +405,7 @@ export default function BarcodeScanner({ onClose, onResult }) {
           </Button>
         </form>
       )}
-    </div>
+    </div>, document.body
   );
 }
 
@@ -390,10 +423,12 @@ function Macro({ label, value, unit = "" }) {
 
 function MessageCard({ title, subtitle, icon }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-2 px-8 text-center">
+    <div className="absolute inset-0 overflow-y-auto">
+    <div className="flex min-h-full flex-col items-center justify-center gap-2 px-8 py-4 text-center text-white">
       {icon}
       <p className="font-medium">{title}</p>
       <p className="text-sm text-white/70">{subtitle}</p>
+    </div>
     </div>
   );
 }

@@ -19,11 +19,11 @@ import { featureFlags } from "@/lib/featureFlags";
 import LifestyleCoachComingSoon from "@/components/coach/LifestyleCoachComingSoon";
 import VoiceInput, { isSpeechSupported } from "@/components/VoiceInput";
 import {
-  AlertTriangle,
+  TriangleAlert,
   ArrowLeft,
   BrainCircuit,
   Crown,
-  Loader2,
+  LoaderCircle,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -201,22 +201,6 @@ export default function LifestyleCoach() {
     send(failedRequest.text, { appendUser: false, priorHistory: failedRequest.priorHistory });
   };
 
-  const applyPlanAdjustments = async (adjustments) => {
-    try {
-      const { adjustment_reason, ...targets } = adjustments;
-      await base44.functions.invoke("applyTargetAdjustments", { targets, reason: adjustment_reason });
-      toast({ title: "Plan updated", description: "Your targets have been adjusted based on the coach recommendation." });
-    } catch {
-      toast({
-        title: "Could not apply adjustments",
-        description: "Update your targets manually in Custom Targets.",
-        variant: "destructive"
-      });
-    } finally {
-      setPlanAdjustmentPending(null);
-    }
-  };
-
   if (!featureFlags.lifestyleCoach) {
     return <LifestyleCoachComingSoon onBack={goBack} />;
   }
@@ -293,7 +277,7 @@ export default function LifestyleCoach() {
               <BrainCircuit className="w-4 h-4 text-buttonText" aria-hidden="true" />
             </div>
             <div className="bg-panel border border-line rounded-2xl px-3 py-2 text-sm flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Analyzing…
+              <LoaderCircle className="w-4 h-4 animate-spin" aria-hidden="true" /> Analyzing…
             </div>
           </div>
         )}
@@ -369,7 +353,6 @@ export default function LifestyleCoach() {
         adjustments={planAdjustmentPending}
         open={!!planAdjustmentPending}
         onOpenChange={(open) => { if (!open) setPlanAdjustmentPending(null); }}
-        onApply={() => applyPlanAdjustments(planAdjustmentPending)}
         onNavigate={() => { setPlanAdjustmentPending(null); navigate("/nutrition?panel=targets"); }}
       />
     </div>
@@ -394,7 +377,7 @@ function LifestyleMessage({ message }) {
         )}
         {coach && message.safetyNote && (
           <div className="rounded-lg bg-questComplete text-gold p-2 flex items-start gap-2 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+            <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
             <span>{message.safetyNote}</span>
           </div>
         )}
@@ -440,7 +423,9 @@ function PlanAdjustmentSummary({ adjustments }) {
   );
 }
 
-function PlanAdjustmentDialog({ adjustments, open, onOpenChange, onApply, onNavigate }) {
+// Suggestions are review-only: there is no backend that applies coach targets
+// automatically, so the only path is editing them manually in Custom Targets.
+function PlanAdjustmentDialog({ adjustments, open, onOpenChange, onNavigate }) {
   if (!adjustments) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -456,14 +441,14 @@ function PlanAdjustmentDialog({ adjustments, open, onOpenChange, onApply, onNavi
         </div>
         <div className="flex items-start gap-2 rounded-lg bg-teal/10 p-3 text-sm">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
-          <span>Nothing changes until you confirm. You can also adjust manually in Custom Targets.</span>
+          <span>Your targets are not changed automatically. Review them and update them in Custom Targets.</span>
         </div>
         <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button variant="outline" className="min-h-11" onClick={onNavigate}>
-            Edit manually
+          <Button variant="outline" className="min-h-11" onClick={() => onOpenChange(false)}>
+            Not now
           </Button>
-          <Button onClick={onApply} className="min-h-11 bg-teal text-buttonText hover:opacity-90">
-            Apply adjustments
+          <Button onClick={onNavigate} className="min-h-11 bg-teal text-buttonText hover:opacity-90">
+            Open Custom Targets
           </Button>
         </DialogFooter>
       </DialogContent>

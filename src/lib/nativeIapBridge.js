@@ -14,9 +14,23 @@
 
 /**
  * @typedef {{
+ *   productId: string,
+ *   displayPrice: string,
+ *   period: { unit: string, count: number } | null,
+ *   freeTrial: { unit: string, count: number } | null
+ * }} NativeProduct
+ */
+
+/**
+ * getProducts is optional: iOS builds of the shell from before it existed do
+ * not have it. The paywall then keeps the reference prices and stays
+ * purchasable, as before; Apple's purchase sheet shows the real price.
+ *
+ * @typedef {{
  *   requestPurchase: (productId: string, appAccountToken: string) => Promise<NativePurchase>,
  *   restorePurchases: () => Promise<{ purchases: NativePurchase[] }>,
- *   finishTransaction: (transactionId: string) => Promise<{ finished: true }>
+ *   finishTransaction: (transactionId: string) => Promise<{ finished: true }>,
+ *   getProducts?: () => Promise<{ products: NativeProduct[] }>
  * }} NativeIapBridge
  */
 

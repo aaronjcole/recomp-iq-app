@@ -61,25 +61,36 @@ test("analysis images keep signed URL creation and paid inference on the server"
   );
 });
 
-test("analysis images can upload privately without exposing a signed URL to the client", async () => {
+test("analysis images upload through the ownership-recording backend function", async () => {
   const calls = [];
-  const core = {
-    async UploadPrivateFile(payload) {
-      calls.push(payload);
-      return { file_uri: "private/user/image.jpg" };
+  const functions = {
+    async invoke(name, payload) {
+      calls.push([name, payload]);
+      return { data: { file_uri: "private/user/image.jpg" } };
     }
   };
 
-  assert.equal(await uploadPrivateAnalysisImage(core, validFile), "private/user/image.jpg");
-  assert.deepEqual(calls, [{ file: validFile }]);
+  assert.equal(
+    await uploadPrivateAnalysisImage(functions, validFile, "food_photo"),
+    "private/user/image.jpg"
+  );
+  assert.deepEqual(calls, [["uploadAnalysisPhoto", { file: validFile, purpose: "food_photo" }]]);
+
+  // A direct Core.UploadPrivateFile upload would have no ownership record, so
+  // the analyze functions would refuse it; the client must not use it.
+  const client = readFileSync(resolve(repoRoot, "src/lib/analysisImages.js"), "utf8");
+  assert.doesNotMatch(client, /UploadPrivateFile\(/);
 });
 
-test("analysis upload fails closed when Base44 omits a private reference", async () => {
-  const core = {
-    async UploadPrivateFile() {
-      return {};
+test("analysis upload fails closed when the backend omits a private reference", async () => {
+  const functions = {
+    async invoke() {
+      return { data: {} };
     }
   };
 
-  await assert.rejects(() => uploadPrivateAnalysisImage(core, validFile), /private image upload/i);
+  await assert.rejects(
+    () => uploadPrivateAnalysisImage(functions, validFile, "food_photo"),
+    /private image upload/i
+  );
 });

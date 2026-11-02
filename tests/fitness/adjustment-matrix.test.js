@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { decideWeeklyAdjustment } from "../../src/lib/fitness/adjustments.js";
+import { decideWeeklyAdjustment, rebalanceMacrosForCalories } from "../../src/lib/fitness/adjustments.js";
 
 const baseStrategy = {
   calorie_target: 2000,
@@ -151,4 +151,38 @@ test("safety and recovery signals take precedence over goal-specific changes", (
     recovery_label: "poor"
   });
   assert.equal(recovery.decision, "reduce_training_fatigue");
+});
+
+function macroCalories(strategy) {
+  return strategy.protein_target_g * 4 + strategy.carb_target_g * 4 + strategy.fat_target_g * 9;
+}
+
+test("a calorie change moves the macro targets with it, keeping protein", () => {
+  let strategy = { ...baseStrategy, carb_target_g: 200, fat_target_g: 62 };
+  assert.ok(Math.abs(macroCalories(strategy) - strategy.calorie_target) < 10);
+  for (let week = 0; week < 3; week += 1) {
+    const result = decideWeeklyAdjustment({
+      trend: trend({ weight_change_percent_per_week: 0.02, trend_label: "gaining", waist_label: "up" }),
+      profile: { goal: "fat_loss", job_activity: "active" },
+      preferences: {},
+      strategy
+    });
+    assert.equal(result.decision, "reduce_calories");
+    strategy = result.nextStrategy;
+    assert.equal(strategy.protein_target_g, 160, "protein stays as set");
+    assert.ok(
+      Math.abs(macroCalories(strategy) - strategy.calorie_target) <= 10,
+      `week ${week + 1}: macros add to ${macroCalories(strategy)} kcal for a ${strategy.calorie_target} kcal target`
+    );
+  }
+  assert.equal(strategy.calorie_target, 1550);
+});
+
+test("macro rebalancing keeps carbs and fat above their floors", () => {
+  const lowCarb = { calorie_target: 1700, protein_target_g: 200, carb_target_g: 60, fat_target_g: 80 };
+  const cut = rebalanceMacrosForCalories(lowCarb, 1500);
+  assert.equal(cut.carb_target_g, 50);
+  assert.ok(cut.fat_target_g < 80 && cut.fat_target_g >= 40);
+  assert.deepEqual(rebalanceMacrosForCalories(lowCarb, 1700), {});
+  assert.deepEqual(rebalanceMacrosForCalories({ calorie_target: 2000 }, 1850), {}, "missing macros are left alone");
 });

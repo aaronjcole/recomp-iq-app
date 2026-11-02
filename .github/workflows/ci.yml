@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+      # The Base44 Builder pushes here (see base44-builder-pr.yml). Its pull
+      # request is opened with GITHUB_TOKEN, which does not start a workflow
+      # run, so this push trigger is what actually produces the check runs the
+      # pull request displays. Removing it leaves those PRs with no CI.
+      - base44-builder
 
 permissions:
   contents: read
@@ -41,8 +46,18 @@ jobs:
       - name: Typecheck iOS shell
         run: npm run typecheck --prefix expo-ios
 
+      - name: Test native meal speech protocol and lifecycle
+        run: npm run test:speech --prefix expo-ios
+
+      # Offline mode makes the dependency check compare against the
+      # bundledNativeModules.json of the installed expo package instead of
+      # Expo's live "latest patch" API. Without it, every upstream Expo patch
+      # release turned main red with no repository change (runs #531-#547).
+      # New patches still arrive as Dependabot pull requests.
       - name: Validate Expo configuration
         run: npm run doctor --prefix expo-ios
+        env:
+          EXPO_OFFLINE: "1"
 
       - name: Test fitness engine
         run: npm run test:fitness

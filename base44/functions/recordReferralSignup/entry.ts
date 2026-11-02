@@ -1,8 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { json, statusOf } from "../../shared/httpUtils.js";
+import {
+  isReferralCode,
+  recordReferralAttribution,
+  referralEligibility
+} from "../../shared/referralDomain.js";
 
 const MAX_REQUEST_BYTES = 4096;
-const CODE_PATTERN = /^[A-Za-z0-9]{4,32}$/;
 
 export default async function(req) {
   if (req.method !== "POST") {
@@ -36,7 +40,7 @@ export default async function(req) {
 
   const code = typeof body?.code === "string" ? body.code.trim() : "";
   // Invalid or unknown codes are silent no-ops so the signup flow never breaks.
-  if (!CODE_PATTERN.test(code)) {
+  if (!isReferralCode(code)) {
     return json({ ok: true, recorded: false });
   }
 
@@ -51,28 +55,23 @@ export default async function(req) {
     }
     const referrerId = codes[0].owner_id;
 
-    // Anti-abuse: a user cannot refer themselves.
-    if (referrerId === user.id) {
+    // Anti-abuse: a user cannot refer themselves, and only an account created
+    // within the attribution window counts as a referred signup.
+    if (!referralEligibility(user, referrerId).eligible) {
       return json({ ok: true, recorded: false });
     }
 
-    // Idempotent: one referral record per referee.
-    const existing = await base44.asServiceRole.entities.Referral.filter(
-      { referee_id: user.id },
-      "-created_date",
-      1
+    // One referral record per referee, enforced by rank-after-insert so
+    // parallel calls cannot create several.
+    const result = await recordReferralAttribution(
+      base44.asServiceRole.entities.Referral,
+      { referrerId, refereeId: user.id, code }
     );
-    if (existing?.length) {
-      return json({ ok: true, recorded: false });
+    if (result.outcome === "retry") {
+      // A same-instant parallel attribution; the client keeps the code and retries.
+      return json({ error: "Referral is being recorded, try again" }, { status: 409 });
     }
-
-    await base44.asServiceRole.entities.Referral.create({
-      referrer_id: referrerId,
-      referee_id: user.id,
-      code,
-      status: "pending"
-    });
-    return json({ ok: true, recorded: true });
+    return json({ ok: true, recorded: result.recorded });
   } catch (error) {
     console.error("recordReferralSignup failed", error);
     return json({ error: "Could not record referral" }, { status: 500 });

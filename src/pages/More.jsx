@@ -1,20 +1,23 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRecomp } from "@/lib/RecompContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/lib/useTheme";
 import { GOAL_LABELS } from "@/lib/fitness";
-import { base44 } from "@/api/base44Client";
+import { signOut } from "@/lib/signOut";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MessageCircle, RefreshCw, Target, SlidersHorizontal, BookMarked, ShoppingCart,
-  Camera, CheckCircle, Moon, Sun, LogOut, User, Crown, Gift,
-  ChevronRight, Loader2, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit
+  Camera, CircleCheckBig, Moon, Sun, LogOut, User, Crown, Gift,
+  ChevronRight, LoaderCircle, ShieldCheck, FileText, History, LifeBuoy, Trash2, BrainCircuit, Download
 } from "lucide-react";
 import CheckInSheet from "@/components/more/CheckInSheet";
+import WeeklyCheckInReview from "@/components/more/WeeklyCheckInReview";
+import { featureFlags } from "@/lib/featureFlags";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { HAPTIC_TRIGGERS, triggerHaptic } from "@/lib/haptics";
 import { AdaptiveSelect } from "@/components/ui/adaptive-select";
+import { useToast } from "@/components/ui/use-toast";
 
 const APP_VERSION = "0.1.0";
 const THEME_OPTIONS = [
@@ -101,36 +104,53 @@ function Row({ item, first, onActivate, theme, themePreference, onThemeChange, l
   }
 
   return (
-    <div className={`flex w-full items-center gap-3 px-3 py-3 ${first ? "" : "border-t border-lineSoft"}`}>
-      <button type="button" onClick={onActivate} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left">
+    <button
+      type="button"
+      onClick={onActivate}
+      disabled={loading}
+      aria-busy={loading || undefined}
+      className={`flex min-h-11 w-full items-center gap-3 px-3 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50 ${first ? "" : "border-t border-lineSoft"}`}
+    >
+      <span className="flex min-h-11 min-w-0 flex-1 items-center gap-3">
         {label}
-      </button>
+      </span>
       {item.badge && (
         <span className="rounded bg-questComplete text-gold px-1.5 py-0.5 text-label font-mono uppercase tracking-wide">
           {item.badge}
         </span>
       )}
       {loading ? (
-        <Loader2 className="w-4 h-4 text-teal shrink-0 animate-spin" />
+        <LoaderCircle className="w-4 h-4 text-teal shrink-0 animate-spin" aria-hidden="true" />
       ) : (
-        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
       )}
-    </div>
+    </button>
   );
 }
 
 export default function More() {
-  const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, mealTemplates } = useRecomp();
+  const { profile, strategy, recompLevel, signal, runCheckIn, checkIns, reload, mealTemplates, historyLoaded } = useRecomp();
   const { user } = useAuth();
   const { theme, preference: themePreference, setTheme } = useTheme();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [checkinResult, setCheckinResult] = useState(null);
   const [running, setRunning] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshPendingRef = useRef(false);
 
-  const lastCheckIn = checkIns[0];
-  const checkinDue = !lastCheckIn || daysSince(lastCheckIn.end_date) >= 6;
+  // A v2 check-in that is still being applied or was superseded is not a
+  // completed check-in; v1 rows have no status.
+  const lastCheckIn = checkIns.find((item) => item.status !== "proposed" && item.status !== "superseded");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // The sheet is opened from state, not a Radix trigger, so it is told where
+  // focus goes back to when it closes.
+  const checkinTriggerRef = useRef(null);
+  // Check-ins load with older history; until then "no check-in" only means
+  // "not loaded yet", and a check-in would run on the current week alone.
+  const checkinDue = historyLoaded && (!lastCheckIn || daysSince(lastCheckIn.end_date) >= 6);
 
   const goalLabel =
     (profile && GOAL_LABELS[profile.goal]?.label) ||
@@ -145,9 +165,16 @@ export default function More() {
   const initials = initialsFrom(fullName, email);
 
   const runCheck = async () => {
+    if (!historyLoaded || running) return;
+    if (featureFlags.weeklyCheckInV2) {
+      checkinTriggerRef.current = document.activeElement;
+      setReviewOpen(true);
+      return;
+    }
     setRunning(true);
     try {
       const r = await runCheckIn();
+      if (!r) return;
       setCheckinResult(r);
       triggerHaptic(HAPTIC_TRIGGERS.WEEKLY_CHECK_IN_SUBMITTED);
       setCheckinOpen(true);
@@ -156,10 +183,29 @@ export default function More() {
     }
   };
 
+  const refreshData = async () => {
+    if (refreshPendingRef.current) return;
+    refreshPendingRef.current = true;
+    setRefreshing(true);
+    try {
+      if (!await reload()) throw new Error("Refresh failed");
+      toast({ title: "Data refreshed", description: "Your profile, targets, and this week's data are up to date." });
+    } catch {
+      toast({
+        title: "Could not refresh data",
+        description: "Check your connection and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      refreshPendingRef.current = false;
+      setRefreshing(false);
+    }
+  };
+
   const handlers = {
     checkin: runCheck,
-    reload: () => reload(),
-    logout: () => base44.auth.logout(window.location.origin),
+    reload: refreshData,
+    logout: () => signOut(window.location.origin),
     support: () => navigate("/support"),
     deleteAccount: () => navigate("/delete-account"),
     privacy: () => navigate("/privacy"),
@@ -171,7 +217,7 @@ export default function More() {
       title: "Coaching & plan",
       items: [
         { icon: Crown, label: "Premium features", to: "/more/premium", badge: "Premium" },
-        { icon: Gift, label: "Refer friends", to: "/more/referrals", subtitle: "Earn free months" },
+        { icon: Gift, label: "Refer friends", to: "/more/referrals", subtitle: "Share your link" },
         { icon: MessageCircle, label: "Coach", to: "/more/coach" },
         { icon: BrainCircuit, label: "Lifestyle Coach", to: "/more/coach/lifestyle", badge: "Soon" },
         {
@@ -181,8 +227,12 @@ export default function More() {
           badge: checkinDue ? "Due" : null,
           subtitle: running
             ? "Analyzing…"
+            : !historyLoaded
+            ? "Loading your history…"
             : lastCheckIn
             ? `Last ${lastCheckIn.end_date}`
+            : featureFlags.weeklyCheckInV2
+            ? "Review this week's proposal"
             : "Run the adaptive engine"
         },
         { icon: Target, label: "Plan & projections", to: "/more/plan" },
@@ -192,27 +242,28 @@ export default function More() {
     {
       title: "Nutrition tools",
       items: [
-        { icon: BookMarked, label: "Meal templates", to: "/nutrition", state: { scrollTo: "meal-templates-section" }, subtitle: `${mealTemplates.length} saved` },
-        { icon: ShoppingCart, label: "Grocery list", to: "/nutrition", state: { scrollTo: "grocery-list-section" } }
+        { icon: BookMarked, label: "Meal templates", to: "/nutrition?segment=library", state: { scrollTo: "meal-templates-section" }, subtitle: `${mealTemplates.length} saved` },
+        { icon: ShoppingCart, label: "Grocery list", to: "/nutrition?segment=tools", state: { scrollTo: "grocery-list-section" } }
       ]
     },
     {
       title: "Progress & data",
       items: [
         { icon: Camera, label: "Progress photos", to: "/progress", subtitle: "On this device only" },
-        { icon: History, label: "Decision history", to: "/more/decisions", subtitle: "Plan change log" }
+        { icon: History, label: "Decision history", to: "/more/decisions", subtitle: "Plan change log" },
+        { icon: Download, label: "Your data", to: "/more/data", subtitle: "Download or review what's stored" }
       ]
     },
     {
       title: "Habits",
-      items: [{ icon: CheckCircle, label: "Manage habits", to: "/today", state: { scrollTo: "habits-section" } }]
+      items: [{ icon: CircleCheckBig, label: "Manage habits", to: "/today", state: { scrollTo: "habits-section" } }]
     },
     {
       title: "App & account",
       items: [
         { icon: User, label: "Profile & plan", to: "/more/profile" },
         { icon: theme === "dark" ? Moon : Sun, label: "Appearance", control: "theme" },
-        { icon: RefreshCw, label: "Refresh data", action: "reload" },
+        { icon: RefreshCw, label: "Refresh data", action: "reload", subtitle: refreshing ? "Refreshing…" : undefined },
         { icon: LogOut, label: "Log out", action: "logout" }
       ]
     },
@@ -239,7 +290,7 @@ export default function More() {
       {/* Identity header — status glance */}
       <Card className="bg-panel border-line">
         <CardContent className="p-4">
-          <button className="flex w-full items-center gap-3" onClick={() => navigate("/more/profile")}>
+          <button type="button" className="flex min-h-11 w-full items-center gap-3" onClick={() => navigate("/more/profile")}>
             <div className="h-12 w-12 rounded-full bg-teal text-[#03110e] flex items-center justify-center font-semibold shrink-0">
               {initials}
             </div>
@@ -285,7 +336,7 @@ export default function More() {
                         theme={theme}
                         themePreference={themePreference}
                         onThemeChange={setTheme}
-                        loading={running && item.action === "checkin"}
+                        loading={(running && item.action === "checkin") || (refreshing && item.action === "reload")}
                       />
                     </li>
                   ))}
@@ -297,6 +348,8 @@ export default function More() {
       })}
 
       <p className="text-center text-xs text-muted-foreground pt-1">RecompOne v{APP_VERSION}</p>
+
+      {featureFlags.weeklyCheckInV2 && <WeeklyCheckInReview open={reviewOpen} onOpenChange={setReviewOpen} returnFocusRef={checkinTriggerRef} />}
 
       <CheckInSheet
         open={checkinOpen}

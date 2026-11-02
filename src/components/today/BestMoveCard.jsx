@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, ChevronDown, ShieldCheck, Target } from "lucide-react";
+import { ArrowRight, CircleCheck, ChevronDown, ShieldCheck, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -63,7 +63,7 @@ export default function BestMoveCard({ move, onLog, embedded = false }) {
           <div className="font-mono text-label uppercase tracking-wider text-muted-foreground">Why not the alternatives</div>
           {move.alternatives.map((alternative) => (
             <div key={alternative.label} className="flex items-start gap-2 text-sm">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
+              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
               <p><span className="font-medium">{alternative.label}:</span> <span className="text-muted-foreground">{alternative.reason}</span></p>
             </div>
           ))}
