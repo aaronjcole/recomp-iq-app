@@ -37,6 +37,7 @@ const More = lazyWithRetry(() => import('@/pages/More'));
 const Referrals = lazyWithRetry(() => import('@/pages/Referrals'));
 const Plan = lazyWithRetry(() => import('@/pages/Plan'));
 const DecisionHistory = lazyWithRetry(() => import('@/pages/DecisionHistory'));
+const YourData = lazyWithRetry(() => import('@/pages/YourData'));
 const Coach = lazyWithRetry(() => import('@/pages/Coach'));
 const LifestyleCoach = lazyWithRetry(() => import('@/pages/LifestyleCoach'));
 const Profile = lazyWithRetry(() => import('@/pages/Profile'));
@@ -119,6 +120,7 @@ const AuthenticatedApp = () => {
               <Route path="/more" element={<More />} />
               <Route path="/more/plan" element={<Plan />} />
               <Route path="/more/decisions" element={<DecisionHistory />} />
+              <Route path="/more/data" element={<YourData />} />
               <Route path="/more/coach" element={<Coach />} />
               <Route path="/more/coach/lifestyle" element={<LifestyleCoach />} />
               <Route path="/more/profile" element={<Profile />} />

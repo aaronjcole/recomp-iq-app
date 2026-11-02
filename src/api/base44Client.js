@@ -9,7 +9,11 @@ export const base44 = createClient({
   functionsVersion,
   serverUrl: '',
   requiresAuth: false,
-  appBaseUrl
+  appBaseUrl,
+  // The SDK otherwise sends page views and a heartbeat tagged with the user id.
+  // Collection stays off until it is approved and disclosed (Privacy page,
+  // Play Data Safety), matching analyticsTracker: false in vite.config.js.
+  analytics: { enabled: false }
 });
 
 // Bind an OAuth/login callback to a short-lived navigation initiated by this tab.

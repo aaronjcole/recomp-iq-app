@@ -15,6 +15,11 @@ test("sleep insights stay in the free Today experience and use explicit logs", (
   assert.match(today, /<TodayChecklist/);
   assert.match(checklist, /<SleepCard/);
   assert.doesNotMatch(card, /Premium|usePremiumAccess|canAccess|featureFlags/);
-  assert.match(quickLog, /sleep_hours: num\(form\.sleep_hours\)/);
-  assert.match(quickLog, /sleep_quality: num\(form\.sleep_quality\)/);
+  // Sleep hours save from Simple view; sleep quality from Full view, which
+  // saves every EMPTY_FORM field through buildDailyLogPatch.
+  assert.match(quickLog, /const SIMPLE_KEYS = \[[^\]]*"sleep_hours"/);
+  assert.match(quickLog, /const FULL_KEYS = Object\.keys\(EMPTY_FORM\)/);
+  assert.match(quickLog, /EMPTY_FORM = \{[^}]*sleep_quality: ""/);
+  assert.match(quickLog, /set\("sleep_hours", v\)/);
+  assert.match(quickLog, /set\("sleep_quality", v\)/);
 });

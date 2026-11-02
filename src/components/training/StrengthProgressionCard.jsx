@@ -1,7 +1,9 @@
-import { useMemo } from "react";
-import { useRecompRef } from "@/lib/RecompContext";
-import { summarizeStrengthProgress } from "@/lib/fitness";
+import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { useRecomp } from "@/lib/RecompContext";
+import { liftSessions, loggedLifts, summarizeStrengthProgress } from "@/lib/fitness";
 import { Card, CardContent } from "@/components/ui/card";
+import ExerciseHistorySheet from "@/components/training/ExerciseHistorySheet";
 
 const DOT_COLOR = {
   building: "var(--green)",
@@ -9,28 +11,6 @@ const DOT_COLOR = {
   declining: "var(--gold)",
   need_more_data: "var(--muted-foreground)"
 };
-
-function topLifts(strengthLogs) {
-  const counts = new Map();
-  for (const l of strengthLogs) {
-    if (!l?.lift_name) continue;
-    const e = counts.get(l.lift_name) || { name: l.lift_name, count: 0, last: "" };
-    e.count++;
-    if ((l.date || "") > e.last) e.last = l.date;
-    counts.set(l.lift_name, e);
-  }
-  return [...counts.values()]
-    .sort((a, b) => b.count - a.count || (b.last > a.last ? 1 : -1))
-    .slice(0, 3)
-    .map((e) => e.name);
-}
-
-function liftSeries(strengthLogs, name) {
-  return strengthLogs
-    .filter((l) => l.lift_name === name && typeof l.estimated_1rm === "number")
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
-    .map((l) => l.estimated_1rm);
-}
 
 function Sparkline({ values, color }) {
   const w = 100;
@@ -53,7 +33,7 @@ function Sparkline({ values, color }) {
   );
 }
 
-function LiftRow({ name, summary, series }) {
+function LiftRow({ name, summary, series, onOpen }) {
   const curr = summary.current_estimated_1rm;
   const change = summary.change_lbs;
   const label = summary.label;
@@ -62,8 +42,13 @@ function LiftRow({ name, summary, series }) {
   const pct = hasTrend && curr - change !== 0 ? Math.round((change / (curr - change)) * 100) : null;
 
   return (
-    <div className="py-2.5 border-b border-lineSoft last:border-0">
-      <div className="flex items-center justify-between">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="block w-full py-2.5 text-left border-b border-lineSoft last:border-0"
+      aria-label={`${name} history`}
+    >
+      <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground truncate">{name}</div>
           <div className="font-mono text-xl font-bold tabular-nums leading-tight">
@@ -91,22 +76,30 @@ function LiftRow({ name, summary, series }) {
             </>
           )}
         </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
       {series.length >= 2 && <Sparkline values={series} color={color} />}
-    </div>
+    </button>
   );
 }
 
 export default function StrengthProgressionCard() {
-  const { strengthLogs } = useRecompRef();
+  const { strengthLogs, sessions, trend } = useRecomp();
+  const [openLift, setOpenLift] = useState(null);
 
+  // Lifts are grouped by normalized name, so "Bench Press" and "bench press"
+  // are one history.
   const rows = useMemo(() => {
     if (!strengthLogs || strengthLogs.length === 0) return [];
-    return topLifts(strengthLogs).map((name) => ({
-      name,
-      summary: summarizeStrengthProgress(strengthLogs, name),
-      series: liftSeries(strengthLogs, name)
-    }));
+    return loggedLifts(strengthLogs).slice(0, 3).map((lift) => {
+      const history = liftSessions(strengthLogs, lift.key);
+      const named = history.map((row) => ({ ...row, lift_name: lift.name }));
+      return {
+        lift,
+        summary: summarizeStrengthProgress(named, lift.name),
+        series: history.map((row) => row.estimated_1rm)
+      };
+    });
   }, [strengthLogs]);
 
   if (rows.length === 0) {
@@ -125,9 +118,16 @@ export default function StrengthProgressionCard() {
       <CardContent className="p-5 space-y-1">
         <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1">Strength progression</h2>
         {rows.map((r) => (
-          <LiftRow key={r.name} name={r.name} summary={r.summary} series={r.series} />
+          <LiftRow key={r.lift.key} name={r.lift.name} summary={r.summary} series={r.series} onOpen={() => setOpenLift(r.lift)} />
         ))}
       </CardContent>
+      <ExerciseHistorySheet
+        lift={openLift}
+        strengthLogs={strengthLogs}
+        sessions={sessions}
+        recovery={trend?.recovery_label ?? "unknown"}
+        onOpenChange={(open) => { if (!open) setOpenLift(null); }}
+      />
     </Card>
   );
 }

@@ -1,6 +1,10 @@
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MEAL_SLOTS = Object.freeze(["breakfast", "lunch", "dinner", "snack"]);
 
+// Mirrors CALORIE_TARGET_MIN in src/lib/fitness/calculators.js: the app never
+// plans meals below this, even when a manual target is lower.
+export const MEAL_PLAN_CALORIE_FLOOR = 1500;
+
 export class MealPlanRequestError extends Error {
   constructor(message) {
     super(message);
@@ -360,8 +364,8 @@ export function normalizeMealPlanRequest(value) {
   return { weekStart: value.weekStart, mode };
 }
 
-function targetNumber(primary, fallback, minimum, maximum, label) {
-  const candidate = Number(primary ?? fallback);
+function targetNumber(value, minimum, maximum, label) {
+  const candidate = Number(value);
   if (!Number.isFinite(candidate) || candidate < minimum || candidate > maximum) {
     throw new MealPlanRequestError(`${label} is outside the supported range`);
   }
@@ -390,6 +394,9 @@ function isCompatible(mealDiet, dietStyle) {
 }
 
 function adherenceRatio(value) {
+  // Unlogged check-in fields are null; Number(null) is 0, which would read
+  // "not logged" as "0% adherence" and force the simplified week.
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) return null;
   return number > 1 && number <= 100 ? number / 100 : Math.min(number, 1);
@@ -406,18 +413,18 @@ function adaptationFor(checkIn) {
   // mix and portions toward the goal. Reuses the existing decision tree —
   // no new thresholds invented here.
   const decision = checkIn?.recommendation_decision;
+  // The decision only steers the food mix. Its calorie change is already in
+  // the current strategy (runCheckIn applies it), so scaling portions again
+  // here would apply the same adjustment twice.
   let foodPreference = null; // "lower_calorie" | "higher_calorie" | null
-  let portionAdjustment = 1;
   let goalAdaptationNote = "";
 
   if (decision === "reduce_calories") {
     foodPreference = "lower_calorie";
-    portionAdjustment = 0.95;
-    goalAdaptationNote = " Portions lean slightly smaller and toward higher-satiety picks to break a plateau.";
+    goalAdaptationNote = " Meals lean toward higher-satiety picks to help break a plateau.";
   } else if (decision === "increase_calories") {
     foodPreference = "higher_calorie";
-    portionAdjustment = 1.05;
-    goalAdaptationNote = " Portions nudge slightly larger to support your gain goal.";
+    goalAdaptationNote = " Meals lean toward denser picks to support your gain goal.";
   } else if (decision === "increase_steps") {
     goalAdaptationNote = " The plan keeps food steady while your step target steps up.";
   }
@@ -426,22 +433,19 @@ function adaptationFor(checkIn) {
     return {
       mode: "simplified_repetition",
       foodPreference,
-      portionAdjustment,
       summary: "Last week's adherence signal favors a simpler rotation with repeated ingredients and fewer decisions." + goalAdaptationNote
     };
   }
-  if (checkIn?.targets_for_next_week) {
+  if (checkIn) {
     return {
       mode: "balanced_variety",
       foodPreference,
-      portionAdjustment,
-      summary: "Portions use the targets from your latest weekly review while keeping a balanced meal rotation." + goalAdaptationNote
+      summary: "Portions use your current targets, and the rotation responds to your latest weekly review." + goalAdaptationNote
     };
   }
   return {
     mode: "balanced_variety",
     foodPreference,
-    portionAdjustment,
     summary: "This first plan uses your current targets and a balanced meal rotation; future weeks can respond to check-in trends." + goalAdaptationNote
   };
 }
@@ -459,28 +463,110 @@ function sortCandidatesByPreference(candidates, preference) {
   return candidates;
 }
 
+// A stable, non-cryptographic index for ids that are not in the catalog (AI
+// meals), so swapping different AI meals does not always land on one pick.
+function stableIndex(value) {
+  let hash = 0;
+  for (const char of String(value)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return hash;
+}
+
 /**
  * Deterministic swap: given a meal id + diet style, returns the next
- * compatible candidate (different id) from the expanded catalog. This is a
- * client-side rotation over the catalog — no backend call, no credits.
+ * compatible candidate (different id) from the expanded catalog for the same
+ * slot. A catalog id supplies its own slot; any other id (an AI-variety meal)
+ * is swapped by the `slot` it was planned for.
  *
  * @param {string} mealId - the id of the meal to swap out
  * @param {string} dietStyle - normalized diet style
  * @param {string[]} [avoidIds] - additional meal ids to skip
+ * @param {string} [slot] - the planned slot; required for a non-catalog id
  * @returns {object|null} the replacement catalog meal, or null if none available
  */
-export function swapMeal(mealId, dietStyle, avoidIds = []) {
+export function swapMeal(mealId, dietStyle, avoidIds = [], slot = undefined) {
   const avoid = new Set([mealId, ...avoidIds]);
-  const source = MEAL_CATALOG.find((m) => m.id === mealId);
-  if (!source) return null;
+  const sourceIndex = MEAL_CATALOG.findIndex((m) => m.id === mealId);
+  const source = sourceIndex >= 0 ? MEAL_CATALOG[sourceIndex] : null;
+  if (source && slot !== undefined && slot !== source.slot) return null;
+  const targetSlot = source ? source.slot : slot;
+  if (!MEAL_SLOTS.includes(targetSlot)) return null;
   const compatible = MEAL_CATALOG.filter(
-    (m) => m.slot === source.slot && m.id !== mealId && isCompatible(m.diet, dietStyle) && !avoid.has(m.id)
+    (m) => m.slot === targetSlot && m.id !== mealId && isCompatible(m.diet, dietStyle) && !avoid.has(m.id)
   );
   if (compatible.length === 0) return null;
   // Pick the next candidate deterministically by catalog order, offset by
   // the source's index so repeated swaps cycle through the catalog.
-  const sourceIndex = MEAL_CATALOG.findIndex((m) => m.id === mealId);
-  return compatible[sourceIndex % compatible.length];
+  const offset = source ? sourceIndex : stableIndex(mealId);
+  return compatible[offset % compatible.length];
+}
+
+const SWAP_MEAL_ID_PATTERN = /^[a-z0-9-]{1,80}$/;
+const MAX_SWAP_AVOID_IDS = 16;
+const MAX_PROTEIN_BOOST_SCOOPS = 4;
+const SWAP_CALORIE_RANGE = Object.freeze({ min: 50, max: 3000 });
+
+/**
+ * Strictly validates a swapAdaptiveMeal request body. The swap is keyed by
+ * slot and the calories the replaced meal carried, so any planned meal
+ * (catalog or AI variety) can be swapped without a catalog id.
+ */
+export function normalizeSwapRequest(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new MealPlanRequestError("A swap request body is required");
+  }
+  const { mealId, slot, targetCalories } = value;
+  if (typeof mealId !== "string" || !SWAP_MEAL_ID_PATTERN.test(mealId)) {
+    throw new MealPlanRequestError("mealId is required");
+  }
+  if (!MEAL_SLOTS.includes(slot)) {
+    throw new MealPlanRequestError("slot must be breakfast, lunch, dinner or snack");
+  }
+  if (
+    typeof targetCalories !== "number"
+    || !Number.isFinite(targetCalories)
+    || targetCalories < SWAP_CALORIE_RANGE.min
+    || targetCalories > SWAP_CALORIE_RANGE.max
+  ) {
+    throw new MealPlanRequestError("targetCalories is outside the supported range");
+  }
+  const scoops = value.proteinBoostScoops ?? 0;
+  if (!Number.isInteger(scoops) || scoops < 0 || scoops > MAX_PROTEIN_BOOST_SCOOPS) {
+    throw new MealPlanRequestError("proteinBoostScoops is outside the supported range");
+  }
+  const avoidIds = value.avoidIds ?? [];
+  if (
+    !Array.isArray(avoidIds)
+    || avoidIds.length > MAX_SWAP_AVOID_IDS
+    || avoidIds.some((id) => typeof id !== "string" || !SWAP_MEAL_ID_PATTERN.test(id))
+  ) {
+    throw new MealPlanRequestError("avoidIds must be a short list of meal ids");
+  }
+  if (value.dietStyle !== undefined && (typeof value.dietStyle !== "string" || value.dietStyle.length > 40)) {
+    throw new MealPlanRequestError("dietStyle is invalid");
+  }
+  return {
+    mealId,
+    slot,
+    dietStyle: normalizeDietStyle(value.dietStyle),
+    targetCalories: Math.round(targetCalories),
+    proteinBoostScoops: scoops,
+    avoidIds: [...avoidIds]
+  };
+}
+
+/**
+ * Builds the replacement meal for a normalized swap request, or null when the
+ * slot has no other compatible meal. A replaced "+ protein boost" snack keeps
+ * its boost, and the replacement is scaled to the calories it replaces so the
+ * day's total and protein hold.
+ */
+export function buildMealSwap(request) {
+  const replacement = swapMeal(request.mealId, request.dietStyle, request.avoidIds, request.slot);
+  if (!replacement) return null;
+  const source = request.proteinBoostScoops > 0
+    ? applyProteinBoost(replacement, request.proteinBoostScoops, request.dietStyle)
+    : replacement;
+  return scaleMeal(source, request.targetCalories / source.calories);
 }
 
 function roundQuantity(value) {
@@ -519,6 +605,42 @@ function sumMeals(meals) {
   }), { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
 }
 
+const PROTEIN_BOOST_TITLE_SUFFIX = " + protein boost";
+
+function proteinBoostFor(dietStyle) {
+  return dietStyle === "vegan"
+    ? { calories: 120, proteinG: 24, carbsG: 4, fatG: 2, name: "soy protein powder" }
+    : { calories: 110, proteinG: 23, carbsG: 3, fatG: 1, name: "whey protein powder" };
+}
+
+function applyProteinBoost(source, scoops, dietStyle) {
+  const boost = proteinBoostFor(dietStyle);
+  return {
+    ...source,
+    title: `${source.title}${PROTEIN_BOOST_TITLE_SUFFIX}`,
+    calories: source.calories + boost.calories * scoops,
+    proteinG: source.proteinG + boost.proteinG * scoops,
+    carbsG: source.carbsG + boost.carbsG * scoops,
+    fatG: source.fatG + boost.fatG * scoops,
+    ingredients: [...source.ingredients, ingredient(boost.name, scoops, "scoop")]
+  };
+}
+
+/**
+ * How many protein-boost scoops a planned (already scaled) meal carries, so a
+ * swap can keep them. The boost is the last ingredient of a meal whose title
+ * carries the boost suffix, and its quantity was scaled with the meal.
+ */
+export function proteinBoostScoopsOf(plannedMeal) {
+  if (typeof plannedMeal?.title !== "string" || !plannedMeal.title.endsWith(PROTEIN_BOOST_TITLE_SUFFIX)) return 0;
+  const ingredients = Array.isArray(plannedMeal.ingredients) ? plannedMeal.ingredients : [];
+  const last = ingredients[ingredients.length - 1];
+  if (!last || last.unit !== "scoop" || !/^(soy|whey) protein powder$/.test(last.name)) return 0;
+  const scale = Number(plannedMeal.servingScale);
+  const scoops = Math.round(Number(last.quantity) / (Number.isFinite(scale) && scale > 0 ? scale : 1));
+  return Number.isFinite(scoops) ? Math.max(0, Math.min(MAX_PROTEIN_BOOST_SCOOPS, scoops)) : 0;
+}
+
 function withProteinBoost(sources, targets, dietStyle) {
   const totals = sources.reduce((result, source) => ({
     calories: result.calories + source.calories,
@@ -527,31 +649,26 @@ function withProteinBoost(sources, targets, dietStyle) {
   const targetDensity = targets.proteinG / targets.calories;
   if (totals.proteinG / totals.calories >= targetDensity) return sources;
 
-  const vegan = dietStyle === "vegan";
-  const boost = vegan
-    ? { calories: 120, proteinG: 24, carbsG: 4, fatG: 2, name: "soy protein powder" }
-    : { calories: 110, proteinG: 23, carbsG: 3, fatG: 1, name: "whey protein powder" };
+  const boost = proteinBoostFor(dietStyle);
   const densityGain = boost.proteinG - targetDensity * boost.calories;
   const needed = densityGain > 0
     ? Math.ceil((targetDensity * totals.calories - totals.proteinG) / densityGain)
     : 0;
-  const scoops = Math.max(0, Math.min(4, needed));
+  const scoops = Math.max(0, Math.min(MAX_PROTEIN_BOOST_SCOOPS, needed));
   if (scoops === 0) return sources;
 
-  return sources.map((source) => source.slot !== "snack" ? source : {
-    ...source,
-    title: `${source.title} + protein boost`,
-    calories: source.calories + boost.calories * scoops,
-    proteinG: source.proteinG + boost.proteinG * scoops,
-    carbsG: source.carbsG + boost.carbsG * scoops,
-    fatG: source.fatG + boost.fatG * scoops,
-    ingredients: [...source.ingredients, ingredient(boost.name, scoops, "scoop")]
-  });
+  return sources.map((source) => source.slot !== "snack" ? source : applyProteinBoost(source, scoops, dietStyle));
 }
 
-function groceryListFor(days) {
+/** One combined, sorted grocery list for every ingredient in the given days. */
+export function groceryListFor(days) {
   const combined = new Map();
-  for (const ingredientItem of days.flatMap((day) => day.meals).flatMap((mealItem) => mealItem.ingredients)) {
+  // Tolerates a locally cached plan whose meals lack an ingredient list.
+  const ingredients = days
+    .flatMap((day) => day?.meals ?? [])
+    .flatMap((mealItem) => (Array.isArray(mealItem?.ingredients) ? mealItem.ingredients : []))
+    .filter((item) => typeof item?.name === "string" && typeof item?.unit === "string" && Number.isFinite(item?.quantity));
+  for (const ingredientItem of ingredients) {
     const key = `${ingredientItem.name.toLowerCase()}|${ingredientItem.unit.toLowerCase()}`;
     const existing = combined.get(key);
     if (existing) existing.quantity += ingredientItem.quantity;
@@ -610,6 +727,17 @@ export const AI_VARIETY_SCHEMA = Object.freeze({
   required: ["days"]
 });
 
+// The ingredient rules the merge step enforces, stated to the model up front
+// so a compliant week is not thrown away. They mirror isCompatible.
+const AI_DIET_RULES = Object.freeze({
+  vegan: "Use no meat, poultry, fish, seafood, dairy, eggs, honey or gelatin.",
+  vegetarian: "Use no meat, poultry, fish, seafood or gelatin.",
+  pescatarian: "Use no meat or poultry; fish and seafood are fine.",
+  mediterranean: "Use no meat or poultry; build meals around fish, legumes, vegetables, whole grains and olive oil.",
+  "lower-carb": "Keep carbohydrates low and at or under the carb target.",
+  omnivore: "Any foods are fine."
+});
+
 export function buildAiVarietyPrompt({ dailyTargets, dietStyle, checkIn, avoidIds }) {
   const avoidList = Array.isArray(avoidIds) && avoidIds.length > 0
     ? avoidIds.join(", ")
@@ -621,6 +749,8 @@ export function buildAiVarietyPrompt({ dailyTargets, dietStyle, checkIn, avoidId
     `You are a sports-nutrition meal planner. Generate 7 days of varied meals for a ${dietStyle} diet.`,
     `Daily targets: ${dailyTargets.calories} kcal, ${dailyTargets.proteinG}g protein, ${dailyTargets.carbsG}g carbs, ${dailyTargets.fatG}g fat.`,
     checkInSummary,
+    AI_DIET_RULES[dietStyle] ?? AI_DIET_RULES.omnivore,
+    `Each day's meals must sum to within 10% of ${dailyTargets.calories} kcal.`,
     `Each day must have exactly 4 meals: one breakfast, one lunch, one dinner, one snack.`,
     `Vary the meals across all 7 days — avoid repeating the same meal title twice.`,
     `Do NOT use these already-used meal concepts: ${avoidList}.`,
@@ -630,50 +760,168 @@ export function buildAiVarietyPrompt({ dailyTargets, dietStyle, checkIn, avoidId
   ].join(" ");
 }
 
-// Transforms the LLM output into the full plan shape, computing totals +
-// grocery list deterministically. Meals are kept as-returned by the LLM
-// (already scaled by the prompt); we only validate and aggregate.
-export function mergeAiMealsIntoPlan({ aiOutput, weekStart, dietStyle, dailyTargets, adaptation }) {
-  const rawDays = Array.isArray(aiOutput?.days) ? aiOutput.days.slice(0, 7) : [];
-  if (rawDays.length !== 7) {
-    throw new MealPlanRequestError("The AI variety response did not return 7 days");
-  }
+// Ingredient terms that place an AI meal outside a diet. Word boundaries keep
+// "eggplant" and "chickpeas" from matching. Meat and seafood terms are never
+// excused (a "vegan sausage" day just falls back); dairy and egg terms are
+// excused only by an explicit plant phrase ("soy milk", "almond butter",
+// "butter beans") or a "vegan" / "dairy-free" label on that ingredient.
+const MEAT_TERMS = /\b(chicken|turkey|beef|steak|pork|bacon|ham|lamb|veal|venison|bison|duck|sausages?|salami|pepperoni|prosciutto|chorizo|jerky|meatballs?|gelatin|lard)\b/;
+const SEAFOOD_TERMS = /\b(fish|salmon|tuna|cod|tilapia|halibut|trout|mackerel|sardines?|anchov(y|ies)|shrimp|prawns?|crab|lobster|scallops?|mussels?|clams?|oysters?|squid|calamari|octopus|seafood)\b/;
+const DAIRY_EGG_TERMS = /\b(milk|cheese|cheddar|parmesan|mozzarella|feta|ricotta|yogh?urt|butter|cream|creamer|ghee|whey|casein|kefir|eggs?|mayo|mayonnaise|honey)\b/;
+const PLANT_DAIRY_PHRASES = /\b(soy|almond|oat|coconut|cashew|rice|hemp|pea|peanut|nut|seed|sunflower|sesame|cocoa|shea)\s+(milk|butter|yogh?urt|cheese|cream|creamer)\b|\bbutter\s+(beans?|lettuce)\b/g;
+const PLANT_LABELS = /\b(vegan|plant[- ]based|dairy[- ]free|non[- ]dairy|egg[- ]free)\b/;
 
-  const days = rawDays.map((rawDay, dayIndex) => {
-    const rawMeals = Array.isArray(rawDay?.meals) ? rawDay.meals : [];
-    const meals = rawMeals.map((raw) => ({
+function hasAnimalDairyOrEgg(name) {
+  if (PLANT_LABELS.test(name)) return false;
+  return DAIRY_EGG_TERMS.test(name.replace(PLANT_DAIRY_PHRASES, " "));
+}
+
+// The catalog diet an AI meal's ingredients amount to, so it can be checked
+// with the same isCompatible rules the deterministic rotation uses.
+function ingredientDiet(names) {
+  const lowered = names.map((name) => name.toLowerCase());
+  if (lowered.some((name) => MEAT_TERMS.test(name))) return "omnivore";
+  if (lowered.some((name) => SEAFOOD_TERMS.test(name))) return "pescatarian";
+  if (lowered.some(hasAnimalDairyOrEgg)) return "vegetarian";
+  return "vegan";
+}
+
+function aiMealFitsDiet(names, dietStyle) {
+  // Lower-carb is enforced on the day's carbs below; its animal-food rules
+  // match an omnivore's, as in the catalog's lower-carb meals.
+  return isCompatible(ingredientDiet(names), dietStyle === "lower-carb" ? "omnivore" : dietStyle);
+}
+
+const AI_DAY_CALORIE_TOLERANCE = 0.15;
+const MAX_AI_INGREDIENTS = 12;
+const AI_MEAL_LIMITS = Object.freeze({ calories: 3000, proteinG: 300, carbsG: 500, fatG: 250 });
+const MIN_VALID_AI_DAYS = 4;
+
+// A finite, non-negative number no larger than `maximum`, or null. Numeric
+// strings are accepted; null, "", NaN, Infinity and negatives are not (the
+// old `Number(x) || 0` coercion silently turned them into a 0 kcal meal).
+function boundedNumber(value, maximum) {
+  const number = typeof value === "number"
+    ? value
+    : typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
+  return Number.isFinite(number) && number >= 0 && number <= maximum ? number : null;
+}
+
+// One validated AI meal plus the full ingredient names its diet is checked
+// against, or null when any field is missing, unknown or out of range.
+function aiMealFrom(raw, dayIndex) {
+  if (!raw || typeof raw !== "object" || !MEAL_SLOTS.includes(raw.slot)) return null;
+  const macros = {};
+  for (const [field, maximum] of Object.entries(AI_MEAL_LIMITS)) {
+    macros[field] = boundedNumber(raw[field], maximum);
+    if (macros[field] === null) return null;
+  }
+  if (!Array.isArray(raw.ingredients) || raw.ingredients.length === 0 || raw.ingredients.length > MAX_AI_INGREDIENTS) {
+    return null;
+  }
+  const names = [];
+  const ingredients = [];
+  for (const ing of raw.ingredients.slice(0, MAX_AI_INGREDIENTS)) {
+    const name = typeof ing?.name === "string" ? ing.name.trim() : "";
+    const quantity = boundedNumber(ing?.quantity, 10_000);
+    if (!name || quantity === null) return null;
+    names.push(name);
+    ingredients.push({
+      name: name.slice(0, 60),
+      quantity: roundQuantity(quantity),
+      unit: String(ing.unit || "serving").slice(0, 20)
+    });
+  }
+  return {
+    names,
+    meal: {
       id: `ai-${dayIndex}-${raw.slot}`,
       slot: raw.slot,
       title: String(raw.title || "AI meal").slice(0, 80),
       servingScale: 1,
-      calories: Math.round(Number(raw.calories) || 0),
-      proteinG: Math.round(Number(raw.proteinG) || 0),
-      carbsG: Math.round(Number(raw.carbsG) || 0),
-      fatG: Math.round(Number(raw.fatG) || 0),
-      ingredients: Array.isArray(raw.ingredients)
-        ? raw.ingredients.slice(0, 8).map((ing) => ({
-            name: String(ing.name || "ingredient").slice(0, 60),
-            quantity: Math.round((Number(ing.quantity) || 0) * 4) / 4,
-            unit: String(ing.unit || "serving").slice(0, 20)
-          }))
-        : []
-    }));
+      calories: Math.round(macros.calories),
+      proteinG: Math.round(macros.proteinG),
+      carbsG: Math.round(macros.carbsG),
+      fatG: Math.round(macros.fatG),
+      ingredients
+    }
+  };
+}
+
+// One AI day, or null when it cannot be trusted: exactly one meal per slot,
+// sane macros, a total within tolerance of the target (never under the
+// floor), and every ingredient allowed by the diet.
+function validAiDay(rawDay, dayIndex, dietStyle, dailyTargets) {
+  const rawMeals = Array.isArray(rawDay?.meals) ? rawDay.meals : [];
+  if (rawMeals.length !== MEAL_SLOTS.length) return null;
+  const parsed = rawMeals.map((raw) => aiMealFrom(raw, dayIndex));
+  if (parsed.some((item) => item === null)) return null;
+  if (new Set(parsed.map((item) => item.meal.slot)).size !== MEAL_SLOTS.length) return null;
+  if (!parsed.every((item) => aiMealFitsDiet(item.names, dietStyle))) return null;
+  // Present the day in the same slot order as the deterministic plan.
+  const meals = parsed
+    .map((item) => item.meal)
+    .sort((a, b) => MEAL_SLOTS.indexOf(a.slot) - MEAL_SLOTS.indexOf(b.slot));
+
+  const totals = sumMeals(meals);
+  const minimum = Math.max(MEAL_PLAN_CALORIE_FLOOR, dailyTargets.calories * (1 - AI_DAY_CALORIE_TOLERANCE));
+  const maximum = dailyTargets.calories * (1 + AI_DAY_CALORIE_TOLERANCE);
+  if (totals.calories < minimum || totals.calories > maximum) return null;
+  if (dietStyle === "lower-carb" && totals.carbsG > dailyTargets.carbsG * (1 + AI_DAY_CALORIE_TOLERANCE)) return null;
+  return { meals, totals };
+}
+
+// Transforms the LLM output into the full plan shape, computing totals +
+// grocery list deterministically. Every AI day is validated; a day that fails
+// is replaced by the deterministic plan's day, and when most days fail the
+// whole deterministic week is returned instead.
+export function mergeAiMealsIntoPlan({ aiOutput, weekStart, dietStyle, dailyTargets, adaptation, fallbackDays }) {
+  const rawDays = Array.isArray(aiOutput?.days) ? aiOutput.days.slice(0, 7) : [];
+  if (rawDays.length !== 7) {
+    throw new MealPlanRequestError("The AI variety response did not return 7 days");
+  }
+  if (!Array.isArray(fallbackDays) || fallbackDays.length !== 7) {
+    throw new MealPlanRequestError("A deterministic fallback week is required");
+  }
+
+  const validated = rawDays.map((rawDay, dayIndex) => validAiDay(rawDay, dayIndex, dietStyle, dailyTargets));
+  const validCount = validated.filter(Boolean).length;
+  const notices = {
+    allergyNotice: "Review every ingredient for allergies, intolerances, medication interactions, and dietary restrictions before using this plan.",
+    nutritionNotice: "Calories and macros are estimates for planning—not medical advice. Confirm portions and labels when logging."
+  };
+
+  if (validCount < MIN_VALID_AI_DAYS) {
     return {
-      date: addDays(weekStart, dayIndex),
-      meals,
-      totals: sumMeals(meals)
+      weekStart,
+      dietStyle,
+      dailyTargets,
+      adaptation: {
+        ...adaptation,
+        summary: `${adaptation.summary} AI variety did not meet your calorie targets or diet this time, so this is your standard rotation.`
+      },
+      days: fallbackDays,
+      groceryList: groceryListFor(fallbackDays),
+      ...notices
     };
-  });
+  }
+
+  const days = validated.map((day, dayIndex) => day
+    ? { date: addDays(weekStart, dayIndex), ...day }
+    : fallbackDays[dayIndex]);
+  const replaced = 7 - validCount;
+  const summary = replaced === 0
+    ? "This week was generated with AI variety to maximize meal diversity while staying on target."
+    : `This week was generated with AI variety to maximize meal diversity while staying on target. ${replaced} of 7 days use your standard rotation because the AI suggestions missed your targets or diet.`;
 
   return {
     weekStart,
     dietStyle,
     dailyTargets,
-    adaptation: { ...adaptation, mode: "ai_variety", summary: "This week was generated with AI variety to maximize meal diversity while staying on target." },
+    adaptation: { ...adaptation, mode: "ai_variety", summary },
     days,
     groceryList: groceryListFor(days),
-    allergyNotice: "Review every ingredient for allergies, intolerances, medication interactions, and dietary restrictions before using this plan.",
-    nutritionNotice: "Calories and macros are estimates for planning—not medical advice. Confirm portions and labels when logging."
+    ...notices
   };
 }
 
@@ -683,15 +931,28 @@ export function buildAdaptiveMealPlan({ weekStart, strategy, preferences, checkI
     throw new MealPlanRequestError("A current nutrition strategy is required");
   }
 
-  const nextTargets = checkIn?.targets_for_next_week ?? {};
+  // The live strategy is the only source of targets. A check-in's
+  // targets_for_next_week is a snapshot: in automatic mode runCheckIn already
+  // copied it into the strategy, and in manual mode it is advisory only, so
+  // reading it here would override the user's own targets and any edit made
+  // since that check-in.
+  const requestedCalories = Math.round(
+    targetNumber(strategy.calorie_target, 1000, 6000, "Calorie target")
+  );
   const dailyTargets = {
-    calories: Math.round(targetNumber(nextTargets.calorie_target, strategy.calorie_target, 1000, 6000, "Calorie target")),
-    proteinG: Math.round(targetNumber(nextTargets.protein_target_g, strategy.protein_target_g, 20, 500, "Protein target")),
-    carbsG: Math.round(targetNumber(nextTargets.carb_target_g, strategy.carb_target_g, 20, 1000, "Carbohydrate target")),
-    fatG: Math.round(targetNumber(nextTargets.fat_target_g, strategy.fat_target_g, 20, 300, "Fat target"))
+    calories: Math.max(MEAL_PLAN_CALORIE_FLOOR, requestedCalories),
+    proteinG: Math.round(targetNumber(strategy.protein_target_g, 20, 500, "Protein target")),
+    carbsG: Math.round(targetNumber(strategy.carb_target_g, 20, 1000, "Carbohydrate target")),
+    fatG: Math.round(targetNumber(strategy.fat_target_g, 20, 300, "Fat target"))
   };
   const dietStyle = normalizeDietStyle(preferences?.diet_style);
-  const adaptation = adaptationFor(checkIn);
+  const baseAdaptation = adaptationFor(checkIn);
+  const adaptation = requestedCalories < MEAL_PLAN_CALORIE_FLOOR
+    ? {
+      ...baseAdaptation,
+      summary: `${baseAdaptation.summary} Your calorie target is below ${MEAL_PLAN_CALORIE_FLOOR} kcal, so meals are planned at ${MEAL_PLAN_CALORIE_FLOOR}; talk to a clinician before eating less.`
+    }
+    : baseAdaptation;
   const candidates = Object.fromEntries(MEAL_SLOTS.map((slot) => [
     slot,
     sortCandidatesByPreference(
@@ -712,7 +973,7 @@ export function buildAdaptiveMealPlan({ weekStart, strategy, preferences, checkI
     });
     const sources = withProteinBoost(selectedSources, dailyTargets, dietStyle);
     const baseCalories = sources.reduce((total, source) => total + source.calories, 0);
-    const scale = (dailyTargets.calories / baseCalories) * (adaptation.portionAdjustment ?? 1);
+    const scale = dailyTargets.calories / baseCalories;
     const meals = sources.map((source) => scaleMeal(source, scale));
     return {
       date: addDays(weekStart, dayIndex),

@@ -1,0 +1,59 @@
+{
+  "name": "AnalysisUpload",
+  "type": "object",
+  "description": "Server-owned proof that an account uploaded a private analysis photo. Written only by uploadAnalysisPhoto with the service role; analyzeFoodPhoto and analyzeBodyComposition sign a photo reference only when a record owned by the caller exists. Holds no image data.",
+  "properties": {
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Authenticated account identifier set only by trusted backend workflows."
+    },
+    "file_uri": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Opaque private file reference returned by UploadPrivateFile."
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "food_photo",
+        "body_composition"
+      ]
+    }
+  },
+  "required": [
+    "owner_id",
+    "file_uri"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.owner_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

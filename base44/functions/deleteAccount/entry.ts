@@ -1,22 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { json, statusOf } from "../../shared/httpUtils.js";
-
-const OWNED_ENTITIES = [
-  "HabitEntry",
-  "Habit",
-  "DecisionLedger",
-  "WeeklyCheckIn",
-  "StrengthLog",
-  "ExerciseSession",
-  "TrainingBlock",
-  "DailyLog",
-  "MealTemplate",
-  "Recipe",
-  "FoodItem",
-  "CurrentStrategy",
-  "UserPreferences",
-  "UserProfile"
-];
+import { runAccountDeletionCascade } from "../../shared/accountDeletionDomain.js";
 
 export default async function(req) {
   if (req.method !== "POST") {
@@ -47,27 +31,35 @@ export default async function(req) {
     return json({ error: "Deletion confirmation is required" }, { status: 400 });
   }
 
+  // Delete custom data first. The core account remains available if a partial
+  // failure needs to be retried; every operation is idempotent. Every cascade
+  // filter is bound to the authenticated user (see accountDeletionDomain.js).
+  let cascade;
   try {
-    // Delete custom data first. The core account remains available if a partial
-    // failure needs to be retried; every operation is idempotent.
-    for (const entityName of OWNED_ENTITIES) {
-      await base44.asServiceRole.entities[entityName].deleteMany({ created_by_id: user.id });
-    }
-
-    await base44.asServiceRole.entities.AiContentReport.deleteMany({ owner_id: user.id });
-    await base44.asServiceRole.entities.CoachRequestUsage.deleteMany({ owner_id: user.id });
-    await base44.asServiceRole.entities.PremiumEntitlement.deleteMany({ owner_id: user.id });
-
-    if (user.email) {
-      await base44.asServiceRole.entities.WaitlistEntry.deleteMany({
-        email: String(user.email).trim().toLowerCase()
-      });
-    }
-
-    await base44.asServiceRole.entities.User.delete(user.id);
-    return json({ ok: true });
+    cascade = await runAccountDeletionCascade(base44.asServiceRole.entities, user);
   } catch (error) {
     console.error("deleteAccount cascade failed", { userId: user.id, error });
     return json({ error: "Account deletion could not be completed" }, { status: 500 });
   }
+
+  if (!cascade.ok) {
+    console.error("deleteAccount cascade incomplete", {
+      userId: user.id,
+      deleted: cascade.deleted,
+      failures: cascade.failures.map(({ step, error }) => ({ step, message: error?.message }))
+    });
+    return json(
+      { error: "Account deletion could not be completed. Please try again." },
+      { status: 500 }
+    );
+  }
+
+  try {
+    await base44.asServiceRole.entities.User.delete(user.id);
+  } catch (error) {
+    console.error("deleteAccount user removal failed", { userId: user.id, error });
+    return json({ error: "Account deletion could not be completed" }, { status: 500 });
+  }
+
+  return json({ ok: true, deleted: cascade.deleted });
 }

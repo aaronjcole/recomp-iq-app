@@ -1,8 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.48';
 import { secrets } from 'base44:runtime';
 import { deriveAppleAppAccountToken } from "../../shared/appleAppAccountToken.js";
-import { mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDomain.js";
+import { appleEnvironmentDecision, mapAppleProductId, isAppleStoreProduct } from "../../shared/premiumDomain.js";
 import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
+import {
+  appAccountTokenMatches,
+  appleEntitlementWrite,
+  appleTransactionVerification,
+  verifiedTransactionInfo
+} from "../../shared/applePurchaseDomain.js";
 
 // Required Base44 app Secrets (set before going live):
 //   APPLE_BUNDLE_ID      — iOS app bundle ID configured in App Store Connect
@@ -14,6 +20,12 @@ import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 //   APPLE_APP_ID         — numeric App Store Connect app ID (6803546092),
 //                           if used by the implementation
 //
+// Optional:
+//   APPLE_SANDBOX_ALLOWED_USER_IDS — comma-separated Base44 user ids that may
+//                           get Premium from a sandbox (free) purchase:
+//                           testers and the App Review demo account. Unset
+//                           accepts every sandbox purchase, as before.
+//
 // This endpoint handles BOTH initial purchase verification AND restore.
 // The native client calls it with { transactionId, productId } after any
 // StoreKit purchase or restore completes. The server verifies the
@@ -22,13 +34,6 @@ import { json, safeErrorDetails, statusOf } from "../../shared/httpUtils.js";
 
 function b64url(obj) {
   return btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-
-function decodeJwsPayload(jws) {
-  const parts = String(jws).split(".");
-  if (parts.length < 2) throw new Error("Invalid JWS");
-  const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(atob(b64));
 }
 
 // Signs an App Store Server API JWT (ES256) using the Apple .p8 key.
@@ -76,7 +81,7 @@ async function makeAppleServerJwt() {
   return `${signingInput}.${sigB64}`;
 }
 
-// Fetches transaction info from the App Store Server API and decodes the signed payload.
+// Fetches transaction info from the App Store Server API and verifies the signed payload.
 // Returns the verified transaction fields needed for entitlement ownership.
 // Docs: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
 async function verifyWithApple(transactionId, expectedProductId) {
@@ -87,6 +92,7 @@ async function verifyWithApple(transactionId, expectedProductId) {
     "https://api.storekit-sandbox.itunes.apple.com"
   ];
   let res = null;
+  let answeredBySandbox = false;
 
   // TestFlight and sandbox transactions are not visible at the production
   // endpoint. Apple recommends trying production first, then sandbox only when
@@ -99,50 +105,26 @@ async function verifyWithApple(transactionId, expectedProductId) {
     );
     if (candidate.status === 404) continue;
     res = candidate;
+    answeredBySandbox = host.includes("storekit-sandbox");
     break;
   }
 
-  if (!res) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
+  if (!res) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null, environment: null };
   if (!res.ok) throw new Error(`App Store Server API returned ${res.status}`);
 
   const body = await res.json();
-  const transactionInfo = body?.signedTransactionInfo
-    ? decodeJwsPayload(body.signedTransactionInfo)
-    : null;
-  if (!transactionInfo) return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
-
-  // Verify the product ID matches what the client claims.
-  if (transactionInfo.productId !== expectedProductId) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: null, appAccountToken: null };
-  }
-
-  // Verify the bundle ID matches the configured app to prevent cross-app replay.
-  const expectedBundleId = secrets.get("APPLE_BUNDLE_ID");
-  if (
-    typeof expectedBundleId !== "string" ||
-    expectedBundleId.length === 0 ||
-    transactionInfo.bundleId !== expectedBundleId
-  ) {
-    return { isValid: false, expiresAt: null, originalTransactionId: null, bundleId: transactionInfo.bundleId, appAccountToken: null };
-  }
-
-  // Revocation indicates a refund or voided purchase.
-  const revoked = Boolean(transactionInfo.revocationDate || transactionInfo.revocationReason);
-  const expiresMs = transactionInfo.expiresDate ? Number(transactionInfo.expiresDate) : null;
-  const expired = expiresMs !== null && Number.isFinite(expiresMs) && expiresMs <= Date.now();
-
-  const isValid = !revoked && !expired;
-  const expiresAt = expiresMs !== null && Number.isFinite(expiresMs)
-    ? new Date(expiresMs).toISOString()
-    : null;
-
-  return {
-    isValid,
-    expiresAt,
-    originalTransactionId: transactionInfo.originalTransactionId ?? transactionId,
-    bundleId: transactionInfo.bundleId ?? null,
-    appAccountToken: transactionInfo.appAccountToken ?? null
-  };
+  // Apple signs the transaction; verify the signature and certificate chain
+  // before trusting any field in it. A failure throws, so the caller answers
+  // 502 and never grants Premium.
+  const transactionInfo = await verifiedTransactionInfo(body?.signedTransactionInfo);
+  // Product, bundle ID, revocation and expiry checks fail closed in the
+  // shared domain.
+  return appleTransactionVerification(transactionInfo, {
+    transactionId,
+    expectedProductId,
+    expectedBundleId: secrets.get("APPLE_BUNDLE_ID"),
+    answeredBySandbox
+  });
 }
 
 export default async function(req) {
@@ -207,11 +189,24 @@ export default async function(req) {
   // the ownership authority: a transaction for one account cannot be replayed
   // onto another account, including during concurrent requests.
   const expectedAccountToken = await deriveAppleAppAccountToken(user.id);
-  if (
-    typeof verification.appAccountToken !== "string" ||
-    verification.appAccountToken.toLowerCase() !== expectedAccountToken
-  ) {
+  if (!appAccountTokenMatches(verification.appAccountToken, expectedAccountToken)) {
     return json({ error: "Purchase is already linked to another account" }, { status: 409 });
+  }
+
+  // A sandbox purchase costs nothing (TestFlight, sandbox Apple IDs), so it
+  // only grants Premium to the accounts allowed to test with one.
+  const environmentDecision = appleEnvironmentDecision({
+    environment: verification.environment,
+    userId: user.id,
+    allowlistRaw: secrets.get("APPLE_SANDBOX_ALLOWED_USER_IDS")
+  });
+  if (environmentDecision.unconfigured) {
+    console.warn("verifyApplePurchase accepted a sandbox purchase; APPLE_SANDBOX_ALLOWED_USER_IDS is not set", {
+      userId: user.id
+    });
+  }
+  if (!environmentDecision.allowed) {
+    return json({ error: "Sandbox purchases are not accepted for this account" }, { status: 403 });
   }
 
   try {
@@ -223,21 +218,15 @@ export default async function(req) {
       1
     );
 
-    if (existing?.length) {
-      await base44.asServiceRole.entities.PremiumEntitlement.update(existing[0].id, {
-        status: "active",
-        expires_at: verification.expiresAt ?? undefined,
-        external_transaction_id: verification.originalTransactionId ?? undefined
-      });
+    const write = appleEntitlementWrite(existing, {
+      ownerId: user.id,
+      entitlementProductId,
+      verification
+    });
+    if (write.op === "update") {
+      await base44.asServiceRole.entities.PremiumEntitlement.update(write.id, write.data);
     } else {
-      await base44.asServiceRole.entities.PremiumEntitlement.create({
-        owner_id: user.id,
-        product_id: entitlementProductId,
-        source: "apple_store",
-        status: "active",
-        ...(verification.expiresAt ? { expires_at: verification.expiresAt } : {}),
-        ...(verification.originalTransactionId ? { external_transaction_id: verification.originalTransactionId } : {})
-      });
+      await base44.asServiceRole.entities.PremiumEntitlement.create(write.data);
     }
 
     return json({ ok: true, entitlementProductId });

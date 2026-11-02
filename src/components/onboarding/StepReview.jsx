@@ -37,7 +37,7 @@ function ReviewSection({ step, title, rows, onEdit }) {
   );
 }
 
-export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
+export default function StepReview({ p, pref, units, onEdit, profilePreview, showBaseline = true, manualTargets = false }) {
   const metric = units === "metric";
   const { ft, inch } = splitFeetInches(p.height_in);
   const w = (lbs) =>
@@ -70,14 +70,14 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
           { label: "Height", value: heightStr },
           { label: "Current weight", value: w(p.current_weight_lbs) },
           { label: "Goal weight", value: p.goal_weight_lbs ? w(p.goal_weight_lbs) : "Optional" },
-          {
+          ...(showBaseline ? [{
             label: "Baseline waist",
             value: p.waist_in
               ? metric
                 ? `${+(inToCm(Number(p.waist_in))).toFixed(1)} cm`
                 : `${p.waist_in} in`
               : "Skipped"
-          }
+          }] : [])
         ]}
       />
       <ReviewSection
@@ -122,14 +122,14 @@ export default function StepReview({ p, pref, units, onEdit, profilePreview }) {
         <Card className="bg-panel3 border-line">
           <CardContent className="p-4 space-y-1.5">
             <div className="flex items-center gap-2 text-teal font-medium text-sm">
-              <Sparkles className="w-4 h-4" /> Starting targets
+              <Sparkles className="w-4 h-4" /> {manualTargets ? "Your custom targets" : "Starting targets"}
             </div>
             <div className="text-sm">
               {profilePreview.calorie_target} kcal · {profilePreview.protein_target_g}g protein ·{" "}
               {profilePreview.step_target} steps
             </div>
             <div className="text-xs text-muted-foreground">
-              TDEE estimate {profilePreview.tdee_estimate}. Adjusts weekly from your trends.
+              {manualTargets ? "Your custom numbers will be kept. Adaptive changes remain advisory." : `TDEE estimate ${profilePreview.tdee_estimate}. Adjusts weekly from your trends.`}
             </div>
           </CardContent>
         </Card>

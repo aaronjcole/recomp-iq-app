@@ -2,7 +2,9 @@
 import { useState, useEffect } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 300;
+const TOAST_DURATION = 6000;
+const ACTION_TOAST_DURATION = 30000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -19,6 +21,50 @@ function genId() {
 }
 
 const toastTimeouts = new Map();
+const autoDismissTimeouts = new Map();
+const toastFocusReturnTargets = new Map();
+
+function captureFocusReturnTarget(element) {
+  if (!element || element === document.body) return null;
+  return {
+    element,
+    id: element.id || null,
+    ariaLabel: element.getAttribute?.("aria-label") || null,
+    testId: element.getAttribute?.("data-testid") || null,
+    name: element.getAttribute?.("name") || null,
+  };
+}
+
+function isAvailableFocusTarget(element) {
+  if (!element?.isConnected || element.disabled || element.closest("[inert], [aria-hidden='true']")) return false;
+  if (!element.matches("a[href], button, input, select, textarea, [tabindex]")) return false;
+  if (element.getClientRects().length === 0) return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+function resolveFocusReturnTarget(target) {
+  if (isAvailableFocusTarget(target?.element)) return target.element;
+  if (!target || typeof document === "undefined") return null;
+  if (target.id) {
+    const element = document.getElementById(target.id);
+    if (isAvailableFocusTarget(element)) return element;
+  }
+
+  const selectors = [
+    ["[data-testid]", "data-testid", target.testId],
+    ["[aria-label]", "aria-label", target.ariaLabel],
+    ["[name]", "name", target.name],
+  ];
+  for (const [selector, attribute, value] of selectors) {
+    if (!value) continue;
+    const matches = Array.from(document.querySelectorAll(selector)).filter(
+      (element) => element.getAttribute(attribute) === value && isAvailableFocusTarget(element)
+    );
+    if (matches.length === 1) return matches[0];
+  }
+  return null;
+}
 
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
@@ -110,8 +156,73 @@ function dispatch(action) {
   });
 }
 
-function toast({ ...props }) {
+function dismissToast(toastId) {
+  if (typeof document !== "undefined") {
+    const candidates = toastId
+      ? memoryState.toasts.filter((item) => item.id === toastId)
+      : memoryState.toasts;
+    for (const item of candidates) {
+      const toastElement = document.querySelector(`[data-toast-id="${item.id}"]`);
+      const returnFocusTarget = toastFocusReturnTargets.get(item.id);
+      if (toastElement?.contains(document.activeElement) && resolveFocusReturnTarget(returnFocusTarget)) {
+        setTimeout(() => {
+          resolveFocusReturnTarget(returnFocusTarget)?.focus({ preventScroll: true });
+        }, 0);
+        break;
+      }
+    }
+  }
+
+  if (toastId) toastFocusReturnTargets.delete(toastId);
+  else toastFocusReturnTargets.clear();
+
+  if (toastId) {
+    const timer = autoDismissTimeouts.get(toastId);
+    if (timer?.timeout) clearTimeout(timer.timeout);
+    autoDismissTimeouts.delete(toastId);
+  } else {
+    autoDismissTimeouts.forEach((timer) => {
+      if (timer.timeout) clearTimeout(timer.timeout);
+    });
+    autoDismissTimeouts.clear();
+  }
+  dispatch({ type: actionTypes.DISMISS_TOAST, toastId });
+}
+
+function startAutoDismiss(toastId, timer) {
+  if (timer.pauseReasons.size || timer.timeout) return;
+  timer.startedAt = Date.now();
+  timer.timeout = setTimeout(() => {
+    timer.timeout = null;
+    timer.remaining = 0;
+    dismissToast(toastId);
+  }, timer.remaining);
+}
+
+function pauseAutoDismiss(toastId, reason) {
+  const timer = autoDismissTimeouts.get(toastId);
+  if (!timer || timer.pauseReasons.has(reason)) return;
+  timer.pauseReasons.add(reason);
+  if (timer.timeout) {
+    clearTimeout(timer.timeout);
+    timer.timeout = null;
+    timer.remaining = Math.max(0, timer.remaining - (Date.now() - timer.startedAt));
+  }
+}
+
+function resumeAutoDismiss(toastId, reason) {
+  const timer = autoDismissTimeouts.get(toastId);
+  if (!timer) return;
+  timer.pauseReasons.delete(reason);
+  startAutoDismiss(toastId, timer);
+}
+
+/** @param {{ duration?: number, returnFocusElement?: HTMLElement | null, [key: string]: any }} options */
+function toast({ duration, returnFocusElement, ...props }) {
   const id = genId();
+  if (typeof document !== "undefined") {
+    toastFocusReturnTargets.set(id, captureFocusReturnTarget(returnFocusElement ?? document.activeElement));
+  }
 
   const update = (props) =>
     dispatch({
@@ -119,8 +230,7 @@ function toast({ ...props }) {
       toast: { ...props, id },
     });
 
-  const dismiss = () =>
-    dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
+  const dismiss = () => dismissToast(id);
 
   dispatch({
     type: actionTypes.ADD_TOAST,
@@ -133,6 +243,13 @@ function toast({ ...props }) {
       },
     },
   });
+
+  const autoDuration = Number.isFinite(duration)
+    ? Math.max(0, duration)
+    : props.action ? ACTION_TOAST_DURATION : TOAST_DURATION;
+  const timer = { remaining: autoDuration, startedAt: 0, timeout: null, pauseReasons: new Set() };
+  autoDismissTimeouts.set(id, timer);
+  startAutoDismiss(id, timer);
 
   return {
     id,
@@ -157,8 +274,10 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
+    dismiss: dismissToast,
+    pauseAutoDismiss,
+    resumeAutoDismiss,
   };
 }
 
-export { useToast, toast }; 
+export { useToast, toast };

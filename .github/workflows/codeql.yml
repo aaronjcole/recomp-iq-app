@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+      # The Base44 Builder pushes here (see base44-builder-pr.yml). Its pull
+      # request is opened with GITHUB_TOKEN, which does not start a workflow
+      # run, so without this push trigger Builder code would merge unscanned.
+      - base44-builder
   pull_request:
     branches:
       - main

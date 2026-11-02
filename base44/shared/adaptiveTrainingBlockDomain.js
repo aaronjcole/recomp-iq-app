@@ -106,8 +106,17 @@ export function normalizeTrainingPlanRequest(value) {
   return { weekStart: value.weekStart, equipment: value.equipment, blockLengthWeeks };
 }
 
-function ratio(value) {
+// Check-in fields are null when nothing was logged. Number(null) is 0, which
+// would read "not logged" as "zero adherence" or "zero energy".
+function loggedNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function ratio(value) {
+  const number = loggedNumber(value);
+  if (number === null) return null;
   if (!Number.isFinite(number) || number < 0) return null;
   return number > 1 && number <= 100 ? number / 100 : Math.min(1, number);
 }
@@ -171,6 +180,8 @@ function trackedMovements(strengthLogs, weekStart) {
   return counts;
 }
 
+const LOW_SLEEP_HOURS = 6;
+
 function adaptationFor({ sessions, weekStart, targetDays, experience, checkIn }) {
   const recent = recentRecords(sessions, weekStart).filter((session) => (
     session.type === "strength" || session.type === "mixed"
@@ -180,10 +191,12 @@ function adaptationFor({ sessions, weekStart, targetDays, experience, checkIn })
   const consistency = Math.min(1, uniqueDates / expectedSessions);
   const averageRpe = average(recent.map((session) => session.perceived_exertion));
   const checkInAdherence = ratio(checkIn?.workout_adherence);
-  const lowRecovery = [checkIn?.energy_average, checkIn?.sleep_average]
-    .map(Number)
-    .filter(Number.isFinite)
-    .some((value) => value <= 2.5);
+  // energy_average is a 1-5 rating; sleep_average is hours, and under 6 h is
+  // the same "poor" line analyzeTrends uses (src/lib/fitness/trends.js).
+  const energy = loggedNumber(checkIn?.energy_average);
+  const sleepHours = loggedNumber(checkIn?.sleep_average);
+  const lowRecovery = (energy !== null && energy <= 2.5)
+    || (sleepHours !== null && sleepHours < LOW_SLEEP_HOURS);
   const recoveryBiased = (averageRpe !== null && averageRpe >= 8.5)
     || (checkInAdherence !== null && checkInAdherence < 0.6)
     || lowRecovery

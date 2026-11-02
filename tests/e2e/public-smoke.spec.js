@@ -110,7 +110,18 @@ test("public pages lead visitors toward the Android beta and iOS availability", 
   } else {
     await expect(download.getByText("Android beta is in progress.")).toBeVisible();
   }
-  await expect(download.getByText("Available on the App Store.")).toBeVisible();
+  // The availability line follows the configured store link, so the page never
+  // claims an App Store listing that does not exist.
+  const appStoreLink = download.getByRole("link", { name: "View on the App Store", exact: true });
+  if (await appStoreLink.count()) {
+    await expect(appStoreLink).toHaveAttribute("href", /^https:\/\/apps\.apple\.com\//);
+    await expect(download.getByText("Available on the App Store.")).toBeVisible();
+  } else {
+    await expect(download.getByText("Coming soon to iPhone.")).toBeVisible();
+    await expect(download.getByText("Available on the App Store.")).toHaveCount(0);
+    // The hero availability line above the fold must agree with the card.
+    await expect(page.getByText(/^Available on the web · .* · iPhone coming soon$/)).toBeVisible();
+  }
   await expect(page.getByRole("link", { name: "Open RecompOne", exact: true })).toHaveAttribute("href", "/login");
 
   await page.goto("/tools/tdee-calculator");
@@ -274,4 +285,22 @@ test("unauthenticated protected deep links return to login", async ({ page }) =>
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { level: 1, name: "Welcome back" })).toBeVisible();
   assertNoPageErrors();
+});
+test("empty toast containers never intercept taps at phone width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+  // The always-mounted Toaster renders two fixed, full-width, z-[100] strips at
+  // the top of phone screens. Empty, they must let taps reach the controls
+  // underneath (a child page's Back button sits in that strip).
+  const containers = page.locator("div.fixed.z-\\[100\\]");
+  await expect(containers).toHaveCount(2);
+  for (const container of await containers.all()) {
+    await expect(container).toHaveCSS("pointer-events", "none");
+  }
+  const hits = await page.evaluate(() =>
+    [4, 16, 31].map((y) => Boolean(document.elementFromPoint(100, y)?.closest("div.fixed.z-\\[100\\]")))
+  );
+  expect(hits).toEqual([false, false, false]);
 });

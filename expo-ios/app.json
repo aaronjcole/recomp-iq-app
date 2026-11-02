@@ -20,6 +20,12 @@
         "NSPhotoLibraryUsageDescription": "RecompOne accesses only the progress or food photos you choose to add."
       }
     },
+    "plugins": [
+      ["expo-speech-recognition", {
+        "microphonePermission": "RecompOne uses your microphone only when you choose to describe a meal by voice.",
+        "speechRecognitionPermission": "RecompOne converts your spoken meal description into text for you to review. Apple may process speech online."
+      }]
+    ],
     "extra": {
       "eas": {
         "projectId": "df0b21a1-85f8-415f-9c8c-b465f7fbc1f0"

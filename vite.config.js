@@ -2,6 +2,13 @@ import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// Framework packages only change on framework upgrades, so keeping them in one
+// stable chunk lets returning users reuse it across app-only releases.
+const FRAMEWORK_PACKAGES = ['react', 'react-dom', 'react-router', 'react-router-dom', 'scheduler']
+
+const isFrameworkModule = (id) =>
+  FRAMEWORK_PACKAGES.some((pkg) => id.replace(/\\/g, '/').includes(`/node_modules/${pkg}/`))
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -23,8 +30,10 @@ export default defineConfig({
       output: {
         // Keep framework code stable across app-only releases so returning
         // users can reuse the browser cache instead of downloading it again.
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        // Vite 8 (Rolldown) removed the object form of manualChunks, so the
+        // split is expressed as a function over module ids.
+        manualChunks(id) {
+          return isFrameworkModule(id) ? 'react-vendor' : null
         },
       },
     },

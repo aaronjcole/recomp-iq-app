@@ -21,6 +21,12 @@
     "/support",
     "/delete-account"
   ],
+  "requiredPublicPageTitles": {
+    "/privacy": "Privacy Policy",
+    "/terms": "Terms of Service",
+    "/support": "RecompOne Support",
+    "/delete-account": "Delete your RecompOne account"
+  },
   "requiredAndroidPermissions": [
     "android.permission.INTERNET"
   ],
