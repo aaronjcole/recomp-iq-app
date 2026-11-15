@@ -30,9 +30,11 @@ blocks Expo, App Store Connect and the live app.
 
 - [ ] **Is any version of app `6803546092` already on the App Store** (for example from Base44's
       own wrapper)? If yes, `version` in `expo-ios/app.json` (currently `1.0.0`) must go above it.
-- [ ] **iPad: keep or drop?** `supportsTablet` is `true`, so App Store Connect requires 13" iPad
-      screenshots and App Review can test on an iPad. Set it to `false` unless the iPad layout
-      has been checked.
+      Also, if that version ran natively on iPad, App Store Connect rejects an update that drops
+      iPad, so `supportsTablet` would have to go back to `true`.
+- [x] **iPad: dropped.** `supportsTablet` is `false`, so the app is iPhone-only and no iPad
+      screenshots are needed. iPads can still run it in iPhone compatibility mode, and App Review
+      may test it that way.
 - [ ] **Photo scans:** keep `ENABLE_FOOD_PHOTO_SCAN` and `ENABLE_BODY_COMPOSITION_SCAN` off for
       launch unless their privacy review is done. Whatever is on has to be declared in App Privacy.
 
@@ -52,7 +54,7 @@ blocks Expo, App Store Connect and the live app.
       None of it is used for tracking.
 - [ ] **Age rating:** answer for the free-form AI Coach and the nutrition and training guidance.
 - [ ] **Version page:**
-  - Screenshots: 6.9" iPhone, plus 13" iPad if `supportsTablet` stays `true`.
+  - Screenshots: 6.9" iPhone only (the app is iPhone-only).
   - Description and keywords.
   - Support URL `https://recomp-iq.base44.app/support` and privacy URL `https://recomp-iq.base44.app/privacy`.
   - A Terms of Use link (`/terms`) in the description, or the custom EULA field. Guideline 3.1.2
@@ -102,7 +104,8 @@ blocks Expo, App Store Connect and the live app.
 - [ ] Launching offline shows the "Try again" screen.
 - [ ] More → Account deletion removes a throwaway account.
 - [ ] Take the review screenshot of the paywall showing both prices and Restore Purchases.
-- [ ] Repeat the main flows on an iPad if `supportsTablet` stays `true`.
+- [ ] If you have an iPad, open the app there once. It runs in iPhone compatibility mode, which
+      App Review may use, so sign-in and the paywall should still work.
 
 ## 6. Submit (you click it, or Claude runs it through EAS with your OK)
 
