@@ -13,7 +13,7 @@
     "ios": {
       "bundleIdentifier": "com.base6a68bb922bf88da5ec767da3.app",
       "buildNumber": "1",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "RecompOne uses the camera to scan food barcodes and optionally capture progress photos you choose to take.",
