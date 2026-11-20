@@ -70,6 +70,10 @@ export function planAppleNotificationUpdates(notificationType, transactionInfo, 
 
     if (REVOKE_TYPES.has(notificationType)) {
       if (record.status === "revoked") continue;
+      // A refund applies to its signed transaction, not every later paid
+      // period sharing the originalTransactionId. Match the expiration guard.
+      if (Number.isFinite(recordExpiresMs) && Number.isFinite(txnExpiresMs)
+        && txnExpiresMs > 0 && recordExpiresMs > txnExpiresMs) continue;
       updates.push({ id: record.id, data: { status: "revoked" } });
     } else if (EXPIRE_TYPES.has(notificationType)) {
       // Never downgrade a revoked record, and ignore a stale EXPIRED for a
@@ -82,9 +86,9 @@ export function planAppleNotificationUpdates(notificationType, transactionInfo, 
       ) continue;
       updates.push({ id: record.id, data: { status: "expired" } });
     } else if (notificationType === "DID_RENEW" && Number.isFinite(txnExpiresMs) && txnExpiresMs > 0) {
-      // A refunded/revoked entitlement is never re-activated by a renewal
-      // notification, and a revoked transaction never renews.
-      if (record.status === "revoked" || txnRevoked) continue;
+      // A revoked transaction cannot renew. A genuinely newer paid period
+      // may restore access, but an undated revoked row cannot prove ordering.
+      if (txnRevoked || (record.status === "revoked" && !Number.isFinite(recordExpiresMs))) continue;
       // Only move expiry forward; an older (replayed or reordered) renewal
       // must not shorten access or flip an expired record back on.
       if (Number.isFinite(recordExpiresMs) && txnExpiresMs <= recordExpiresMs) continue;

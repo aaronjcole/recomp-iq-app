@@ -20,6 +20,7 @@ import { usePremiumAccess } from "@/lib/PremiumAccessContext";
 import { getNativeIapBridge, hasNativeIapBridge } from "@/lib/nativeIapBridge";
 import { isNativeStoreShell } from "@/lib/nativeStoreShell";
 import { APP_STORE_URL } from "@/lib/storeLinks";
+import { featureFlags } from "@/lib/featureFlags";
 import { useToast } from "@/components/ui/use-toast";
 import {
   APPLE_PRODUCT_ANNUAL,
@@ -36,7 +37,7 @@ const PAYWALL_FEATURES = [
   { icon: Dumbbell, title: "4–6-week adaptive training blocks" },
   { icon: Sparkles, title: "Weekly Autopilot review" },
   { icon: TrendingUp, title: "Advanced cross-signal insights" },
-  { icon: Bot, title: "Lifestyle Coach" },
+  ...(featureFlags.lifestyleCoach ? [{ icon: Bot, title: "Lifestyle Coach" }] : []),
   { icon: ScanLine, title: "Visual Progress tools" }
 ];
 

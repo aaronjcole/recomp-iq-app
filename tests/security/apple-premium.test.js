@@ -351,7 +351,7 @@ test("expiration expires only active records and ignores a stale period", () => 
   );
 });
 
-test("a renewal only moves expiry forward and never re-activates a revoked entitlement", () => {
+test("a renewal only moves expiry forward, including a genuinely newer paid period after a refund", () => {
   const renewedTo = T0 + 60 * DAY_MS;
   const txn = notifiedTransaction({ expiresDate: renewedTo });
   assert.deepEqual(
@@ -361,12 +361,15 @@ test("a renewal only moves expiry forward and never re-activates a revoked entit
       entitlementRow("no-expiry", "active"),
       entitlementRow("same", "active", renewedTo),
       entitlementRow("newer", "active", T0 + 90 * DAY_MS),
-      entitlementRow("refunded", "revoked", T0)
+      entitlementRow("refunded", "revoked", T0),
+      entitlementRow("same-refunded-period", "revoked", renewedTo),
+      entitlementRow("undated-revocation", "revoked")
     ]),
     [
       { id: "older", data: { status: "active", expires_at: iso(renewedTo) } },
       { id: "lapsed", data: { status: "active", expires_at: iso(renewedTo) } },
-      { id: "no-expiry", data: { status: "active", expires_at: iso(renewedTo) } }
+      { id: "no-expiry", data: { status: "active", expires_at: iso(renewedTo) } },
+      { id: "refunded", data: { status: "active", expires_at: iso(renewedTo) } }
     ]
   );
   // A revoked transaction never renews, and a renewal without a real expiry is ignored.
@@ -376,6 +379,33 @@ test("a renewal only moves expiry forward and never re-activates a revoked entit
   for (const expiresDate of [undefined, 0, -5, "soon"]) {
     assert.deepEqual(planAppleNotificationUpdates("DID_RENEW", notifiedTransaction({ expiresDate }), rows), [], String(expiresDate));
   }
+});
+
+test("an old-period refund or revocation cannot remove a later paid entitlement", () => {
+  const later = entitlementRow("renewed", "active", T0 + 60 * DAY_MS);
+  const refunded = notifiedTransaction({ expiresDate: T0 + 30 * DAY_MS, revocationDate: T0 + 40 * DAY_MS });
+  for (const kind of ["REFUND", "REVOKE"]) {
+    assert.deepEqual(planAppleNotificationUpdates(kind, refunded, [later]), [], kind);
+    assert.deepEqual(planAppleNotificationUpdates(kind, refunded, [
+      entitlementRow("refunded-period", "active", T0 + 30 * DAY_MS)
+    ]), [{ id: "refunded-period", data: { status: "revoked" } }], kind);
+  }
+});
+
+test("duplicate old refunds cannot undo a newer confirmed renewal", () => {
+  let record = entitlementRow("paid", "active", T0 + 30 * DAY_MS);
+  const refund = notifiedTransaction({ revocationDate: T0 + 1 });
+  const apply = (kind, txn) => {
+    for (const update of planAppleNotificationUpdates(kind, txn, [record])) record = { ...record, ...update.data };
+  };
+  apply("REFUND", refund);
+  assert.equal(record.status, "revoked");
+  apply("DID_RENEW", notifiedTransaction({ expiresDate: T0 + 60 * DAY_MS }));
+  assert.equal(record.status, "active");
+  apply("REFUND", refund);
+  apply("REFUND", refund);
+  assert.equal(record.status, "active");
+  assert.equal(record.expires_at, iso(T0 + 60 * DAY_MS));
 });
 
 test("turning auto-renew off and other notification types change nothing", () => {

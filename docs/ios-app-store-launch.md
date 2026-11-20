@@ -10,6 +10,33 @@ Work top to bottom. The background is in [apple-premium-launch.md](apple-premium
 Fixed identifiers: bundle ID `com.base6a68bb922bf88da5ec767da3.app`, App Store Connect app
 `6803546092`, EAS project `@promptlabllc/recompone-app`.
 
+## November 20, 2026 readiness review
+
+Reviewed current `main` at `a017ead`, not the October checkout. Fixed the generated MFA
+components' missing UI imports and JavaScript typing errors using the existing adaptive select;
+this does not enable or change the deployed MFA policy. Removed the disabled Lifestyle Coach
+from the current Premium purchase promises. Apple refund/revocation handling now ignores an
+older subscription period when a newer paid period is recorded, and a genuinely newer signed
+renewal can restore access without replaying the refunded period.
+
+Verification: 869 unit/security/contract tests, 222 browser scenarios, and 8 targeted MFA/paywall
+checks pass. Root lint, root and native TypeScript, the configured production build, 19 native
+tests, and all 21 offline Expo Doctor checks pass. Root dependency audit has zero advisories;
+the native tooling dependency tree still has three advisory entries (@expo/cli/zod and
+node-forge), which are not native runtime purchase code. Do not force an incompatible Zod
+major upgrade into Expo to suppress its audit report.
+
+The owner accepted the updated Apple Developer Program agreement in the browser; its account
+warning disappeared. App Store version 1.0 is still Prepare for Submission, with no attached
+build, empty support/reviewer fields, and automatic release selected at inspection. Five existing
+screenshots and both subscription product IDs are present. Privacy/compliance, reviewer access,
+subscription review details, native device acceptance, and final submission remain release gates.
+
+EAS reports build 6 as the latest completed archive, built October 20 from `7e6e81c`; it predates
+the iPhone-only setting on current main. November allowance was 0 of 15 included iOS builds used
+and no overages. A new archive must use remote auto-increment, existing credentials, and the
+existing app/project identifiers. No public submission or release is implied by a build/upload.
+
 ## 0. Unblock the cloud session (you, about 10 minutes)
 
 A cloud session can't sign in to Apple or Expo through a browser. Its network policy also

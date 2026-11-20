@@ -29,6 +29,8 @@ test("in the iOS app the paywall carries the App Store subscription terms and li
   await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
   const assertNoPageErrors = watchPageErrors(page);
   await page.goto("/more/premium");
+  await expect(page.getByText("Lifestyle Coach", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Lifestyle coach", exact: true })).toHaveCount(0);
 
   const terms = page.getByLabel("Subscription terms");
   await expect(terms).toContainText("renews automatically");

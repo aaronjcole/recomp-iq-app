@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Copy, ShieldCheck } from "lucide-react";
+import React, { useEffect, useId, useState } from "react";
+import { Check, Copy, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { AdaptiveSelect } from "@/components/ui/adaptive-select";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { loadSignInOptions } from "@/lib/authMfaFlow";
 import { safeReturnTo } from "@/lib/authReturnTo";
@@ -36,7 +35,7 @@ export function MfaScreen({ children }) {
 
 // An icon, a title and a description, then the step's controls. A title that waits for the app's
 // name is null until it loads, so the right text appears once instead of replacing a placeholder.
-export function MfaHeader({ title, description }) {
+export function MfaHeader({ title, description = null }) {
   return (
     <div className="flex flex-col items-center text-center mb-6">
       <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4">
@@ -68,7 +67,7 @@ export function CodeField({ id, label = "Enter the 6-digit code", value, onChang
 }
 
 // "Didn't receive a code? Resend", counting down while a resend isn't allowed yet.
-export function ResendLine({ cooldown, disabled, onResend, error }) {
+export function ResendLine({ cooldown, disabled = false, onResend, error = null }) {
   return (
     <div className="space-y-1 text-center">
       <p className="text-sm text-muted-foreground">
@@ -111,51 +110,17 @@ export function isPlausiblePhone(fullPhone) {
   return digits.length >= 7 && digits.length <= 15;
 }
 
-const matchesSearch = (code, search) => {
-  const normalized = search.replace(/\+/g, "");
-  return normalized === "" || code.startsWith(normalized);
-};
-
-// A searchable list of dial codes. Typing narrows it, and closing it with one match left picks that one.
+// Reuse the app's keyboard-accessible select and mobile drawer instead of
+// depending on Command/Popover components that this project doesn't contain.
 function DialCodePicker({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const search = useRef("");
-
-  const handleOpenChange = (next) => {
-    if (!next && search.current) {
-      const matches = DIAL_CODES.filter((code) => matchesSearch(code, search.current));
-      if (matches.length === 1) onChange(`+${matches[0]}`);
-      search.current = "";
-    }
-    setOpen(next);
-  };
-
+  const id = useId();
   return (
-    <Popover open={open} onOpenChange={handleOpenChange} modal>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" role="combobox" aria-expanded={open} aria-label="Country code"
-          className="h-10 w-[100px] justify-between px-2.5 font-normal shadow-none">
-          {value}
-          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[140px] p-0" align="start" side="bottom" avoidCollisions={false}>
-        <Command filter={(item, text) => (matchesSearch(item, text) ? 1 : 0)}>
-          <CommandInput placeholder="Search..." className="h-9" onValueChange={(text) => { search.current = text; }} />
-          <CommandList>
-            <CommandEmpty>No match</CommandEmpty>
-            <CommandGroup>
-              {DIAL_CODES.map((code) => (
-                <CommandItem key={code} value={code} onSelect={() => { onChange(`+${code}`); search.current = ""; setOpen(false); }}>
-                  +{code}
-                  <Check className={cn("ml-auto h-3.5 w-3.5", value === `+${code}` ? "opacity-100" : "opacity-0")} aria-hidden="true" />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="w-[100px] shrink-0">
+      <Label htmlFor={id} className="sr-only">Country code</Label>
+      <AdaptiveSelect id={id} value={value} onValueChange={onChange}
+        options={DIAL_CODES.map((code) => ({ value: `+${code}`, label: `+${code}` }))}
+        drawerTitle="Country code" triggerClassName="min-h-11 px-2.5 font-normal shadow-none" />
+    </div>
   );
 }
 
@@ -235,6 +200,7 @@ export function RememberDevice({ checked, onChange }) {
 }
 
 // Seconds left before another text message can be sent.
+/** @returns {[number, import("react").Dispatch<import("react").SetStateAction<number>>]} */
 export function useCooldown() {
   const [left, setLeft] = useState(0);
   useEffect(() => {

@@ -101,7 +101,7 @@ export default function Premium() {
           <p className="text-sm text-muted-foreground">
             {testerAccess
               ? "Your account is authorized to test Premium features as they roll out."
-              : "Premium features are visible during testing and will require verified access at launch."}
+              : "Premium access is verified through your subscription. Core tracking remains free."}
           </p>
           {isLoading && <p className="text-xs text-muted-foreground">Checking access…</p>}
           {isUnavailable && (
@@ -115,7 +115,7 @@ export default function Premium() {
       {!hasAnyAccess && !testerAccess && <PremiumPaywall />}
 
       <div className="space-y-3" aria-label="Premium feature catalog">
-        {FEATURES.map((feature) => {
+        {FEATURES.filter((feature) => feature.key !== PREMIUM_FEATURES.AI_LIFESTYLE_COACH || featureFlags.lifestyleCoach).map((feature) => {
           const { key, icon: Icon, title, actionLabel, description, to, preview } = presentFeature(feature, releaseFlags);
           const available = canAccess(key);
           return (

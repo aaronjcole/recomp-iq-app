@@ -522,7 +522,7 @@ test("the Premium catalog shows server-authorized tester access inside the More 
   ]) {
     await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
   }
-  await expect(page.getByRole("link", { name: "Request Lifestyle coach access", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Request Lifestyle coach access", exact: true })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
   const previewExpectations = [
@@ -530,7 +530,6 @@ test("the Premium catalog shows server-authorized tester access inside the More 
     ["Adaptive training blocks preview", "4–6 weeks", "Final week"],
     ["Weekly Autopilot Review preview", "5 signals", "1 move"],
     ["Visual progress tools preview", "On-device", "Optional"],
-    ["Lifestyle coach preview", "Your logs", "Guarded"],
   ];
   for (const [name, firstValue, secondValue] of previewExpectations) {
     const preview = page.getByRole("group", { name });
