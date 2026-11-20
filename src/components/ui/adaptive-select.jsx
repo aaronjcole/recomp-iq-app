@@ -98,7 +98,10 @@ export function AdaptiveSelect({
             {drawerDescription ?? "Select one of the available options."}
           </DrawerDescription>
         </DrawerHeader>
-        <div className="overflow-y-auto px-4 pb-6">
+        {/* Option touches belong to the list, not the sheet's drag-to-dismiss
+            gesture. In WKWebView that gesture can capture a slightly moving
+            tap before the option receives its click. Keep long lists scrollable. */}
+        <div data-vaul-no-drag="" className="min-h-0 overflow-y-auto overscroll-contain touch-pan-y px-4 pb-6">
           <div className="space-y-1">
             {options.map((option) => {
               const isSelected = option.value === value;
