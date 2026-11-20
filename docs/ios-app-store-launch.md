@@ -39,8 +39,10 @@ the description; accurate app and subscription review notes; approved private re
 manual release instead of automatic release; and US-only app availability. Game Center is off.
 Privacy/deletion URLs now point to the actual Base44-hosted routes. Five existing screenshots
 and both subscription product IDs are present. Subscription review screenshots, a permanent
-reviewer login, age/content-rights/medical-device declarations, and privacy label reconciliation
-remain. The current label omits Purchase History despite server-stored subscription records;
+reviewer login, age/content-rights declarations, and privacy label reconciliation remain.
+With the owner's explicit confirmation, Apple saved the declaration that this app is not a
+regulated medical device in any country or region. The current label omits Purchase History
+despite server-stored subscription records;
 its existing SDK/diagnostic categories also need verification rather than blind removal.
 
 iPhone-only version 1.0.0 **build 7** completed using existing credentials and the included
@@ -57,8 +59,17 @@ delete their private stored files, losing the references needed for provider-ass
 Base44's current [media guidance](https://docs.base44.com/Building-your-app/Using-media#removing-live-app-uploads)
 directs developers to Customer Care for deletion of live-app uploads. Before enabling, establish
 a verified deletion/retention process, align consent and privacy statements (including the
-inference provider), reconcile Apple's disclosures, and test against isolated data. Support
-outreach permission and the owner's medical-device declaration confirmation were requested.
+inference provider), reconcile Apple's disclosures, and test against isolated data.
+
+With the owner's permission, Base44 Support ticket **#6b004c48** was opened from the workspace
+containing RecompOne and visibly marked **Handled by a support specialist**. The request asks
+for supported private-file deletion after analysis/account deletion, storage/backup/inference
+retention periods, and a documented API or Customer Care workflow/SLA. A follow-up asks about
+model-training use, opt-out, and subprocessor controls. Only the app name/ID and generic platform
+questions were sent, with no files, health records, or credentials, and an explicit request not
+to access user records. A substantive human answer is still pending; do not treat the initial
+automated reply as verified retention or training-policy confirmation. No scan release flag was
+changed during this work; verify deployed flag values and keep the features gated until cleared.
 
 ## 0. Unblock the cloud session (you, about 10 minutes)
 
