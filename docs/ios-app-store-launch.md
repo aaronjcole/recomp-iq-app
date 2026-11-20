@@ -2,7 +2,7 @@
 
 The path from the current `main` to RecompOne live on the App Store, split between
 **you** (anything that needs your Apple, Expo or Base44 login, or a real iPhone) and
-**Claude** (anything that a cloud session can run once it has a token and network access).
+**the coding agent** (verification, release preparation, and authorized uploads).
 Work top to bottom. The background is in [apple-premium-launch.md](apple-premium-launch.md),
 [deploy-1-5.md](deploy-1-5.md), [release-checklist.md](release-checklist.md) and
 [expo-ios/README.md](../expo-ios/README.md).
@@ -26,18 +26,44 @@ the native tooling dependency tree still has three advisory entries (@expo/cli/z
 node-forge), which are not native runtime purchase code. Do not force an incompatible Zod
 major upgrade into Expo to suppress its audit report.
 
-The owner accepted the updated Apple Developer Program agreement in the browser; its account
-warning disappeared. App Store version 1.0 is still Prepare for Submission, with no attached
-build, empty support/reviewer fields, and automatic release selected at inspection. Five existing
-screenshots and both subscription product IDs are present. Privacy/compliance, reviewer access,
-subscription review details, native device acceptance, and final submission remain release gates.
+Fixes were pushed to `main` as `54df608`; the owner confirmed publishing them in Base44.
+Both signed-out deployed smoke checks passed again after that publication. Authenticated
+production purchase and photo flows have not been proven by these public smoke checks.
 
-EAS reports build 6 as the latest completed archive, built October 20 from `7e6e81c`; it predates
-the iPhone-only setting on current main. November allowance was 0 of 15 included iOS builds used
-and no overages. A new archive must use remote auto-increment, existing credentials, and the
-existing app/project identifiers. No public submission or release is implied by a build/upload.
+The owner accepted the updated Apple Developer Program agreement; its warning disappeared.
+The separate **Paid Apps Agreement remains unsigned** in App Store Connect Business. The owner
+must review/sign it and complete any tax/banking requirements; the agent must not accept it.
+
+Saved App Store draft changes: support URL; subscription disclosure and Terms/Privacy links in
+the description; accurate app and subscription review notes; approved private review contact;
+manual release instead of automatic release; and US-only app availability. Game Center is off.
+Privacy/deletion URLs now point to the actual Base44-hosted routes. Five existing screenshots
+and both subscription product IDs are present. Subscription review screenshots, a permanent
+reviewer login, age/content-rights/medical-device declarations, and privacy label reconciliation
+remain. The current label omits Purchase History despite server-stored subscription records;
+its existing SDK/diagnostic categories also need verification rather than blind removal.
+
+iPhone-only version 1.0.0 **build 7** completed using existing credentials and the included
+November allowance (0/15 used before this build):
+
+- EAS build: `5e80ba49-40ad-446b-aeb6-a43040b3d98b`, source `54df608`.
+- Private upload: `02868961-5916-496f-aac1-203ce54e3efd`, finished November 20.
+- App Store Connect visibly lists build 7 as **Processing**; no build is attached to the draft
+  version, no tester group was added, and no public App Review submission/release was performed.
+
+The owner requests **both AI photo scans for launch**, not their removal. They have not been
+enabled by this review. Account deletion currently removes AnalysisUpload records but cannot
+delete their private stored files, losing the references needed for provider-assisted deletion.
+Base44's current [media guidance](https://docs.base44.com/Building-your-app/Using-media#removing-live-app-uploads)
+directs developers to Customer Care for deletion of live-app uploads. Before enabling, establish
+a verified deletion/retention process, align consent and privacy statements (including the
+inference provider), reconcile Apple's disclosures, and test against isolated data. Support
+outreach permission and the owner's medical-device declaration confirmation were requested.
 
 ## 0. Unblock the cloud session (you, about 10 minutes)
+
+This historical section applies only to a restricted cloud runner. The current desktop session
+already has authorized Apple browser and Expo access; do not create new tokens or keys for it.
 
 A cloud session can't sign in to Apple or Expo through a browser. Its network policy also
 blocks Expo, App Store Connect and the live app.
@@ -53,7 +79,7 @@ blocks Expo, App Store Connect and the live app.
       Purchase key, which can't upload builds.
 - [ ] Start a **new** session. Environment changes don't reach a running one.
 
-## 1. Decisions only you can make (tell Claude before the build)
+## 1. Decisions only you can make (tell the agent before the build)
 
 - [ ] **Is any version of app `6803546092` already on the App Store** (for example from Base44's
       own wrapper)? If yes, `version` in `expo-ios/app.json` (currently `1.0.0`) must go above it.
@@ -105,13 +131,14 @@ blocks Expo, App Store Connect and the live app.
 - [ ] Republish `verifyApplePurchase` after changing secrets. Functions read secrets only when they start.
 - [ ] Name a primary and a backup owner for the `AiContentReport` moderation queue.
 
-## 4. Build and TestFlight (Claude, after step 0; each step waits for your OK)
+## 4. Build and TestFlight (agent, with the owner's authorization)
 
 - [ ] Run `eas whoami` and `project:info`, and check that the distribution certificate and
       provisioning profile are valid.
 - [ ] Run `eas account:usage promptlabllc` and confirm the build allowance or cost with you.
 - [ ] Run `eas build --platform ios --profile production --freeze-credentials --non-interactive`.
-- [ ] With your go-ahead, run `eas submit --platform ios --latest` to upload to TestFlight.
+- [ ] With your go-ahead, run `eas submit --platform ios --id <verified-build-id>` to upload
+      that exact archive privately. Do not rely on `--latest` or auto-submit for App Review.
 - [ ] Run `npm run test:e2e:deployed` and `npm run verify:android:live` against production.
 
 ## 5. Test on a real iPhone with the TestFlight build (you)
@@ -134,7 +161,7 @@ blocks Expo, App Store Connect and the live app.
 - [ ] If you have an iPad, open the app there once. It runs in iPhone compatibility mode, which
       App Review may use, so sign-in and the paywall should still work.
 
-## 6. Submit (you click it, or Claude runs it through EAS with your OK)
+## 6. Submit (you click it, or the agent uses App Store Connect with your OK)
 
 - [ ] On the version page, attach the tested build and both subscriptions. The first
       subscriptions must go out with an app version.
