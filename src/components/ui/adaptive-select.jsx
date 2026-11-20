@@ -1,15 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 
 /**
- * Uses a native-feeling bottom drawer on narrow screens and the existing
+ * Uses a non-draggable bottom dialog on narrow screens and the existing
  * Radix menu on larger viewports.
  *
  * @param {{
@@ -47,6 +47,8 @@ export function AdaptiveSelect({
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const contentRef = useRef(null);
   const selected = useMemo(() => options.find((option) => option.value === value), [options, value]);
 
   if (!isMobile) {
@@ -72,9 +74,10 @@ export function AdaptiveSelect({
   };
 
   return (
-    <Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
-      <DrawerTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <button
+          ref={triggerRef}
           id={id}
           type="button"
           disabled={disabled}
@@ -90,18 +93,28 @@ export function AdaptiveSelect({
           <span className="line-clamp-1">{selected?.label ?? placeholder}</span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
         </button>
-      </DrawerTrigger>
-      <DrawerContent className="max-h-[80svh] pb-[env(safe-area-inset-bottom)]">
-        <DrawerHeader className="text-left">
-          <DrawerTitle>{drawerTitle}</DrawerTitle>
-          <DrawerDescription className={drawerDescription ? undefined : "sr-only"}>
+      </DialogTrigger>
+      <DialogContent
+        ref={contentRef}
+        className="inset-x-0 bottom-0 top-auto flex max-h-[80svh] max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-t-lg p-0 pb-[env(safe-area-inset-bottom)]"
+        style={{ animation: "none" }}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          contentRef.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus({ preventScroll: true });
+        }}
+      >
+        <DialogHeader className="shrink-0 p-4 pr-14 text-left">
+          <DialogTitle>{drawerTitle}</DialogTitle>
+          <DialogDescription className={drawerDescription ? undefined : "sr-only"}>
             {drawerDescription ?? "Select one of the available options."}
-          </DrawerDescription>
-        </DrawerHeader>
-        {/* Option touches belong to the list, not the sheet's drag-to-dismiss
-            gesture. In WKWebView that gesture can capture a slightly moving
-            tap before the option receives its click. Keep long lists scrollable. */}
-        <div data-vaul-no-drag="" className="min-h-0 overflow-y-auto overscroll-contain touch-pan-y px-4 pb-6">
+          </DialogDescription>
+        </DialogHeader>
+        {/* No draggable-sheet pointer capture or moving option hit targets. */}
+        <div data-selector-options="" className="min-h-0 overflow-y-auto overscroll-contain touch-pan-y px-4 pb-6">
           <div className="space-y-1">
             {options.map((option) => {
               const isSelected = option.value === value;
@@ -124,7 +137,7 @@ export function AdaptiveSelect({
             })}
           </div>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -16,7 +16,8 @@ test("height selectors accept repeated touch changes without changing the other 
   for (const value of [7, 4, 6, 5]) {
     await feet.tap();
     const dialog = page.getByRole("dialog", { name: "Height in feet", exact: true });
-    await expect(dialog.locator("[data-vaul-no-drag]")).toBeVisible();
+    await expect(dialog).not.toHaveAttribute("data-vaul-drawer");
+    await expect(dialog).toHaveCSS("animation-name", "none");
     await dialog.getByRole("button", { name: `${value} ft`, exact: true }).tap();
     await expect(dialog).toHaveCount(0);
     await expect(feet).toContainText(`${value} ft`);
@@ -25,7 +26,7 @@ test("height selectors accept repeated touch changes without changing the other 
   for (const value of [11, 0, 8, 2]) {
     await inches.tap();
     const dialog = page.getByRole("dialog", { name: "Additional inches", exact: true });
-    await expect(dialog.locator("[data-vaul-no-drag]")).toHaveCSS("overscroll-behavior-y", "contain");
+    await expect(dialog.locator("[data-selector-options]")).toHaveCSS("overscroll-behavior-y", "contain");
     const option = dialog.getByRole("button", { name: `${value} in`, exact: true });
     await option.scrollIntoViewIfNeeded();
     await option.tap();
@@ -33,4 +34,8 @@ test("height selectors accept repeated touch changes without changing the other 
     await expect(inches).toContainText(`${value} in`);
     await expect(feet).toContainText("5 ft");
   }
+  await feet.tap();
+  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).tap();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(feet).toContainText("5 ft");
 });
