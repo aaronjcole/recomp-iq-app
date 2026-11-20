@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ActivityIndicator, Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   endConnection,
@@ -31,6 +31,7 @@ import {
   type PurchaseResult
 } from "./bridgeProtocol";
 import { buildInjectedBridgeScript, IAP_RESPONSE_EVENT } from "./injectedBridge";
+import { createStoreProductLoader } from "./storeProductLoader";
 import { buildInjectedSpeechBridgeScript } from "./injectedSpeechBridge";
 import { SpeechCaptureController } from "./speechCapture";
 import { confirmSpeechConsent, nativeSpeechRecognizer } from "./nativeSpeech";
@@ -52,8 +53,6 @@ type PendingPurchase = {
 // or error event before treating the purchase as deferred (Ask to Buy, a
 // pending payment) and releasing it, so later purchases are not blocked.
 const PURCHASE_EVENT_GRACE_MS = 30_000;
-// Minimum gap between App Store connection retries.
-const STORE_RETRY_INTERVAL_MS = 10_000;
 
 const MAX_PENDING_TRANSACTIONS = 20;
 
@@ -78,11 +77,8 @@ export function RecompOneWebView() {
   const currentUrlRef = useRef(APP_ORIGIN);
   const pendingPurchaseRef = useRef<PendingPurchase | null>(null);
   const transactionsRef = useRef(new Map<string, Purchase>());
-  const [storeReady, setStoreReady] = useState(false);
   const productsRef = useRef<ProductInfo[]>([]);
   const connectStoreRef = useRef<(() => Promise<void>) | null>(null);
-  const connectingRef = useRef(false);
-  const lastConnectAttemptRef = useRef(0);
   const purchaseGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const injectedJavaScriptBeforeContentLoaded = useMemo(
     () => buildInjectedBridgeScript() + buildInjectedSpeechBridgeScript(), []
@@ -115,6 +111,7 @@ export function RecompOneWebView() {
   }, [sendSpeechResponse]);
 
   const sendResponse = useCallback((response: BridgeResponse) => {
+    if (!isTrustedAppUrl(currentUrlRef.current)) return;
     const json = JSON.stringify(response).replace(/</g, "\\u003c");
     webViewRef.current?.injectJavaScript(`
       window.dispatchEvent(new CustomEvent(${JSON.stringify(IAP_RESPONSE_EVENT)}, {
@@ -177,38 +174,49 @@ export function RecompOneWebView() {
       });
     });
 
+    const loader = createStoreProductLoader(async () => {
+      await initConnection();
+      return (await fetchProducts({ skus: [...APPLE_PRODUCT_IDS], type: "subs" })) ?? [];
+    });
+    let eligibilityStarted = false;
     connectStoreRef.current = async () => {
-      if (connectingRef.current) return;
-      connectingRef.current = true;
-      lastConnectAttemptRef.current = Date.now();
-      try {
-        await initConnection();
-        const products = (await fetchProducts({ skus: [...APPLE_PRODUCT_IDS], type: "subs" })) ?? [];
-        // Trial eligibility is per Apple ID and subscription group; a failed
-        // check reports no trial rather than promising one.
-        const eligibility = new Map<string, boolean | null>();
-        for (const product of products) {
-          const groupId = (product as { subscriptionGroupIdIOS?: string | null }).subscriptionGroupIdIOS;
-          if (!groupId || eligibility.has(groupId)) continue;
-          eligibility.set(groupId, await isEligibleForIntroOfferIOS(groupId).catch(() => null));
-        }
-        productsRef.current = products
-          .map((product) => toProductInfo(
+      const products = await loader.load();
+      if (!mounted) throw new Error("Store closed");
+      // Prices are usable immediately. Unknown eligibility never promises a trial.
+      if (!eligibilityStarted) {
+        productsRef.current = products.map((product) => toProductInfo(product, null))
+          .filter((product): product is ProductInfo => product !== null);
+        eligibilityStarted = true;
+        void (async () => {
+          // A failed eligibility check must not promise a trial or block prices.
+          const eligibility = new Map<string, boolean | null>();
+          for (const product of products) {
+            const groupId = (product as { subscriptionGroupIdIOS?: string | null }).subscriptionGroupIdIOS;
+            if (!groupId || eligibility.has(groupId)) continue;
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const eligible = await Promise.race([
+              isEligibleForIntroOfferIOS(groupId).catch(() => null),
+              new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 5000); })
+            ]).finally(() => clearTimeout(timer));
+            eligibility.set(groupId, eligible);
+          }
+          if (!mounted) return;
+          productsRef.current = products.map((product) => toProductInfo(
             product,
             eligibility.get((product as { subscriptionGroupIdIOS?: string | null }).subscriptionGroupIdIOS ?? "") ?? null
-          ))
-          .filter((product): product is ProductInfo => product !== null);
-        if (mounted) setStoreReady(true);
-      } catch {
-        if (mounted) setStoreReady(false);
-      } finally {
-        connectingRef.current = false;
+          )).filter((product): product is ProductInfo => product !== null);
+          if (isTrustedAppUrl(currentUrlRef.current)) {
+            webViewRef.current?.injectJavaScript('window.dispatchEvent(new Event("recompone:iap-products-updated")); true;');
+          }
+        })().catch(() => {});
       }
     };
-    void connectStoreRef.current();
+    void connectStoreRef.current().catch(() => {});
 
     return () => {
       mounted = false;
+      loader.dispose();
+      connectStoreRef.current = null;
       clearTimeout(purchaseGraceTimerRef.current ?? undefined);
       purchaseUpdate.remove();
       purchaseError.remove();
@@ -246,16 +254,10 @@ export function RecompOneWebView() {
       error
     });
 
-    if (!storeReady) {
-      // A failed first connection is never retried otherwise.
-      if (Date.now() - lastConnectAttemptRef.current > STORE_RETRY_INTERVAL_MS) {
-        void connectStoreRef.current?.();
-      }
-      fail("The App Store is still connecting. Try again in a moment.");
-      return;
-    }
-
     try {
+      const connect = connectStoreRef.current;
+      if (!connect) throw new Error("Store closed");
+      await connect();
       if (request.action === "getProducts") {
         sendResponse({
           source: BRIDGE_SOURCE,
@@ -330,7 +332,7 @@ export function RecompOneWebView() {
       if (request.action === "requestPurchase") pendingPurchaseRef.current = null;
       fail(safeBridgeError(error));
     }
-  }, [rememberPurchase, sendResponse, storeReady]);
+  }, [rememberPurchase, sendResponse]);
 
   // Navigation is restricted to the app origin (APP_ORIGIN) and the
   // documented Base44 auth hosts (base44.app, app.base44.com). Any other

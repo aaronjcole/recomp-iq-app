@@ -202,7 +202,10 @@ test("mobile release flows prioritize primary actions and usable touch targets",
     "utf8"
   );
   assert.match(adaptiveSelectSource, /useIsMobile/);
-  assert.match(adaptiveSelectSource, /<Drawer open=/);
+  // Mobile selectors intentionally use stationary dialogs, not draggable sheets.
+  assert.match(adaptiveSelectSource, /<Dialog open=/);
+  assert.doesNotMatch(adaptiveSelectSource, /<Drawer/);
+  assert.match(adaptiveSelectSource, /data-selector-options/);
   assert.match(adaptiveSelectSource, /min-h-12/);
   for (const path of [
     "src/components/onboarding/Fields.jsx",

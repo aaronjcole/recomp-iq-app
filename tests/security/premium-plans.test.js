@@ -83,8 +83,10 @@ test("loading, missing products, web and older iOS builds", () => {
     assert.doesNotMatch(plan.description, /App Store|Apple|trial/i, plan.productId);
   }
   const legacy = premiumPlans({ storeKit: true, legacyBridge: true });
-  assert.ok(legacy.every((plan) => plan.purchasable), "an older iOS build can still subscribe");
+  assert.ok(legacy.every((plan) => !plan.purchasable), "missing StoreKit prices must never enable checkout");
   assert.ok(legacy.every((plan) => plan.badge === null), "but no trial is promised without StoreKit's answer");
+  const invalid = premiumPlans({ storeKit: true, products: [{ productId: APPLE_PRODUCT_MONTHLY, displayPrice: "" }] });
+  assert.ok(invalid.every((plan) => !plan.purchasable));
 });
 
 test("malformed bridge messages from the app can still be answered by id", async () => {

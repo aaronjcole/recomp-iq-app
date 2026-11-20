@@ -36,7 +36,7 @@ function trialLabel({ unit, count }) {
  * @param {{ storeKit: boolean, products?: Array<{ productId: string, displayPrice: string, period: object|null, freeTrial: object|null }> | null, legacyBridge?: boolean, purchasePath?: "storekit" | "ios-app" | "unavailable" }} input
  *   storeKit: the native bridge is present. products: getProducts' result, or
  *   null while it is loading. legacyBridge: an older iOS build whose bridge
- *   has no getProducts; its plans stay purchasable at the reference prices.
+ *   has no getProducts; purchases stay disabled until it is updated.
  *   purchasePath: paywallPurchasePath's answer. Where it is "unavailable" no
  *   store sells the plan here, so the copy names no store and promises no
  *   trial (inside the Android wrapper that would point to Apple's billing).
@@ -46,11 +46,11 @@ export function premiumPlans({ storeKit, products = null, legacyBridge = false, 
     if (storeKit && legacyBridge) {
       return {
         ...reference,
-        priceLabel: reference.price,
-        periodLabel: periodLabel(reference.period),
-        description: "Renews automatically; cancel anytime. The App Store confirms your local price before you pay.",
+        priceLabel: "—",
+        periodLabel: "",
+        description: "Update the app to load App Store prices.",
         badge: null,
-        purchasable: true
+        purchasable: false
       };
     }
     if (!storeKit && purchasePath === "unavailable") {
@@ -79,7 +79,7 @@ export function premiumPlans({ storeKit, products = null, legacyBridge = false, 
       return { ...reference, priceLabel: "…", periodLabel: "", description: "Loading the App Store price…", badge: null, purchasable: false };
     }
     const product = products.find((item) => item?.productId === reference.productId);
-    if (!product) {
+    if (!product || typeof product.displayPrice !== "string" || !product.displayPrice.trim()) {
       return { ...reference, priceLabel: "—", periodLabel: "", description: "This plan is unavailable in your App Store right now.", badge: null, purchasable: false };
     }
     const period = product.period ?? reference.period;

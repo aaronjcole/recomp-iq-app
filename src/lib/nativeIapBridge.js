@@ -23,8 +23,8 @@
 
 /**
  * getProducts is optional: iOS builds of the shell from before it existed do
- * not have it. The paywall then keeps the reference prices and stays
- * purchasable, as before; Apple's purchase sheet shows the real price.
+ * not have it. Restore remains available, but the paywall requires an app
+ * update before enabling purchases without a verified storefront price.
  *
  * @typedef {{
  *   requestPurchase: (productId: string, appAccountToken: string) => Promise<NativePurchase>,

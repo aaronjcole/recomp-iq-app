@@ -64,7 +64,8 @@ export default function PremiumPaywall() {
   const { refresh, isUnavailable } = usePremiumAccess();
   const { toast } = useToast();
   const [isBusy, setIsBusy] = useState(false);
-  const bridgeAvailable = hasNativeIapBridge();
+  const [bridgeAvailable, setBridgeAvailable] = useState(hasNativeIapBridge);
+  const [priceAttempt, setPriceAttempt] = useState(0);
   // Only claim the iOS app where it exists and where saying so is allowed.
   const purchasePath = paywallPurchasePath({
     bridgeAvailable,
@@ -74,39 +75,67 @@ export default function PremiumPaywall() {
   // Localized prices and trial eligibility come from StoreKit; null = loading.
   const [products, setProducts] = useState(null);
   const [pricesUnavailable, setPricesUnavailable] = useState(false);
-  // An iOS build without getProducts, or StoreKit not answering, keeps the
-  // reference prices purchasable as before; Apple's sheet shows the real price.
-  const legacyBridge = bridgeAvailable
-    && (pricesUnavailable || typeof getNativeIapBridge()?.getProducts !== "function");
+
+  useEffect(() => {
+    const ready = () => setBridgeAvailable(hasNativeIapBridge());
+    window.addEventListener("recompone:iap-ready", ready);
+    ready();
+    return () => window.removeEventListener("recompone:iap-ready", ready);
+  }, []);
 
   useEffect(() => {
     const bridge = getNativeIapBridge();
-    if (!bridge || typeof bridge.getProducts !== "function") return undefined;
+    if (!bridgeAvailable || !bridge) return undefined;
+    setProducts(null);
+    setPricesUnavailable(false);
+    if (typeof bridge.getProducts !== "function") {
+      setProducts([]);
+      setPricesUnavailable(true);
+      return undefined;
+    }
     let active = true;
     let timer = null;
-    // The App Store connection can still be starting when the paywall opens.
-    const attempt = (remaining) => {
-      bridge.getProducts()
+    // One overall deadline, not four consecutive 30-second bridge timeouts.
+    const deadline = setTimeout(() => {
+      active = false;
+      clearTimeout(timer);
+      setProducts([]);
+      setPricesUnavailable(true);
+    }, 12000);
+    const attempt = () => {
+      Promise.resolve().then(() => bridge.getProducts())
         .then((result) => {
-          if (active) setProducts(Array.isArray(result?.products) ? result.products : []);
+          if (!active) return;
+          const available = Array.isArray(result?.products) ? result.products : [];
+          if (!available.length) throw new Error("No products yet");
+          clearTimeout(deadline);
+          setProducts(available);
         })
         .catch(() => {
           if (!active) return;
-          if (remaining > 0) timer = setTimeout(() => attempt(remaining - 1), 1500);
-          else setPricesUnavailable(true);
+          timer = setTimeout(attempt, 1000);
         });
     };
-    attempt(3);
+    const update = () => {
+      if (!active) return;
+      Promise.resolve().then(() => bridge.getProducts()).then((result) => {
+        if (active && Array.isArray(result?.products) && result.products.length) setProducts(result.products);
+      }).catch(() => {});
+    };
+    window.addEventListener("recompone:iap-products-updated", update);
+    attempt();
     return () => {
       active = false;
       clearTimeout(timer);
+      clearTimeout(deadline);
+      window.removeEventListener("recompone:iap-products-updated", update);
     };
-  }, []);
+  }, [bridgeAvailable, priceAttempt]);
 
-  const plans = premiumPlans({ storeKit: bridgeAvailable, products, legacyBridge, purchasePath });
+  const plans = premiumPlans({ storeKit: bridgeAvailable, products, purchasePath });
 
   async function handlePlanSelect(productId) {
-    if (!bridgeAvailable || isBusy) return;
+    if (!bridgeAvailable || isBusy || !plans.some((plan) => plan.productId === productId && plan.purchasable)) return;
     setIsBusy(true);
     try {
       const bridge = getNativeIapBridge();
@@ -197,6 +226,12 @@ export default function PremiumPaywall() {
         </CardContent>
       </Card>
 
+      {pricesUnavailable && (
+        <div className="space-y-2" role="status">
+          <p className="text-sm text-muted-foreground">Couldn’t load App Store prices. Check your connection and retry. If this continues, update the app.</p>
+          <Button variant="outline" onClick={() => setPriceAttempt((value) => value + 1)}>Retry prices</Button>
+        </div>
+      )}
       <div className="space-y-3" aria-label="Premium plans">
         {plans.map((plan) => (
           <Card
@@ -261,9 +296,6 @@ export default function PremiumPaywall() {
         </p>
       ) : (
         <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
-          {legacyBridge && (
-            <p>Prices shown are reference prices in USD. The App Store confirms your local price before you pay.</p>
-          )}
           <p>
             RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
             to your Apple ID at confirmation of purchase. The subscription renews automatically at

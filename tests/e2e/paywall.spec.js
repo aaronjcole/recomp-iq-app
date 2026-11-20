@@ -61,17 +61,21 @@ test("in the iOS app the paywall shows StoreKit's local price and the user's rea
   assertNoPageErrors();
 });
 
-test("an older iOS build without getProducts can still subscribe", async ({ page }) => {
+test("an older iOS build without getProducts cannot buy reference prices", async ({ page }) => {
   await installNativeBridge(page);
   await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
   await page.goto("/more/premium");
-  await expect(page.getByRole("button", { name: "Subscribe Monthly" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Subscribe Monthly" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Retry prices" })).toBeVisible();
   await expect(page.getByLabel("Premium plans")).not.toContainText("free trial");
 });
 
 test("compact plan cards keep pricing separate from shared renewal copy on narrow screens", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
-  await installNativeBridge(page);
+  await installNativeBridge(page, { products: [
+    { productId: "recompone_premium_monthly", displayPrice: "$4.99", period: { unit: "month", count: 1 }, freeTrial: null },
+    { productId: "recompone_premium_annual", displayPrice: "$39.99", period: { unit: "year", count: 1 }, freeTrial: null }
+  ] });
   await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
   await page.goto("/more/premium");
   const plans = page.getByLabel("Premium plans");
@@ -86,10 +90,48 @@ test("compact plan cards keep pricing separate from shared renewal copy on narro
     const priceBox = await card.getByText(price, { exact: true }).boundingBox();
     expect(titleBox.x + titleBox.width <= priceBox.x || titleBox.y + titleBox.height <= priceBox.y).toBe(true);
   }
-  await expect(page.getByLabel("Subscription terms")).toContainText("reference prices in USD");
+  await expect(page.getByLabel("Subscription terms")).not.toContainText("reference prices in USD");
   await expect(page.getByRole("button", { name: "Restore Purchases", exact: true })).toBeVisible();
   await page.getByLabel("Monthly plan", { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: "/tmp/recompone-compact-pricing.png" });
+});
+
+test("a dropped price request times out once, ignores late results and recovers with Retry", async ({ page }) => {
+  await installNativeBridge(page);
+  await page.addInitScript(() => {
+    window.wixMobileNativeBridge.getProducts = () => new Promise((resolve) => { window.resolveOldPrices = resolve; });
+  });
+  await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
+  await page.clock.install();
+  await page.goto("/more/premium");
+  await expect(page.getByText("Loading the App Store price…")).toHaveCount(2);
+  await page.clock.fastForward(12001);
+  await expect(page.getByRole("button", { name: "Retry prices" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Subscribe Monthly" })).toBeDisabled();
+  await page.evaluate(() => {
+    window.resolveOldPrices({ products: [{ productId: "recompone_premium_monthly", displayPrice: "STALE" }] });
+    window.wixMobileNativeBridge.getProducts = () => Promise.resolve({ products: [
+      { productId: "recompone_premium_monthly", displayPrice: "$4.99", period: { unit: "month", count: 1 }, freeTrial: null }
+    ] });
+  });
+  await expect(page.getByText("STALE", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry prices" }).click();
+  await expect(page.getByRole("button", { name: "Subscribe Monthly" })).toBeEnabled();
+  await expect(page.getByText("$4.99", { exact: true })).toBeVisible();
+});
+
+test("a bridge injected after mounting still loads prices", async ({ page }) => {
+  await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
+  await page.goto("/more/premium");
+  await expect(page.getByRole("heading", { name: "RecompOne Premium" })).toBeVisible();
+  await page.evaluate(() => {
+    window.wixMobileNativeBridge = {
+      requestPurchase: async () => {}, restorePurchases: async () => {}, finishTransaction: async () => {},
+      getProducts: async () => ({ products: [{ productId: "recompone_premium_annual", displayPrice: "$39.99", period: { unit: "year", count: 1 }, freeTrial: null }] })
+    };
+    window.dispatchEvent(new Event("recompone:iap-ready"));
+  });
+  await expect(page.getByRole("button", { name: "Subscribe Annual" })).toBeEnabled();
 });
 
 // The local e2e build sets no VITE_APP_STORE_URL, i.e. no published iOS app.

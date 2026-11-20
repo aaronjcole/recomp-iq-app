@@ -12,6 +12,21 @@ Fixed identifiers: bundle ID `com.base6a68bb922bf88da5ec767da3.app`, App Store C
 
 ## November 20, 2026 readiness review
 
+### Premium price-loading follow-up
+
+Removed the native paywall's purchasable USD fallback. StoreKit prices now load
+with a 12-second overall web deadline, explicit Retry, late-bridge detection and
+stale-response protection. Native startup/paywall lookups coalesce with a
+9-second deadline; failures and empty results can retry. Trial eligibility runs
+separately and cannot block prices; unknown eligibility never advertises a trial.
+The native changes require a replacement TestFlight binary. A real-device price,
+purchase, verification and Restore test is still required; automated mocks do not
+prove Apple's product configuration or the phone's connection works.
+
+The broad security run also found a stale assertion expecting a draggable mobile
+selector. Updated it to protect the stationary dialog fix already confirmed by
+the owner; no selector behavior was changed in this follow-up.
+
 Reviewed current `main` at `a017ead`, not the October checkout. Fixed the generated MFA
 components' missing UI imports and JavaScript typing errors using the existing adaptive select;
 this does not enable or change the deployed MFA policy. Removed the disabled Lifestyle Coach
