@@ -201,19 +201,22 @@ export default function PremiumPaywall() {
         {plans.map((plan) => (
           <Card
             key={plan.productId}
+            aria-label={`${plan.label} plan`}
             className={`border-line bg-panel ${plan.highlighted ? "ring-2 ring-teal" : ""}`}
           >
             <CardContent className="space-y-3 p-5">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <div className="min-w-0">
                   <p className="font-semibold">{plan.label}</p>
-                  <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold">{plan.priceLabel}</p>
+                <div className="min-w-0 max-w-full text-right">
+                  <p className="break-words text-lg font-semibold">{plan.priceLabel}</p>
                   <p className="text-xs text-muted-foreground">{plan.periodLabel}</p>
                 </div>
               </div>
+              {!plan.purchasable && (
+                <p className="text-sm text-muted-foreground" role="status">{plan.description}</p>
+              )}
               {plan.badge && (
                 <span className="inline-flex items-center rounded-full bg-teal/15 px-2.5 py-1 text-xs font-medium text-teal">
                   {plan.badge}
@@ -258,6 +261,9 @@ export default function PremiumPaywall() {
         </p>
       ) : (
         <div className="space-y-2 text-xs text-muted-foreground" aria-label="Subscription terms">
+          {legacyBridge && (
+            <p>Prices shown are reference prices in USD. The App Store confirms your local price before you pay.</p>
+          )}
           <p>
             RecompOne Premium is an auto-renewing subscription, monthly or annual. Payment is charged
             to your Apple ID at confirmation of purchase. The subscription renews automatically at

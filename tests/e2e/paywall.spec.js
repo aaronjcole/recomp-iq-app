@@ -69,6 +69,29 @@ test("an older iOS build without getProducts can still subscribe", async ({ page
   await expect(page.getByLabel("Premium plans")).not.toContainText("free trial");
 });
 
+test("compact plan cards keep pricing separate from shared renewal copy on narrow screens", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await installNativeBridge(page);
+  await installAuthenticatedBase44(page, { premiumAccess: NO_ACCESS });
+  await page.goto("/more/premium");
+  const plans = page.getByLabel("Premium plans");
+  await expect(plans).not.toContainText("Renews automatically");
+  await expect(plans).not.toContainText("before you pay");
+  for (const [name, price, period] of [["Monthly", "$4.99", "/month"], ["Annual", "$39.99", "/year"]]) {
+    const card = page.getByLabel(`${name} plan`, { exact: true });
+    await expect(card.getByText(price, { exact: true })).toBeVisible();
+    await expect(card.getByText(period, { exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: `Subscribe ${name}` })).toBeEnabled();
+    const titleBox = await card.getByText(name, { exact: true }).boundingBox();
+    const priceBox = await card.getByText(price, { exact: true }).boundingBox();
+    expect(titleBox.x + titleBox.width <= priceBox.x || titleBox.y + titleBox.height <= priceBox.y).toBe(true);
+  }
+  await expect(page.getByLabel("Subscription terms")).toContainText("reference prices in USD");
+  await expect(page.getByRole("button", { name: "Restore Purchases", exact: true })).toBeVisible();
+  await page.getByLabel("Monthly plan", { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "/tmp/recompone-compact-pricing.png" });
+});
+
 // The local e2e build sets no VITE_APP_STORE_URL, i.e. no published iOS app.
 for (const { name, setup } of [
   { name: "a web browser", setup: async () => {} },
