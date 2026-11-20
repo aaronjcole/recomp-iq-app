@@ -27,6 +27,19 @@ The broad security run also found a stale assertion expecting a draggable mobile
 selector. Updated it to protect the stationary dialog fix already confirmed by
 the owner; no selector behavior was changed in this follow-up.
 
+Release verification for this follow-up:
+
+- Code pushed to `main`: `fe4a76f`; owner published Base44. The live
+  `/assets/Premium-BHvL8dOa.js` bundle contains Retry prices and the 12-second bound.
+- All 509 security, 345 fitness, 15 contract, 22 native and 8 paywall browser
+  tests pass, along with lint, root/native TypeScript and the configured production build.
+- EAS iOS build **8**: `15635fe1-8030-4cb2-8e9c-5aa07b2915bd`, source `fe4a76f`,
+  finished November 20 using included credits (1/15 iOS builds used beforehand).
+- Private upload: `c1d1bb54-cd47-4434-ad1c-a8c2afb1c311`, finished at
+  `2026-11-20T18:39:23Z`. App Store Connect reports build 8 `VALID` and
+  `IN_BETA_TESTING`; requested existing internal group **Beta**. No public review
+  submission or release was performed. Owner should install build 8 for device QA.
+
 Reviewed current `main` at `a017ead`, not the October checkout. Fixed the generated MFA
 components' missing UI imports and JavaScript typing errors using the existing adaptive select;
 this does not enable or change the deployed MFA policy. Removed the disabled Lifestyle Coach
